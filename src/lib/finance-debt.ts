@@ -1,0 +1,395 @@
+import type { Order } from "./mock-data";
+import type { OrderX } from "./store";
+import { isPendingHandover } from "./pending-handover";
+
+export const UNKNOWN_DEBT_OWNER = "__unknown__";
+export const UNKNOWN_DEBT_OWNER_LABEL = "Chưa xác định";
+
+type SenderCollectOrder = Pick<
+  Order,
+  | "fare"
+  | "paidAmount"
+  | "onCredit"
+  | "collectForm"
+  | "status"
+  | "stage"
+  | "pickedUpAt"
+  | "homePickup"
+  | "qrDropOff"
+  | "tripCode"
+  | "createdBy"
+  | "transferPaidAt"
+  | "onePayAwaitingTransfer"
+> & {
+  warehouseInAt?: string | null;
+};
+
+/**
+ * Đơn người gửi trả đã vào kho gửi / pipeline: nghiệp vụ mặc định đã thu cước người gửi
+ * (nhập kho gửi = đã thu khách), kể cả đang chờ tiền về OnePay (paidAmount có thể còn 0).
+ */
+export function senderFareTreatedCollected(o: SenderCollectOrder): boolean {
+  if (o.onCredit || o.collectForm !== "GUI_TRA") return false;
+  const fare = Math.max(0, o.fare ?? 0);
+  const paid = Math.max(0, o.paidAmount ?? 0);
+  if (fare > 0 && paid >= fare) return true;
+  if (o.transferPaidAt) return true;
+  if (o.stage === "WH_IN" || o.pickedUpAt || o.warehouseInAt) return true;
+  if (
+    ["IN_TRANSIT", "WAITING", "AT_DEST", "OUT_FOR_DELIVERY", "FAILED_DELIVERY", "DELIVERED"].includes(
+      o.status,
+    )
+  ) {
+    return true;
+  }
+  // Quầy / đã rời Chờ bàn giao → tab nhập kho gửi
+  if (o.status === "CONFIRMED" && !isPendingHandover(o)) return true;
+  return false;
+}
+
+/** Cước còn thiếu thực tế (fare − paid). Không «bơm» đã thu khi GUI_TRA đã nhập kho. */
+export function fareBalanceDue(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit">,
+  apiDue?: number,
+): number {
+  if (apiDue != null && Number.isFinite(apiDue)) return Math.max(0, apiDue);
+  if (o.onCredit) return 0;
+  return Math.max(0, (o.fare ?? 0) - (o.paidAmount ?? 0));
+}
+
+export function orderDueAmount(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit"> & Partial<SenderCollectOrder>,
+  apiDue?: number,
+): number {
+  if (apiDue != null && Number.isFinite(apiDue)) return Math.max(0, apiDue);
+  if (o.onCredit) return 0;
+  // Nhập kho gửi trở đi: không hiện «còn phải thu» cước người gửi trên phiếu thu VP gửi
+  // (kể cả chờ CK OnePay). Phí tồn kho người nhận dùng {@link receiverDueAmount}.
+  if (o.collectForm === "GUI_TRA" && senderFareTreatedCollected(o as SenderCollectOrder)) {
+    return 0;
+  }
+  return fareBalanceDue(o);
+}
+
+/** Còn thu khách khi xem đơn: phần người nhận (tồn kho / NHAN_TRA) — không ẩn phí tồn như orderDueAmount. */
+export function customerCollectDue(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit" | "collectForm" | "storageFee"> &
+    Partial<SenderCollectOrder>,
+): number {
+  if (o.collectForm === "GUI_TRA" && senderFareTreatedCollected(o as SenderCollectOrder)) {
+    return receiverDueAmount(o);
+  }
+  return orderDueAmount(o);
+}
+
+/**
+ * Cước thu người nhận lúc giao. Đơn người gửi trả: chỉ phí tồn kho còn nợ (phát sinh ở kho giao),
+ * phần cước còn lại do VP gửi lập phiếu thu.
+ * Dùng fare−paid thật (giống BE {@code OrderMoney.receiverDue}) — không phụ thuộc «coi như đã thu» GUI_TRA.
+ */
+export function receiverDueAmount(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit" | "collectForm" | "storageFee">,
+): number {
+  const due = fareBalanceDue(o);
+  return o.collectForm === "GUI_TRA" ? Math.min(due, Math.max(0, o.storageFee ?? 0)) : due;
+}
+
+/** Phí tồn kho người nhận trả trong số thu lúc giao (đơn người gửi trả). */
+export function receiverStorageDue(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit" | "collectForm" | "storageFee">,
+): number {
+  return o.collectForm === "GUI_TRA" ? receiverDueAmount(o) : 0;
+}
+
+/**
+ * Số NV nộp trên phiếu thu = cước còn thiếu + COD thu hộ.
+ * Chỉ dùng cho phiếu thu — không dùng cho H1 / POD overpay (vẫn theo fare − paid).
+ * Khi có apiDue từ /receipts/candidates: BE đã gồm COD → dùng luôn.
+ */
+export function receiptCollectableAmount(
+  o: Pick<Order, "fare" | "paidAmount" | "codAmount" | "onCredit">,
+  apiDue?: number,
+): number {
+  if (apiDue != null && Number.isFinite(apiDue)) return Math.max(0, apiDue);
+  return orderDueAmount(o) + Math.max(0, o.codAmount ?? 0);
+}
+
+/** Phần cước trong số thu phiếu — phần này mới cộng vào paidAmount. */
+export function receiptFarePortion(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit">,
+  collectable: number,
+): number {
+  const fareDue = orderDueAmount(o);
+  return Math.max(0, Math.min(Math.round(collectable) || 0, fareDue));
+}
+
+/** Người chịu trách nhiệm phiếu thu (API owner ưu tiên; offline: WH_IN với GUI_TRA, không thì POD). */
+export function deliveryActorForOrder(o: OrderX, apiOwner?: string | null): string {
+  const fromApi = apiOwner?.trim();
+  if (fromApi) return fromApi;
+  if (o.collectForm === "GUI_TRA") {
+    const wh = [...(o.events ?? [])]
+      .reverse()
+      .find((e) => ["WAREHOUSE_RECEIVE", "WH_IN", "CONFIRM", "CREATED", "CREATE"].includes(String(e.action ?? "").toUpperCase()));
+    if (wh?.by?.trim()) return wh.by.trim();
+  }
+  const pod = [...(o.events ?? [])]
+    .reverse()
+    .find((e) =>
+      ["POD", "POD_QUAY", "POD_HOME", "DELIVERED", "POD_OWNER"].includes(String(e.action ?? "").toUpperCase()),
+    );
+  if (pod?.by?.trim()) return pod.by.trim();
+  const payments = o.payments ?? [];
+  if (payments.length) {
+    const lastPodPay = [...payments]
+      .sort((a, b) => a.at.localeCompare(b.at))
+      .reverse()
+      .find((p) => /pod/i.test(p.note ?? "") || p.by?.trim());
+    if (lastPodPay?.by?.trim()) return lastPodPay.by.trim();
+  }
+  return UNKNOWN_DEBT_OWNER;
+}
+
+/** Thời điểm nhận tiền khách (payment / POD / nhập kho gửi), không phải ngày tạo đơn. */
+export function moneyReceivedAt(
+  o: OrderX,
+  portion?: "SENDER" | "DELIVERY",
+): string | undefined {
+  const pays = [...(o.payments ?? [])].sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+  const isDeliveryPay = (p: { kind?: string; note?: string }) => {
+    const note = (p.note ?? "").trim().toUpperCase();
+    if (p.kind === "COD") return true;
+    if (p.kind === "SAU" && (note.startsWith("POD") || note === "RECEIPT")) return true;
+    return false;
+  };
+
+  if (portion === "SENDER") {
+    const send = pays.filter((p) => !isDeliveryPay(p) && p.kind !== "HOAN");
+    if (send.length) return send[send.length - 1]?.at;
+    const wh = [...(o.events ?? [])]
+      .reverse()
+      .find((e) =>
+        ["WAREHOUSE_RECEIVE", "WH_IN", "CONFIRM", "CREATED", "CREATE"].includes(
+          String(e.action ?? "").toUpperCase(),
+        ),
+      );
+    return wh?.at || o.createdAt;
+  }
+
+  if (portion === "DELIVERY") {
+    const del = pays.filter((p) => isDeliveryPay(p));
+    if (del.length) return del[del.length - 1]?.at;
+    const pod = [...(o.events ?? [])]
+      .reverse()
+      .find((e) =>
+        ["POD", "POD_QUAY", "POD_HOME", "DELIVERED"].includes(String(e.action ?? "").toUpperCase()),
+      );
+    return pod?.at;
+  }
+
+  if (pays.length) return pays[pays.length - 1]?.at;
+  const pod = [...(o.events ?? [])]
+    .reverse()
+    .find((e) =>
+      ["POD", "POD_QUAY", "POD_HOME", "DELIVERED", "WAREHOUSE_RECEIVE", "WH_IN"].includes(
+        String(e.action ?? "").toUpperCase(),
+      ),
+    );
+  return pod?.at || o.createdAt;
+}
+
+
+export function debtOwnerLabel(owner: string): string {
+  return owner === UNKNOWN_DEBT_OWNER ? UNKNOWN_DEBT_OWNER_LABEL : owner;
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  CREATED: "Tạo đơn hàng",
+  CREATE: "Tạo đơn hàng",
+  GOODS_PHOTO: "Khách gửi ảnh đơn hàng",
+  DRAFT_CREATE: "Tạo đơn hàng",
+  CONFIRMED: "Xác nhận đơn",
+  CONFIRM: "Xác nhận đơn",
+  WH_IN: "Nhập kho gửi",
+  WAREHOUSE_RECEIVE: "Nhập kho gửi",
+  PICKUP_START: "Bắt đầu lấy hàng",
+  PICKUP_STARTED: "Bắt đầu lấy hàng",
+  PICKUP_RECEIVED: "Nhận hàng từ người gửi",
+  ASSIGN_TRIP: "Gán lên xe",
+  REASSIGN_TRIP: "Chuyển xe",
+  CANCEL_REQUEST: "Yêu cầu huỷ",
+  CANCEL_REJECT: "Từ chối huỷ",
+  SCAN_OUT: "Xác nhận lên xe",
+  SCAN_REMOVE: "Gỡ khỏi chuyến",
+  UNLOAD_BACK: "Dỡ hàng về kho gửi",
+  SCAN_IN: "Nhập kho giao",
+  AUTO_CALL_REQUEST: "Auto Call",
+  AUTO_CALL_RESULT: "Auto Call",
+  AUTO_CALL_SKIPPED: "Auto Call",
+  AUTO_CALL_ERROR: "Auto Call lỗi",
+  AUTO_CALL_RETRY: "Auto Call gọi lại",
+  ZNS_AUTOCALL: "Zalo ZNS",
+  ZNS_SENT: "Zalo ZNS",
+  ZNS_ERROR: "Zalo ZNS lỗi",
+  HUB_IN: "Nhập hub",
+  TRANSIT_HUB_IN: "Nhập kho trung chuyển",
+  HANDOVER: "Bàn giao chuyến",
+  HANDOVER_DRIVER: "Ký bàn giao tài xế",
+  KY_BAN_GIAO_TAI_XE: "Ký bàn giao tài xế",
+  PAYMENT_TERM_CHANGE: "Đổi hình thức thanh toán",
+  COD_FEE_REFUND: "Hoàn phí COD",
+  RECEIPT_CREATE: "Lập phiếu thu",
+  RECEIPT_CONFIRM: "Xác nhận đã thu",
+  RECEIPT_CONFIRM_ONEPAY: "OnePay xác nhận đã thu",
+  ONEPAY_PAID: "Đã nhận tiền CK OnePay",
+  ONEPAY_RECEIPT: "Lập phiếu ghi nhận thu hộ OnePay",
+  ONEPAY_ORDER_PAID: "Thu hộ OnePay (chờ lập phiếu)",
+  RECEIPT_CANCEL: "Huỷ phiếu thu",
+  DEST_REROUTE: "Đổi VP nhận (hàng chuyển tay)",
+  DEST_WH_IN: "Nhập kho giao",
+  AT_DEST: "Đến kho giao",
+  OUT_FOR_DELIVERY: "Đang giao",
+  TAKE_JOB: "Shipper nhận việc",
+  PUSH_SHIP: "Đẩy ship đối tác",
+  AHAMOVE_BOOK: "Book Ahamove, chờ tài xế lấy",
+  AHAMOVE_PICKUP: "Tài xế Ahamove đã lấy hàng",
+  AHAMOVE_SHIP_CONFIRM: "Đã thanh toán nhận ứng",
+  POD: "Giao khách (tận nơi)",
+  POD_QUAY: "Giao khách tại quầy",
+  POD_HOME: "Giao khách tận nhà",
+  POD_OWNER: "Gán nhân viên giữ tiền",
+  DELIVERED: "Giao thành công",
+  FAIL: "Giao thất bại",
+  FAIL_48H: "Giao thất bại — hết 48h",
+  FAIL_MAX: "Giao thất bại — đủ 3 lần",
+  RECEIPT_CREATED: "Lập phiếu thu",
+  CANCELLED: "Huỷ đơn",
+  AUTO_CANCEL: "Tự huỷ nháp quá hạn",
+  RESTORE: "Khôi phục đơn",
+  PRINT: "In tem",
+  ORDER_EDIT: "Sửa đơn",
+  PACKAGE_EDIT: "Sửa kiện",
+  PACKAGE_REMOVE: "Xóa kiện",
+  PACKAGE_ADD: "Thêm kiện",
+  PACKAGE_DUPLICATE: "Nhân bản kiện",
+  PATCH: "Cập nhật đơn",
+  LEG_ARRIVE_DEST: "Chặng đến VP đích",
+  LEG_ARRIVE_HUB: "Chặng đến hub",
+  LEG_ADVANCE: "Chuyển chặng tiếp",
+  LEG_START: "Bắt đầu chặng",
+  RETURN_START: "Bắt đầu hoàn",
+  RETURN_CANCEL: "Huỷ hoàn",
+  RT_DONE: "Hoàn thành công",
+  DELIVERING: "Đang giao",
+  FAILED: "Giao thất bại",
+  REDELIVER_WAIT: "Chờ giao lại",
+  REDELIVER_IN: "Nhập kho giao lại",
+  CANCEL: "Huỷ đơn",
+  STALE_DEST: "Giao không thành công",
+  STALE_DEST_REVERT: "Nhập kho giao",
+  ISSUE_EXCEPTION: "Ghi nhận ngoại lệ",
+  ISSUE_LOST: "Ghi nhận thất lạc",
+  ISSUE_DAMAGED: "Ghi nhận hư hỏng",
+  ISSUE_RESTORE_WH: "Xử lý ngoại lệ",
+  PAYMENT: "Thu tiền",
+  PAYMENT_FIX: "Điều chỉnh đã thu",
+  PAID_FIX: "Điều chỉnh đã thu",
+  ROUTE_FIX: "Điều chỉnh tuyến",
+  STATUS_FIX: "Điều chỉnh trạng thái",
+  AHAMOVE_FEE: "Phí Ahamove (trả tiền mặt)",
+  GUEST_FARE_SYNC: "Cập nhật cước",
+  INVOICE_ISSUE: "Hoá đơn",
+  INVOICE_MARK: "Hoá đơn",
+  INVOICE_INFO: "Hoá đơn",
+  EVENT: "Cập nhật",
+};
+
+/** Detail tiếng Anh cứng từ BE — dịch hoặc bỏ nếu đã trùng nghĩa với nhãn action. */
+const DETAIL_VI: Record<string, string> = {
+  "public draft": "",
+  "tạo nháp công khai": "",
+  "tạo nháp": "",
+  "confirmed from draft": "",
+  "internal create": "Tạo đơn nội bộ",
+  "tạo đơn nội bộ": "Tạo đơn nội bộ",
+  "order fields updated": "",
+  "cập nhật thông tin đơn": "",
+  "fe return flow": "Luồng hoàn hàng",
+  "restored to confirmed": "Về trạng thái đã xác nhận",
+  "pickup started": "",
+  "received at warehouse": "",
+  "last leg arrived": "Chặng cuối đã đến",
+  "advanced to next leg": "Chuyển sang chặng tiếp",
+  "internal shipper": "Shipper nội bộ",
+  scan_in: "Nhập kho giao",
+  scan_out: "",
+};
+
+function looksLikeEnglishCode(s: string): boolean {
+  return /^[A-Z][A-Z0-9_]*$/.test(s);
+}
+
+function translateDetail(detail: string): string {
+  const raw = detail.replace(/\s*\|\s*FROM=(WH_IN|DEST_WH_IN)\s*$/, "").trim();
+  if (!raw) return "";
+  const mapped = DETAIL_VI[raw.toLowerCase()];
+  if (mapped !== undefined) return mapped;
+
+  // Trip / Chuyến CODE
+  const trip = /^(?:trip|chuyến)\s+(.+)$/i.exec(raw);
+  if (trip) return `chuyến ${trip[1].trim()}`;
+
+  // Hub CODE
+  const hub = /^hub\s+(.+)$/i.exec(raw);
+  if (hub) return `hub ${hub[1].trim()}`;
+
+  // VP CODE / VP VP_YB (SCAN_IN)
+  const vp = /^vp\s+(.+)$/i.exec(raw);
+  if (vp) return `văn phòng ${vp[1].trim()}`;
+
+  // Bỏ cụm tiếng Anh còn sót xen lẫn
+  return raw
+    .replace(/\bOrder fields updated\b/gi, "")
+    .replace(/\bInternal create\b/gi, "Tạo đơn nội bộ")
+    .replace(/\bTrip\b/gi, "chuyến")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s·\s*$/g, "")
+    .trim();
+}
+
+export function orderEventContent(action?: string, detail?: string): string {
+  const key = String(action ?? "").trim().toUpperCase();
+  const rawDetail = (detail ?? "").trim();
+  // PATCH chỉ ghi chú kỹ thuật (kiện lên xe) — không hiện như "điều phối sửa đơn".
+  if (
+    key === "PATCH" &&
+    (!rawDetail ||
+      /^order fields updated$/i.test(rawDetail) ||
+      /^cập nhật thông tin đơn$/i.test(rawDetail))
+  ) {
+    return "";
+  }
+  let base = EVENT_LABELS[key];
+  if (!base) {
+    if (key.startsWith("TRANSITION_")) {
+      const status = key.slice("TRANSITION_".length);
+      base = `Chuyển trạng thái ${EVENT_LABELS[status] ?? status.toLowerCase().replace(/_/g, " ")}`;
+    } else if (looksLikeEnglishCode(key)) {
+      base = "Cập nhật";
+    } else {
+      base = action?.trim() || "Cập nhật";
+    }
+  }
+  const d = translateDetail(detail ?? "");
+  if (!d) return base;
+  if (d.toLowerCase() === base.toLowerCase()) return base;
+  if (key === "ASSIGN_TRIP" || key === "SCAN_OUT" || key === "SCAN_REMOVE" || key === "HANDOVER" || key === "KY_BAN_GIAO_TAI_XE" || key === "HANDOVER_DRIVER") {
+    return `${base} ${d}`.trim();
+  }
+  return `${base} · ${d}`;
+}
+
+/** Ẩn dòng lịch sử kỹ thuật / rỗng (vd. PATCH mặc định lúc quét kiện). */
+export function isVisibleOrderEvent(action?: string, detail?: string): boolean {
+  return orderEventContent(action, detail).trim().length > 0;
+}

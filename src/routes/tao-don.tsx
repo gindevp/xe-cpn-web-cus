@@ -1,0 +1,2441 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  Camera,
+  Copy,
+  Download,
+  ImagePlus,
+  Loader2,
+  Package,
+  Plus,
+  Printer,
+  Trash2,
+  User,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { M3Page } from "@/components/M3Page";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { MoneyInput } from "@/components/MoneyInput";
+import { NameInput } from "@/components/NameInput";
+import { PhoneInput } from "@/components/PhoneInput";
+import { ContactPickButton } from "@/components/ContactPickButton";
+import { NumberInput } from "@/components/NumberInput";
+import { toUpperName } from "@/lib/vn-name";
+import {
+  OTHER_GOODS,
+  formatDateTime,
+  formatVND,
+  goodsTypeFromName,
+  officeName,
+  findOfficeByToken,
+  foldOfficeKey,
+  officeOptionValue,
+  resolveItineraryFromOffices,
+  type OfficeRec,
+} from "@/lib/mock-data";
+import {
+  DEFAULT_TRANSIT_POLICY,
+  isProvinceOffice,
+  loadTransitHubPolicy,
+  resolveTransitPlan,
+  type TransitHubPolicy,
+} from "@/lib/transit-hub";
+import { TransitHubNotice } from "@/components/TransitHubNotice";
+import { useStore, type OrderX } from "@/lib/store";
+import {
+  calcCodFee,
+  calcDeclaredValueFee,
+  calcHomeDoorFees,
+  VAGUE_DOOR_FEE,
+  sumPackageChargeKg,
+  computeGoodsLineFare,
+  hasRoutePricing,
+  isValidVNPhone,
+} from "@/lib/pricing";
+import {
+  embedPackageFares,
+  embedPackageGoods,
+  embedPackageDims,
+  embedPackageItemQtys,
+  embedPackageValues,
+  embedPackageWeightsKg,
+  packageRows,
+  splitMoney,
+} from "@/lib/package-label";
+import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
+import { itinerariesAllowedFrom } from "@/lib/api/vehicle-events-api";
+import { cn } from "@/lib/utils";
+import { getCustomerSession } from "@/lib/api/customer-portal-api";
+import { CfBlockTitle, CfField, CfGlyph, CfRail, SuccessArt } from "@/components/customer/cf-ui";
+import { GuestTransferPanel } from "@/components/customer/GuestTransferPanel";
+import { toast } from "sonner";
+import { PrintLabelDialog } from "@/components/PrintLabelDialog";
+import { OfficePickerSheet } from "@/components/OfficePickerSheet";
+import {
+  blobToDataUrl,
+  downloadBlob,
+  guestBillFileName,
+  guestBillPayLabel,
+  renderGuestBillPng,
+  shareImageToGallery,
+} from "@/lib/guest-bill-image";
+import { isHandheldCameraDevice } from "@/lib/device";
+import { compressToDataUrl } from "@/components/PodPhotoInput";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+export const Route = createFileRoute("/tao-don")({
+  head: () => ({
+    meta: [
+      { title: "Tạo đơn — X.E Việt Nam" },
+      { name: "description", content: "Khách tạo đơn hàng qua QR — X.E Việt Nam." },
+    ],
+  }),
+  validateSearch: (search: Record<string, unknown>): { vp?: string } =>
+    search.vp != null && String(search.vp).trim() ? { vp: String(search.vp).trim() } : {},
+  component: function TaoDonPage() {
+    const { vp } = Route.useSearch();
+    return (
+      <M3Page bare>
+        <PublicOrderForm presetFromOffice={vp} />
+      </M3Page>
+    );
+  },
+});
+
+/** VP trong link QR: cột ID ở Danh mục VP (/63418) hoặc mã VP (/tao-don/VP_ND). */
+
+/** VP nhận trên màn khách: 77 Trần Anh Tông lên đầu, Song Hào xuống cuối. */
+function compareGuestDestOffices(a: OfficeRec, b: OfficeRec): number {
+  const rank = (o: OfficeRec) => {
+    const blob = foldOfficeKey(`${o.code} ${o.name} ${o.address ?? ""}`);
+    if (blob.includes("77trananhtong") || foldOfficeKey(o.code) === "vpnd77") return -1;
+    if (blob.includes("songhao")) return 1;
+    return 0;
+  };
+  const d = rank(a) - rank(b);
+  return d !== 0 ? d : a.name.localeCompare(b.name, "vi");
+}
+function findPresetOffice(raw: string | undefined, offices: OfficeRec[]): OfficeRec | undefined {
+  const t = raw?.trim();
+  if (!t) return undefined;
+  if (/^\d+$/.test(t)) {
+    return offices.find((o) => o.sourceId === Number(t));
+  }
+  const upper = t.toUpperCase();
+  return offices.find((o) => o.code.toUpperCase() === upper) ?? findOfficeByToken(t, offices);
+}
+
+const STEPS = [
+  { id: 1, short: "VP gửi & nhận" },
+  { id: 2, short: "Thông tin đơn hàng" },
+] as const;
+const LAST_STEP = STEPS.length;
+
+/** Giống TaoDonDialog — hình thức thanh toán cước. */
+// Không có "Công nợ": khách tự tạo đơn không ghi nợ được, chỉ nhân viên tạo đơn công nợ.
+const PAY_METHODS = [
+  "Người gửi thanh toán",
+  "Người nhận thanh toán",
+  "Thu cước 1 phần",
+] as const;
+const DEFAULT_PAY_METHOD: string = "Người nhận thanh toán";
+
+const BANK_OPTIONS = [
+  "Vietcombank",
+  "VietinBank",
+  "BIDV",
+  "Agribank",
+  "Techcombank",
+  "MB Bank",
+  "ACB",
+  "VPBank",
+  "TPBank",
+  "Sacombank",
+  "SHB",
+  "HDBank",
+  "VIB",
+  "MSB",
+  "OCB",
+].map((b) => ({ value: b, label: b }));
+
+const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
+
+const fieldSelectClass =
+  "h-12 rounded-xl border-0 bg-[#E9EEF5] px-3 text-base shadow-none hover:bg-[#E1E8F2] focus-visible:ring-1 focus-visible:ring-primary";
+const officePickerClass = "min-h-12 rounded-xl bg-[#E9EEF5] px-3 py-2 hover:bg-[#E1E8F2]";
+/** Ahamove không ra điểm lấy cụ thể thì ghi nhận mức này. */
+const VAGUE_PICKUP_FEE = VAGUE_DOOR_FEE;
+
+async function quoteGuestPickup(
+  office: OfficeRec | null | undefined,
+  address: string,
+  weightKg: number,
+): Promise<{ fee: number; km: number | null }> {
+  const addr = address.trim();
+  if (!addr || office?.latitude == null || office?.longitude == null) {
+    return { fee: VAGUE_PICKUP_FEE, km: null };
+  }
+  try {
+    const { estimatePickupKm } = await import("@/lib/api/ahamove-api");
+    const r = await estimatePickupKm({
+      officeLat: Number(office.latitude),
+      officeLng: Number(office.longitude),
+      officeAddress: office.address,
+      pinAddress: addr,
+    });
+    const km = r.distanceKm != null ? Number(r.distanceKm) : NaN;
+    if (!Number.isFinite(km) || km <= 0) return { fee: VAGUE_PICKUP_FEE, km: null };
+    const fee = calcHomeDoorFees({ chargeKg: weightKg || 1, homePickup: true, pickupKm: km }).pickupFee;
+    return fee > 0 ? { fee, km } : { fee: VAGUE_PICKUP_FEE, km: null };
+  } catch {
+    return { fee: VAGUE_PICKUP_FEE, km: null };
+  }
+}
+
+/** Ahamove không ra điểm giao cụ thể thì ghi nhận mức này. */
+const VAGUE_DELIVERY_FEE = VAGUE_DOOR_FEE;
+
+async function quoteGuestDelivery(
+  office: OfficeRec | null | undefined,
+  address: string,
+  weightKg: number,
+): Promise<{ fee: number; km: number | null }> {
+  const addr = address.trim();
+  if (!addr || office?.latitude == null || office?.longitude == null) {
+    return { fee: VAGUE_DELIVERY_FEE, km: null };
+  }
+  try {
+    const { estimatePickupKm } = await import("@/lib/api/ahamove-api");
+    const r = await estimatePickupKm({
+      officeLat: Number(office.latitude),
+      officeLng: Number(office.longitude),
+      officeAddress: office.address,
+      pinAddress: addr,
+    });
+    const km = r.distanceKm != null ? Number(r.distanceKm) : NaN;
+    if (!Number.isFinite(km) || km <= 0) return { fee: VAGUE_DELIVERY_FEE, km: null };
+    const fee = calcHomeDoorFees({ chargeKg: weightKg || 1, homeDelivery: true, deliveryKm: km }).deliveryFee;
+    return fee > 0 ? { fee, km } : { fee: VAGUE_DELIVERY_FEE, km: null };
+  } catch {
+    return { fee: VAGUE_DELIVERY_FEE, km: null };
+  }
+}
+
+const fieldInputClass =
+  "h-12 rounded-xl border-0 bg-[#E9EEF5] px-3 shadow-none focus-visible:ring-1 focus-visible:ring-primary";
+
+type Item = {
+  id: string;
+  sl: number;
+  group: string;
+  kind: string;
+  name: string;
+  weight: number;
+  dai: number;
+  rong: number;
+  cao: number;
+  value: number;
+  fare: number;
+};
+
+const newItemId = () => Math.random().toString(36).slice(2, 9);
+
+const newItem = (): Item => ({
+  id: newItemId(),
+  sl: 1,
+  group: OTHER_GOODS,
+  kind: OTHER_GOODS,
+  name: "",
+  weight: 1,
+  dai: 10,
+  rong: 10,
+  cao: 10,
+  value: 0,
+  fare: 0,
+});
+
+function packagesFromItems(items: Item[]) {
+  const packageCount = Math.max(1, items.length);
+  const goodsKinds = items.map((i) => i.kind.trim() || "Hàng hoá");
+  const goodsNames = items.map((i) => (i.kind.trim() === OTHER_GOODS ? i.name.trim() : ""));
+  return { packageCount, goodsKinds, goodsNames, goodsLabel: goodsKinds.join(", ") };
+}
+
+function faresPerPackage(items: Item[], goodsFare: number): number[] {
+  const n = items.length || 1;
+  const goods = items.map((i) => Math.round(Number(i.fare) || 0));
+  const goodsSum = goods.reduce((s, v) => s + v, 0);
+  const rest = Math.max(0, Math.round(Number(goodsFare) || 0) - goodsSum);
+  const restParts = splitMoney(rest, n);
+  return goods.map((g, i) => g + (restParts[i] ?? 0));
+}
+
+function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFare: number) {
+  const qtys = items.map((i) => Math.max(1, Number(i.sl) || 1));
+  const weights = items.map((i) => Math.max(0, Number(i.weight) || 0));
+  const { goodsKinds, goodsNames } = packagesFromItems(items);
+  let note = embedPackageGoods(body, goodsKinds, goodsNames);
+  note = embedPackageFares(note, faresPerPackage(items, goodsFare));
+  note = embedPackageItemQtys(note, qtys);
+  note = embedPackageWeightsKg(note, weights);
+  note = embedPackageDims(
+    note,
+    items.map((i) => ({ d: Number(i.dai) || 0, r: Number(i.rong) || 0, c: Number(i.cao) || 0 })),
+  );
+  note = embedPackageValues(
+    note,
+    items.map((i) => Math.max(0, Math.round(Number(i.value) || 0))),
+  );
+  return note;
+}
+
+export function PublicOrderForm({
+  presetFromOffice,
+  variant = "guest",
+  onHome,
+}: {
+  presetFromOffice?: string;
+  /** `crm`: bố cục 3 bước trong trang khách (cpn) — cùng state/validate/submit với màn QR. */
+  variant?: "guest" | "crm";
+  onHome?: () => void;
+}) {
+  const navigate = useNavigate();
+  const offices = useStore((s) => s.offices);
+  const profiles = useStore((s) => s.customerProfiles);
+  const productPricing = useStore((s) => s.productPricing);
+  const pricingRules = useStore((s) => s.pricingRules);
+  const addOrder = useStore((s) => s.addOrder);
+  const upsertCustomer = useStore((s) => s.upsertCustomer);
+  const { branchCodeOf, itineraries, reload: reloadItineraries } = useBranchItineraryMaster();
+  const [officesLoading, setOfficesLoading] = useState(() => offices.length === 0);
+  /** Chỉ khoá combobox VP khi chưa có danh sách VP — không chờ lộ trình (tránh kẹt «Đang tải» khi itineraries/nhánh treo mạng). */
+  const masterLoading = officesLoading && offices.length === 0;
+
+  const [step, setStep] = useState(1);
+  const [route, setRoute] = useState("");
+  const [itinerary, setItinerary] = useState("");
+  const [senderPhone, setSenderPhone] = useState("");
+  const [senderName, setSenderName] = useState("");
+  useEffect(() => {
+    const kh = getCustomerSession();
+    if (!kh) return;
+    setSenderPhone((p) => p || kh.phone);
+    setSenderName((n) => n || kh.name || "");
+  }, []);
+  const [homePickup, setHomePickup] = useState(false);
+  const [pickupAddr, setPickupAddr] = useState("");
+  const [pickupFee, setPickupFee] = useState(0);
+  const [pickupKm, setPickupKm] = useState<number | null>(null);
+  const [pickupQuoting, setPickupQuoting] = useState(false);
+  const [homeDelivery, setHomeDelivery] = useState(false);
+  const [deliverAddr, setDeliverAddr] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState(0);
+  const [deliveryKm, setDeliveryKm] = useState<number | null>(null);
+  const [deliveryQuoting, setDeliveryQuoting] = useState(false);
+  const [fromOffice, setFromOffice] = useState("");
+  const [receiverName, setReceiverName] = useState("");
+  const [receiverPhone, setReceiverPhone] = useState("");
+  const [toOffice, setToOffice] = useState("");
+  const [items, setItems] = useState<Item[]>([newItem()]);
+  const [goodsPhoto, setGoodsPhoto] = useState("");
+  const [payMethod, setPayMethod] = useState<string>(DEFAULT_PAY_METHOD);
+  const [prepaid, setPrepaid] = useState(0);
+  const [codAmount, setCodAmount] = useState(0);
+  const [surchargeExtra, setSurchargeExtra] = useState(0);
+  const [ckSender, setCkSender] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [bankAccountNo, setBankAccountNo] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<OrderX | null>(null);
+  const [createdCollect, setCreatedCollect] = useState<import("@/lib/api/domain-api").GuestCollect | null>(null);
+  const [printLabels, setPrintLabels] = useState(false);
+
+  const reloadPublicMasters = useCallback(() => {
+    setOfficesLoading(true);
+    void import("@/lib/api/sync")
+      .then(async (m) => {
+        try {
+          await m.syncPublicOfficesFromApi();
+        } finally {
+          // Mở combobox ngay khi có/không có VP — không chờ bảng giá / lộ trình.
+          setOfficesLoading(false);
+        }
+        void m.syncPublicPricingFromApi().catch(() => undefined);
+      })
+      .catch(() => setOfficesLoading(false));
+    void reloadItineraries();
+  }, [reloadItineraries]);
+
+  useEffect(() => {
+    reloadPublicMasters();
+  }, [reloadPublicMasters]);
+
+  const [officeItineraries, setOfficeItineraries] = useState<Record<string, string[]>>({});
+  useEffect(() => {
+    void (async () => {
+      const { isApiEnabled } = await import("@/lib/api/client");
+      if (!isApiEnabled()) return;
+      const { getAllOfficeVehicleItineraries } = await import("@/lib/api/vehicle-events-api");
+      setOfficeItineraries(await getAllOfficeVehicleItineraries().catch(() => ({})));
+    })();
+  }, []);
+  const resolvePair = (fromRec: OfficeRec, toRec: OfficeRec) =>
+    resolveItineraryFromOffices(
+      fromRec,
+      toRec,
+      itinerariesAllowedFrom(itineraries, fromRec.code, officeItineraries),
+    );
+
+  const presetOffice = useMemo(
+    () => findPresetOffice(presetFromOffice, offices),
+    [presetFromOffice, offices],
+  );
+  const presetValue = presetOffice ? officeOptionValue(presetOffice) : "";
+  const presetMissingWarned = useRef(false);
+
+  useEffect(() => {
+    if (presetValue) {
+      setFromOffice((cur) => cur || presetValue);
+      return;
+    }
+    if (presetFromOffice && !officesLoading && offices.length > 0 && !presetMissingWarned.current) {
+      presetMissingWarned.current = true;
+      toast.error("Không tìm thấy văn phòng trong link — vui lòng chọn VP gửi");
+    }
+  }, [presetValue, presetFromOffice, officesLoading, offices.length]);
+
+  const [transitPolicy, setTransitPolicy] = useState<TransitHubPolicy>(DEFAULT_TRANSIT_POLICY);
+  useEffect(() => {
+    void loadTransitHubPolicy().then(setTransitPolicy);
+  }, []);
+  /** Đơn tỉnh–tỉnh qua VP trung chuyển: cước = tổng 2 tuyến (A → trung chuyển, trung chuyển → B). */
+  const transitPlan = useMemo(
+    () =>
+      resolveTransitPlan(
+        findOfficeByToken(fromOffice, offices),
+        findOfficeByToken(toOffice, offices),
+        offices,
+        transitPolicy,
+        itineraries,
+      ),
+    [fromOffice, toOffice, offices, transitPolicy, itineraries],
+  );
+
+  useEffect(() => {
+    const fromRec = findOfficeByToken(fromOffice, offices);
+    const toRec = findOfficeByToken(toOffice, offices);
+    if (!fromRec || !toRec) {
+      setRoute("");
+      setItinerary("");
+      return;
+    }
+    if (transitPlan) {
+      setRoute(transitPlan.legs[0].route);
+      setItinerary(transitPlan.legs[0].itineraryName);
+      return;
+    }
+    const hit = resolvePair(fromRec, toRec);
+    if (hit) {
+      setRoute(hit.branchName);
+      setItinerary(hit.itineraryName);
+    } else {
+      setRoute("");
+      setItinerary("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromOffice, toOffice, offices, itineraries, officeItineraries, transitPlan]);
+
+  const fromOfficeRec = useMemo(() => findOfficeByToken(fromOffice, offices), [fromOffice, offices]);
+  const toOfficeRec = useMemo(() => findOfficeByToken(toOffice, offices), [toOffice, offices]);
+
+  /**
+   * VP nhận có lộ trình từ VP gửi. VP gửi là VP tỉnh thì cộng thêm mọi VP tỉnh
+   * (tỉnh đi tỉnh không phải lúc nào cũng có lộ trình thẳng); VP Hà Nội chỉ các VP có lộ trình.
+   */
+  const toOfficeList = useMemo(() => {
+    if (!fromOfficeRec) return offices;
+    const province = isProvinceOffice(fromOfficeRec)
+      ? offices.filter((o) => isProvinceOffice(o) && o.code !== fromOfficeRec.code)
+      : [];
+    const routed = offices.filter(
+      (o) => o.code !== fromOfficeRec.code && resolvePair(fromOfficeRec, o) != null,
+    );
+    const byCode = new Map<string, OfficeRec>();
+    for (const o of [...routed, ...province]) byCode.set(o.code, o);
+    return [...byCode.values()];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromOfficeRec, offices, itineraries, officeItineraries]);
+
+  useEffect(() => {
+    if (!toOffice || masterLoading) return;
+    if (!toOfficeList.some((o) => officeOptionValue(o) === toOffice)) setToOffice("");
+  }, [toOffice, toOfficeList, masterLoading]);
+
+  const senderNameRef = useRef(senderName);
+  senderNameRef.current = senderName;
+  useEffect(() => {
+    if (!isValidVNPhone(senderPhone) || senderName) return;
+    if (profiles[senderPhone]) {
+      setSenderName(toUpperName(profiles[senderPhone].name));
+      toast.info("Đã tự điền tên gửi từ hồ sơ khách");
+      return;
+    }
+    const phone = senderPhone;
+    let cancelled = false;
+    void (async () => {
+      const { isApiEnabled } = await import("@/lib/api/client");
+      if (!isApiEnabled()) return;
+      const { guestSenderName } = await import("@/lib/api/domain-api");
+      const res = await guestSenderName(phone).catch(() => null);
+      if (cancelled || !res?.found || !res.name || senderNameRef.current) return;
+      setSenderName(toUpperName(res.name));
+      toast.info("Đã tự điền tên gửi từ đơn trước");
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [senderPhone]);
+
+  const receiverNameRef = useRef(receiverName);
+  receiverNameRef.current = receiverName;
+  useEffect(() => {
+    if (!isValidVNPhone(receiverPhone) || receiverName) return;
+    if (profiles[receiverPhone]) {
+      setReceiverName(toUpperName(profiles[receiverPhone].name));
+      toast.info("Đã tự điền tên nhận từ hồ sơ khách");
+      return;
+    }
+    const phone = receiverPhone;
+    let cancelled = false;
+    void (async () => {
+      const { isApiEnabled } = await import("@/lib/api/client");
+      if (!isApiEnabled()) return;
+      const { guestReceiverName } = await import("@/lib/api/domain-api");
+      const res = await guestReceiverName(phone).catch(() => null);
+      if (cancelled || !res?.found || !res.name || receiverNameRef.current) return;
+      setReceiverName(toUpperName(res.name));
+      toast.info("Đã tự điền tên nhận từ đơn trước");
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [receiverPhone]);
+
+  /** Cước từng kiện — cùng logic TaoDonDialog (bảng giá SP → else cân/kích thước). */
+  useEffect(() => {
+    setItems((prev) => {
+      let changed = false;
+      const routes = transitPlan ? transitPlan.legs.map((l) => l.route) : [route];
+      const next = prev.map((it) => {
+        const line = routes.reduce(
+          (sum, r) =>
+            sum +
+            computeGoodsLineFare({
+              group: it.group,
+              kind: it.kind,
+              name: it.name,
+              sl: it.sl,
+              weight: it.weight,
+              route: r,
+              d: it.dai,
+              r: it.rong,
+              c: it.cao,
+            }),
+          0,
+        );
+        if (it.fare === line) return it;
+        changed = true;
+        return { ...it, fare: line };
+      });
+      return changed ? next : prev;
+    });
+  }, [route, items, pricingRules, productPricing, transitPlan]);
+
+  useEffect(() => {
+    if (!codAmount) {
+      setSurchargeExtra(0);
+      return;
+    }
+    const cfg = useStore.getState().surcharges?.cod;
+    setSurchargeExtra(calcCodFee(codAmount, cfg));
+  }, [codAmount]);
+
+  const goodsFare = items.reduce((s, i) => s + (Number(i.fare) || 0), 0);
+  const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+  /** Cân tra phí tận nơi: từng kiện max(thật, DxRxC/5000) rồi cộng. */
+  const doorChargeKg = sumPackageChargeKg(items, totalWeight);
+  const pickupFeeVal = homePickup ? pickupFee : 0;
+  const deliveryFeeVal = homeDelivery ? deliveryFee : 0;
+
+  useEffect(() => {
+    if (!homePickup || !pickupAddr.trim()) {
+      setPickupFee(0);
+      setPickupKm(null);
+      setPickupQuoting(false);
+      return;
+    }
+    const office = findOfficeByToken(fromOffice, offices);
+    const addr = pickupAddr.trim();
+    const kg = doorChargeKg;
+    let cancelled = false;
+    setPickupQuoting(true);
+    const t = window.setTimeout(() => {
+      void quoteGuestPickup(office, addr, kg).then((q) => {
+        if (cancelled) return;
+        setPickupFee(q.fee);
+        setPickupKm(q.km);
+        setPickupQuoting(false);
+      });
+    }, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [homePickup, pickupAddr, fromOffice, offices, doorChargeKg]);
+
+  useEffect(() => {
+    if (!homeDelivery || !deliverAddr.trim()) {
+      setDeliveryFee(0);
+      setDeliveryKm(null);
+      setDeliveryQuoting(false);
+      return;
+    }
+    const office = findOfficeByToken(toOffice, offices);
+    const addr = deliverAddr.trim();
+    const kg = doorChargeKg;
+    let cancelled = false;
+    setDeliveryQuoting(true);
+    const t = window.setTimeout(() => {
+      void quoteGuestDelivery(office, addr, kg).then((q) => {
+        if (cancelled) return;
+        setDeliveryFee(q.fee);
+        setDeliveryKm(q.km);
+        setDeliveryQuoting(false);
+      });
+    }, 500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [homeDelivery, deliverAddr, toOffice, offices, doorChargeKg]);
+  const declaredValue = items.reduce((s, i) => s + (Number(i.value) || 0), 0);
+  const declaredFee = declaredValue > 0 ? calcDeclaredValueFee(declaredValue) : 0;
+  const codFee = codAmount > 0 ? Number(surchargeExtra || 0) : 0;
+
+  // Giống TaoDonDialog: giảm giá hệ thống (chưa có policy thì 0).
+  const subtotal = goodsFare + pickupFeeVal + deliveryFeeVal + codFee + declaredFee;
+  const discountVND = 0;
+  const totalFare = Math.max(0, subtotal - discountVND);
+  /** Khách tự tạo đơn chưa trả tiền cho ai — người gửi trả thì NV thu khi nhập kho gửi. */
+  const paidNow = 0;
+
+  const headerTitle = step === 1 ? "Tạo đơn giao hàng" : "Thông tin đơn hàng";
+
+  const goBack = () => {
+    if (step > 1) {
+      setStep((s) => s - 1);
+      return;
+    }
+    void navigate({ to: "/" });
+  };
+
+  const updateItem = (id: string, patch: Partial<Item>) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+
+  const duplicateItem = (id: string) =>
+    setItems((prev) => {
+      const idx = prev.findIndex((it) => it.id === id);
+      if (idx < 0) return prev;
+      const copy = { ...prev[idx], id: newItemId() };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+
+  const validateStep = (s: number): boolean => {
+    if (s === 1) {
+      if (!fromOffice || !toOffice) {
+        toast.error("Vui lòng chọn VP gửi và VP nhận");
+        return false;
+      }
+      if (transitPlan?.missingLeg) {
+        const l = transitPlan.missingLeg;
+        toast.error(`Đơn trung chuyển: chưa có tuyến/lộ trình ${l.fromName} → ${l.toName}. Vui lòng chọn VP khác hoặc liên hệ nhà xe.`);
+        return false;
+      }
+      if (!route || !itinerary) {
+        toast.error(
+          "Không suy ra được tuyến/lộ trình từ VP đã chọn. Kiểm tra điểm lộ trình văn phòng trên hệ thống.",
+        );
+        return false;
+      }
+      const noPrice = transitPlan?.legs.find((l) => !hasRoutePricing(l.route));
+      if (noPrice) {
+        toast.error(`Đơn trung chuyển: tuyến ${noPrice.route} (${noPrice.fromName} → ${noPrice.toName}) chưa có bảng giá.`);
+        return false;
+      }
+      return true;
+    }
+    if (s === 2) {
+      if (!senderName.trim()) {
+        toast.error("Vui lòng nhập tên người gửi");
+        return false;
+      }
+      if (!receiverName.trim()) {
+        toast.error("Vui lòng nhập tên người nhận");
+        return false;
+      }
+      if (!isValidVNPhone(senderPhone) || !isValidVNPhone(receiverPhone)) {
+        toast.error("SĐT không hợp lệ (VN)");
+        return false;
+      }
+      if (homePickup && !pickupAddr.trim()) {
+        toast.error("Nhập địa chỉ lấy hàng, ví dụ 21 Đại Từ - HN");
+        return false;
+      }
+      if (homeDelivery && !deliverAddr.trim()) {
+        toast.error("Nhập địa chỉ giao hàng, ví dụ 21 Đại Từ - HN");
+        return false;
+      }
+      if (items.some((it) => !it.name.trim())) {
+        toast.error("Vui lòng nhập tên hàng hoá cho mỗi kiện");
+        return false;
+      }
+      if (items.some((it) => !(Number(it.weight) >= 1))) {
+        toast.error("Mỗi kiện phải có cân nặng tối thiểu 1 kg");
+        return false;
+      }
+      if (!payMethod) {
+        toast.error("Vui lòng chọn hình thức thanh toán");
+        return false;
+      }
+      if (ckSender && (!bankName || !bankAccountNo.trim())) {
+        toast.error("Vui lòng nhập ngân hàng và số tài khoản nhận thu hộ");
+        return false;
+      }
+      return true;
+    }
+    return true;
+  };
+
+  const goNext = () => {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(LAST_STEP, s + 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const submit = async () => {
+    if (!validateStep(1) || !validateStep(2)) return;
+
+    setSaving(true);
+    try {
+      const { packageCount, goodsLabel } = packagesFromItems(items);
+      const goodsTypeEnum = goodsTypeFromName(goodsLabel);
+      // Đơn có COD vẫn giữ người trả cước; COD nhận biết qua codAmount.
+      const collectForm =
+        payMethod === "Người nhận thanh toán" || payMethod === "Thu cước 1 phần" ? "NHAN_TRA" : "GUI_TRA";
+      const noteBase = orderNoteWithPackages(undefined, items, goodsFare);
+      const prepaidNow = payMethod === "Thu cước 1 phần" ? Math.max(0, Math.round(prepaid || 0)) : 0;
+      // Cùng tag app — BE tính số QR người gửi cần chuyển cho đơn thu 1 phần.
+      const noteBody =
+        prepaidNow > 0 ? `${noteBase ?? ""}${noteBase ? "\n" : ""}[XVN_PREPAID:${prepaidNow}]`.trim() : noteBase;
+    const now = new Date().toISOString();
+      const { isApiEnabled, getToken, isRequestTimeout } = await import("@/lib/api/client");
+      const { resolveOfficeCodeStrict } = await import("@/lib/api/sync");
+      const fromCode = resolveOfficeCodeStrict(fromOffice) ?? fromOffice;
+      const toCode = resolveOfficeCodeStrict(toOffice) ?? toOffice;
+      // Cước FE (tổng kiện) là SoT — không ghi đè bằng fareAmount BE (ước lượng theo tổng cân 1 kiện).
+      let quotedPickup = pickupFeeVal;
+      let quotedPickupKm = pickupKm;
+      if (homePickup) {
+        const q = await quoteGuestPickup(fromOfficeRec, pickupAddr, doorChargeKg);
+        quotedPickup = q.fee;
+        quotedPickupKm = q.km;
+        setPickupFee(q.fee);
+        setPickupKm(q.km);
+      }
+      let quotedDelivery = deliveryFeeVal;
+      let quotedDeliveryKm = deliveryKm;
+      if (homeDelivery) {
+        const q = await quoteGuestDelivery(toOfficeRec, deliverAddr, doorChargeKg);
+        quotedDelivery = q.fee;
+        quotedDeliveryKm = q.km;
+        setDeliveryFee(q.fee);
+        setDeliveryKm(q.km);
+      }
+      const fare = goodsFare + (homePickup ? quotedPickup : 0) + (homeDelivery ? quotedDelivery : 0) + codFee + declaredFee;
+      const paidForOrder = 0;
+
+      let orderCode: string;
+      if (!isApiEnabled()) {
+        toast.error("Chưa kết nối máy chủ — không tạo được đơn");
+        return;
+      }
+      try {
+        const { createGuestOrder, patchOrder } = await import("@/lib/api/domain-api");
+        const res = await createGuestOrder({
+          senderPhone,
+          senderName: toUpperName(senderName) || undefined,
+          receiverName: toUpperName(receiverName),
+          receiverPhone,
+          goodsType: goodsTypeEnum,
+          paymentTerm: collectForm,
+          estimatedWeightKg: totalWeight || undefined,
+          homeDelivery,
+          homePickup,
+          pickupAddress: homePickup ? pickupAddr.trim() : undefined,
+          pickupKm: homePickup && quotedPickupKm != null ? quotedPickupKm : undefined,
+          deliveryAddress: homeDelivery ? deliverAddr.trim() : undefined,
+          deliveryKm: homeDelivery && quotedDeliveryKm != null ? quotedDeliveryKm : undefined,
+          toOfficeCode: toCode,
+          fromOfficeCode: fromCode,
+          branchCode: branchCodeOf(route) || undefined,
+          routeLabel: route || undefined,
+          itineraryLabel: itinerary || undefined,
+          note: noteBody || undefined,
+          fareAmount: fare,
+          quantity: packageCount,
+          goodsFareAmount: goodsFare,
+          pickupFeeAmount: homePickup ? quotedPickup : 0,
+          deliveryFeeAmount: homeDelivery ? quotedDelivery : 0,
+          declaredFeeAmount: declaredFee,
+          discountAmount: discountVND,
+          codAmount: codAmount > 0 ? codAmount : 0,
+          codFeeAmount: codAmount > 0 ? codFee : 0,
+          bankName: ckSender ? bankName || undefined : undefined,
+          bankAccountNo: ckSender ? bankAccountNo.trim() || undefined : undefined,
+          bankAccountName: ckSender ? bankAccountName || undefined : undefined,
+          goodsPhoto: goodsPhoto || undefined,
+        });
+        orderCode = res.orderCode;
+        setCreatedCollect(res.collect ?? null);
+        if (!orderCode) {
+          toast.error("Máy chủ không trả mã đơn");
+        return;
+      }
+        // Best-effort sync phí chi tiết — chỉ khi nhân viên đăng nhập; khách luôn bị 401 nên bỏ qua.
+        // Không ghi khoản thu ở đây: cước người gửi trả do người nhập kho gửi thu (BE ghi khi nhập kho).
+        if (getToken()) try {
+          await patchOrder(orderCode, {
+            fareAmount: fare,
+            goodsFareAmount: goodsFare,
+            quantity: packageCount,
+            weightKg: totalWeight || undefined,
+            pickupFeeAmount: homePickup ? quotedPickup : 0,
+            deliveryFeeAmount: homeDelivery ? quotedDelivery : 0,
+            declaredFeeAmount: declaredFee,
+            discountAmount: discountVND,
+            codAmount: codAmount > 0 ? codAmount : 0,
+            codFeeAmount: codAmount > 0 ? codFee : 0,
+            note: noteBody || undefined,
+            eventAction: "GUEST_FARE_SYNC",
+            eventDetail: "Đồng bộ cước theo kiện từ tạo đơn KH",
+          });
+        } catch {
+          /* Biên nhận FE vẫn dùng totalFare / paidForOrder local. */
+        }
+      } catch (err: unknown) {
+        if (isRequestTimeout(err) || err instanceof TypeError) {
+          toast.error(
+            "Mạng chậm hoặc mất kết nối. Đơn có thể ĐÃ được tạo — vui lòng báo nhân viên quầy kiểm tra trước khi tạo lại.",
+            { duration: 15000 },
+          );
+          return;
+        }
+        const msg = err instanceof Error ? err.message : "Không tạo được đơn trên máy chủ";
+        toast.error(msg);
+        return;
+    }
+
+    const o: OrderX = {
+        code: orderCode,
+        senderPhone,
+        senderName: toUpperName(senderName),
+        receiverName: toUpperName(receiverName) || "—",
+        receiverPhone,
+        fromOffice: fromCode,
+        toOffice: toCode,
+        finalToOffice: toCode,
+        goodsType: goodsLabel,
+        collectForm,
+        weightKg: totalWeight || undefined,
+        quantity: packageCount,
+      fare,
+        goodsFare,
+        declaredFee,
+        discountAmount: discountVND,
+        pickupFee: homePickup ? quotedPickup : 0,
+        pickupAddress: homePickup ? pickupAddr.trim() : undefined,
+        deliveryFee: homeDelivery ? quotedDelivery : 0,
+        deliveryKm: homeDelivery && quotedDeliveryKm != null ? quotedDeliveryKm : undefined,
+        address: homeDelivery ? deliverAddr.trim() : undefined,
+        homeDelivery,
+        homePickup,
+        qrDropOff: !homePickup,
+        itinerary,
+        route,
+        branchCode: branchCodeOf(route),
+        status: "CONFIRMED",
+        createdAt: now,
+        updatedAt: now,
+        note: noteBody,
+        paidAmount: paidForOrder,
+        codAmount: codAmount > 0 ? codAmount : 0,
+        codFee: codAmount > 0 ? codFee : 0,
+        bankName: ckSender ? bankName || undefined : undefined,
+        bankAccountNo: ckSender ? bankAccountNo || undefined : undefined,
+        bankAccountName: ckSender ? bankAccountName || undefined : undefined,
+        events: [{ at: now, by: "customer", action: "CREATE", detail: "Tạo đơn hàng" }],
+    };
+    addOrder(o, { skipApi: true });
+      upsertCustomer(senderPhone, toUpperName(senderName));
+      setCreatedOrder(o);
+      toast.success("Đã tạo đơn hàng");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startNewOrder = () => {
+    setPrintLabels(false);
+    setCreatedOrder(null);
+    setCreatedCollect(null);
+    setStep(1);
+    setRoute("");
+    setItinerary("");
+    const kh = getCustomerSession();
+    setSenderPhone(kh?.phone ?? "");
+    setSenderName(kh?.name ?? "");
+    setFromOffice(presetValue);
+    setReceiverName("");
+    setReceiverPhone("");
+    setToOffice("");
+    setItems([newItem()]);
+    setGoodsPhoto("");
+    setPayMethod(DEFAULT_PAY_METHOD);
+    setPrepaid(0);
+    setCodAmount(0);
+    setSurchargeExtra(0);
+    setCkSender(false);
+    setBankName("");
+    setBankAccountNo("");
+    setBankAccountName("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  if (variant === "crm") {
+    const goHome = onHome ?? (() => void navigate({ to: "/" }));
+    const crmStep = createdOrder ? 3 : step;
+    const tips = [
+      "Chọn văn phòng gần bạn nhất để hàng được tiếp nhận nhanh hơn.",
+      "Điền chính xác số điện thoại để nhà xe liên hệ khi giao hàng.",
+      "Tải biên nhận và in tem dán lên từng kiện trước khi mang hàng ra văn phòng.",
+    ];
+    const pickerClass = "min-h-[46px] rounded-xl border border-[#d1d5db] bg-white px-3 py-2 hover:border-[#274ea1]";
+    const selectClass = "h-[46px] rounded-xl border border-[#d1d5db] bg-white";
+    const payCards = [
+      ["Người gửi thanh toán", "send", "Người gửi trả", "Trả cước tại văn phòng gửi"],
+      ["Người nhận thanh toán", "user", "Người nhận trả", "Thu khi giao hàng"],
+      ["Thu cước 1 phần", "split", "Thu cước 1 phần", "Người gửi trả trước một phần"],
+    ] as const;
+    const doorHint = (quoting: boolean, km: number | null, addr: string, what: string) =>
+      `Chỉ cần số nhà và đường.${
+        quoting
+          ? " Đang hỏi Ahamove…"
+          : km != null
+            ? ` Ahamove tính được ${km.toFixed(1)} km.`
+            : addr.trim()
+              ? ` Ahamove chưa xác định được điểm ${what} — cước ${what} hàng 50.000đ.`
+              : ""
+      }`;
+
+    return (
+      <>
+        <div className="cf">
+          <CfRail step={crmStep} tip={tips[crmStep - 1]} />
+          <section className="cf-main">
+            {createdOrder ? (
+              <CrmOrderDone
+                order={createdOrder}
+                collect={createdCollect}
+                onHome={goHome}
+                onCreateAnother={startNewOrder}
+                onPrintLabels={() => setPrintLabels(true)}
+              />
+            ) : step === 1 ? (
+              <>
+                <header className="cf-head">
+                  <span>Bước 1 / 3</span>
+                  <h2>Chọn hành trình</h2>
+                  <p>Hàng của bạn sẽ được chuyển từ văn phòng gửi đến văn phòng nhận.</p>
+                </header>
+                {!masterLoading && offices.length === 0 && (
+                  <p className="cf-error">
+                    Không tải được danh sách văn phòng.{" "}
+                    <button type="button" className="underline font-medium" onClick={reloadPublicMasters}>
+                      Thử lại
+                    </button>
+                  </p>
+                )}
+                <div className="cf-route">
+                  <div className="cf-route-card">
+                    <div className="cf-badge blue">
+                      <CfGlyph name="pin" />
+                    </div>
+                    <strong>Văn phòng gửi</strong>
+                    <small>Nơi bạn mang hàng đến gửi</small>
+                    <OfficePickerSheet
+                      value={fromOffice}
+                      onChange={setFromOffice}
+                      offices={offices}
+                      title="Chọn VP gửi"
+                      placeholder={masterLoading ? "Đang tải…" : "Chọn văn phòng gửi"}
+                      className={pickerClass}
+                      disabled={masterLoading || offices.length === 0}
+                    />
+                  </div>
+                  <div className="cf-route-line">
+                    <span />
+                    <i>
+                      <CfGlyph name="truck" />
+                    </i>
+                    <span />
+                  </div>
+                  <div className="cf-route-card">
+                    <div className="cf-badge green">
+                      <CfGlyph name="flag" />
+                    </div>
+                    <strong>Văn phòng nhận</strong>
+                    <small>Nơi hàng được chuyển đến</small>
+                    <OfficePickerSheet
+                      value={toOffice}
+                      onChange={setToOffice}
+                      offices={toOfficeList}
+                      compareOffices={compareGuestDestOffices}
+                      title={fromOfficeRec ? `Chọn VP nhận (từ ${fromOfficeRec.name})` : "Chọn VP nhận"}
+                      placeholder={masterLoading ? "Đang tải…" : fromOffice ? "Chọn văn phòng nhận" : "Chọn VP gửi trước"}
+                      emptyText={fromOfficeRec ? "Không có VP nhận nào có lộ trình từ VP gửi này" : "Không có văn phòng"}
+                      className={pickerClass}
+                      disabled={masterLoading || offices.length === 0}
+                    />
+                  </div>
+                </div>
+                <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
+                <footer className="cf-foot mt-6">
+                  <span>
+                    {!fromOffice || !toOffice
+                      ? "Chọn đủ hai văn phòng để tiếp tục"
+                      : route && itinerary
+                        ? `Tuyến ${route} · ${itinerary}`
+                        : "Chưa khớp được tuyến/lộ trình — kiểm tra điểm lộ trình VP"}
+                  </span>
+                  <button type="button" className="primary" disabled={!fromOffice || !toOffice} onClick={goNext}>
+                    Tiếp tục <CfGlyph name="arrow" size={16} />
+                  </button>
+                </footer>
+              </>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void submit();
+                }}
+              >
+                <header className="cf-head">
+                  <span>Bước 2 / 3</span>
+                  <h2>Thông tin đơn hàng</h2>
+                  <p className="cf-route-chip">
+                    <CfGlyph name="pin" />
+                    {fromOfficeRec?.name ?? fromOffice}
+                    <CfGlyph name="arrow" size={14} />
+                    {toOfficeRec?.name ?? toOffice}
+                  </p>
+                </header>
+
+                <div className="cf-cols">
+                <div className="cf-col-main">
+                <div className="cf-block">
+                  <CfBlockTitle icon="user" tone="blue" title="Người gửi & người nhận" sub="Thông tin liên hệ hai đầu" />
+                  <div className="cf-grid">
+                    <div className="cf-sub wide">
+                      <b>Người gửi</b>
+                      <ContactPickButton
+                        className="cf-link"
+                        onPick={(c) => {
+                          if (c.phone) setSenderPhone(c.phone);
+                          if (c.name) setSenderName(toUpperName(c.name));
+                        }}
+                      />
+                    </div>
+                    <CfField icon="user" label="Tên người gửi">
+                      <NameInput placeholder="Nguyễn Văn A" value={senderName} onChange={setSenderName} />
+                    </CfField>
+                    <CfField icon="phone" label="SĐT người gửi">
+                      <PhoneInput placeholder="09xx xxx xxx" value={senderPhone} onChange={setSenderPhone} />
+                    </CfField>
+                    <label className="cf-check wide">
+                      <Checkbox
+                        checked={homePickup}
+                        onCheckedChange={(v) => {
+                          const on = Boolean(v);
+                          setHomePickup(on);
+                          if (!on) {
+                            setPickupAddr("");
+                            setPickupFee(0);
+                            setPickupKm(null);
+                          }
+                        }}
+                      />
+                      Lấy hàng tận nơi
+                    </label>
+                    {homePickup && (
+                      <CfField
+                        icon="home"
+                        label="Địa chỉ lấy hàng"
+                        wide
+                        hint={doorHint(pickupQuoting, pickupKm, pickupAddr, "lấy")}
+                      >
+                        <input placeholder="VD: 21 Đại Từ - HN" value={pickupAddr} onChange={(e) => setPickupAddr(e.target.value)} />
+                      </CfField>
+                    )}
+
+                    <div className="cf-sub wide">
+                      <b>Người nhận</b>
+                      <ContactPickButton
+                        className="cf-link"
+                        onPick={(c) => {
+                          if (c.phone) setReceiverPhone(c.phone);
+                          if (c.name) setReceiverName(toUpperName(c.name));
+                        }}
+                      />
+                    </div>
+                    <CfField icon="user" label="Tên người nhận">
+                      <NameInput placeholder="Trần Thị B" value={receiverName} onChange={setReceiverName} />
+                    </CfField>
+                    <CfField icon="phone" label="SĐT người nhận">
+                      <PhoneInput placeholder="09xx xxx xxx" value={receiverPhone} onChange={setReceiverPhone} />
+                    </CfField>
+                    <label className="cf-check wide">
+                      <Checkbox
+                        checked={homeDelivery}
+                        onCheckedChange={(v) => {
+                          const on = Boolean(v);
+                          setHomeDelivery(on);
+                          if (!on) {
+                            setDeliverAddr("");
+                            setDeliveryFee(0);
+                            setDeliveryKm(null);
+                          }
+                        }}
+                      />
+                      Giao hàng tận nơi
+                    </label>
+                    {homeDelivery && (
+                      <CfField
+                        icon="pin"
+                        label="Địa chỉ người nhận"
+                        wide
+                        hint={doorHint(deliveryQuoting, deliveryKm, deliverAddr, "giao")}
+                      >
+                        <input placeholder="VD: 21 Đại Từ - HN" value={deliverAddr} onChange={(e) => setDeliverAddr(e.target.value)} />
+                      </CfField>
+                    )}
+                  </div>
+                </div>
+
+                <div className="cf-block">
+                  <CfBlockTitle
+                    icon="pkg"
+                    tone="orange"
+                    title="Hàng hoá"
+                    sub={`${items.length} kiện · ${totalWeight.toLocaleString("vi-VN")} kg`}
+                    action={
+                      <button
+                        type="button"
+                        className="cf-link"
+                        onClick={() => {
+                          const last = items[items.length - 1];
+                          if (last) duplicateItem(last.id);
+                        }}
+                      >
+                        <CfGlyph name="copy" size={15} />
+                        Copy kiện
+                      </button>
+                    }
+                  />
+                  {items.map((it, idx) => (
+                    <div key={it.id} className="cf-item">
+                      <div className="cf-sub">
+                        <b>Kiện {idx + 1}</b>
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            className="cf-link danger"
+                            onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
+                            aria-label={`Xóa kiện ${idx + 1}`}
+                          >
+                            <CfGlyph name="trash" size={15} />
+                            Xóa
+                          </button>
+                        )}
+                      </div>
+                      <div className="cf-grid">
+                        <CfField icon="pkg" label="Tên hàng hoá" wide>
+                          <input
+                            placeholder="Ví dụ: Quần áo, mỹ phẩm..."
+                            value={it.name}
+                            onChange={(e) => updateItem(it.id, { name: e.target.value })}
+                          />
+                        </CfField>
+                        <CfField label="Số lượng">
+                          <NumberInput value={it.sl} onChange={(sl) => updateItem(it.id, { sl })} />
+                        </CfField>
+                        <CfField icon="scale" label="Cân nặng (kg)">
+                          <NumberInput decimal min={1} value={it.weight} onChange={(weight) => updateItem(it.id, { weight })} />
+                        </CfField>
+                        <div className="cf-grid three wide">
+                          <CfField label="Dài (cm)">
+                            <NumberInput value={it.dai} onChange={(dai) => updateItem(it.id, { dai })} />
+                          </CfField>
+                          <CfField label="Rộng (cm)">
+                            <NumberInput value={it.rong} onChange={(rong) => updateItem(it.id, { rong })} />
+                          </CfField>
+                          <CfField label="Cao (cm)">
+                            <NumberInput value={it.cao} onChange={(cao) => updateItem(it.id, { cao })} />
+                          </CfField>
+                        </div>
+                        <CfField icon="card" label="Giá trị hàng (VND)">
+                          <MoneyInput value={it.value} onChange={(value) => updateItem(it.id, { value })} suffix="" />
+                        </CfField>
+                        <CfField label="Cước kiện (tự tính)">
+                          <MoneyInput value={it.fare} onChange={() => undefined} readOnly tabIndex={-1} suffix="" />
+                        </CfField>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" className="cf-add" onClick={() => setItems((p) => [...p, newItem()])}>
+                    <CfGlyph name="plus" size={16} />
+                    Thêm kiện hàng
+                  </button>
+                  <div className="cf-photo">
+                    <GoodsPhotoPicker value={goodsPhoto} onChange={setGoodsPhoto} />
+                  </div>
+                </div>
+                </div>
+
+                <aside className="cf-col-side">
+                <div className="cf-block">
+                  <CfBlockTitle icon="card" tone="green" title="Thanh toán" sub="Ai sẽ trả tiền cước?" />
+                  <div className="cf-payer three">
+                    {payCards.map(([v, icon, t, d]) => (
+                      <label key={v} className={cn(payMethod === v && "on")}>
+                        <input
+                          type="radio"
+                          name="payer"
+                          checked={payMethod === v}
+                          onChange={() => setPayMethod(v)}
+                        />
+                        <i>
+                          <CfGlyph name={icon} />
+                        </i>
+                        <strong>{t}</strong>
+                        <small>{d}</small>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="cf-grid">
+                    {payMethod === "Thu cước 1 phần" && (
+                      <CfField icon="card" label="Người gửi trả trước (VND)" wide>
+                        <MoneyInput value={prepaid} onChange={setPrepaid} suffix="" />
+                      </CfField>
+                    )}
+                    <CfField icon="card" label="Thu hộ tiền COD (VND)" wide>
+                      <MoneyInput value={codAmount} onChange={setCodAmount} suffix="" />
+                    </CfField>
+                    <label className="cf-check wide">
+                      <Checkbox checked={ckSender} onCheckedChange={(v) => setCkSender(Boolean(v))} />
+                      Tài khoản nhận tiền thu hộ
+                    </label>
+                    {ckSender && (
+                      <>
+                        <CfField icon="bank" label="Ngân hàng" wide>
+                          <SearchableSelect
+                            value={bankName}
+                            onValueChange={setBankName}
+                            placeholder="Chọn ngân hàng"
+                            className={selectClass}
+                            options={BANK_OPTIONS}
+                          />
+                        </CfField>
+                        <CfField icon="card" label="Số tài khoản">
+                          <input
+                            inputMode="numeric"
+                            placeholder="Nhập số tài khoản"
+                            value={bankAccountNo}
+                            onChange={(e) => setBankAccountNo(onlyDigits(e.target.value))}
+                          />
+                        </CfField>
+                        <CfField icon="user" label="Tên tài khoản">
+                          <NameInput placeholder="Chủ tài khoản" value={bankAccountName} onChange={setBankAccountName} />
+                        </CfField>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="cf-summary">
+                  <div>
+                    <span>Cước hàng</span>
+                    <b>{formatVND(goodsFare)}</b>
+                  </div>
+                  {(
+                    [
+                      ["Cước lấy tận nơi", pickupFeeVal],
+                      ["Cước giao tận nơi", deliveryFeeVal],
+                      ["Phí thu hộ COD", codFee],
+                      ["Phí khai báo giá trị", declaredFee],
+                    ] as const
+                  ).map(([label, v]) =>
+                    v ? (
+                      <div key={label}>
+                        <span>{label}</span>
+                        <b>{formatVND(v)}</b>
+                      </div>
+                    ) : null,
+                  )}
+                  <div className="cf-total">
+                    <span>Tổng cộng</span>
+                    <strong className="total-amount-warning">{formatVND(totalFare)}</strong>
+                  </div>
+                </div>
+                </aside>
+                </div>
+                <footer className="cf-foot">
+                  <button type="button" className="secondary" onClick={() => setStep(1)}>
+                    Quay lại
+                  </button>
+                  <button type="submit" className="primary" disabled={saving}>
+                    {saving ? "Đang tạo..." : "Tạo đơn hàng"}
+                  </button>
+                </footer>
+              </form>
+            )}
+          </section>
+        </div>
+        {createdOrder && (
+          <PrintLabelDialog code={createdOrder.code} batchPackages open={printLabels} onOpenChange={setPrintLabels} />
+        )}
+      </>
+    );
+  }
+
+  if (createdOrder) {
+  return (
+      <>
+        <GuestOrderBill
+          order={createdOrder}
+          collect={createdCollect}
+          onHome={() => navigate({ to: "/" })}
+          onCreateAnother={startNewOrder}
+          onPrintLabels={() => setPrintLabels(true)}
+        />
+        <PrintLabelDialog
+          code={createdOrder.code}
+          batchPackages
+          open={printLabels}
+          onOpenChange={setPrintLabels}
+        />
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F4F7FB]">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-8 pt-3 sm:max-w-lg md:max-w-xl">
+        <header className="relative mb-4 flex items-center justify-center py-2">
+          <button
+            type="button"
+            onClick={goBack}
+            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full text-foreground hover:bg-black/5"
+            aria-label="Quay lại"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="px-10 text-center text-[17px] font-semibold leading-snug text-foreground">
+            {headerTitle}
+          </h1>
+        </header>
+
+        <OrderStepper step={step} />
+
+        <div className="mt-5 flex-1">
+          {step === 1 ? (
+            <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
+              <SectionTitle>Chọn VP gửi & VP nhận</SectionTitle>
+                <div className="space-y-4">
+                  {!masterLoading && offices.length === 0 && (
+                    <p className="text-sm text-destructive">
+                      Không tải được danh sách văn phòng.{" "}
+                      <button type="button" className="underline font-medium" onClick={reloadPublicMasters}>
+                        Thử lại
+                      </button>
+                    </p>
+                  )}
+                  <Field label="VP gửi">
+                    <OfficePickerSheet
+                      value={fromOffice}
+                      onChange={setFromOffice}
+                      offices={offices}
+                      title="Chọn VP gửi"
+                      placeholder={masterLoading ? "Đang tải…" : "Chọn VP gửi"}
+                      className={officePickerClass}
+                      disabled={masterLoading || offices.length === 0}
+                    />
+                  </Field>
+                  <Field label="VP nhận">
+                    <OfficePickerSheet
+                      value={toOffice}
+                      onChange={setToOffice}
+                      offices={toOfficeList}
+                      compareOffices={compareGuestDestOffices}
+                      title={fromOfficeRec ? `Chọn VP nhận (từ ${fromOfficeRec.name})` : "Chọn VP nhận"}
+                      placeholder={
+                        masterLoading ? "Đang tải…" : fromOffice ? "Chọn VP nhận" : "Chọn VP gửi trước"
+                      }
+                      emptyText={
+                        fromOfficeRec ? "Không có VP nhận nào có lộ trình từ VP gửi này" : "Không có văn phòng"
+                      }
+                      className={officePickerClass}
+                      disabled={masterLoading || offices.length === 0}
+                    />
+                  </Field>
+                  {fromOffice && toOffice ? (
+                    <p className="rounded-xl border border-dashed bg-[#E9EEF5]/60 px-3 py-2 text-xs text-muted-foreground">
+                      Tuyến / lộ trình:{" "}
+                      <span className="font-medium text-foreground">
+                        {route && itinerary ? `${route} · ${itinerary}` : "Chưa khớp được — kiểm tra điểm lộ trình VP"}
+                      </span>
+                    </p>
+                  ) : null}
+                  <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
+          </div>
+        </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
+                <SectionTitle>Người gửi & nhận</SectionTitle>
+                <div className="space-y-5">
+                  <PartyBlock
+                    title="Người gửi"
+                    action={
+                      <ContactPickButton
+                        onPick={(c) => {
+                          if (c.phone) setSenderPhone(c.phone);
+                          if (c.name) setSenderName(toUpperName(c.name));
+                        }}
+                      />
+                    }
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="SĐT người gửi">
+                        <PhoneInput
+                          className={fieldInputClass}
+                          placeholder="Nhập SĐT..."
+                          value={senderPhone}
+                          onChange={setSenderPhone}
+                        />
+                      </Field>
+                      <Field label="Tên người gửi">
+                        <NameInput
+                          className={fieldInputClass}
+                          placeholder="Nhập tên..."
+                          value={senderName}
+                          onChange={setSenderName}
+                        />
+                      </Field>
+                    </div>
+                    <label className="mt-3 flex items-center gap-2.5 text-sm text-foreground">
+                      <Checkbox
+                        checked={homePickup}
+                        onCheckedChange={(v) => {
+                          const on = Boolean(v);
+                          setHomePickup(on);
+                          if (!on) {
+                            setPickupAddr("");
+                            setPickupFee(0);
+                            setPickupKm(null);
+                          }
+                        }}
+                      />
+                      Lấy tận nơi
+                    </label>
+                    {homePickup ? (
+                      <div className="mt-3 space-y-1.5">
+                        <Field label="Địa chỉ lấy hàng">
+                          <Input
+                            className={fieldInputClass}
+                            placeholder="VD: 21 Đại Từ - HN"
+                            value={pickupAddr}
+                            onChange={(e) => setPickupAddr(e.target.value)}
+                          />
+                        </Field>
+                        <p className="text-xs text-muted-foreground">
+                          Chỉ cần số nhà và đường. Không cần quận, huyện, xã.
+                          {pickupQuoting
+                            ? " Đang hỏi Ahamove…"
+                            : pickupKm != null
+                              ? ` Ahamove tính được ${pickupKm.toFixed(1)} km.`
+                              : pickupAddr.trim()
+                                ? " Ahamove chưa xác định được điểm lấy — cước lấy hàng 50.000đ."
+                                : ""}
+                        </p>
+                      </div>
+                    ) : null}
+                  </PartyBlock>
+
+                  <div className="h-px bg-border" />
+
+                  <PartyBlock
+                    title="Người nhận"
+                    action={
+                      <ContactPickButton
+                        onPick={(c) => {
+                          if (c.phone) setReceiverPhone(c.phone);
+                          if (c.name) setReceiverName(toUpperName(c.name));
+                        }}
+                      />
+                    }
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="SĐT người nhận">
+                        <PhoneInput
+                          className={fieldInputClass}
+                          placeholder="Nhập SĐT..."
+                          value={receiverPhone}
+                          onChange={setReceiverPhone}
+                        />
+                      </Field>
+                      <Field label="Tên người nhận">
+                        <NameInput
+                          className={fieldInputClass}
+                          placeholder="Nhập tên..."
+                          value={receiverName}
+                          onChange={setReceiverName}
+                        />
+                      </Field>
+              </div>
+                    <label className="mt-3 flex items-center gap-2.5 text-sm text-foreground">
+                      <Checkbox
+                        checked={homeDelivery}
+                        onCheckedChange={(v) => {
+                          const on = Boolean(v);
+                          setHomeDelivery(on);
+                          if (!on) {
+                            setDeliverAddr("");
+                            setDeliveryFee(0);
+                            setDeliveryKm(null);
+                          }
+                        }}
+                      />
+                      Giao tận nơi
+                    </label>
+                    {homeDelivery ? (
+                      <div className="mt-3 space-y-1.5">
+                        <Field label="Địa chỉ giao hàng">
+                          <Input
+                            className={fieldInputClass}
+                            placeholder="VD: 21 Đại Từ - HN"
+                            value={deliverAddr}
+                            onChange={(e) => setDeliverAddr(e.target.value)}
+                          />
+                        </Field>
+                        <p className="text-xs text-muted-foreground">
+                          Chỉ cần số nhà và đường. Không cần quận, huyện, xã.
+                          {deliveryQuoting
+                            ? " Đang hỏi Ahamove…"
+                            : deliveryKm != null
+                              ? ` Ahamove tính được ${deliveryKm.toFixed(1)} km.`
+                              : deliverAddr.trim()
+                                ? " Ahamove chưa xác định được điểm giao — cước giao hàng 50.000đ."
+                                : ""}
+                        </p>
+                      </div>
+                    ) : null}
+                  </PartyBlock>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
+                <SectionTitle>Hàng hoá</SectionTitle>
+                <div className="space-y-4">
+                  {items.map((it, idx) => {
+                    return (
+                      <div key={it.id} className="space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                            <Package className="h-4 w-4" />
+                            Kiện {idx + 1}
+                          </div>
+                          {items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              aria-label={`Xóa kiện ${idx + 1}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <Field label="Tên hàng hoá *">
+                          <Input
+                            className={fieldInputClass}
+                            placeholder="Nhập tên hàng hóa"
+                            value={it.name}
+                            onChange={(e) => updateItem(it.id, { name: e.target.value })}
+                            required
+                          />
+                        </Field>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          <Field label="Dài (cm)">
+                            <NumberInput
+                              className={fieldInputClass}
+                              value={it.dai}
+                              onChange={(dai) => updateItem(it.id, { dai })}
+                            />
+                          </Field>
+                          <Field label="Rộng (cm)">
+                            <NumberInput
+                              className={fieldInputClass}
+                              value={it.rong}
+                              onChange={(rong) => updateItem(it.id, { rong })}
+                            />
+                          </Field>
+                          <Field label="Cao (cm)">
+                            <NumberInput
+                              className={fieldInputClass}
+                              value={it.cao}
+                              onChange={(cao) => updateItem(it.id, { cao })}
+                            />
+                          </Field>
+              </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <Field label="Số lượng">
+                            <NumberInput
+                              className={fieldInputClass}
+                              value={it.sl}
+                              onChange={(sl) => updateItem(it.id, { sl })}
+                            />
+                          </Field>
+                          <Field label="Cân nặng (KG)">
+                            <NumberInput
+                              className={fieldInputClass}
+                              decimal
+                              min={1}
+                              value={it.weight}
+                              onChange={(weight) => updateItem(it.id, { weight })}
+                            />
+                          </Field>
+                </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <Field label="Giá trị hàng">
+                            <MoneyInput
+                              className="[&_input]:h-12 [&_input]:rounded-xl [&_input]:border-0 [&_input]:bg-[#E9EEF5] [&_input]:shadow-none"
+                              value={it.value}
+                              onChange={(value) => updateItem(it.id, { value })}
+                              suffix=""
+                            />
+                          </Field>
+                          <Field label="Cước kiện">
+                            <MoneyInput
+                              className="[&_input]:h-12 [&_input]:rounded-xl [&_input]:border-0 [&_input]:bg-[#E9EEF5] [&_input]:shadow-none [&_input]:text-muted-foreground"
+                              value={it.fare}
+                              onChange={() => undefined}
+                              readOnly
+                              tabIndex={-1}
+                              suffix=""
+                            />
+                          </Field>
+                  </div>
+
+                        {idx < items.length - 1 && <div className="h-px bg-border" />}
+                      </div>
+                    );
+                  })}
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setItems((p) => [...p, newItem()])}
+                      className="flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-primary/40 text-sm font-semibold text-primary hover:bg-primary/5"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm kiện
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const last = items[items.length - 1];
+                        if (last) duplicateItem(last.id);
+                      }}
+                      className="flex h-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border-2 border-primary/40 px-3 text-sm font-semibold text-primary hover:bg-primary/5"
+                      aria-label="Nhân bản kiện cuối"
+                      title="Nhân bản kiện cuối"
+                    >
+                      <Copy className="h-4 w-4 shrink-0" />
+                      Nhân bản
+                    </button>
+                  </div>
+
+                  <div className="h-px bg-border" />
+                  <GoodsPhotoPicker value={goodsPhoto} onChange={setGoodsPhoto} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-4 shadow-sm sm:p-5">
+                <SectionTitle>Thanh toán</SectionTitle>
+                <div className="space-y-4">
+                  <Field label="Hình thức thanh toán">
+                      <SearchableSelect
+                      value={payMethod}
+                      onValueChange={setPayMethod}
+                      className={fieldSelectClass}
+                      options={PAY_METHODS.map((m) => ({
+                        value: m,
+                        label: m,
+                      }))}
+                    />
+                  </Field>
+                  {payMethod === "Thu cước 1 phần" && (
+                    <Field label="Người gửi trả trước">
+                      <MoneyInput
+                        className="[&_input]:h-12 [&_input]:rounded-xl [&_input]:border-0 [&_input]:bg-[#E9EEF5] [&_input]:shadow-none"
+                        value={prepaid}
+                        onChange={setPrepaid}
+                        suffix=""
+                      />
+                    </Field>
+                  )}
+                  <Field label="Thu Hộ (COD)">
+                    <MoneyInput
+                      className="[&_input]:h-12 [&_input]:rounded-xl [&_input]:border-0 [&_input]:bg-[#E9EEF5] [&_input]:shadow-none"
+                      value={codAmount}
+                      onChange={setCodAmount}
+                      suffix=""
+                    />
+                  </Field>
+                  <label className="flex items-center gap-2.5 text-sm text-foreground">
+                    <Checkbox checked={ckSender} onCheckedChange={(v) => setCkSender(Boolean(v))} />
+                    Tài khoản nhận thu hộ
+                  </label>
+
+                  {ckSender && (
+                    <div className="space-y-3 rounded-xl border bg-[#F7F9FC] p-3">
+                      <Field label="Ngân hàng">
+                        <SearchableSelect
+                          value={bankName}
+                          onValueChange={setBankName}
+                          placeholder="Chọn ngân hàng"
+                          className={fieldSelectClass}
+                          options={BANK_OPTIONS}
+                        />
+                      </Field>
+                      <Field label="Số tài khoản">
+                        <Input
+                          className={fieldInputClass}
+                          inputMode="numeric"
+                          placeholder="Nhập số tài khoản"
+                          value={bankAccountNo}
+                          onChange={(e) => setBankAccountNo(onlyDigits(e.target.value))}
+                        />
+                      </Field>
+                      <Field label="Tên tài khoản">
+                        <NameInput
+                          className={fieldInputClass}
+                          placeholder="Chủ tài khoản"
+                          value={bankAccountName}
+                          onChange={setBankAccountName}
+                        />
+                      </Field>
+                  </div>
+                )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-4 text-sm shadow-sm sm:p-5">
+                <div className="mb-2 text-xs font-medium text-muted-foreground">Thông tin thanh toán</div>
+                <FeeRow label="Cước hàng" value={goodsFare} always />
+                <FeeRow label="Cước lấy tận nơi" value={pickupFeeVal} />
+                <FeeRow label="Cước giao tận nơi" value={deliveryFeeVal} />
+                <FeeRow label="Phí thu hộ COD" value={codFee} />
+                <FeeRow label="Phí khai báo giá trị" value={declaredFee} />
+                <FeeRow label="Đã thu" value={paidNow} />
+                <div className="my-3 h-px bg-border" />
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Tổng</span>
+                  <span className="text-base font-bold text-orange-500">{formatVND(totalFare)}</span>
+                </div>
+              </div>
+                  </div>
+          )}
+
+          <div className={cn("mt-4 grid gap-3", step > 1 ? "grid-cols-2" : "grid-cols-1")}>
+            {step > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 rounded-xl border-primary/40 bg-white text-foreground"
+                onClick={() => setStep((s) => s - 1)}
+              >
+                Quay lại
+              </Button>
+            )}
+            {step < LAST_STEP ? (
+              <Button type="button" className="h-12 rounded-xl text-base font-semibold" onClick={goNext}>
+                Tiếp tục
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="h-12 rounded-xl text-base font-semibold"
+                disabled={saving}
+                onClick={() => void submit()}
+              >
+                {saving ? "Đang tạo..." : "Tạo đơn"}
+              </Button>
+                )}
+              </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const payLabelOf = guestBillPayLabel;
+
+function CrmOrderDone({
+  order,
+  collect,
+  onHome,
+  onCreateAnother,
+  onPrintLabels,
+}: {
+  order: OrderX;
+  collect?: import("@/lib/api/domain-api").GuestCollect | null;
+  onHome: () => void;
+  onCreateAnother: () => void;
+  onPrintLabels: () => void;
+}) {
+  const pkgs = packageRows(order);
+  const pickup = order.pickupFee ?? 0;
+  const delivery = order.deliveryFee ?? 0;
+  const codFee = order.codFee ?? 0;
+  const declared = order.declaredFee ?? 0;
+  const goodsFare =
+    order.goodsFare != null
+      ? Number(order.goodsFare)
+      : Math.max(0, (order.fare ?? 0) - pickup - delivery - codFee - declared);
+  const [downloading, setDownloading] = useState(false);
+
+  const saveBill = async () => {
+    setDownloading(true);
+    try {
+      downloadBlob(await renderGuestBillPng(order, payLabelOf(order)), guestBillFileName(order.code));
+      toast.success("Đã tải biên nhận về máy");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không tải được biên nhận");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const copyCode = () => {
+    void navigator.clipboard
+      ?.writeText(order.code)
+      .then(() => toast.success("Đã copy mã đơn"))
+      .catch(() => undefined);
+  };
+
+  return (
+    <>
+      <header className="cf-head center">
+        <SuccessArt />
+        <h2>Tạo đơn thành công!</h2>
+        <p>
+          Mã đơn{" "}
+          <button type="button" className="cf-code" onClick={copyCode} title="Copy mã đơn">
+            <b>{order.code}</b> <CfGlyph name="copy" size={15} />
+          </button>
+        </p>
+      </header>
+      <div className="mx-auto mb-4 w-full max-w-md">
+        <GuestTransferPanel order={order} initial={collect} />
+      </div>
+      <div className="cf-done">
+        <div className="cf-block">
+          <div className="cf-party">
+            <div className="cf-badge blue">
+              <CfGlyph name="send" />
+            </div>
+            <div>
+              <small>Người gửi</small>
+              <strong>
+                {order.senderName || "—"} · {order.senderPhone}
+              </strong>
+              <span>
+                {officeName(order.fromOffice)}
+                {order.homePickup ? ` · Lấy tận nơi: ${order.pickupAddress ?? ""}` : ""}
+              </span>
+            </div>
+            {pickup > 0 && <b>{formatVND(pickup)}</b>}
+          </div>
+          <div className="cf-party">
+            <div className="cf-badge green">
+              <CfGlyph name="flag" />
+            </div>
+            <div>
+              <small>Người nhận</small>
+              <strong>
+                {order.receiverName || "—"} · {order.receiverPhone}
+              </strong>
+              <span>
+                {officeName(order.finalToOffice || order.toOffice)}
+                {order.homeDelivery ? ` · Giao tận nơi: ${order.address ?? ""}` : ""}
+              </span>
+            </div>
+            {delivery > 0 && <b>{formatVND(delivery)}</b>}
+          </div>
+          {pkgs.map((p) => (
+            <div key={p.seq} className="cf-party">
+              <div className="cf-badge orange">
+                <CfGlyph name="pkg" />
+              </div>
+              <div>
+                <small>Kiện {p.seq}</small>
+                <strong>{p.label}</strong>
+                <span>
+                  SL: {p.itemQty} · KL: {p.weightKg != null ? Number(p.weightKg).toFixed(1) : "—"}kg
+                </span>
+              </div>
+              <b>{formatVND(p.fare)}</b>
+            </div>
+          ))}
+          <div className="cf-summary flat">
+            <div>
+              <span>Hình thức</span>
+              <b>{payLabelOf(order)}</b>
+            </div>
+            {(order.codAmount ?? 0) > 0 && (
+              <div>
+                <span>Thu hộ COD</span>
+                <b>{formatVND(order.codAmount ?? 0)}</b>
+              </div>
+            )}
+            <div>
+              <span>Cước hàng</span>
+              <b>{formatVND(goodsFare)}</b>
+            </div>
+            {codFee > 0 && (
+              <div>
+                <span>Phí thu hộ COD</span>
+                <b>{formatVND(codFee)}</b>
+              </div>
+            )}
+            {declared > 0 && (
+              <div>
+                <span>Phí khai báo giá trị</span>
+                <b>{formatVND(declared)}</b>
+              </div>
+            )}
+            <div className="cf-total">
+              <span>Tổng cộng</span>
+              <strong>{formatVND(order.fare ?? 0)}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer className="cf-foot mt-6">
+        <button type="button" className="secondary" onClick={onHome}>
+          Về trang chủ
+        </button>
+        <button type="button" className="secondary" onClick={onPrintLabels}>
+          <CfGlyph name="printer" size={16} /> In tem
+        </button>
+        <button type="button" className="secondary" disabled={downloading} onClick={() => void saveBill()}>
+          <CfGlyph name="download" size={16} /> {downloading ? "Đang tạo…" : "Tải biên nhận"}
+        </button>
+        <button type="button" className="primary" onClick={onCreateAnother}>
+          Tạo đơn khác
+        </button>
+      </footer>
+    </>
+  );
+}
+
+function GuestOrderBill({
+  order,
+  collect,
+  onHome,
+  onCreateAnother,
+  onPrintLabels,
+}: {
+  order: OrderX;
+  collect?: import("@/lib/api/domain-api").GuestCollect | null;
+  onHome: () => void;
+  onCreateAnother: () => void;
+  onPrintLabels: () => void;
+}) {
+  const pkgs = packageRows(order);
+  const pickup = order.pickupFee ?? 0;
+  const delivery = order.deliveryFee ?? 0;
+  const codFee = order.codFee ?? 0;
+  const declared = order.declaredFee ?? 0;
+  const discount = order.discountAmount ?? 0;
+  const goodsFare =
+    order.goodsFare != null
+      ? Number(order.goodsFare)
+      : Math.max(0, (order.fare ?? 0) - pickup - delivery - codFee - declared + discount);
+  const [downloading, setDownloading] = useState(false);
+  const [billBlob, setBillBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const payLabel = payLabelOf(order);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBillBlob(null);
+    renderGuestBillPng(order, payLabel)
+      .then((b) => {
+        if (!cancelled) setBillBlob(b);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [order, payLabel]);
+
+  const fileName = guestBillFileName(order.code);
+  const canShareFile = useMemo(() => {
+    if (!billBlob || typeof navigator === "undefined" || typeof navigator.canShare !== "function") return false;
+    try {
+      return navigator.canShare({ files: [new File([billBlob], fileName, { type: "image/png" })] });
+    } catch {
+      return false;
+    }
+  }, [billBlob, fileName]);
+
+  const saveBill = async () => {
+    setDownloading(true);
+    try {
+      const blob = billBlob ?? (await renderGuestBillPng(order, payLabel));
+      if (!isHandheldCameraDevice()) {
+        downloadBlob(blob, fileName);
+        toast.success("Đã tải biên nhận về máy");
+        return;
+      }
+      setPreviewUrl(await blobToDataUrl(blob));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không tải được biên nhận");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const shareBill = async () => {
+    if (!billBlob) return;
+    const res = await shareImageToGallery(billBlob, fileName);
+    if (res === "unsupported") toast.error("Máy không hỗ trợ — hãy nhấn giữ vào ảnh để lưu");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F4F7FB] px-4 py-5 print:bg-white print:px-0 print:py-0">
+      <div className="mx-auto w-full max-w-lg print:max-w-none">
+        <div className="mb-3 rounded-2xl border border-success/30 bg-success/10 px-4 py-3 print:hidden">
+          <div className="text-sm font-semibold text-foreground">Tạo đơn thành công</div>
+        </div>
+        <div className="mb-3">
+          <GuestTransferPanel order={order} initial={collect} />
+        </div>
+
+        <div
+          id="guest-order-bill"
+          className="rounded-2xl border border-[#E5EAF2] bg-white p-4 shadow-sm sm:p-5 print:border-0 print:shadow-none"
+        >
+          <div className="flex items-start justify-between gap-3 border-b pb-3">
+            <div>
+              <div className="text-xs font-bold tracking-wide text-primary">X.E VIỆT NAM</div>
+              <div className="text-xs text-muted-foreground">Biên nhận đơn hàng</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Mã đơn</div>
+              <div className="text-lg font-bold tracking-tight">{order.code}</div>
+            </div>
+          </div>
+
+          <div className="mt-2 text-xs text-muted-foreground">
+            {formatDateTime(order.createdAt)}
+            {order.route || order.itinerary
+              ? ` · ${[order.route, order.itinerary].filter(Boolean).join(" · ")}`
+              : ""}
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-[#E5EAF2] p-3">
+              <div className="mb-2 text-xs font-semibold text-primary">Người gửi</div>
+              <BillLine label="SĐT" value={order.senderPhone} />
+              <BillLine label="Tên" value={order.senderName || "—"} />
+              <BillLine label="VP gửi" value={officeName(order.fromOffice)} />
+              {order.pickupAddress ? <BillLine label="Địa chỉ" value={order.pickupAddress} /> : null}
+              {order.homePickup ? (
+                <div className="mt-2 rounded-md bg-sky-50 px-2 py-1.5 text-xs text-sky-800">
+                  Lấy tận nơi{pickup > 0 ? ` · ${formatVND(pickup)}` : ""}
+                </div>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-[#E5EAF2] p-3">
+              <div className="mb-2 text-xs font-semibold text-primary">Người nhận</div>
+              <BillLine label="SĐT" value={order.receiverPhone} />
+              <BillLine label="Tên" value={order.receiverName || "—"} />
+              <BillLine label="VP nhận" value={officeName(order.finalToOffice || order.toOffice)} />
+              {order.address ? <BillLine label="Địa chỉ" value={order.address} /> : null}
+              {order.homeDelivery ? (
+                <div className="mt-2 rounded-md bg-sky-50 px-2 py-1.5 text-xs text-sky-800">
+                  Giao tận nơi{delivery > 0 ? ` · ${formatVND(delivery)}` : ""}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="mb-2 text-xs font-semibold text-primary">Hàng hoá</div>
+            <div className="space-y-2">
+              {pkgs.map((p) => (
+                <div key={p.seq} className="rounded-xl border border-[#E5EAF2] p-3 text-sm">
+                  <div className="mb-1 flex justify-between gap-2 font-medium">
+                    <span>KIỆN {p.seq}</span>
+                    <span className="tabular-nums text-orange-500">{formatVND(p.fare)}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">{p.label}</div>
+                  <div className="mt-1 flex gap-3 text-xs text-muted-foreground">
+                    <span>SL: {p.itemQty}</span>
+                    <span>KL: {p.weightKg != null ? Number(p.weightKg).toFixed(1) : "—"} kg</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-[#E5EAF2] p-3">
+            <div className="mb-2 text-xs font-semibold text-primary">Thanh toán</div>
+            <BillLine label="Hình thức" value={payLabelOf(order)} />
+            {(order.codAmount ?? 0) > 0 ? (
+              <BillLine label="Thu hộ COD" value={formatVND(order.codAmount ?? 0)} />
+            ) : null}
+            <div className="mt-2 space-y-1 border-t pt-2">
+              <FeeRow label="Cước hàng" value={goodsFare} always />
+              <FeeRow label="Cước lấy hàng tận nơi" value={pickup} />
+              <FeeRow label="Cước giao hàng tận nơi" value={delivery} />
+              {(order.codFeeRefund ?? 0) > 0 ? (
+                <FeeRow label="Tiền hoàn phí COD" value={order.codFeeRefund || codFee} always />
+              ) : (
+                <FeeRow label="Phí thu hộ COD" value={codFee} />
+              )}
+              <FeeRow label="Phí khai báo giá trị" value={declared} />
+              <FeeRow label="Giảm giá" value={-discount} />
+              <FeeRow label="Đã thu" value={order.paidAmount ?? 0} always />
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t pt-2">
+              <span className="text-sm font-semibold">Tổng</span>
+              <span className="text-base font-bold text-orange-500">{formatVND(order.fare ?? 0)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-2 print:hidden sm:grid-cols-2">
+          <Button type="button" className="h-12 rounded-xl" onClick={onPrintLabels}>
+            <Printer className="mr-2 h-4 w-4" />
+            In tem
+          </Button>
+          <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={onCreateAnother}>
+            Tạo đơn khác
+          </Button>
+        </div>
+        <div className="mt-2 grid grid-cols-1 gap-2 print:hidden sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 rounded-xl border-primary/40"
+            disabled={downloading}
+            onClick={() => void saveBill()}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {downloading ? "Đang tạo ảnh…" : "Tải biên nhận"}
+          </Button>
+          <Button type="button" variant="ghost" className="h-11 rounded-xl" onClick={onHome}>
+            Về trang chủ
+          </Button>
+        </div>
+        <Dialog open={!!previewUrl} onOpenChange={(o) => !o && setPreviewUrl(null)}>
+          <DialogContent className="max-h-[92dvh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl p-4">
+            <DialogHeader>
+              <DialogTitle className="text-base">Lưu biên nhận vào Ảnh</DialogTitle>
+            </DialogHeader>
+            {canShareFile ? (
+              <Button type="button" className="h-12 w-full rounded-xl text-base font-semibold" onClick={() => void shareBill()}>
+                <Download className="mr-2 h-4 w-4" />
+                Lưu vào Ảnh
+              </Button>
+            ) : null}
+            <p className="text-sm text-muted-foreground">
+              {canShareFile ? (
+                <>
+                  Bấm <b>Lưu vào Ảnh</b> rồi chọn <b>“Lưu hình ảnh”</b>. Hoặc nhấn giữ vào ảnh bên dưới và chọn{" "}
+                  <b>“Lưu vào Ảnh”</b> / <b>“Tải hình ảnh xuống”</b>.
+                </>
+              ) : (
+                <>
+                  Nhấn giữ vào ảnh bên dưới rồi chọn <b>“Lưu vào Ảnh”</b> / <b>“Tải hình ảnh xuống”</b>. Nếu
+                  đang mở trong Zalo/Facebook, hãy mở trang bằng Safari/Chrome để lưu.
+                </>
+              )}
+            </p>
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt={`Biên nhận ${order.code}`}
+                className="w-full select-none rounded-xl border"
+                style={{ WebkitTouchCallout: "default" }}
+              />
+            ) : null}
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+}
+
+function BillLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-2 text-sm">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+function FeeRow({ label, value, always }: { label: string; value: number; always?: boolean }) {
+  if (!always && !value) return null;
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{formatVND(value)}</span>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <h2 className="pb-3 text-base font-semibold text-foreground">{children}</h2>
+      <div className="mb-4 h-px bg-border" />
+    </>
+  );
+}
+
+/** Ảnh đơn hàng khách gửi (không bắt buộc, 1 ảnh/đơn): chụp ngay, chọn từ máy, hoặc Ctrl+V. */
+function GoodsPhotoPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const addFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Tệp không phải ảnh");
+      return;
+    }
+    setBusy(true);
+    try {
+      onChange(await compressToDataUrl(file));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không xử lý được ảnh");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pick = async (input: HTMLInputElement | null) => {
+    const file = input?.files?.[0];
+    if (input) input.value = "";
+    await addFile(file);
+  };
+
+  useEffect(() => {
+    if (busy) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const active = document.activeElement as HTMLElement | null;
+      const tag = active?.tagName?.toLowerCase();
+      if (
+        active &&
+        !rootRef.current?.contains(active) &&
+        (tag === "input" || tag === "textarea" || active.isContentEditable)
+      ) {
+        return;
+      }
+      const items = e.clipboardData?.items;
+      if (!items?.length) return;
+      for (const item of Array.from(items)) {
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (!file) continue;
+          e.preventDefault();
+          void addFile(file);
+          return;
+        }
+      }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- addFile dùng onChange ổn định theo phiên
+  }, [busy, onChange]);
+
+  const btn =
+    "flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-primary/40 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-50";
+
+  return (
+    <div ref={rootRef} className="space-y-2">
+      <div className="text-sm font-semibold text-foreground">
+        Ảnh đơn hàng <span className="font-normal text-muted-foreground">(không bắt buộc)</span>
+      </div>
+      {value ? (
+        <div className="relative w-fit">
+          <img src={value} alt="Ảnh đơn hàng" className="max-h-48 rounded-xl border object-contain" />
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-white"
+            aria-label="Xóa ảnh đơn hàng"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
+      <div className="flex gap-2">
+        <button type="button" disabled={busy} className={btn} onClick={() => cameraRef.current?.click()}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+          {value ? "Chụp lại" : "Chụp ảnh"}
+        </button>
+        <button type="button" disabled={busy} className={btn} onClick={() => fileRef.current?.click()}>
+          <ImagePlus className="h-4 w-4" />
+          {value ? "Chọn ảnh khác" : "Tải ảnh lên"}
+        </button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Có thể <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">Ctrl</kbd>+
+        <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">V</kbd> để dán ảnh
+        (screenshot / clipboard).
+      </p>
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => void pick(e.currentTarget)}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void pick(e.currentTarget)}
+      />
+    </div>
+  );
+}
+
+function OrderStepper({ step }: { step: number }) {
+  return (
+    <ol className="grid grid-cols-2 gap-1">
+      {STEPS.map((s, idx) => {
+        const active = step >= s.id;
+        return (
+          <li key={s.id} className="flex flex-col items-center">
+            <div className="flex w-full items-center">
+              <div
+                className={cn(
+                  "h-[2px] flex-1",
+                  idx === 0 ? "bg-transparent" : active ? "bg-primary" : "bg-[#D5DCE8]",
+                )}
+                aria-hidden
+              />
+              <div
+                className={cn(
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+                  active ? "bg-primary" : "bg-[#C5CEDD]",
+                )}
+              >
+                {s.id}
+              </div>
+              <div
+                className={cn(
+                  "h-[2px] flex-1",
+                  idx === STEPS.length - 1 ? "bg-transparent" : step > s.id ? "bg-primary" : "bg-[#D5DCE8]",
+                )}
+                aria-hidden
+              />
+            </div>
+            <div
+              className={cn(
+                "mt-1.5 px-0.5 text-center text-[10px] font-medium leading-tight sm:text-[11px]",
+                active ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              {s.short}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function PartyBlock({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <User className="h-4 w-4 text-primary" />
+        {title}
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-medium text-foreground/80">{label}</Label>
+      {children}
+    </div>
+  );
+}

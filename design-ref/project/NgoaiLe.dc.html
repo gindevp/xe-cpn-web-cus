@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Ngoại lệ - Huỷ X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{rootClass}}">
+
+  <dc-import name="AppNav" active="" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+
+  <main class="pad page">
+
+    <dc-import name="AppHero" active="Ngoại lệ - Huỷ" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="flex: 1 1 360px; min-width: 0">
+        <h1 class="page-title">{{tabLabel}}</h1>
+        <div class="muted" style="font-size: 13px; line-height: 20px">{{desc}}</div>
+      </div>
+    </div>
+
+    <div class="seg" role="tablist" aria-label="Loại ngoại lệ" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+        <button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.label}}<span class="count num">{{t.count}}</span></button>
+      </sc-for>
+    </div>
+
+    <section class="card" style="display: flex; flex-direction: column; gap: 16px">
+      <div class="th-row" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+        <div style="font-size: 15px; line-height: 22px; font-weight: 600">{{headText}}</div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+          <sc-for list="{{bulk}}" as="b" hint-placeholder-count="1">
+            <button class="{{b.cls}}" disabled="{{noSel}}" onClick="{{b.run}}">{{b.text}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+        <div class="empty">
+          <span class="ms" aria-hidden="true" style="font-size: 40px; color: var(--on-surface-variant)">inbox</span>
+          <h2 class="group-title" style="margin: 12px 0 4px">Không có đơn trong mục này</h2>
+          <div class="muted" style="font-size: 13px">{{emptyNote}}</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{hasRows}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div class="scroller">
+            <table class="tbl" style="--tbl-min: 1120px">
+              <thead>
+                <tr>
+                  <th style="width: 18px"><input class="check" type="checkbox" aria-label="Chọn tất cả" checked="{{allSel}}" onChange="{{toggleAll}}"></th>
+                  <th>Mã đơn</th><th>Thời gian và lý do huỷ</th><th>Người gửi</th><th>Người nhận</th><th>VP gửi → VP nhận</th><th>Đơn hàng</th><th class="r">COD</th><th class="r">Cước phí</th><th class="r">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{rows}}" as="o" hint-placeholder-count="8">
+                  <tr class="{{o.cls}}">
+                    <td><input class="check" type="checkbox" aria-label="{{o.selLabel}}" checked="{{o.sel}}" onChange="{{o.toggle}}"></td>
+                    <td><button class="code" data-step="{{step}}">{{o.code}}</button></td>
+                    <td style="white-space: nowrap">{{o.time}}<span class="sub">{{o.by}}</span><span class="sub">{{o.reason}}</span></td>
+                    <td style="white-space: nowrap"><span style="font-weight: 500">{{o.from}}</span><span class="sub">{{o.fromPhone}}</span></td>
+                    <td style="white-space: nowrap"><span style="font-weight: 500">{{o.to}}</span><span class="sub">{{o.toPhone}}</span></td>
+                    <td style="white-space: nowrap">{{o.vpFrom}}<span class="sub">→ {{o.vpTo}}</span></td>
+                    <td style="white-space: nowrap"><span style="font-weight: 500">{{o.pack}}</span><span class="sub">{{o.goods}}</span></td>
+                    <td class="r muted">—</td>
+                    <td class="r" style="white-space: nowrap"><span class="main">{{o.fee}}</span><span class="sub">{{o.payer}}</span></td>
+                    <td><div class="act"><button class="ok" aria-label="{{o.okLabel}}">Khôi phục</button></div></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+              <span class="muted num" style="font-size: 13px">1-8 trên 123 đơn</span>
+              <button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px">
+              <button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button>
+              <button class="pg on num" aria-label="Trang 1">1</button>
+              <button class="pg num" aria-label="Trang 2">2</button>
+              <button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1150}}'>
+const BACK = 'Tác vụ đưa lại kho theo nguồn ghi nhận (nhập kho gửi / nhập kho giao).';
+const TABS = [
+  { id: 'nl', label: 'Hàng ngoại lệ', count: 0, bulk: ['Đưa lại kho'], note: BACK, desc: 'Đơn quá ngày giao khách không đến nhận, mất mã/mất nhãn hoặc sai lệch thông tin, cần điều phối xác minh.' },
+  { id: 'tl', label: 'Hàng thất lạc', count: 0, bulk: ['Đưa lại kho'], note: BACK, desc: 'Đơn không tìm thấy trong kho/trên xe, cần mở vụ việc truy tìm và đền bù.' },
+  { id: 'hh', label: 'Hàng hư hỏng', count: 0, bulk: ['Đưa lại kho'], note: BACK, desc: 'Đơn bị vỡ, móp, ướt, hư hỏng trong quá trình vận chuyển, cần lập biên bản và xử lý đền bù.' },
+  { id: 'yc', label: 'Yêu cầu huỷ', count: 0, bulk: ['Từ chối', 'Duyệt huỷ'], note: 'Admin duyệt thì đơn huỷ, từ chối thì đơn hiện lại ở Nhập kho gửi.', desc: 'Điều phối gửi yêu cầu huỷ đơn, đơn tạm ẩn khỏi danh sách.' },
+  { id: 'huy', label: 'Đơn huỷ', count: 123, bulk: ['Khôi phục đơn'], desc: 'Đơn hàng được điều phối huỷ trên hệ thống khi khách tạo nhầm hoặc không gửi nữa.' },
+];
+const R = ['Khách tạo nhầm', 'Khách không gửi nữa'];
+const rowOf = (i, c, t, l, vf, vt, p, g, f, pay) => ({ code: c, time: t, by: 'Điều phối mẫu ' + l, reason: R[i % 2], from: 'Khách mẫu ' + l, fromPhone: '0900 000 10' + i, to: 'Người nhận ' + l, toPhone: '0900 000 20' + i, vpFrom: vf, vpTo: vt, pack: p, goods: g, fee: f, payer: pay });
+const SAMPLE = [
+  rowOf(1,'PV0311MDU1','16:12 03/11/2026','A','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 1,5 kg','Giấy tờ','35.000','Người nhận trả'),
+  rowOf(2,'BC0311MDU2','15:40 03/11/2026','B','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 8 kg','Thực phẩm','70.000','Người gửi trả'),
+  rowOf(3,'PV0311MDU3','14:55 03/11/2026','C','31A Nguyễn Quốc Trị - Hà Nội','104 Song Hào - Nam Định','1 kiện · 3 kg','Quần áo','40.000','Người nhận trả'),
+  rowOf(4,'LD0311MDU4','13:27 03/11/2026','D','34 Trần Phú - Thái Bình','31A Nguyễn Quốc Trị - Hà Nội','3 kiện · 12 kg','Linh kiện','95.000','Người gửi trả'),
+  rowOf(5,'PV0311MDU5','11:02 03/11/2026','E','31A Nguyễn Quốc Trị - Hà Nội','263 Nguyễn Thái Học - Yên Bái','1 kiện · 0,5 kg','Giấy tờ','30.000','Người nhận trả'),
+  rowOf(6,'BC0311MDU6','10:18 03/11/2026','F','251 Lương Văn Thăng - Ninh Bình','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 5 kg','Mỹ phẩm','45.000','Người gửi trả'),
+  rowOf(7,'PV0311MDU7','09:44 03/11/2026','G','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 6 kg','Quần áo','60.000','Người nhận trả'),
+  rowOf(8,'LD0311MDU8','08:30 03/11/2026','H','31A Nguyễn Quốc Trị - Hà Nội','34 Trần Phú - Thái Bình','1 kiện · 2 kg','Thực phẩm','35.000','Người gửi trả'),
+];
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'huy', sel: { BC0311MDU2: true } };
+  }
+  renderVals() {
+    const ASKS = {"askTuChoi": {"title": "Từ chối yêu cầu huỷ?", "body": "Đơn sẽ hiện lại ở Nhập kho gửi.", "ok": "Từ chối"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    const s = this.state;
+    const cur = TABS.find((t) => t.id === s.tab);
+    const has = cur.count > 0;
+    const rows = SAMPLE.map((r) => { const sel = !!s.sel[r.code]; return {
+       ...r, sel, cls: sel ? 'sel' : '', selLabel: 'Chọn ' + r.code, okLabel: 'Khôi phục ' + r.code, toggle: () => this.setState({ sel: { ...this.state.sel, [r.code]: !sel } }) }; });
+    const selCount = has ? rows.filter((r) => r.sel).length : 0;
+    const allSel = rows.every((r) => r.sel);
+    return {
+      step: cur.label, stepCls: stepCls(cur.label),
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askTuChoi: askTo("askTuChoi"),
+      dark: !!this.props.dark, rootClass: (this.props.dark ? 'theme-dark' : 'theme-light') + ' shell', yes: true,
+            tabs: TABS.map((t) => ({ label: t.label, count: t.count, on: t.id === s.tab, cls: t.id === s.tab ? 'on' : '', pick: () => this.setState({ tab: t.id }) })),
+      tabLabel: cur.label, desc: cur.desc, emptyNote: cur.note, isEmpty: !has, hasRows: has, rows, allSel,
+      noSel: selCount === 0,
+      headText: selCount ? 'Đã chọn ' + selCount + ' đơn' : cur.count + ' đơn',
+      bulk: cur.bulk.map((text, i) => ({ text: text + ' (' + selCount + ')', cls: i === cur.bulk.length - 1 ? 'btn' : text === 'Từ chối' ? 'btn text' : 'btn ghost', run: text === 'Từ chối' ? askTo('askTuChoi') : undefined })),
+      toggleAll: () => { const sel = { ...this.state.sel }; rows.forEach((r) => { sel[r.code] = !allSel; }); this.setState({ sel }); },
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'Hàng ngoại lệ':'report','Hàng thất lạc':'search_off','Hàng hư hỏng':'broken_image','Yêu cầu huỷ':'contract_delete','Đơn huỷ':'cancel'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+return v; };
+</script>
+</body>
+</html>

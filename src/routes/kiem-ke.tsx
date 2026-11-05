@@ -1,0 +1,314 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePagedRows } from "@/lib/use-paged-rows";
+import { TablePagination } from "@/components/TablePagination";
+import { ProtectedPage } from "@/components/AppShell";
+import { M3Page } from "@/components/M3Page";
+import { EmptyState } from "@/components/PageBits";
+import { Button } from "@/components/ui/button";
+import { StaffInfoPopover } from "@/components/StaffInfoPopover";
+import { Input } from "@/components/ui/input";
+import { InventoryCheckDetail, formatDay } from "@/components/InventoryCheckDetail";
+import { useAuth } from "@/lib/auth";
+import { useStore } from "@/lib/store";
+import {
+  assignedOfficeCode,
+  hasAllOfficeScope,
+  resolveViewOffice,
+  VIEW_ALL_OFFICES,
+} from "@/lib/office-scope";
+import { isApiEnabled } from "@/lib/api/client";
+import {
+  INVENTORY_STATUS_CLASS,
+  INVENTORY_STATUS_LABEL,
+  listInventoryChecks,
+  type InventoryCheckRow,
+} from "@/lib/api/inventory-check-api";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { officeName } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
+import { AlertTriangle, CheckCircle2, Eye, Package, Search } from "lucide-react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/kiem-ke")({
+  head: () => ({
+    meta: [
+      { title: "Thông tin kiểm kê — X.E" },
+      {
+        name: "description",
+        content: "Lịch sử kiểm kho theo văn phòng: tổng đơn, đã kiểm, thiếu.",
+      },
+      { property: "og:title", content: "Thông tin kiểm kê — X.E" },
+      { property: "og:description", content: "Lịch sử kiểm kho của văn phòng." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: () => (
+    <ProtectedPage title="Thông tin kiểm kê" screen="kiem-ke">
+      <M3Page>
+        <Page />
+      </M3Page>
+    </ProtectedPage>
+  ),
+});
+
+function initialOf(name: string) {
+  const t = name.trim();
+  if (!t) return "?";
+  const parts = t.split(/\s+/);
+  return (parts[parts.length - 1][0] || "?").toUpperCase();
+}
+
+function Page() {
+  const { session } = useAuth();
+  const viewOfficeRaw = useStore((s) => s.viewOffice);
+  const scopeAll = hasAllOfficeScope(session);
+  const officeCode = assignedOfficeCode(resolveViewOffice(session, viewOfficeRaw));
+
+  const [rows, setRows] = useState<InventoryCheckRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState("");
+  const [detail, setDetail] = useState<InventoryCheckRow | null>(null);
+  const [showAbandoned, setShowAbandoned] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!isApiEnabled()) {
+      setRows([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const office =
+        scopeAll && (!officeCode || officeCode === VIEW_ALL_OFFICES)
+          ? undefined
+          : officeCode || undefined;
+      setRows(await listInventoryChecks(office, showAbandoned));
+    } catch (e) {
+      setRows([]);
+      toast.error(e instanceof Error ? e.message : "Không tải được lịch sử kiểm kho");
+    } finally {
+      setLoading(false);
+    }
+  }, [scopeAll, officeCode, showAbandoned]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filtered = useMemo(() => {
+    const kw = q.trim().toLowerCase();
+    if (!kw) return rows;
+    return rows.filter((r) => {
+      const hay = [
+        r.checkedByName,
+        r.checkedByUsername,
+        r.officeCode,
+        ...(r.missingCodes ?? []),
+        ...(r.scannedCodes ?? []),
+        ...(r.systemCodes ?? []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(kw);
+    });
+  }, [rows, q]);
+  const { pageRows, pager } = usePagedRows(filtered, "kiem-ke");
+
+  const latest = filtered.find((r) => r.status === "COMPLETED") ?? null;
+  const latestName = (latest?.checkedByName || latest?.checkedByUsername || "").toUpperCase();
+
+  if (detail) return <InventoryCheckDetail check={detail} onBack={() => setDetail(null)} />;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-end gap-4">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+          <Checkbox checked={showAbandoned} onCheckedChange={(v) => setShowAbandoned(v === true)} />
+          Hiện phiên bỏ dở
+        </label>
+        <div className="relative w-full max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Tìm mã đơn, SĐT..."
+          />
+        </div>
+      </div>
+
+      {/* Kiểm kê gần nhất — 3 khối báo cáo */}
+      <div>
+        <div className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground">
+          {latest
+            ? `Kiểm kê gần nhất — ${formatDay(latest.checkedAt)}${latestName ? ` - ${latestName}` : ""}`
+            : "Kiểm kê gần nhất"}
+        </div>
+        {latest ? (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Kpi
+              icon={Package}
+              tone="blue"
+              label="Tổng số đơn"
+              value={String(latest.systemCount)}
+            />
+            <Kpi
+              icon={CheckCircle2}
+              tone="green"
+              label="Số đơn đã kiểm"
+              value={String(latest.checkedCount)}
+            />
+            <Kpi
+              icon={AlertTriangle}
+              tone="red"
+              label="Số đơn thiếu"
+              value={String(latest.missingCount)}
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl border bg-white px-4 py-8 text-center text-sm text-muted-foreground">
+            {loading
+              ? "Đang tải…"
+              : "Chưa có lần kiểm kho nào tại VP này. Nhân viên hoàn tất Kiểm kho trên app để hiện lịch sử."}
+          </div>
+        )}
+      </div>
+
+      {/* Lịch sử kiểm kê */}
+      <div>
+        <div className="mb-3 text-sm font-semibold text-foreground">
+          Lịch sử kiểm kê ({filtered.length})
+        </div>
+        {filtered.length === 0 ? (
+          <EmptyState>{loading ? "Đang tải…" : "Không có lịch sử kiểm kê"}</EmptyState>
+        ) : (
+          <div className="overflow-hidden rounded-xl border bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[960px] text-sm">
+                <thead>
+                  <tr className="border-b bg-slate-50/90 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="w-12 px-3 py-3">STT</th>
+                    <th className="px-3 py-3">Người kiểm kê</th>
+                    <th className="px-3 py-3">Văn phòng</th>
+                    <th className="px-3 py-3">Ngày kiểm</th>
+                    <th className="px-3 py-3">Trạng thái</th>
+                    <th className="px-3 py-3 text-right">Tổng số đơn</th>
+                    <th className="px-3 py-3 text-right">Đã kiểm</th>
+                    <th className="px-3 py-3 text-right">Thiếu</th>
+                    <th className="px-3 py-3 text-right">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r, i) => {
+                    const name = r.checkedByName || r.checkedByUsername || "—";
+                    return (
+                      <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20">
+                        <td className="px-3 py-3 tabular-nums text-muted-foreground">
+                          {pager.start + i + 1}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                              {initialOf(name)}
+                            </span>
+                            <div className="min-w-0">
+                              <StaffInfoPopover
+                                staffKey={r.checkedByUsername}
+                                className="font-medium"
+                              >
+                                {name}
+                              </StaffInfoPopover>
+                              {r.participants.length > 1 ? (
+                                <div className="text-xs text-muted-foreground">
+                                  Cùng kiểm:{" "}
+                                  {r.participants.map((p) => p.name || p.username).join(", ")}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
+                          {r.officeCode ? officeName(r.officeCode) : "—"}
+                        </td>
+                        <td className="px-3 py-3">{formatDay(r.checkedAt)}</td>
+                        <td className="px-3 py-3">
+                          <Badge className={INVENTORY_STATUS_CLASS[r.status]}>
+                            {INVENTORY_STATUS_LABEL[r.status]}
+                          </Badge>
+                          {r.status === "OPEN" ? (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {r.scanCount} kiện đã quét
+                            </div>
+                          ) : r.reopenedAt ? (
+                            <div className="mt-1 text-xs text-muted-foreground">Đã mở lại</div>
+                          ) : null}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums">{r.systemCount}</td>
+                        <td className="px-3 py-3 text-right tabular-nums font-semibold text-emerald-600">
+                          {r.checkedCount}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums">
+                          {r.missingCount > 0 ? (
+                            <span className="font-semibold text-destructive">{r.missingCount}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={() => setDetail(r)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            Xem chi tiết
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination pager={pager} className="px-3 pb-3" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: typeof Package;
+  label: string;
+  value: string;
+  tone: "blue" | "green" | "red";
+}) {
+  const toneCls =
+    tone === "green"
+      ? "bg-emerald-50 text-emerald-600"
+      : tone === "red"
+        ? "bg-red-50 text-red-600"
+        : "bg-sky-50 text-sky-600";
+  return (
+    <div className="flex items-center gap-3 rounded-xl border bg-white p-4 shadow-sm">
+      <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", toneCls)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <div className="text-sm text-muted-foreground">{label}</div>
+        <div className="text-2xl font-bold tabular-nums tracking-tight">{value}</div>
+      </div>
+    </div>
+  );
+}

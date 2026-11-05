@@ -1,0 +1,1048 @@
+// Domain types, labels, and helpers. Master data comes from the API.
+
+// Chức danh đang dùng: AD, DH, KT. Các mã còn lại là dữ liệu cũ, giữ để đọc bản ghi lịch sử.
+export type Role = "KH" | "Q" | "BX" | "G" | "KT" | "TCN" | "DH" | "BL" | "AD";
+
+export const ROLE_LABELS: Record<Role, string> = {
+  KH: "Khách",
+  Q: "Quầy",
+  BX: "Bốc xếp",
+  G: "Giao",
+  KT: "Kế toán",
+  TCN: "Trưởng CN",
+  DH: "Điều phối",
+  BL: "Ban lãnh đạo",
+  AD: "Admin",
+};
+
+export type OrderStatus =
+  | "DRAFT"
+  | "CONFIRMED"
+  | "WAITING"
+  | "IN_TRANSIT"
+  | "AT_DEST"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "FAILED_DELIVERY"
+  | "CANCELLED"
+  | "RETURNING"
+  | "RETURNED";
+
+export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
+  DRAFT: "Nháp",
+  CONFIRMED: "Đã chốt",
+  WAITING: "Chờ xuất",
+  IN_TRANSIT: "Đang vận chuyển",
+  AT_DEST: "Đến VP đích",
+  OUT_FOR_DELIVERY: "Đang giao",
+  DELIVERED: "Đã giao",
+  FAILED_DELIVERY: "Giao thất bại",
+  CANCELLED: "Đã hủy",
+  RETURNING: "Đang hoàn",
+  RETURNED: "Đã hoàn",
+};
+
+export type OrderIssueType = "EXCEPTION" | "LOST" | "DAMAGED" | "CANCEL_REQUEST";
+
+export const ORDER_ISSUE_STATUS_LABEL: Record<OrderIssueType, string> = {
+  EXCEPTION: "Ngoại lệ",
+  LOST: "Thất lạc",
+  DAMAGED: "Hư hỏng",
+  CANCEL_REQUEST: "Chờ duyệt huỷ",
+};
+
+export function isPendingCancelRequest(o: { issue?: { type?: string; resolvedAt?: string } | null }): boolean {
+  return o.issue?.type === "CANCEL_REQUEST" && !o.issue.resolvedAt;
+}
+
+type IssueLike = { type: OrderIssueType; resolvedAt?: string } | null | undefined;
+
+/** Loại sự cố đang mở (chưa khôi phục) — đơn ngoại lệ vẫn giữ status vận chuyển trên BE. */
+export function openIssueType(issue: IssueLike): OrderIssueType | null {
+  return issue && !issue.resolvedAt ? issue.type : null;
+}
+
+export const AUTO_EXCEPTION_DAYS = 2;
+
+/** Không gắn nhãn Ngoại lệ chỉ vì đơn nằm lâu ở kho đích. */
+export function isAutoException(_o: {
+  status: OrderStatus;
+  issue?: IssueLike;
+  updatedAt?: string;
+  createdAt?: string;
+}): boolean {
+  return false;
+}
+
+/** Nhãn trạng thái hiển thị: sự cố đang mở, rồi đơn quá hạn ở kho đích (tab Ngoại lệ). */
+export function orderStatusText(o: {
+  status: OrderStatus;
+  issue?: IssueLike;
+  updatedAt?: string;
+  createdAt?: string;
+}): string {
+  const issue = openIssueType(o.issue);
+  if (issue) return ORDER_ISSUE_STATUS_LABEL[issue];
+  if (isAutoException(o)) return ORDER_ISSUE_STATUS_LABEL.EXCEPTION;
+  return ORDER_STATUS_LABEL[o.status] ?? String(o.status);
+}
+
+export type TripStatus =
+  | "CREATED"
+  | "LOADING"
+  | "DEPARTED"
+  | "UNLOADING"
+  | "CLOSED"
+  | "CANCELLED";
+
+export const TRIP_STATUS_LABEL: Record<TripStatus, string> = {
+  CREATED: "Đã tạo",
+  LOADING: "Đang bốc",
+  DEPARTED: "Đã xuất bến",
+  UNLOADING: "Đang nhập",
+  CLOSED: "Đã đóng",
+  CANCELLED: "Đã hủy",
+};
+
+export const GOODS_TYPES = [
+  { value: "THUONG", label: "Thường" },
+  { value: "DE_VO", label: "Dễ vỡ" },
+  { value: "DIEN_TU", label: "Điện tử" },
+  { value: "THUC_PHAM_KHO", label: "Thực phẩm khô" },
+  { value: "GIAY_TO", label: "Giấy tờ" },
+  { value: "CONG_KENH", label: "Cồng kềnh" },
+];
+
+/** Loại hàng cho phép tự nhập tên hàng. Không được dùng làm nhóm trong Giá theo sản phẩm. */
+export const OTHER_GOODS = "Khác";
+
+export function isOtherGoodsGroup(name?: string): boolean {
+  return (name ?? "").trim().toLocaleLowerCase("vi") === OTHER_GOODS.toLocaleLowerCase("vi");
+}
+
+/** Nhóm từ cấu hình giá SP, luôn kèm "Khác" (nhập theo tên) — không trùng nhóm cấu hình. */
+export function goodsGroupSelectOptions(productPricing: Array<{ group: string }>): { value: string; label: string }[] {
+  const groups = [
+    ...new Set(productPricing.map((p) => p.group.trim()).filter((g) => g && !isOtherGoodsGroup(g))),
+  ].sort((a, b) => a.localeCompare(b, "vi"));
+  return [OTHER_GOODS, ...groups].map((g) => ({ value: g, label: g }));
+}
+
+/**
+ * Danh mục loại hàng mặc định — chỉ dùng để nạp sẵn tab "Giá theo sản phẩm".
+ * Lúc tạo đơn, danh sách loại hàng lấy từ bảng giá theo sản phẩm (+ "Khác").
+ */
+export const GOODS_NAMES = [
+  "Bưu kiện",
+  "Tài liệu / Giấy tờ",
+  "Quần áo",
+  "Thực phẩm khô",
+  "Đồ điện tử",
+  "Đồ gia dụng",
+  "Linh kiện / Phụ tùng",
+  "Mỹ phẩm",
+  "Thuốc / Y tế",
+  "Hàng dễ vỡ",
+  "Hàng cồng kềnh",
+];
+
+const GOODS_NAME_TO_TYPE: Record<string, string> = {
+  "Bưu kiện": "THUONG",
+  "Tài liệu / Giấy tờ": "GIAY_TO",
+  "Quần áo": "THUONG",
+  "Thực phẩm khô": "THUC_PHAM_KHO",
+  "Đồ điện tử": "DIEN_TU",
+  "Đồ gia dụng": "THUONG",
+  "Linh kiện / Phụ tùng": "THUONG",
+  "Mỹ phẩm": "THUONG",
+  "Thuốc / Y tế": "THUONG",
+  "Hàng dễ vỡ": "DE_VO",
+  "Hàng cồng kềnh": "CONG_KENH",
+  Khác: "THUONG",
+};
+
+/** Đơn nhiều kiện: lấy loại cần lưu ý nhất để BE/kho biết cách xử lý. */
+const GOODS_TYPE_PRIORITY = ["CONG_KENH", "DE_VO", "DIEN_TU", "THUC_PHAM_KHO", "GIAY_TO", "THUONG"];
+
+/** Tên hàng → enum GoodsType của BE. Tên tự nhập ("Khác") coi là THUONG. */
+export function goodsTypeFromName(goodsName?: string): string {
+  const types = (goodsName ?? "")
+    .split(",")
+    .map((s) => GOODS_NAME_TO_TYPE[s.trim()])
+    .filter(Boolean);
+  return GOODS_TYPE_PRIORITY.find((t) => types.includes(t)) ?? "THUONG";
+}
+
+export const COLLECT_FORMS = [
+  { value: "GUI_TRA", label: "Người gửi trả" },
+  { value: "NHAN_TRA", label: "Người nhận trả" },
+  { value: "P30_70", label: "30% trước – 70% sau" },
+  { value: "P50_50", label: "50% trước – 50% sau" },
+  { value: "P70_30", label: "70% trước – 30% sau" },
+];
+
+/** Nhãn hình thức thu. Đơn công nợ lưu `onCredit` + thường vẫn `GUI_TRA` — phải ưu tiên «Công nợ». */
+export function collectFormLabel(value?: string | null, onCredit?: boolean): string {
+  if (onCredit) return "Công nợ";
+  return COLLECT_FORMS.find((c) => c.value === value)?.label ?? value ?? "";
+}
+
+export const PAY_METHODS = [
+  { value: "TM", label: "Tiền mặt" },
+  { value: "CK", label: "Chuyển khoản" },
+  { value: "THE", label: "Thẻ" },
+];
+
+export const OFFICE_ITINERARY_POINTS = {
+  province: [
+    { value: "ND", label: "NĐ" },
+    { value: "TB", label: "TB" },
+    { value: "YB", label: "YB" },
+    { value: "PT", label: "PT" },
+    { value: "TC", label: "TC" },
+    { value: "NB", label: "NB" },
+    { value: "VT", label: "VT" },
+  ],
+  hanoi: [
+    { value: "BC", label: "BC" },
+    { value: "GA", label: "GA" },
+    { value: "HD", label: "HĐ" },
+    { value: "PHOCO", label: "PHOCO" },
+  ],
+} as const;
+
+export function itineraryPointLabel(code?: string | null): string {
+  const codes = splitItineraryPoints(code);
+  if (!codes.length) return "—";
+  const all = [...OFFICE_ITINERARY_POINTS.province, ...OFFICE_ITINERARY_POINTS.hanoi];
+  return codes.map((c) => all.find((p) => p.value === c)?.label ?? c).join(" + ");
+}
+
+export type OfficeRec = {
+  id?: number;
+  code: string;
+  name: string;
+  isHub?: boolean;
+  sourceId?: number;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  /** Điểm lộ trình: ND TB YB PT TC VT (tỉnh) hoặc BC GA HD PHOCO (Hà Nội). */
+  itineraryPoint?: string;
+};
+
+let officeDirectory: OfficeRec[] = [];
+
+export function setOfficeDirectory(list: OfficeRec[]) {
+  officeDirectory = list ?? [];
+}
+
+export function officeDirectoryList() {
+  return officeDirectory;
+}
+
+export function foldOfficeKey(s: string) {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "")
+    .replace(/^(vp|vanphong)/, "");
+}
+
+/**
+ * Resolve office code from master directory. Unknown labels stay as folded text —
+ * do not invent a hub code.
+ */
+/** Nhãn combobox VP — chỉ tên (không mã / địa chỉ). */
+export function officeSelectLabel(o: Pick<OfficeRec, "name">): string {
+  return o.name?.trim() || "";
+}
+
+export function officeOptionValue(o: OfficeRec): string {
+  if (o.id != null) return `id:${o.id}`;
+  if (o.sourceId != null) return `sid:${o.sourceId}`;
+  return o.code;
+}
+
+export function findOfficeByToken(
+  raw: string | undefined | null,
+  offices: OfficeRec[] = officeDirectory,
+): OfficeRec | undefined {
+  const t = raw?.trim();
+  if (!t) return undefined;
+  if (t.startsWith("id:")) {
+    const id = Number(t.slice(3));
+    if (Number.isFinite(id)) return offices.find((o) => o.id === id);
+  }
+  if (t.startsWith("sid:")) {
+    const sid = Number(t.slice(4));
+    if (Number.isFinite(sid)) return offices.find((o) => o.sourceId === sid);
+  }
+  return offices.find((o) => o.code === t || o.name === t);
+}
+
+export function officeSelectOption(o: OfficeRec): { value: string; label: string; keywords: string } {
+  return {
+    value: officeOptionValue(o),
+    label: officeSelectLabel(o),
+    keywords: [o.code, o.name, o.address ?? ""].join(" "),
+  };
+}
+
+export function canonicalOfficeCode(raw?: string | null): string {
+  const t = raw?.trim();
+  if (!t || t === "ALL") return "";
+  const dir = officeDirectory;
+  const byToken = findOfficeByToken(t, dir);
+  if (byToken) return byToken.code.toUpperCase();
+  const exact = dir.find((o) => o.code === t || o.name === t);
+  if (exact) return exact.code.toUpperCase();
+  const folded = foldOfficeKey(t);
+  if (!folded) return t.toUpperCase();
+  const byFold = dir.find((o) => foldOfficeKey(o.code) === folded || foldOfficeKey(o.name) === folded);
+  if (byFold) return byFold.code.toUpperCase();
+  const matched = officesMatchingPoint(dir, t);
+  if (matched.length === 1) return matched[0].code.toUpperCase();
+  if (matched.length > 1) {
+    const exactFold = matched.find((o) => foldOfficeKey(o.code) === folded || foldOfficeKey(o.name) === folded);
+    return (exactFold ?? matched[0]).code.toUpperCase();
+  }
+  return folded;
+}
+
+/** Avoid "ND" ⊂ "trandainghia" (Trần Đại Nghĩa) when mapping điểm Nam Định. */
+function foldedTokenContains(hay: string, needle: string): boolean {
+  if (!hay || !needle) return false;
+  if (hay === needle) return true;
+  if (needle.length < 4) return false;
+  return hay.includes(needle);
+}
+
+/** Offices whose name/code matches an itinerary departure/destination point. */
+export function officesMatchingPoint(offices: OfficeRec[], point: string | undefined | null): OfficeRec[] {
+  if (!point?.trim()) return [];
+  const key = foldOfficeKey(point);
+  if (!key) return [];
+
+  const exact = offices.filter((o) => {
+    const n = foldOfficeKey(o.name);
+    const c = foldOfficeKey(o.code);
+    return n === key || c === key;
+  });
+  if (exact.length) return exact;
+
+  if (key.length >= 4) {
+    const contains = offices.filter((o) => {
+      const n = foldOfficeKey(o.name);
+      const c = foldOfficeKey(o.code);
+      return foldedTokenContains(n, key) || foldedTokenContains(c, key);
+    });
+    if (contains.length) return contains;
+  }
+
+  // Mã ngắn / VP_* (ND, VP_ND, …) — khớp theo fold code, lấy hết VP trùng tỉnh.
+  const preferred = preferredOfficeCodesForPoint(key);
+  const preferredFolds = new Set(preferred.map((c) => foldOfficeKey(c)).filter(Boolean));
+  if (!preferredFolds.size) return [];
+  return offices.filter((o) => preferredFolds.has(foldOfficeKey(o.code)));
+}
+
+/**
+ * Map điểm tỉnh / mã ngắn → mã VP ưu tiên (khớp seed + master VP_* sau rename).
+ * Dùng khi admin tạo đơn với lộ trình tỉnh mà combobox còn đang để raw "Nam Định".
+ */
+export function preferredOfficeCodesForPoint(foldedPoint: string): string[] {
+  const f = foldedPoint;
+  if (!f) return [];
+  if (f === "nd" || f.includes("namdinh")) return ["ND", "VP_ND", "VP_ND_77", "SHN"];
+  if (f === "nb" || f.includes("ninhbinh") || f.includes("tamcoc")) return ["NB", "VP_NB"];
+  if (f === "tb" || f.includes("thaibinh")) return ["TB", "VP_TB"];
+  if (f === "pt" || f.includes("phutho")) return ["PT", "VP_PT", "VP_PT_IC8"];
+  if (f === "vt" || f.includes("viettri")) return ["VT", "VP_VT"];
+  if (f === "yb" || f.includes("yenbai") || f.startsWith("yb")) return ["YB", "YB1", "YB3", "VP_YB", "VP_YB_VP"];
+  if (f === "gp" || f.includes("giaiphong")) return ["GP", "VP_GP"];
+  if (f.includes("hadong")) return ["HD", "VP_HD"];
+  if (f.includes("bigc")) return ["BC", "VP_BC"];
+  if (f.includes("ngochoi")) return ["NGH", "NH", "VP_NH"];
+  if (f.includes("leduan") || f.includes("trannhantong")) return ["LD", "VP_LD"];
+  if (f.includes("phovong")) return ["PV", "VP_PV"];
+  if (f.includes("trandainghia")) return ["TDN", "VP_TDN"];
+  return [];
+}
+
+/** Toàn bộ VP master — dùng khi tạo đơn (không lọc theo điểm lộ trình / HN). */
+export function allOfficeSelectOptions(offices: OfficeRec[]): { value: string; label: string; keywords: string }[] {
+  return [...offices]
+    .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+    .map(officeSelectOption);
+}
+
+/**
+ * Khóa so khớp điểm VP (ND/BC/…) với departure/destination lộ trình (Nam Định / Big C / …).
+ * TC và NB cùng tỉnh Ninh Bình nhưng mã VP khác — đều khớp điểm Ninh Bình trên lộ trình.
+ */
+export function itineraryPointMatchKeys(raw?: string | null): string[] {
+  if (!raw?.trim()) return [];
+  const f = foldOfficeKey(raw);
+  if (!f) return [];
+  const keys = new Set<string>([f]);
+  const add = (...xs: string[]) => {
+    for (const x of xs) {
+      const k = foldOfficeKey(x);
+      if (k) keys.add(k);
+    }
+  };
+  if (f === "nd" || f.includes("namdinh")) add("nd", "namdinh");
+  if (f === "tb" || f.includes("thaibinh")) add("tb", "thaibinh");
+  if (f === "yb" || f.includes("yenbai") || f.startsWith("yb")) add("yb", "yenbai");
+  if (f === "pt" || f.includes("phutho")) add("pt", "phutho");
+  if (f === "vt" || f.includes("viettri")) add("vt", "viettri");
+  if (f === "nb" || f === "tc" || f.includes("ninhbinh") || f.includes("tamcoc")) {
+    add("nb", "tc", "ninhbinh", "tamcoc");
+  }
+  if (f === "bc" || f.includes("bigc")) add("bc", "bigc");
+  if (f === "ga" || (f.includes("ga") && f.includes("hanoi")) || f === "gahanoi") add("ga", "gahanoi");
+  if (f === "hd" || f.includes("hadong")) add("hd", "hadong");
+  if (f === "phoco" || f.includes("phoco")) add("phoco");
+  if (f.includes("hanoi") && !keys.has("ga") && !keys.has("bc") && !keys.has("hd") && !keys.has("phoco")) {
+    add("hanoi");
+  }
+  return [...keys];
+}
+
+export function itineraryPointsMatch(a?: string | null, b?: string | null): boolean {
+  const ka = itineraryPointMatchKeys(a);
+  const kb = itineraryPointMatchKeys(b);
+  if (!ka.length || !kb.length) return false;
+  return ka.some((k) => kb.includes(k));
+}
+
+/** Mã điểm lộ trình VP lưu dạng "BC,HD" (VP kiêm nhiều điểm, theo thứ tự ưu tiên). */
+export function splitItineraryPoints(raw?: string | null): string[] {
+  return [...new Set((raw ?? "").split(/[,;/\s]+/).map((s) => s.trim()).filter(Boolean))];
+}
+
+/** Điểm lộ trình ưu tiên từ cấu hình VP; fallback tên/mã. */
+export function officeItineraryPointToken(office?: OfficeRec | null): string {
+  return officeItineraryPointTokens(office)[0] ?? "";
+}
+
+export function officeItineraryPointTokens(office?: OfficeRec | null): string[] {
+  if (!office) return [];
+  const points = splitItineraryPoints(office.itineraryPoint);
+  if (points.length) return points;
+  const fallback = (office.name || office.code || "").trim();
+  return fallback ? [fallback] : [];
+}
+
+export type ResolvedOrderItinerary = {
+  branchName: string;
+  itineraryName: string;
+  itinerary: ItineraryHnRef & {
+    name?: string;
+    code?: string;
+    branch?: { id?: number; code?: string; name?: string };
+    active?: boolean;
+  };
+};
+
+/**
+ * Suy tuyến + lộ trình từ VP gửi/nhận theo điểm lộ trình đã cấu hình trên VP.
+ * Khớp departure → VP gửi, destination → VP nhận (đúng chiều đơn).
+ */
+export function resolveItineraryFromOffices(
+  fromOffice: OfficeRec | undefined | null,
+  toOffice: OfficeRec | undefined | null,
+  itineraries: (ItineraryHnRef & {
+    name?: string;
+    code?: string;
+    active?: boolean;
+    branch?: { id?: number; code?: string; name?: string };
+  })[],
+): ResolvedOrderItinerary | null {
+  const fromToks = officeItineraryPointTokens(fromOffice);
+  const toToks = officeItineraryPointTokens(toOffice);
+  if (!fromToks.length || !toToks.length || !itineraries?.length) return null;
+
+  // VP kiêm nhiều điểm: thử theo thứ tự ưu tiên, lấy cặp điểm đầu tiên có lộ trình đang bật.
+  let hits: typeof itineraries = [];
+  for (const fromTok of fromToks) {
+    for (const toTok of toToks) {
+      hits = itineraries.filter(
+        (it) =>
+          it.active !== false &&
+          itineraryPointsMatch(fromTok, it.departurePoint) &&
+          itineraryPointsMatch(toTok, it.destinationPoint),
+      );
+      if (hits.length) break;
+    }
+    if (hits.length) break;
+  }
+  if (!hits.length) return null;
+
+  hits.sort((a, b) => {
+    const an = (a.name || a.code || "").localeCompare(b.name || b.code || "", "vi");
+    return an;
+  });
+  const it = hits[0];
+  const branchName = it.branch?.name?.trim() || "";
+  const itineraryName = it.name?.trim() || it.code?.trim() || "";
+  if (!branchName || !itineraryName) return null;
+  return { branchName, itineraryName, itinerary: it };
+}
+
+/** Combobox options for VP gửi/VP nhận: itinerary point, mapped to office master when possible. */
+export function officeOptionsForPoint(
+  offices: OfficeRec[],
+  point: string | undefined | null,
+  currentValue?: string,
+): { value: string; label: string }[] {
+  const matched = officesMatchingPoint(offices, point);
+  const opts = matched.length ? matched.map(officeSelectOption) : [];
+  // Không đưa raw tỉnh ("Nam Định") vào value — BE/strict resolve sẽ fail khi admin tạo đơn.
+  if (currentValue && !opts.some((o) => o.value === currentValue)) {
+    const found = findOfficeByToken(currentValue, offices);
+    if (found) {
+      opts.push(officeSelectOption(found));
+    } else {
+      const viaPoint = officesMatchingPoint(offices, currentValue);
+      if (viaPoint[0]) opts.push(officeSelectOption(viaPoint[0]));
+    }
+  }
+  return opts;
+}
+
+export type LegStatus = "PENDING" | "IN_TRANSIT" | "AT_HUB" | "AT_DEST";
+
+export type OrderLeg = {
+  index: number;
+  fromOffice: string;
+  toOffice: string;
+  tripCode?: string;
+  status: LegStatus;
+};
+
+export type Order = {
+  code: string;
+  draftCode?: string;
+  senderPhone: string;
+  senderName?: string;
+  receiverName: string;
+  receiverPhone: string;
+  fromOffice: string;
+  toOffice: string;
+  hubOffice?: string;
+  finalToOffice?: string;
+  legs?: OrderLeg[];
+  currentLegIndex?: number;
+  address?: string;
+  /** GPS giao tận nơi (link map / ghim) — Grab ưu tiên dùng. */
+  deliveryLat?: number;
+  deliveryLng?: number;
+  goodsType: string;
+  collectForm: string;
+  weightKg?: number;
+  quantity?: number;
+  dimensions?: string;
+  /** Tổng tiền phải thu: cước hàng + phí tận nơi + phí thu hộ + khai giá + tồn kho + hoàn − giảm giá. */
+  fare: number;
+  /** Cước hàng thuần. Đơn tạo trước khi tách thành phần không có — fallback về fare. */
+  goodsFare?: number;
+  declaredFee?: number;
+  /** Phí tồn kho giao — đã nằm trong fare. */
+  storageFee?: number;
+  /** Phí hoàn đơn — đã nằm trong fare. */
+  returnFee?: number;
+  discountAmount?: number;
+  pickupFee?: number;
+  deliveryFee?: number;
+  /** KM Ahamove lấy tận nơi (để BE/audit tính lại phí bảng) */
+  pickupKm?: number;
+  /** KM Ahamove giao tận nơi */
+  deliveryKm?: number;
+  status: OrderStatus;
+  createdAt: string;
+  updatedAt: string;
+  note?: string;
+  homeDelivery?: boolean;
+  homePickup?: boolean;
+  pickupAddress?: string;
+  pickupStaff?: string;
+  pickingAt?: string;
+  qrDropOff?: boolean;
+  /** Khách gửi kèm ảnh đơn hàng lúc tạo đơn (ảnh tải riêng qua /goods-photo). */
+  hasGoodsPhoto?: boolean;
+  /** Ảnh bill / chứng từ chuyển COD (màn Quản lý đơn COD). */
+  hasCodBillPhoto?: boolean;
+  pickedUpAt?: string;
+  paidAmount?: number;
+  route?: string;
+  itinerary?: string;
+  branchCode?: string;
+  shelf?: number;
+  stage?:
+    | "PICKED"
+    | "WH_IN"
+    | "TRANSFER_PENDING"
+    | "TRANSFERRING"
+    | "DEST_WH_IN"
+    | "DELIVERING"
+    | "FAILED"
+    | "REDELIVER_WAIT";
+  returnStage?:
+    | "RETURN_PENDING"
+    | "RT_TRANSFER_PENDING"
+    | "RT_TRANSFERRING"
+    | "RT_WH_IN"
+    | "RT_DELIVERING"
+    | "RT_FAILED"
+    | "RT_DONE";
+  tripCode?: string;
+  /** Tiền thu hộ COD (không gồm phí). */
+  codAmount?: number;
+  /** Phí thu hộ COD (đã nằm trong fare; goodsFare là phần không gồm phí này). */
+  codFee?: number;
+  /** Tiền hoàn phí COD (đã thu phí rồi bỏ/giảm; giữ paidAmount, COD = 0). */
+  codFeeRefund?: number;
+  bankName?: string;
+  bankAccountNo?: string;
+  bankAccountName?: string;
+  invoiceRequested?: boolean;
+  /** Đơn công nợ: cước ghi nợ khách, nhân viên không thu. */
+  onCredit?: boolean;
+  invoiceTaxCode?: string;
+  invoiceCompanyName?: string;
+  invoiceEmail?: string;
+  invoiceCompanyAddress?: string;
+  /** Tên người ghi trên hóa đơn. Trống thì lúc xuất lấy tên người trả cước. */
+  invoiceBuyerName?: string;
+  /** CCCD/CMND trên hóa đơn (không bắt buộc). */
+  invoiceBuyerIdNumber?: string;
+  /** SĐT trên hóa đơn (không bắt buộc). */
+  invoiceBuyerPhone?: string;
+  invoiceRefId?: string;
+  invoiceStatus?: string;
+  /** COMPANY | PERSONAL — loại HĐ đã xuất / đã tích. */
+  invoiceType?: string;
+  invoiceTransactionId?: string;
+  invoiceNo?: string;
+  invoiceSeries?: string;
+  invoiceCode?: string;
+  invoiceGrossAmount?: number;
+  invoiceNetAmount?: number;
+  invoiceVatAmount?: number;
+  invoiceIssuedAt?: string;
+  invoiceError?: string;
+  /** Lúc khách chuyển khoản OnePay đủ cước; có thì tính doanh thu ngay, huỷ không trừ. */
+  transferPaidAt?: string;
+  /** Mã GD OnePay khi đơn đã thu hộ CK. */
+  paidTransId?: string;
+  /** VA OnePay còn sống — đang chờ khách CK (chưa thu TM). */
+  onePayAwaitingTransfer?: boolean;
+  /** Tiền về từ OnePay SANDBOX (đơn test) — huỷ thì không giữ doanh thu. */
+  transferSandbox?: boolean;
+  codExportedAt?: string;
+  /** Tài khoản / họ tên người bấm "Xác nhận đã xử lý" COD. */
+  codExportedBy?: string;
+  codExportedByName?: string;
+  /** Tài khoản tạo đơn; "customer" = khách tự tạo. */
+  createdBy?: string;
+  createdByName?: string;
+  createdByRole?: string;
+  vehiclePlate?: string;
+  driverName?: string;
+  /** Giờ xuất phát chuyến (từ BE trip.departAt) — dùng khi store.trips thiếu chuyến. */
+  departAt?: string;
+  /** Mốc theo tab nhập kho/luân chuyển (BE lấy từ sự kiện đơn). */
+  warehouseInAt?: string;
+  tripAssignedAt?: string;
+  driverSignedAt?: string;
+  destWarehouseInAt?: string;
+  shipperAssignedAt?: string;
+};
+
+/** Hub HN — chấp nhận mã cũ GP và mã master mới VP_GP. */
+export const HN_HUB_CODE = "VP_GP";
+const HN_HUB_CODES = new Set(["GP", "VP_GP"]);
+
+export function hubOffice(): OfficeRec | undefined {
+  return officeDirectory.find((o) => o.isHub) ?? officeDirectory.find((o) => HN_HUB_CODES.has(o.code.toUpperCase()));
+}
+
+export const HN_HUB_NAME = "VP Giải Phóng";
+
+export function isHnOffice(x: string) {
+  if (!x) return false;
+  const hit = officeDirectory.find((o) => o.code === x || o.name === x);
+  if (hit) return Boolean(hit.isHub) || HN_HUB_CODES.has(hit.code.toUpperCase()) || foldOfficeKey(hit.code) === "gp";
+  return HN_HUB_CODES.has(x.trim().toUpperCase()) || x === HN_HUB_NAME || foldOfficeKey(x) === "gp";
+}
+
+/** Mã VP khu vực Hà Nội (hub + bưu cục HN) — fold sau khi bỏ tiền tố VP. */
+const HN_OFFICE_CODES = new Set(["gp", "hd", "bc", "vphn", "ngh", "ld", "pv", "tdn", "nh", "hn"]);
+
+/**
+ * Mã điểm trên tên/mã lộ trình phía HN (TC, BC, HĐ, GA…).
+ * "TC" trong master đôi khi là Tam Cốc — xem `isHnRegionPoint` (ưu tiên tên điểm).
+ */
+const HN_ITINERARY_POINT_CODES = new Set(["tc", "bc", "hd", "ga", "gp", "vphn"]);
+
+/** VP thuộc khu vực Hà Nội (hub + tên/mã gợi HN). */
+export function isHnRegionOffice(o: { code: string; name: string; isHub?: boolean }) {
+  if (!o) return false;
+  if (o.isHub || HN_HUB_CODES.has(o.code.toUpperCase())) return true;
+  if (isHnOffice(o.code) || isHnOffice(o.name)) return true;
+  const codeKey = foldOfficeKey(o.code);
+  if (HN_OFFICE_CODES.has(codeKey)) return true;
+  const nameKey = foldOfficeKey(o.name);
+  // Tên master mới dạng "… - HN"
+  if (nameKey.endsWith("hn") && !isProvincialRegionPoint(o.name)) return true;
+  const t = foldOfficeKey(`${o.code} ${o.name}`);
+  return (
+    t.includes("hanoi") ||
+    t.includes("giaiphong") ||
+    t.includes("bigc") ||
+    t.includes("hadong") ||
+    t.includes("ngochoi") ||
+    t.includes("vutrongkhanh") ||
+    t.includes("trandainghia") ||
+    t.includes("phovong") ||
+    t.includes("trannhantong") ||
+    t.includes("nguyenquoctri")
+  );
+}
+
+export function hnRegionOffices(offices: OfficeRec[]): OfficeRec[] {
+  return offices.filter(isHnRegionOffice);
+}
+
+function isProvincialRegionPoint(point: string): boolean {
+  const f = foldOfficeKey(point);
+  return (
+    f.includes("tamcoc") ||
+    f.includes("ninhbinh") ||
+    f.includes("thaibinh") ||
+    f.includes("namdinh") ||
+    f.includes("phutho") ||
+    f.includes("viettri") ||
+    f.includes("yenbai")
+  );
+}
+
+/** Điểm lộ trình / mã viết tắt thuộc HN (chọn full VP HN, không auto 1 VP). */
+export function isHnRegionPoint(point: string | undefined | null, offices: OfficeRec[] = officeDirectory): boolean {
+  if (!point?.trim()) return false;
+  const raw = point.trim();
+  const folded = foldOfficeKey(raw);
+
+  // Tam Cốc = Ninh Bình (không phải HN dù mã lộ trình TC)
+  if (folded.includes("tamcoc")) return false;
+  if (isProvincialRegionPoint(raw) && !folded.includes("hanoi")) return false;
+
+  if (/hà\s*nội|ha\s*noi|\bhn\b/i.test(raw)) return true;
+  // Khớp BE toSlug → ha-noi: Ga HN, Hà Đông, Big C, Phố Cổ, Giải Phóng…
+  if (
+    folded.includes("hanoi") ||
+    folded.includes("hadong") ||
+    folded.includes("bigc") ||
+    folded.includes("giaiphong") ||
+    folded.includes("phoco") ||
+    folded.includes("noibai") ||
+    folded === "ga" ||
+    (folded.startsWith("ga") && folded.includes("hanoi"))
+  ) {
+    return true;
+  }
+  if (HN_ITINERARY_POINT_CODES.has(folded)) return true;
+
+  const matched = officesMatchingPoint(offices, raw);
+  if (matched.length >= 1 && matched.every(isHnRegionOffice)) return true;
+  if (matched.length === 1 && isHnRegionOffice(matched[0])) return true;
+  return false;
+}
+
+function splitRouteSides(label: string | undefined | null): [string, string] | null {
+  if (!label?.trim()) return null;
+  const parts = label
+    .split(/\s*[-–—]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return null;
+  return [parts[0], parts[parts.length - 1]];
+}
+
+export type ItineraryHnRef = {
+  name?: string;
+  code?: string;
+  departurePoint?: string;
+  destinationPoint?: string;
+  routeDirection?: string;
+};
+
+/**
+ * Phía đi/đến của lộ trình có phải HN không.
+ * Điểm TC/BC/HĐ/GA đứng trước → gửi từ HN; đứng sau → nhận tại HN (và ngược lại).
+ */
+export function isHnItinerarySide(
+  it: ItineraryHnRef | undefined | null,
+  side: "from" | "to",
+  offices: OfficeRec[] = officeDirectory,
+): boolean {
+  if (!it) return false;
+
+  const point = side === "from" ? it.departurePoint : it.destinationPoint;
+  if (point?.trim()) {
+    if (isHnRegionPoint(point, offices)) return true;
+    if (isProvincialRegionPoint(point)) return false;
+    const matched = officesMatchingPoint(offices, point);
+    if (matched.length >= 1) return matched.some(isHnRegionOffice);
+  }
+
+  const dirSides = splitRouteSides(it.routeDirection);
+  if (dirSides) {
+    const dirPoint = side === "from" ? dirSides[0] : dirSides[1];
+    if (isHnRegionPoint(dirPoint, offices)) return true;
+    if (isProvincialRegionPoint(dirPoint)) return false;
+  }
+
+  for (const label of [it.name, it.code]) {
+    const sides = splitRouteSides(label);
+    if (!sides) continue;
+    const token = side === "from" ? sides[0] : sides[1];
+    if (isHnRegionPoint(token, offices)) return true;
+  }
+  return false;
+}
+
+/** Map điểm/mã lộ trình → tên tỉnh/TP cho AddressPicker (V1; V2 tự map Thái Bình→Hưng Yên). */
+function provinceNameFromPointText(point: string | undefined | null): string | undefined {
+  if (!point?.trim()) return undefined;
+  const f = foldOfficeKey(point);
+  if (
+    f.includes("hanoi") ||
+    f.includes("hadong") ||
+    f.includes("bigc") ||
+    f.includes("giaiphong") ||
+    f.includes("phoco") ||
+    f.includes("noibai") ||
+    f === "ga" ||
+    HN_ITINERARY_POINT_CODES.has(f)
+  ) {
+    if (f.includes("tamcoc")) return "Ninh Bình";
+    return "Hà Nội";
+  }
+  if (f.includes("tamcoc") || f.includes("ninhbinh") || f === "nb") return "Ninh Bình";
+  if (f.includes("thaibinh") || f === "tb") return "Thái Bình";
+  if (f.includes("namdinh") || f === "nd") return "Nam Định";
+  if (f.includes("phutho") || f === "pt") return "Phú Thọ";
+  if (f.includes("viettri") || f === "vt") return "Việt Trì";
+  if (f.includes("yenbai") || f === "yb" || f.startsWith("yb")) return "Yên Bái";
+  if (f.includes("hungyen")) return "Hưng Yên";
+  return undefined;
+}
+
+/** Gợi ý tỉnh/TP từ VP đã chọn (tên / mã / địa chỉ). */
+export function provinceHintFromOffice(office: OfficeRec | undefined | null): string | undefined {
+  if (!office) return undefined;
+  for (const token of [...splitItineraryPoints(office.itineraryPoint), office.name, office.code, office.address]) {
+    const hit = provinceNameFromPointText(token);
+    if (hit) return hit;
+  }
+  // Địa chỉ VP dạng "... , Tỉnh X" — lấy đoạn cuối.
+  const last = office.address
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .at(-1);
+  if (last) {
+    const fromLast = provinceNameFromPointText(last);
+    if (fromLast) return fromLast;
+    // Tên tỉnh đầy đủ trong địa chỉ (không khớp mã điểm lộ trình).
+    if (/^(TP\.?\s*)?Hà\s*Nội$/i.test(last)) return "Hà Nội";
+    if (/tỉnh\s+/i.test(last) || /thành\s*phố/i.test(last)) {
+      return last.replace(/^(Tỉnh|Thành phố|TP\.?)\s+/i, "").trim() || undefined;
+    }
+    return last;
+  }
+  return undefined;
+}
+
+/**
+ * Gợi ý tỉnh/TP theo phía lộ trình (điểm TC/BC/HĐ/GA → Hà Nội; phía tỉnh → đúng tỉnh).
+ */
+export function provinceHintFromItinerarySide(
+  it: ItineraryHnRef | undefined | null,
+  side: "from" | "to",
+  offices: OfficeRec[] = officeDirectory,
+): string | undefined {
+  if (!it) return undefined;
+  if (isHnItinerarySide(it, side, offices)) return "Hà Nội";
+
+  const point = side === "from" ? it.departurePoint : it.destinationPoint;
+  const fromPoint = provinceNameFromPointText(point);
+  if (fromPoint) return fromPoint;
+
+  const dirSides = splitRouteSides(it.routeDirection);
+  if (dirSides) {
+    const fromDir = provinceNameFromPointText(side === "from" ? dirSides[0] : dirSides[1]);
+    if (fromDir) return fromDir;
+  }
+
+  for (const label of [it.name, it.code]) {
+    const sides = splitRouteSides(label);
+    if (!sides) continue;
+    const fromToken = provinceNameFromPointText(side === "from" ? sides[0] : sides[1]);
+    if (fromToken) return fromToken;
+  }
+  return undefined;
+}
+
+/** Tuyến (branch) thuộc HN theo tên hoặc điểm đi/đến của lộ trình. */
+export function isHnBranch(
+  branchName: string,
+  itineraries: (ItineraryHnRef & { branch?: { name?: string } })[],
+  offices: OfficeRec[],
+): boolean {
+  if (!branchName?.trim()) return false;
+  if (/hà\s*nội|ha\s*noi|\bhn\b|giải\s*phóng/i.test(branchName)) return true;
+  return itineraries.some((it) => {
+    if (it.branch?.name !== branchName) return false;
+    return isHnItinerarySide(it, "from", offices) || isHnItinerarySide(it, "to", offices);
+  });
+}
+
+/** Tuyến nhân viên VP tỉnh được phép chọn (khớp mã/tên VP trên tên tuyến hoặc điểm lộ trình). */
+export function branchesForStaffOffice(
+  branchNames: string[],
+  staffOfficeCode: string,
+  offices: OfficeRec[],
+  itineraries: { name?: string; branch?: { name?: string }; departurePoint?: string; destinationPoint?: string }[],
+): string[] {
+  const staff =
+    findOfficeByToken(staffOfficeCode, offices) ??
+    offices.find((o) => o.code === staffOfficeCode || o.name === staffOfficeCode);
+  if (!staff) return branchNames;
+  if (isHnRegionOffice(staff)) return branchNames;
+  const keys = [foldOfficeKey(staff.code), foldOfficeKey(staff.name)].filter(Boolean);
+  // Suffix tỉnh trên tên mới ("- NĐ", "- YB") + điểm lộ trình map từ mã ngắn.
+  for (const code of preferredOfficeCodesForPoint(foldOfficeKey(staff.code))) {
+    const fk = foldOfficeKey(code);
+    if (fk) keys.push(fk);
+  }
+  const uniqKeys = [...new Set(keys.filter(Boolean))];
+  return branchNames.filter((bn) => {
+    const bnKey = foldOfficeKey(bn);
+    if (uniqKeys.some((k) => (k.length >= 2 && bnKey.includes(k)) || (bnKey.length >= 2 && k.includes(bnKey)))) {
+      return true;
+    }
+    return itineraries.some((it) => {
+      if (it.branch?.name !== bn) return false;
+      const blob = foldOfficeKey(`${it.departurePoint ?? ""} ${it.destinationPoint ?? ""} ${it.name ?? ""}`);
+      return uniqKeys.some((k) => k.length >= 2 && blob.includes(k));
+    });
+  });
+}
+
+/**
+ * Trung chuyển qua hub đã tắt: đơn mới luôn 1 chặng VP gửi → VP nhận.
+ */
+export function needsHubTransit(_from: string, _to: string) {
+  return false;
+}
+
+export function describeItinerary(o: Order): {
+  legs: { from: string; to: string; done: boolean; current: boolean }[];
+  isMultiLeg: boolean;
+  currentIdx: number;
+  totalLegs: number;
+} {
+  const legs = o.legs && o.legs.length
+    ? o.legs
+    : [{ index: 0, fromOffice: o.fromOffice, toOffice: o.toOffice, status: "PENDING" as LegStatus }];
+  const cur = o.currentLegIndex ?? 0;
+  return {
+    legs: legs.map((l, i) => ({
+      from: l.fromOffice,
+      to: l.toOffice,
+      done: i < cur,
+      current: i === cur,
+    })),
+    isMultiLeg: legs.length > 1,
+    currentIdx: cur,
+    totalLegs: legs.length,
+  };
+}
+
+export type Trip = {
+  code: string;
+  bks: string;
+  driver: string;
+  route: string;
+  departAt: string;
+  status: TripStatus;
+  office: string;
+  scanned: number;
+  loaded: number;
+};
+
+/** Tiền VNĐ dạng #.###.### VNĐ (làm tròn đồng). */
+export function formatVND(n: number) {
+  const v = Number.isFinite(n) ? Math.round(n) : 0;
+  return `${v.toLocaleString("vi-VN")} VNĐ`;
+}
+
+/** Tiền dạng #.###.### không kèm đơn vị — dùng trong ô bảng. */
+export function formatMoney(n: number) {
+  const v = Number.isFinite(n) ? Math.round(n) : 0;
+  return v.toLocaleString("vi-VN");
+}
+
+/** Chuỗi hiển thị trong ô nhập tiền: #.###.### (không kèm đơn vị). */
+export function formatVndInput(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "";
+  return Math.round(n).toLocaleString("vi-VN");
+}
+
+/** Lấy số VNĐ từ chuỗi ô nhập (bỏ dấu chấm/phẩy/chữ). */
+export function parseVndInput(raw: string): number {
+  const digits = String(raw ?? "").replace(/[^\d]/g, "");
+  if (!digits) return 0;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Cân KG — giữ thập phân, bỏ số 0 thừa phía sau. */
+export function formatKg(n: number | null | undefined, digits = 3) {
+  if (n == null || !Number.isFinite(n)) return "—";
+  const v = Number(n);
+  const s = v.toLocaleString("vi-VN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits,
+  });
+  return `${s} KG`;
+}
+
+export function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("vi-VN", { hour12: false });
+}
+
+export function officeName(code: string) {
+  return officeDirectory.find((o) => o.code === code || o.name === code)?.name ?? code;
+}
+
+/** VP nhận đích thực (finalToOffice nếu có, không thì toOffice). */
+export function orderReceiverOffice(order: Pick<Order, "toOffice" | "finalToOffice">): string {
+  return order.finalToOffice || order.toOffice;
+}
+
+export function receiverOfficeName(order: Pick<Order, "toOffice" | "finalToOffice">): string {
+  return officeName(orderReceiverOffice(order));
+}
+
+/** Nhãn lộ trình hiển thị: VP gửi → VP nhận đích. */
+export function orderRouteLabel(order: Pick<Order, "fromOffice" | "toOffice" | "finalToOffice">): string {
+  return `${officeName(order.fromOffice)} → ${receiverOfficeName(order)}`;
+}

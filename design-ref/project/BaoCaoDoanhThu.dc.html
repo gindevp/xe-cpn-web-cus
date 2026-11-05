@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Báo cáo doanh thu X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Báo cáo doanh thu" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <div style="min-width: 0">
+        <h1 class="page-title">Báo cáo doanh thu</h1>
+        <div class="lab muted">Doanh thu theo đơn</div>
+      </div>
+      <button class="btn tonal"><span class="ms" aria-hidden="true">download</span>Xuất</button>
+    </div>
+    <div class="filter-grid">
+      <div class="field"><span class="l" id="f1">Từ ngày</span><button class="box num" aria-labelledby="f1">01/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      <div class="field"><span class="l" id="f2">Đến ngày</span><button class="box num" aria-labelledby="f2">03/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      <div class="field vp-field"><span class="l" id="f3">Văn phòng</span><button class="box" aria-labelledby="f3" aria-haspopup="menu" aria-expanded="{{vpOpen}}" onClick="{{vpToggle}}"><span class="vp-label">{{vpLabel}}</span><span class="ms" aria-hidden="true">expand_more</span></button>
+        <sc-if value="{{vpOpen}}" hint-placeholder-val="{{false}}"><div class="menu-back" onClick="{{vpClose}}"></div><div class="row-menu vp-menu" role="menu"><sc-for list="{{vpOpts}}" as="o" hint-placeholder-count="14"><button role="menuitem" class="{{o.cls}}" onClick="{{o.pick}}">{{o.name}}</button></sc-for></div></sc-if>
+      </div>
+      <div class="field"><span class="l" id="f4">Loại đơn</span><button class="box" aria-labelledby="f4">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+    </div>
+
+    <section class="card stack">
+      <div>
+        <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">store</span></span>Doanh thu theo văn phòng</h2>
+        <button class="link-plain" onClick="{{toggleRule}}"><span class="ms" aria-hidden="true" style="font-size: 16px">info</span>Cách tính</button>
+      </div>
+      <sc-if value="{{showRule}}" hint-placeholder-val="{{false}}">
+        <div class="note">Cùng cách tính với Báo cáo kinh doanh. Doanh thu = tổng cước các đơn tạo trong khoảng ngày (trừ đơn huỷ và đơn còn chờ nhận, chờ lấy, đang lấy hàng), tính cho VP gửi. Không gồm tiền thu hộ COD. Cột Phí giao hiện một trong ba: phí Ahamove/Grab, phí giao ngoài hoặc phí ship nội bộ, đã trừ khỏi tổng doanh thu.</div>
+      </sc-if>
+      <sc-if value="{{isAll}}" hint-placeholder-val="{{true}}">
+        <div class="rev-total num"><span class="hero">{{allTotal}}</span><span class="lab muted">tổng {{vpCount}} văn phòng</span></div>
+        <div class="rev-list num">
+          <sc-for list="{{bars}}" as="b" hint-placeholder-count="13">
+            <button class="rev-row" aria-label="{{b.aria}}" onClick="{{b.pick}}">
+              <span class="rev-rank">{{b.rank}}</span>
+              <span class="rev-name">{{b.name}}</span>
+              <span class="rev-val"><b>{{b.text}}</b><span class="muted">{{b.share}}</span></span>
+              <span class="rev-track" aria-hidden="true"><i style="width: {{b.pct}}%"></i></span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{isOne}}" hint-placeholder-val="{{false}}">
+        <div class="rev-one num">
+          <div class="rev-sum">
+            <div class="rev-hero">
+              <div style="min-width: 0">
+                <div class="rev-vp lab"><span class="ms fill" aria-hidden="true">location_on</span>{{oneName}}</div>
+                <div class="hero">{{oneTotal}}</div>
+                <div class="small muted">doanh thu trong kỳ</div>
+              </div>
+              <svg class="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+                <ellipse class="ill-soft" cx="78" cy="97" rx="70" ry="6"></ellipse>
+                <rect class="ill-mid" x="26" y="26" width="84" height="70" rx="4"></rect>
+                <rect class="ill-main" x="20" y="12" width="96" height="18" rx="4"></rect>
+                <rect class="ill-paper" x="50" y="17" width="36" height="8" rx="4"></rect>
+                <path class="ill-main" d="M26 30h14v7a7 7 0 0 1-14 0zM54 30h14v7a7 7 0 0 1-14 0zM82 30h14v7a7 7 0 0 1-14 0z"></path>
+                <path class="ill-paper" d="M40 30h14v7a7 7 0 0 1-14 0zM68 30h14v7a7 7 0 0 1-14 0zM96 30h14v7a7 7 0 0 1-14 0z"></path>
+                <rect class="ill-paper" x="36" y="54" width="28" height="22" rx="3"></rect>
+                <rect class="ill-main" x="74" y="54" width="24" height="42" rx="3"></rect>
+                <circle class="ill-paper" cx="93" cy="76" r="1.8"></circle>
+                <rect class="ill-box" x="116" y="72" width="24" height="24" rx="2"></rect>
+                <rect class="ill-box2" x="122" y="54" width="18" height="18" rx="2"></rect>
+                <path class="ill-paper" d="M126 72h4v8h-4zM129.5 54h3v6h-3z"></path>
+              </svg>
+            </div>
+            <div class="rev-donut-row">
+              <svg class="rev-donut" viewBox="0 0 36 36" role="img" aria-label="Chiếm {{oneShare}} doanh thu toàn hệ thống">
+                <circle class="donut-bg" cx="18" cy="18" r="15.5" pathLength="100"></circle>
+                <circle class="donut-val" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="{{onePct}} 100"></circle>
+              </svg>
+              <div><div class="rev-stat">{{oneShare}}</div><div class="small muted">doanh thu toàn hệ thống</div></div>
+            </div>
+            <div class="rev-tiles">
+              <div class="rev-tile"><span class="rev-ic" aria-hidden="true"><span class="ms fill">emoji_events</span></span><div><div class="small muted">Xếp hạng</div><div class="rev-stat">{{oneRank}}<span class="muted">/{{vpCount}}</span></div></div></div>
+              <div class="rev-tile"><span class="rev-ic" aria-hidden="true"><span class="ms fill">inventory_2</span></span><div><div class="small muted">Số đơn</div><div class="rev-stat">{{oneOrders}}</div></div></div>
+            </div>
+          </div>
+          <div class="rev-mix">
+            <div class="rev-mix-head"><h3 class="lab" style="margin: 0; font-weight: 600">Cơ cấu doanh thu</h3><button class="link-plain" onClick="{{vpAll}}"><span class="ms" aria-hidden="true" style="font-size: 16px">arrow_back</span>Xem tất cả VP</button></div>
+            <sc-for list="{{mix}}" as="m" hint-placeholder-count="7">
+              <div class="{{m.cls}}">
+                <span class="rev-ic sm" aria-hidden="true"><span class="ms">{{m.icon}}</span></span>
+                <span class="rev-name">{{m.name}}</span>
+                <span class="rev-val"><b>{{m.text}}</b><span class="muted">{{m.share}}</span></span>
+                <span class="rev-track" aria-hidden="true"><i style="width: {{m.pct}}%"></i></span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+
+    <section class="card stack">
+      <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">receipt_long</span></span>Doanh thu theo đơn</h2>
+      <div class="scroller">
+        <table class="tbl sticky-1 sticky-last" style="--tbl-min: 1360px">
+          <thead><tr><th>Mã đơn</th><th>Ngày tạo</th><th>Văn phòng</th><th class="r">Cước giao hàng</th><th class="r">Giao tận nơi</th><th class="r">Phí lấy hàng</th><th class="r">Thu hộ COD</th><th class="r">Phí KBGT</th><th class="r">Lưu kho</th><th class="r">Phí hoàn</th><th class="r">Phí giao</th><th class="r">Tổng doanh thu</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="8">
+              <tr>
+                <td><button class="code" data-step="{{o.step}}">{{o.code}}</button></td><td style="white-space: nowrap">{{o.date}}</td><td style="white-space: nowrap">{{o.vp}}</td>
+                <td class="r">{{o.fee}}</td><td class="r muted">{{o.door}}</td><td class="r muted">—</td><td class="r muted">—</td><td class="r muted">—</td><td class="r muted">—</td><td class="r muted">—</td><td class="r muted">{{o.ship}}</td><td class="r main">{{o.total}}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <div class="pager-left"><span class="muted num lab">1-8 trên {{orderTotal}} đơn</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1400}}'>
+const BARS = [['31A Nguyễn Quốc Trị - Hà Nội', 7300000, '7,3tr'], ['74 Phố Vọng - Hà Nội', 7200000, '7,2tr'], ['104 Song Hào - Nam Định', 6900000, '6,9tr'], ['263 Nguyễn Thái Học - Yên Bái', 5500000, '5,5tr'], ['34 Trần Phú - Thái Bình', 4200000, '4,2tr'], ['72 Trần Nhân Tông - Hà Nội', 3200000, '3,2tr'], ['251 Lương Văn Thăng - Ninh Bình', 2500000, '2,5tr'], ['55 Trần Đại Nghĩa - Hà Nội', 1900000, '1,9tr'], ['46 Vũ Tuân - Việt Trì', 1200000, '1,2tr'], ['10 Ngõ 15 Ngọc Hồi - Hà Nội', 882000, '882k'], ['56 Nguyễn Quyền - Hà Nội', 820000, '820k'], ['77 Trần Anh Tông - Nam Định', 650000, '650k'], ['IC8 Phú Ninh - Phú Thọ', 480000, '480k'], ['88 Trương Công Giai - Hà Nội', 290000, '290k'], ['Văn Phú - Yên Bái', 289000, '289k'], ['Vincom - TX.Phú Thọ', 210000, '210k']];
+const ROWS = [['PV0311MEU1','03/11/2026','104 Song Hào - Nam Định','35.000','—','—','35.000'],['PV0311MEU2','03/11/2026','263 Nguyễn Thái Học - Yên Bái','70.000','20.000','15.000','75.000'],['LD0311MEU3','03/11/2026','31A Nguyễn Quốc Trị - Hà Nội','40.000','—','—','40.000'],['PV0311MEU4','02/11/2026','34 Trần Phú - Thái Bình','95.000','—','—','95.000'],['BC0311MEU5','02/11/2026','31A Nguyễn Quốc Trị - Hà Nội','30.000','15.000','12.000','33.000'],['PV0311MEU6','02/11/2026','251 Lương Văn Thăng - Ninh Bình','45.000','—','—','45.000'],['LD0311MEU7','01/11/2026','104 Song Hào - Nam Định','60.000','—','—','60.000'],['PV0311MEU8','01/11/2026','31A Nguyễn Quốc Trị - Hà Nội','35.000','—','—','35.000']];
+const SUM = BARS.reduce((a, b) => a + b[1], 0);
+const MIX = [['Cước giao hàng', .86, 'local_shipping'], ['Giao tận nơi', .08, 'home'], ['Phí lấy hàng', .04, 'move_to_inbox'], ['Phí KBGT', .02, 'verified_user'], ['Lưu kho', .01, 'warehouse'], ['Phí hoàn', .01, 'undo'], ['Trừ phí giao', -.02, 'do_not_disturb_on']];
+const money = (v) => { const a = Math.abs(v); return a >= 1e6 ? (a / 1e6).toFixed(1).replace('.', ',') + 'tr' : Math.round(a / 1e3) + 'k'; };
+const pct = (x) => (x * 100).toFixed(1).replace('.', ',') + '%';
+const AVG = 45000;
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { rule: false, vp: null, vpOpen: false }; }
+  renderVals() {
+    const s = this.state;
+    const pick = (vp) => () => this.setState({ vp, vpOpen: false });
+    const one = s.vp && BARS.find((b) => b[0] === s.vp), rankI = one ? BARS.indexOf(one) : -1;
+    const V = one ? one[1] : 0, orders = one ? Math.round(V / AVG) : 240;
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true,
+      showRule: s.rule, toggleRule: () => this.setState({ rule: !s.rule }),
+      isAll: !one, isOne: !!one, vpCount: BARS.length, allTotal: money(SUM),
+      vpOpen: s.vpOpen, vpLabel: s.vp || 'Tất cả VP', vpToggle: () => this.setState({ vpOpen: !s.vpOpen }), vpClose: () => this.setState({ vpOpen: false }), vpAll: pick(null),
+      vpOpts: [['Tất cả VP', null], ...BARS.map((b) => [b[0], b[0]])].map(([name, v]) => ({ name, cls: s.vp === v ? 'on' : '', pick: pick(v) })),
+      bars: BARS.map(([name, v, text], i) => ({ rank: i + 1, name, text, share: pct(v / SUM), pct: (v / BARS[0][1] * 100).toFixed(1), aria: 'Xem ' + name + ': ' + text, pick: pick(name) })),
+      oneName: s.vp, oneTotal: money(V), oneShare: pct(V / SUM), onePct: (V / SUM * 100).toFixed(1), oneRank: rankI + 1, oneOrders: fmtN(orders), orderTotal: fmtN(orders),
+      mix: MIX.map(([name, x, icon]) => ({ name, icon, text: (x < 0 ? '−' : '') + money(V * x), share: pct(Math.abs(x)), pct: (Math.abs(x) / .86 * 100).toFixed(1), cls: 'rev-row static' + (x < 0 ? ' minus' : '') })),
+      rows: ROWS.map((r) => ({ code: r[0], date: r[1], vp: s.vp || r[2], fee: r[3], door: r[4], ship: r[5], total: r[6] })),
+    };
+  }
+}
+const fmtN = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+const STEPS = ['Thành công', 'Nhập kho giao', 'Đang giao hàng', 'Hàng trên xe', 'Nhập kho gửi'];
+const renderBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = renderBase.call(this); if (v.rows) v.rows = v.rows.map((o, i) => { const step = STEPS[i % STEPS.length]; return { ...o, step, stepCls: stepCls(step) }; }); return v; };
+</script>
+</body>
+</html>

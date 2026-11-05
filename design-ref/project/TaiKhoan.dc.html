@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tài khoản X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Tài khoản" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <div>
+        <h1 class="page-title">Tài khoản</h1>
+        <div class="lab muted num">{{countText}}</div>
+      </div>
+      <button class="btn"><span class="ms" aria-hidden="true">add</span>Tạo tài khoản</button>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 12px">
+      <label class="field" style="flex: 1 1 320px; max-width: 480px"><span class="l">Tìm kiếm</span><span class="box input-box"><span class="ms muted" aria-hidden="true">search</span><input type="search" placeholder="Tài khoản, mã NV, tên nhân viên…"></span></label>
+      <div class="field"><span class="l" id="f1">Vai trò</span><button class="box" aria-labelledby="f1">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+    </div>
+    <section class="card stack">
+      <div class="scroller">
+        <table class="tbl" style="--tbl-min: 880px">
+          <thead><tr><th>Tài khoản</th><th>Mã NV</th><th>Tên nhân viên</th><th>Nhóm quyền</th><th>VP</th><th>Trạng thái</th><th class="r">Thao tác</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="8">
+              <tr>
+                <td class="main">{{o.acc}}</td><td class="muted">{{o.code}}</td><td><span class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms fill">person</span></span>{{o.name}}</span></td><td>{{o.role}}</td><td style="white-space: nowrap">{{o.vp}}</td><td><span class="{{o.tag}}">{{o.status}}</span></td>
+                <td><div class="act"><button class="no" aria-label="{{o.editLabel}}" title="Sửa"><span class="ms" aria-hidden="true">edit</span></button><button class="no" aria-label="{{o.lockLabel}}" title="{{o.lockText}}" onClick="{{o.toggle}}"><span class="ms" aria-hidden="true">{{o.lockIcon}}</span></button><button class="no" aria-label="{{o.delLabel}}" title="Xoá" onClick="{{o.ask}}"><span class="ms" aria-hidden="true">delete</span></button></div></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><div class="pager-left"><span class="muted num lab">{{rangeText}}</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+    </section>
+  </main>
+  <sc-if value="{{hasConfirm}}" hint-placeholder-val="{{false}}">
+    <div class="scrim">
+      <div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="del-title" style="width: min(100%, 440px)">
+        <h2 id="del-title" style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600">Xoá tài khoản {{confirmName}}?</h2>
+        <p class="lab muted" style="margin: 0">Tài khoản sẽ không đăng nhập được nữa. Nếu chỉ muốn tạm ngừng, bạn nên khoá tài khoản.</p>
+        <div style="display: flex; justify-content: flex-end; gap: 8px"><button class="btn ghost" onClick="{{cancelDel}}">Đóng</button><button class="btn danger" onClick="{{confirmDel}}">Xoá tài khoản</button></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1000}}'>
+const R = [['nv_mau01','NV001','Nhân viên mẫu A','Admin','Toàn hệ thống'],['nv_mau02','NV002','Nhân viên mẫu B','Điều phối hàng hoá','31A Nguyễn Quốc Trị - Hà Nội'],['nv_mau03','NV003','Nhân viên mẫu C','Kế toán','31A Nguyễn Quốc Trị - Hà Nội'],['nv_mau04','NV004','Nhân viên mẫu D','Trưởng bưu cục','104 Song Hào - Nam Định'],['nv_mau05','NV005','Nhân viên mẫu E','Điều phối hành khách','263 Nguyễn Thái Học - Yên Bái'],['nv_mau06','NV006','Nhân viên mẫu F','Tổng đài','31A Nguyễn Quốc Trị - Hà Nội'],['nv_mau07','NV007','Nhân viên mẫu G','Trưởng chi nhánh','251 Lương Văn Thăng - Ninh Bình'],['nv_mau08','NV008','Nhân viên mẫu H','Điều phối hàng hoá','34 Trần Phú - Thái Bình']];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { locked: { nv_mau06: true }, gone: {}, ask: null }; }
+  renderVals() {
+    const s = this.state;
+    const list = R.filter((r) => !s.gone[r[0]]);
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true,
+      countText: list.length + ' người dùng trên trang này', rangeText: '1-' + list.length + ' trên trang 1',
+      hasConfirm: !!s.ask, confirmName: s.ask || '', cancelDel: () => this.setState({ ask: null }),
+      confirmDel: () => this.setState({ gone: { ...this.state.gone, [this.state.ask]: true }, ask: null }),
+      rows: list.map((r) => { const lock = !!s.locked[r[0]]; return { acc: r[0], code: r[1], name: r[2], role: r[3], vp: r[4], status: lock ? 'Đã khoá' : 'Hoạt động', tag: lock ? 'tag warn' : 'tag ok', lockIcon: lock ? 'lock_open' : 'lock', lockText: lock ? 'Mở khoá' : 'Khoá', editLabel: 'Sửa ' + r[0], lockLabel: (lock ? 'Mở khoá ' : 'Khoá ') + r[0], delLabel: 'Xoá ' + r[0], toggle: () => this.setState({ locked: { ...this.state.locked, [r[0]]: !lock } }), ask: () => this.setState({ ask: r[0] }) }; }),
+    };
+  }
+}
+</script>
+</body>
+</html>

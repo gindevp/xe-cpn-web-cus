@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Quản lý hoá đơn X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Quản lý hoá đơn" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <div style="flex: 1 1 480px; min-width: 0">
+        <h1 class="page-title">Quản lý hoá đơn</h1>
+        <div class="lab muted" style="max-width: 760px">Lọc theo mốc thanh toán: gửi trả là lúc nhập kho gửi, nhận trả và COD là lúc giao thành công. Hệ thống tự xuất khi đơn đã giao thành công và quá 3 tiếng kể từ mốc này.</div>
+      </div>
+      <div style="display: flex; gap: 8px"><button class="btn ghost">Xoá bộ lọc</button><button class="btn tonal"><span class="ms" aria-hidden="true">download</span>Xuất</button></div>
+    </div>
+    <section class="sum-row num">
+      <div class="sum-lead"><div style="min-width: 0"><div class="rev-vp lab"><span class="ms fill" aria-hidden="true">pending_actions</span>Chưa xuất</div><div class="sum-hero">635</div></div><svg class="rev-ill" viewBox="0 0 150 104" aria-hidden="true"><ellipse class="ill-soft" cx="75" cy="97" rx="68" ry="6"></ellipse><path class="ill-mid" d="M36 6h50l22 22v68H36z"></path><path class="ill-paper" d="M43 13h40l18 18v58H43z"></path><path class="ill-main" d="M84 6l24 22H84z"></path><rect class="ill-main" x="50" y="28" width="24" height="5" rx="2.5"></rect><rect class="ill-mid" x="50" y="40" width="42" height="5" rx="2.5"></rect><rect class="ill-mid" x="50" y="51" width="42" height="5" rx="2.5"></rect><rect class="ill-mid" x="50" y="62" width="26" height="5" rx="2.5"></rect><circle class="ill-box" cx="108" cy="74" r="19"></circle><path class="ill-tick wide" d="M99 74l6.5 6.5L118 67"></path></svg></div>
+      <div class="rev-tile card-tile "><span class="rev-ic" aria-hidden="true"><span class="ms fill">domain</span></span><div style="min-width: 0"><div class="small muted">Đã xuất doanh nghiệp</div><div class="sum-val">196</div></div></div><div class="rev-tile card-tile "><span class="rev-ic" aria-hidden="true"><span class="ms fill">person</span></span><div style="min-width: 0"><div class="small muted">Đã xuất cá nhân</div><div class="sum-val">7.950</div></div></div><div class="rev-tile card-tile bad"><span class="rev-ic" aria-hidden="true"><span class="ms fill">cancel</span></span><div style="min-width: 0"><div class="small muted">Đơn huỷ</div><div class="sum-val">15</div></div></div>
+    </section>
+    <div class="filter-grid">
+      <label class="field"><span class="l">Tìm kiếm</span><span class="box input-box"><input type="search" placeholder="Mã đơn, tên, SĐT, MST, số HĐ..."></span></label>
+      <div class="field"><span class="l" id="a1">VP gửi / nhận</span><button class="box" aria-labelledby="a1">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+      <div class="field"><span class="l" id="a2">Trạng thái HĐ</span><button class="box" aria-labelledby="a2">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+      <div class="field"><span class="l" id="a3">Loại đơn</span><button class="box" aria-labelledby="a3">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+      <div class="field"><span class="l" id="a4">Thanh toán từ ngày</span><button class="box num" aria-labelledby="a4">01/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      <div class="field"><span class="l" id="a5">Đến ngày</span><button class="box num" aria-labelledby="a5">03/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+    </div>
+    <section class="card stack">
+      <div class="title-row" style="align-items: center">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px">
+          <div class="group-title num">{{headText}}</div>
+          <label class="lab" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer"><input class="check" type="checkbox">Chỉ đơn cần / có thể xuất bù (335)</label>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 4px"><button class="btn ghost" disabled="{{noSel}}">{{cancelLabel}}</button><button class="btn">Xuất bù tất cả đơn chưa xuất (249)</button></div>
+      </div>
+      <div class="note">Xuất bù tất cả chỉ lấy đơn đã giao hoặc đã hoàn, đã thu đủ, không công nợ. Đơn công nợ xuất khi tích chọn. Đơn đang đi, đơn huỷ và đơn đang ngoại lệ không xuất bù.</div>
+      <div class="scroller">
+        <table class="tbl" style="--tbl-min: 1120px">
+          <thead><tr><th style="width: 18px"><input class="check" type="checkbox" aria-label="Chọn cả trang" checked="{{allSel}}" onChange="{{toggleAll}}"></th><th>Mã đơn</th><th>Mốc thanh toán</th><th>HTTT</th><th>Người trả</th><th>VP gửi → VP nhận</th><th class="r">Tiền HĐ</th><th>Trạng thái HĐ</th><th>Số HĐ</th><th>Công ty / MST</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="6">
+              <tr class="{{o.cls}}">
+                <td><input class="check" type="checkbox" aria-label="{{o.selLabel}}" checked="{{o.sel}}" onChange="{{o.toggle}}"></td>
+                <td><button class="code" data-step="{{o.step}}">{{o.code}}</button></td><td style="white-space: nowrap">{{o.time}}</td><td>{{o.pay}}</td><td style="white-space: nowrap">{{o.payer}}</td><td style="white-space: nowrap">{{o.vf}}<span class="sub">→ {{o.vt}}</span></td><td class="r main">{{o.money}}</td>
+                <td><span class="{{o.tag}}">{{o.status}}</span><span class="sub" style="max-width: 170px">{{o.reason}}</span></td><td class="num">{{o.no}}</td><td>{{o.company}}<span class="sub">{{o.mst}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><div class="pager-left"><span class="muted num lab">1-6 trên 8.781 đơn</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1260}}'>
+const R = [['PV0311MGU1','Tiền mặt','Người gửi','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','35.000','n','Chưa đủ 3 tiếng','—','—','—'],['PV0311MGU2','Chuyển khoản','Người nhận','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','70.000','c','','HĐ000101','—','—'],['LD0311MGU3','Tiền mặt','Người nhận','31A Nguyễn Quốc Trị - Hà Nội','104 Song Hào - Nam Định','40.000','d','','HĐ000102','Công ty mẫu A','0100000001'],['PV0311MGU4','Công nợ','Người gửi','34 Trần Phú - Thái Bình','31A Nguyễn Quốc Trị - Hà Nội','95.000','n','Đơn công nợ','—','Công ty mẫu B','0100000002'],['BC0311MGU5','Chuyển khoản','Người gửi','31A Nguyễn Quốc Trị - Hà Nội','263 Nguyễn Thái Học - Yên Bái','30.000','c','','HĐ000103','—','—'],['PV0311MGU6','Tiền mặt','Người nhận','251 Lương Văn Thăng - Ninh Bình','31A Nguyễn Quốc Trị - Hà Nội','45.000','c','','HĐ000104','—','—']];
+const ST = { n: ['Chưa xuất', 'tag warn'], c: ['Đã xuất cá nhân', 'tag ok'], d: ['Đã xuất DN', 'tag ok'] };
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { sel: { PV0311MGU1: true } }; }
+  renderVals() {
+    const s = this.state;
+    const rows = R.map((r) => { const sel = !!s.sel[r[0]]; return { code: r[0], time: '16:42 03/11/2026', pay: r[1], payer: r[2], vf: r[3], vt: r[4], money: r[5], status: ST[r[6]][0], tag: ST[r[6]][1], reason: r[7], no: r[8], company: r[9], mst: r[10], sel, cls: sel ? 'sel' : '', selLabel: 'Chọn ' + r[0], toggle: () => this.setState({ sel: { ...this.state.sel, [r[0]]: !sel } }) }; });
+    const n = rows.filter((r) => r.sel).length, allSel = rows.every((r) => r.sel);
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true, rows, allSel, noSel: n === 0,
+      headText: n ? 'Đã chọn ' + n + ' đơn' : '8.781 đơn', cancelLabel: 'Bỏ xuất tự động (' + n + ')',
+      toggleAll: () => { const sel = { ...this.state.sel }; rows.forEach((r) => { sel[r.code] = !allSel; }); this.setState({ sel }); },
+    };
+  }
+}
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+const STEPS = ['Thành công', 'Nhập kho giao', 'Đang giao hàng'];
+const renderBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = renderBase.call(this); if (v.rows) v.rows = v.rows.map((o, i) => { const step = STEPS[i % STEPS.length]; return { ...o, step, stepCls: stepCls(step) }; }); return v; };
+</script>
+</body>
+</html>

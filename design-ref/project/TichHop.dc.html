@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tích hợp X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Tích hợp" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <h1 class="page-title">Tích hợp</h1>
+    <div class="seg" role="tablist" aria-label="Nhóm tích hợp" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="6"><button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.label}}</button></sc-for>
+    </div>
+    <sc-if value="{{hasSub}}" hint-placeholder-val="{{false}}">
+      <div class="sub-tabs" role="tablist" aria-label="Mục con">
+        <sc-for list="{{subs}}" as="t" hint-placeholder-count="4"><button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for>
+      </div>
+    </sc-if>
+    <sc-for list="{{sections}}" as="s" hint-placeholder-count="2">
+      <section class="card stack">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px">
+          <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">{{s.icon}}</span></span>{{s.title}}</h2>
+          <sc-if value="{{s.hasTag}}" hint-placeholder-val="{{false}}"><span class="{{s.tagCls}}">{{s.tag}}</span></sc-if>
+        </div>
+        <sc-if value="{{s.hasDesc}}" hint-placeholder-val="{{false}}"><div class="lab muted" style="max-width: 860px; margin-top: -8px">{{s.desc}}</div></sc-if>
+        <div class="cfg-grid">
+          <sc-for list="{{s.fields}}" as="f" hint-placeholder-count="4">
+            <sc-if value="{{f.isInput}}" hint-placeholder-val="{{true}}"><label class="field cfg-field"><span class="l">{{f.label}}</span><span class="box input-box"><input placeholder="{{f.ph}}"></span></label></sc-if>
+            <sc-if value="{{f.isSelect}}" hint-placeholder-val="{{false}}"><div class="field cfg-field"><span class="l">{{f.label}}</span><button class="box" aria-label="{{f.label}}">{{f.ph}}<span class="ms" aria-hidden="true">expand_more</span></button></div></sc-if>
+            <sc-if value="{{f.isSecret}}" hint-placeholder-val="{{false}}"><label class="field cfg-field"><span class="l">{{f.label}} <span class="tag ok" style="height: 20px">Đã lưu</span></span><span class="box input-box"><span class="ms muted" aria-hidden="true">key</span><input type="password" placeholder="Nhập giá trị mới để thay"></span></label></sc-if>
+            <sc-if value="{{f.isText}}" hint-placeholder-val="{{false}}"><label class="field cfg-field cfg-wide"><span class="l">{{f.label}}</span><textarea class="area" rows="3" placeholder="{{f.ph}}"></textarea></label></sc-if>
+            <sc-if value="{{f.isUrl}}" hint-placeholder-val="{{false}}"><div class="field cfg-field cfg-wide"><span class="l">{{f.label}}</span><div class="box input-box" style="background: var(--low); border-color: transparent"><span class="muted" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{f.ph}}</span><button class="text-act">Copy</button></div></div></sc-if>
+            <sc-if value="{{f.isToggle}}" hint-placeholder-val="{{false}}"><label class="toggle cfg-wide"><input class="switch" type="checkbox" checked="{{f.on}}" onChange="{{f.toggle}}"><span>{{f.label}}</span></label></sc-if>
+            <sc-if value="{{f.isCheck}}" hint-placeholder-val="{{false}}"><label class="choice"><input class="check" type="checkbox" checked="{{f.on}}" onChange="{{f.toggle}}">{{f.label}}</label></sc-if>
+            <sc-if value="{{f.isChoice}}" hint-placeholder-val="{{false}}"><div class="field cfg-field cfg-wide"><span class="l">{{f.label}}</span><div class="seg" role="radiogroup" aria-label="{{f.label}}" style="background: var(--low); align-self: flex-start"><sc-for list="{{f.opts}}" as="o" hint-placeholder-count="2"><button role="radio" aria-checked="{{o.on}}" class="{{o.cls}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></div></sc-if>
+            <sc-if value="{{f.isNote}}" hint-placeholder-val="{{false}}"><div class="note cfg-wide">{{f.label}}</div></sc-if>
+            <sc-if value="{{f.isHead}}" hint-placeholder-val="{{false}}"><div class="title-small cfg-wide" style="font-weight: 600; margin-top: 4px">{{f.label}}</div></sc-if>
+            <sc-if value="{{f.isSentence}}" hint-placeholder-val="{{false}}"><div class="sentence cfg-wide num"><sc-for list="{{f.parts}}" as="p" hint-placeholder-count="3"><sc-if value="{{p.isIn}}" hint-placeholder-val="{{false}}"><input class="{{p.cls}}" aria-label="{{p.aria}}" placeholder="{{p.t}}"></sc-if><sc-if value="{{p.isTx}}" hint-placeholder-val="{{true}}"><span>{{p.t}}</span></sc-if></sc-for></div></sc-if>
+            <sc-if value="{{f.isRetry}}" hint-placeholder-val="{{false}}"><div class="cfg-wide stack" style="gap: 8px"><sc-for list="{{retries}}" as="r" hint-placeholder-count="2"><div class="file-row num" style="padding: 8px 12px 8px 16px"><span style="font-weight: 500">{{r.name}}</span><span class="muted">{{r.after}}</span><input class="cell-input short" aria-label="{{r.aria}}" placeholder="60"><span class="muted">phút</span><button class="icon-btn" style="margin-left: auto" aria-label="{{r.delLabel}}" title="Xoá" onClick="{{r.del}}"><span class="ms" aria-hidden="true">delete</span></button></div></sc-for><button class="btn tonal" style="align-self: flex-start; height: 36px" onClick="{{addRetry}}"><span class="ms" aria-hidden="true">add</span>Thêm lần gọi lại</button></div></sc-if>
+            <sc-if value="{{f.isBtn}}" hint-placeholder-val="{{false}}"><div style="display: flex; align-items: flex-end"><button class="btn tonal">{{f.label}}</button></div></sc-if>
+            <sc-if value="{{f.isTable}}" hint-placeholder-val="{{false}}"><div class="scroller cfg-wide"><table class="tbl" style="--tbl-min: 820px"><thead><tr><sc-for list="{{f.heads}}" as="h" hint-placeholder-count="5"><th>{{h}}</th></sc-for></tr></thead><tbody><sc-for list="{{f.rows}}" as="r" hint-placeholder-count="3"><tr><sc-for list="{{r}}" as="c" hint-placeholder-count="5"><td class="num" style="white-space: nowrap">{{c}}</td></sc-for></tr></sc-for></tbody></table></div></sc-if>
+          </sc-for>
+        </div>
+        <sc-if value="{{s.hasActs}}" hint-placeholder-val="{{true}}">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end"><sc-for list="{{s.acts}}" as="a" hint-placeholder-count="2"><button class="{{a.cls}}" onClick="{{a.run}}">{{a.label}}</button></sc-for></div>
+        </sc-if>
+      </section>
+    </sc-for>
+    <sc-if value="{{hasSnack}}" hint-placeholder-val="{{false}}">
+      <div class="snack toast" role="status"><span style="flex: 1">{{snack}}</span><button onClick="{{hideSnack}}">Đóng</button></div>
+    </sc-if>
+  </main>
+  <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="c-title">
+      <h2 id="c-title" class="confirm-title">{{ask.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{ask.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{cancel}}">Đóng</button><button class="btn" onClick="{{confirm}}">{{ask.ok}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1120}}'>
+const SAVE = ['Lưu cấu hình tích hợp?', 'Thay đổi có hiệu lực ngay với hệ thống đang chạy. Sai thông tin kết nối có thể làm dịch vụ ngừng hoạt động.', 'Xác nhận lưu'];
+const PAY = (who) => ['c', 'Thanh toán phí', ['Trừ ví ' + who, 'Trả tiền mặt cho tài xế']];
+const PHONE = '0900 000 ';
+const T = {
+  ship: { label: 'Vận chuyển', pages: [[
+    { title: 'Ahamove', fields: [['s','API Key'],['s','SĐT tài khoản'],['s','SĐT người gửi (tài xế gọi)'],PAY('Ahamove'),['u','URL callback (đăng ký với Ahamove)','https://…/callback/ahamove']], acts: [['Test Ahamove','t'],['Lưu','s']] },
+    { title: 'Grab Express', fields: [['s','Client ID'],['s','Client Secret'],['i','Partner ID','Nhập Partner ID'],['c','Môi trường',['Production','Staging (sandbox)']],PAY('Grab'),['u','URL callback (dán vào Grab Express Integration)','https://…/callback/grab']], acts: [['Test Grab','t'],['Lưu','s']] },
+  ]] },
+  map: { label: 'Bản đồ', pages: [[
+    { title: 'Bản đồ / Khoảng cách', tag: 'Đang dùng: OpenStreetMap', fields: [['c','Nhà cung cấp bản đồ pin',['OpenStreetMap','Goong Map']],['s','Goong REST / Places key'],['s','Goong Map tiles key'],['n','REST key dùng geocode/places; Map tiles key dùng hiển thị bản đồ. Đây là hai key khác nhau, dùng nhầm REST key cho bản đồ sẽ ra nền trắng.']], acts: [['Test kết nối','t'],['Lưu','s']] },
+  ]] },
+  store: { label: 'Lưu trữ', pages: [[
+    { title: 'MinIO - ảnh và file', desc: 'Ảnh POD, ảnh hàng, phiếu thu, chấm công, kiểm kho, ảnh xe lưu trên MinIO. Database chỉ giữ mã file.', fields: [['i','Endpoint','Nhập endpoint'],['i','Bucket','Nhập bucket'],['i','Region','Nhập region'],['s','Access key'],['s','Secret key']], acts: [['Chuyển ảnh cũ lên MinIO','t'],['Test kết nối','t'],['Lưu','s']] },
+    { title: 'TTL ảnh - xoá theo số ngày', desc: 'Job chạy mỗi ngày 03:30.', fields: [['i','Chấm công (ngày)','0'],['i','Chấm xe (ngày)','0'],['i','Kiểm kho (ngày)','0']], acts: [['Lưu','s']] },
+  ]] },
+  call: { label: 'Auto Call', subs: ['Kết nối','Lịch gọi','Cuộc gọi','Gọi thử'], pages: [
+    [{ title: 'Auto Call · Vtech (tongdai.ai)', tag: 'Đang bật', ok: 1, desc: 'Đơn nhập kho giao (hoặc quay về kho sau giao thất bại) tự gọi người nhận. Đơn giao tận nơi không gọi.', fields: [['t','Bật Auto Call',1],['c','Nhà cung cấp',['Vtech (tongdai.ai)','HHVN Tech']],['n','Vtech chỉ gọi và trả kết quả: hệ thống đẩy SĐT người nhận vào chiến dịch callbot kèm tên hàng hoá, VP nhận và mã đơn. Không huỷ được cuộc gọi đã gửi.'],['u','URL webhook cấu hình trong chiến dịch Vtech','https://…/webhook/vtech'],['i','Base URL','Nhập Base URL'],['s','API Key chiến dịch']], acts: [['Test kết nối','t'],['Lưu Auto Call','s']] },
+     { title: 'Cách tính tiền ước tính', desc: 'Dùng cho cột Ước tính ở mục Cuộc gọi, theo thời lượng nghe. Không trừ tiền thật.', fields: [['h','Viettel / Vinaphone / Mobifone'],['p',[['i','0','Giá mỗi phút','short'],'đ / phút đã bắt đầu (dưới 1 phút tính 1 phút)']],['h','Nhà mạng còn lại'],['p',[['i','0','Giá các giây đầu','short'],'đ cho',['i','0','Số giây đầu','tiny'],'giây đầu; mỗi giây sau +',['i','0','Giá mỗi giây sau','short'],'đ']]], acts: [['Lưu Auto Call','s']] }],
+    [{ title: 'Khung giờ gọi', desc: 'Áp dụng mọi cuộc gọi. Nhắc Zalo ZNS sau hết vòng gọi ngày 1 cấu hình ở Zalo ZNS, mục Tự động.', fields: [['p',[['i','07:30','Giờ bắt đầu','short'],'đến',['i','19:40','Giờ kết thúc','short']]]], acts: [] },
+     { title: 'Tự gọi lại khi chưa gọi được', fields: [['t','Tự gọi lại khi chưa gọi được',1],['h','Gọi lại khi'],['k','Khách không nghe máy / máy bận',1],['k','Tổng đài / nhà mạng lỗi',1],['k','Gửi cuộc gọi sang tổng đài không thành công',0],['h','Lịch gọi lại'],['rt'],['t','Gọi hết lịch vẫn chưa được thì hôm sau lặp lại từ cuộc 1',1],['p',['Tối đa',['i','2','Số ngày tối đa','tiny'],'ngày (1-7)']],['n','Cuộc 1 gọi ngay khi nhận lệnh nếu trong khung giờ, ngoài khung thì chờ đến sáng hôm sau. Giờ gọi lại rơi sau khung giờ thì dời sang sáng hôm sau. Khách đã nghe máy, đơn đã giao thành công, huỷ hoặc hoàn thì không gọi lại nữa.']], acts: [['Lưu lịch gọi','s']] }],
+    [{ title: 'Cuộc gọi', desc: 'Cuộc gọi đã gửi sang Vtech, kết quả cập nhật khi Vtech gọi webhook. Khoảng ngày tối đa 31 ngày. Bấm vào dòng để xem chi tiết.', fields: [['i','Từ ngày','01/11/2026'],['i','Đến ngày','04/11/2026'],['d','Loại','Tất cả'],['d','Kết quả','Tất cả'],['i','Tìm theo SĐT','SĐT hoặc vài số cuối'],['tb',['Tạo lúc','Loại','SĐT','Nhà mạng','Ước tính','Vận đơn','Trạng thái','Lần gọi','Nghe (s)','Thao tác'],[['09:12 04/11','Gọi giao',PHONE+'201','Viettel','500đ','PV0411MAU1','Nghe máy','1','38','Chi tiết'],['09:05 04/11','Gọi giao',PHONE+'202','Vinaphone','0đ','PV0411MAU2','Không nghe','2','0','Chi tiết'],['08:47 04/11','Gọi hoàn',PHONE+'203','Mobifone','1.000đ','LD0411MAU3','Nghe máy','1','72','Chi tiết'],['08:30 04/11','Gọi giao',PHONE+'204','Nhà mạng khác','0đ','PV0411MAU4','Lỗi tổng đài','1','0','Chi tiết']]]], acts: [['Xuất','t'],['Tải lại','t']] }],
+    [{ title: 'Gọi thử', desc: 'Cuộc gọi thử gọi thật theo kịch bản chiến dịch và tính phí. Kết quả về khi Vtech gọi webhook.', fields: [['i','SĐT','Nhập SĐT nhận cuộc gọi']], acts: [['Gọi thật','c',['Gọi thử thật?','Cuộc gọi sẽ được thực hiện và tính phí.','Gọi thật']]] }],
+  ] },
+  zalo: { label: 'Zalo ZNS', subs: ['Kết nối','Tự động','OTP đăng nhập','Gửi thử','Nhật ký'], pages: [
+    [{ title: 'GapOne - Zalo ZNS', desc: 'Tạo app tại Cài đặt, Kết nối API để lấy client_id và client_secret. JWT không cần dán, hệ thống tự lấy token khi test hoặc gửi thử.', fields: [['s','Client ID (API key)'],['s','Client Secret'],['s','OA ID (Zalo sender)'],['u','URL webhook - copy sang GapOne','https://…/webhook/gapone']], acts: [['Test kết nối','t'],['Lưu','s']] }],
+    [{ title: 'Tin ZNS sau khi gọi không thành công', desc: 'Khi hết vòng gọi ngày 1 và kết quả là không nghe máy hoặc đã huỷ, hệ thống gửi 1 tin ZNS tới SĐT người nhận. Lịch gọi cấu hình ở Auto Call.', fields: [['t','Bật ZNS sau hết vòng gọi ngày 1 (không nghe / đã huỷ)',0],['i','Template ID (mẫu gửi tự động)','Tải mẫu rồi chọn, hoặc dán mã'],['b','Tải mẫu ZNS'],['h','Map tham số mẫu với thông tin đơn'],['n','Chọn mẫu có tham số, hoặc thêm biến. Mỗi biến chọn nguồn dữ liệu từ đơn hoặc cuộc gọi.'],['b','Thêm biến']], acts: [['Lưu cấu hình tự động','s']] }],
+    [{ title: 'OTP đăng nhập', desc: 'Khách đăng nhập bằng SĐT: hệ thống sinh mã 6 số và gửi qua mẫu ZNS (hết hạn sau 5 phút, gửi lại sau 60 giây). SĐT test đăng nhập bằng mã cố định, không gửi tin.', fields: [['t','Bật gửi OTP đăng nhập qua ZNS',0],['i','Template ID (mẫu OTP)','Tải mẫu rồi chọn, hoặc dán mã'],['b','Tải mẫu ZNS'],['i','Tên biến mã OTP trong mẫu','otp'],['i','SĐT test (phân cách dấu phẩy)','Nhập SĐT test'],['i','Mã OTP cố định cho SĐT test','Nhập mã']], acts: [['Lưu cấu hình OTP','s']] }],
+    [{ title: 'Gửi thử', desc: 'Gửi thử thủ công, có thể tốn phí. Không gắn đơn, dùng để kiểm tra mẫu.', fields: [['i','SĐT nhận thử','Nhập SĐT'],['i','Template ID (mã mẫu)','Tải mẫu rồi chọn, hoặc dán mã'],['b','Tải mẫu ZNS'],['ta','template_data (JSON)','{ "customer_name": "Test" }']], acts: [['Gửi thử','c',['Gửi thử tin ZNS?','Tin sẽ được gửi thật và có thể tốn phí.','Gửi thử']]] }],
+    [{ title: 'Nhật ký', desc: 'SEND là gửi từ hệ thống (thử hoặc Auto Call). CALLBACK là GapOne báo kết quả qua webhook.', fields: [['i','Từ ngày','01/11/2026'],['i','Đến ngày','04/11/2026'],['d','Loại','Tất cả'],['d','Kết quả','Tất cả'],['i','Tìm theo SĐT','SĐT hoặc vài số cuối'],['tb',['Thời gian','Loại','Nguồn','Kết quả','SĐT / đơn / mẫu','message_id / trạng thái'],[['09:15 04/11','SEND','Auto Call','OK',PHONE+'201 · PV0411MAU1','msg_mau_01'],['09:15 04/11','CALLBACK','GapOne','OK',PHONE+'201 · PV0411MAU1','Đã nhận'],['08:50 04/11','SEND','Gửi thử','PENDING',PHONE+'205','msg_mau_02'],['08:20 04/11','SEND','Auto Call','ERROR',PHONE+'204 · PV0411MAU4','Lỗi mẫu']]]], acts: [['Xuất','t'],['Tải lại','t']] }],
+  ] },
+  pay: { label: 'Thu hộ', subs: ['Kết nối','Hoá đơn test','Nhật ký'], pages: [
+    [{ title: 'Thu hộ OnePay PayCollect (tài khoản ảo)', tag: 'Chế độ TEST', warn: 1, desc: 'Chế độ TEST chỉ ghi nhận tiền cho hoá đơn test, không đụng đơn hàng và phiếu thu thật.', fields: [['t','Thu hộ OnePay',1],['t','Bật thu hộ cho phiếu thu',0],['t','App khách hàng',1],['t','Web - khách đã đăng nhập',1],['t','Web - khách ẩn danh',1],['c','Môi trường',['Test','Thật']],['i','Partner ID (merchant_id)','Nhập Partner ID'],['s','Partner key'],['i','Thời hạn hoá đơn (giờ)','0'],['u','URL IPN đã đăng ký với OnePay','https://…/ipn/onepay'],['t','Bắt buộc chữ ký IPN hợp lệ',1],['t','Bỏ kiểm chứng chỉ SSL khi gọi OnePay',0]], acts: [['Test kết nối','t'],['Lưu cấu hình OnePay','s']] },
+     { title: 'Thu hộ định danh BIDV', tag: 'Đang tắt', fields: [['t','Nhận callback BIDV',0],['i','Mã dịch vụ (serviceId) BIDV cấp','VD: XECPN'],['s','Secret code checksum'],['i','Tiền tố tài khoản định danh','VD: V3XVN'],['ta','IP BIDV được phép gọi (mỗi dòng hoặc dấu phẩy)','203.0.113.10'],['t','Bắt buộc API key',1],['t','Bắt buộc checksum',1],['b','Tạo key mới']], acts: [['Nhật ký callback','t'],['Lưu cấu hình BIDV','s']] }],
+    [{ title: 'Hoá đơn test', desc: 'Mỗi hoá đơn tạo một tài khoản ảo riêng trên OnePay, kèm QR có sẵn số tiền. Chờ IPN tự xác nhận, hoặc bấm Kiểm tra để hỏi lại OnePay khi mất callback.', fields: [['i','Tên người nộp','Không dấu'],['i','Số tiền','0'],['i','Nội dung','Tuỳ chọn'],['b','Tạo hoá đơn'],['tb',['Mã / TK ảo','Người nộp','Số tiền','Trạng thái','Thao tác'],[['TEST0411MAU1','NGUOI NOP MAU A','150.000','Đã thu','Kiểm tra'],['TEST0411MAU2','NGUOI NOP MAU B','75.000','Chờ thu','Kiểm tra']]]], acts: [] }],
+    [{ title: 'Nhật ký', desc: '200 lệnh gần nhất, cả chiều gửi sang OnePay (OUT) và IPN nhận về (IN). Bấm vào dòng để xem request và response gốc.', fields: [['tb',['Thời gian','Chiều','Lệnh','Mã tham chiếu / GD','Số tiền','Kết quả','ms'],[['09:20 04/11','OUT','Tạo hoá đơn','TEST0411MAU1','150.000','OK','210'],['09:24 04/11','IN','IPN','GD0411MAU1','150.000','OK','35'],['09:30 04/11','OUT','Kiểm tra','TEST0411MAU2','75.000','Chờ','180']]]], acts: [['Làm mới','t']] }],
+  ] },
+};
+const LETTERS = ['2','3','4','5','6','7','8'];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'ship', sub: 0, flags: {}, picks: {}, ask: null, snack: '', retry: 2 }; }
+  renderVals() {
+    const s = this.state, cur = T[s.tab];
+    const mapField = (f, key) => {
+      const [t, label, x] = f, k = key + label;
+      const r = { label, isInput: t === 'i', isSelect: t === 'd', isSecret: t === 's', isText: t === 'ta', isUrl: t === 'u', isToggle: t === 't', isCheck: t === 'k', isChoice: t === 'c', isNote: t === 'n', isHead: t === 'h', isSentence: t === 'p', isRetry: t === 'rt', isBtn: t === 'b', isTable: t === 'tb', ph: t === 'i' || t === 'u' || t === 'd' || t === 'ta' ? x : '' };
+      if (t === 't' || t === 'k') { const on = k in s.flags ? s.flags[k] : !!x; r.on = on; r.toggle = () => this.setState({ flags: { ...this.state.flags, [k]: !on } }); }
+      if (t === 'c') { const p = s.picks[k] ?? 0; r.opts = x.map((label2, i) => ({ label: label2, on: p === i, cls: p === i ? 'on' : '', pick: () => this.setState({ picks: { ...this.state.picks, [k]: i } }) })); }
+      if (t === 'p') { r.label = ''; r.parts = label.map((p) => typeof p === 'string' ? { isTx: true, isIn: false, t: p } : { isIn: true, isTx: false, t: p[1], aria: p[2], cls: 'cell-input ' + p[3] }); }
+      if (t === 'tb') { r.label = ''; r.heads = label; r.rows = x; }
+      return r;
+    };
+    const secs = cur.pages[cur.subs ? s.sub : 0] || [];
+    const sections = secs.map((sec, i) => ({ title: sec.title, desc: sec.desc || '', hasDesc: !!sec.desc, tag: sec.tag || '', hasTag: !!sec.tag, tagCls: 'tag ' + (sec.ok ? 'ok' : sec.warn ? 'warn' : 'info'), fields: sec.fields.map((f) => mapField(f, s.tab + s.sub + i)), hasActs: sec.acts.length > 0, acts: sec.acts.map(([label, k, msg]) => ({ label, cls: k === 't' ? 'btn tonal' : 'btn', run: k === 't' ? () => this.setState({ snack: label + ': kết quả mẫu' }) : () => this.setState({ ask: msg || SAVE, snack: '' }) })) }));
+    const a = s.ask || SAVE;
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', sections,
+      tabs: Object.keys(T).map((id) => ({ label: T[id].label, on: id === s.tab, cls: id === s.tab ? 'on' : '', pick: () => this.setState({ tab: id, sub: 0, snack: '' }) })),
+      hasSub: !!cur.subs, subs: (cur.subs || []).map((label, i) => ({ label, on: i === s.sub, cls: i === s.sub ? 'on' : '', pick: () => this.setState({ sub: i, snack: '' }) })),
+      retries: Array.from({ length: s.retry }, (_, i) => ({ name: 'Cuộc ' + LETTERS[i], after: 'sau cuộc ' + (i + 1), aria: 'Số phút trước cuộc ' + LETTERS[i], delLabel: 'Xoá cuộc ' + LETTERS[i], del: () => this.setState({ retry: Math.max(0, this.state.retry - 1) }) })),
+      addRetry: () => this.setState({ retry: Math.min(LETTERS.length, s.retry + 1) }),
+      confirming: !!s.ask, ask: { title: a[0], body: a[1], ok: a[2] }, cancel: () => this.setState({ ask: null }), confirm: () => this.setState({ ask: null, snack: a === SAVE ? 'Đã lưu cấu hình' : 'Đã gửi yêu cầu' }),
+      hasSnack: !!s.snack, snack: s.snack, hideSnack: () => this.setState({ snack: '' }),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'Vận chuyển':'local_shipping','Bản đồ':'map','Lưu trữ':'cloud','Auto Call':'phone_in_talk','Zalo ZNS':'chat','Thu hộ':'payments'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+const curT = (v.tabs || []).find((t) => t.on);
+if (v.sections) v.sections = v.sections.map((x) => ({ ...x, icon: curT ? curT.icon : 'tune' }));
+return v; };
+</script>
+</body>
+</html>

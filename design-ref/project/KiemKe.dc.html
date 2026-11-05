@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thông tin kiểm kê X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Thông tin kiểm kê" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <sc-if value="{{inDetail}}" hint-placeholder-val="{{false}}">
+      <div class="stack" style="gap: 20px">
+        <div class="title-row">
+          <div style="min-width: 0">
+            <button class="text-act" style="display: inline-flex; align-items: center; gap: 4px; margin: 0 0 8px -10px" onClick="{{closeDetail}}"><span class="ms" aria-hidden="true" style="font-size: 18px">arrow_back</span>Quay lại</button>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px">
+              <h1 class="page-title">Chi tiết phiên kiểm kê</h1>
+              <span class="{{d.tag}}">{{d.status}}</span>
+            </div>
+            <div class="lab muted num">{{d.meta}}</div>
+          </div>
+          <button class="btn tonal"><span class="ms" aria-hidden="true">download</span>Tải về danh sách</button>
+        </div>
+        <section class="sum-row tiles num"><div class="rev-tile card-tile "><span class="rev-ic" aria-hidden="true"><span class="ms fill">fact_check</span></span><div style="min-width: 0"><div class="small muted">Tổng đơn đã kiểm</div><div class="sum-val">{{d.done}} <span class="sum-unit">đơn</span></div></div></div><div class="rev-tile card-tile bad"><span class="rev-ic" aria-hidden="true"><span class="ms fill">report</span></span><div style="min-width: 0"><div class="small muted">Số đơn thiếu hàng</div><div class="sum-val">{{d.miss}} <span class="sum-unit">đơn</span></div></div></div><div class="rev-tile card-tile "><span class="rev-ic" aria-hidden="true"><span class="ms fill">library_add</span></span><div style="min-width: 0"><div class="small muted">Số đơn kiểm dư</div><div class="sum-val">{{d.extra}} <span class="sum-unit">đơn</span></div></div></div></section>
+        <section class="card stack">
+          <div class="title-row" style="align-items: center">
+            <div class="seg" role="tablist" aria-label="Lọc đơn" style="background: var(--low)">
+              <sc-for list="{{filterTabs}}" as="f" hint-placeholder-count="4">
+                <button role="tab" class="{{f.cls}}" aria-selected="{{f.on}}" onClick="{{f.pick}}">{{f.label}}<span class="count num">{{f.count}}</span></button>
+              </sc-for>
+            </div>
+            <label class="box input-box" style="flex: 0 1 260px; width: auto"><span class="ms muted" aria-hidden="true">search</span><input type="search" placeholder="Nhập mã đơn" aria-label="Nhập mã đơn"></label>
+          </div>
+          <sc-if value="{{noOrders}}" hint-placeholder-val="{{false}}">
+            <div class="empty" style="padding: 48px 16px"><h2 class="group-title">Không có đơn phù hợp</h2></div>
+          </sc-if>
+          <sc-if value="{{hasOrders}}" hint-placeholder-val="{{true}}">
+            <div class="stack">
+              <div class="scroller">
+                <table class="tbl" style="--tbl-min: 720px">
+                  <thead><tr><th>Mã đơn</th><th>Hình ảnh</th><th>Trạng thái</th><th>Thông tin kiểm kê</th></tr></thead>
+                  <tbody>
+                    <sc-for list="{{orders}}" as="o" hint-placeholder-count="8">
+                      <tr>
+                        <td><button class="code" data-step="{{o.step}}">{{o.code}}</button></td>
+                        <td class="muted">{{o.img}}</td>
+                        <td><span class="{{o.tag}}">{{o.status}}</span></td>
+                        <td>Người kiểm kê cuối: {{o.who}}<span class="sub">Thời gian kiểm kê: {{o.time}}</span></td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pager"><div class="pager-left"><span class="muted num lab">{{orderRange}}</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+            </div>
+          </sc-if>
+        </section>
+      </div>
+    </sc-if>
+    <sc-if value="{{inList}}" hint-placeholder-val="{{true}}">
+      <div class="stack" style="gap: 20px">
+    <div class="title-row">
+      <div>
+        <h1 class="page-title">Thông tin kiểm kê</h1>
+        <div class="lab muted num">Kiểm kê gần nhất: 03/11/2026 · Nhân viên mẫu A</div>
+      </div>
+      <label class="lab" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; cursor: pointer"><input class="check" type="checkbox" checked="{{showDraft}}" onChange="{{toggleDraft}}">Hiện phiên bỏ dở</label>
+    </div>
+    <section class="sum-row num">
+      <div class="sum-lead"><div style="min-width: 0"><div class="rev-vp lab"><span class="ms fill" aria-hidden="true">inventory</span>Tổng số đơn</div><div class="sum-hero">165</div></div><svg class="rev-ill" viewBox="0 0 150 104" aria-hidden="true"><ellipse class="ill-soft" cx="75" cy="97" rx="68" ry="6"></ellipse><rect class="ill-main" x="34" y="10" width="66" height="86" rx="7"></rect><rect class="ill-paper" x="41" y="19" width="52" height="70" rx="3"></rect><rect class="ill-mid" x="53" y="4" width="28" height="13" rx="4"></rect><circle class="ill-main" cx="50" cy="32" r="4.5"></circle><path class="ill-tick" d="M47.8 32l1.6 1.7 3-3.2"></path><rect class="ill-mid" x="59" y="29.5" width="28" height="5" rx="2.5"></rect><circle class="ill-main" cx="50" cy="48" r="4.5"></circle><path class="ill-tick" d="M47.8 48l1.6 1.7 3-3.2"></path><rect class="ill-mid" x="59" y="45.5" width="28" height="5" rx="2.5"></rect><circle class="ill-main" cx="50" cy="64" r="4.5"></circle><path class="ill-tick" d="M47.8 64l1.6 1.7 3-3.2"></path><rect class="ill-mid" x="59" y="61.5" width="28" height="5" rx="2.5"></rect><rect class="ill-box" x="104" y="68" width="30" height="28" rx="3"></rect><path class="ill-paper" d="M116 68h6v10h-6z"></path><circle class="ill-lens" cx="112" cy="40" r="13"></circle><path class="ill-handle" d="M121 50l11 12"></path></svg></div>
+      <div class="rev-tile card-tile"><svg class="rev-donut sm" viewBox="0 0 36 36" role="img" aria-label="Đã kiểm 145 trên 165 đơn"><circle class="donut-bg tint" cx="18" cy="18" r="15.5" pathLength="100"></circle><circle class="donut-val" cx="18" cy="18" r="15.5" pathLength="100" stroke-dasharray="87.9 100"></circle></svg><div><div class="small muted">Số đơn đã kiểm</div><div class="sum-val">145</div></div></div><div class="rev-tile card-tile bad"><span class="rev-ic" aria-hidden="true"><span class="ms fill">report</span></span><div style="min-width: 0"><div class="small muted">Số đơn thiếu</div><div class="sum-val">29</div></div></div>
+    </section>
+    <section class="card stack">
+      <h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">history</span></span>Lịch sử kiểm kê (100)</h2>
+      <div class="scroller">
+        <table class="tbl" style="--tbl-min: 860px">
+          <thead><tr><th>Người kiểm kê</th><th>Văn phòng</th><th>Ngày kiểm</th><th>Trạng thái</th><th class="r">Tổng số đơn</th><th class="r">Đã kiểm</th><th class="r">Thiếu</th><th class="r">Tác vụ</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="8">
+              <tr>
+                <td style="font-weight: 500">{{o.who}}</td><td>{{o.vp}}</td><td style="white-space: nowrap">{{o.date}}</td><td><span class="{{o.tag}}">{{o.status}}</span><span class="sub">{{o.scan}}</span></td>
+                <td class="r">{{o.total}}</td><td class="r">{{o.done}}</td><td class="r main">{{o.miss}}</td>
+                <td><div class="act"><button class="ok" aria-label="{{o.detailLabel}}" onClick="{{o.open}}">Xem chi tiết</button></div></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><div class="pager-left"><span class="muted num lab">{{rangeText}}</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><span class="muted" aria-hidden="true" style="padding: 0 4px">…</span><button class="pg num" aria-label="Trang 10">10</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+    </section>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1040}}'>
+const R = [['A','31A Nguyễn Quốc Trị - Hà Nội','03/11/2026',1,120,118,2],['B','104 Song Hào - Nam Định','03/11/2026',1,84,84,0],['C','263 Nguyễn Thái Học - Yên Bái','02/11/2026',0,60,22,38],['D','31A Nguyễn Quốc Trị - Hà Nội','02/11/2026',1,145,140,5],['E','251 Lương Văn Thăng - Ninh Bình','02/11/2026',1,52,51,1],['F','34 Trần Phú - Thái Bình','01/11/2026',0,47,10,37],['G','31A Nguyễn Quốc Trị - Hà Nội','01/11/2026',1,133,133,0],['H','104 Song Hào - Nam Định','01/11/2026',1,76,74,2]];
+const KIND = { done: ['Đã kiểm', 'tag ok'], miss: ['Thiếu hàng', 'tag warn'], extra: ['Kiểm dư', 'tag info'] };
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { draft: true, sid: null, filter: 'all' }; }
+  renderVals() {
+    const s = this.state;
+    const list = R.filter((r) => s.draft || r[3]);
+    const sess = R.find((r) => r[0] === s.sid) || null;
+    let d = {}, orders = [], filterTabs = [], orderRange = '';
+    if (sess) {
+      const extra = sess[0] === 'A' ? 3 : 1;
+      const counts = { done: sess[5], miss: sess[6], extra };
+      const who = 'Nhân viên mẫu ' + sess[0];
+      d = { status: sess[3] ? 'Hoàn tất' : 'Đang kiểm', tag: sess[3] ? 'tag ok' : 'tag info', done: sess[5], miss: sess[6], extra, meta: sess[1] + ' · Người kiểm: ' + who + ' · Mở phiên: ' + sess[2] + ' 07:30' };
+      const pick = (k, n) => Array.from({ length: Math.min(n, 8) }, (_, i) => ({ k, i }));
+      const all = s.filter === 'all' ? [...pick('miss', counts.miss), ...pick('extra', counts.extra), ...pick('done', counts.done)].slice(0, 8) : pick(s.filter, counts[s.filter]);
+      const total = s.filter === 'all' ? counts.done + counts.miss + counts.extra : counts[s.filter];
+      orders = all.map(({ k, i }) => ({ code: 'PV0311KK' + k[0].toUpperCase() + (i + 1), img: k !== 'miss' && i % 3 === 0 ? 'Có hình ảnh' : 'Không có hình ảnh', status: KIND[k][0], tag: KIND[k][1], who: k === 'miss' ? '-' : who, time: k === 'miss' ? '-' : '16:' + String(40 - i).padStart(2, '0') + ':08 ' + sess[2] }));
+      orderRange = (orders.length ? '1-' + orders.length : '0') + ' trên ' + total + ' đơn';
+      filterTabs = [['all', 'Tất cả', counts.done + counts.miss + counts.extra], ['done', 'Đã kiểm', counts.done], ['miss', 'Thiếu hàng', counts.miss], ['extra', 'Kiểm dư', counts.extra]].map(([id, label, count]) => ({ label, count, on: id === s.filter, cls: id === s.filter ? 'on' : '', pick: () => this.setState({ filter: id }) }));
+    }
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true,
+      inDetail: !!sess, inList: !sess, d, orders, filterTabs, orderRange, hasOrders: orders.length > 0, noOrders: orders.length === 0,
+      closeDetail: () => this.setState({ sid: null }),
+      showDraft: s.draft, toggleDraft: () => this.setState({ draft: !s.draft }),
+      rangeText: '1-' + list.length + ' trên 100',
+      rows: list.map((r) => ({ who: 'Nhân viên mẫu ' + r[0], vp: r[1], date: r[2], status: r[3] ? 'Hoàn tất' : 'Đang kiểm', tag: r[3] ? 'tag ok' : 'tag info', scan: r[3] ? '' : r[5] + ' kiện đã quét', total: r[4], done: r[5], miss: r[6], detailLabel: 'Xem chi tiết phiên của Nhân viên mẫu ' + r[0], open: () => this.setState({ sid: r[0], filter: 'all' }) })),
+    };
+  }
+}
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+const STEPS = ['Nhập kho gửi', 'Nhập kho giao', 'Nhập kho gửi'];
+const renderBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = renderBase.call(this); if (v.orders) v.orders = v.orders.map((o, i) => { const step = STEPS[i % STEPS.length]; return { ...o, step, stepCls: stepCls(step) }; }); return v; };
+</script>
+</body>
+</html>

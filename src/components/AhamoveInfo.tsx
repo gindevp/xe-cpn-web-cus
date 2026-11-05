@@ -1,0 +1,365 @@
+import { useState } from "react";
+import { toast } from "sonner";
+import { Image as ImageIcon, Loader2, MapPin, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ImageLightbox, isViewableImageUrl } from "@/components/ImageLightbox";
+import { ahamoveFailReasonVi, ahamoveRefundDue, podMomentLabel } from "@/lib/ahamove";
+import { isApiEnabled } from "@/lib/api/client";
+import { ahamoveAdvanceRefund, ahamoveCancel, ahamoveClaimShipDebt, getOrder, grabCancel } from "@/lib/api/domain-api";
+import { useAuth } from "@/lib/auth";
+import { canWrite } from "@/lib/rbac";
+import type { OrderX } from "@/lib/store";
+import { refreshOrdersNow } from "@/lib/use-orders-poll";
+const AHAMOVE_STATUS_LABEL: Record<string, string> = {
+  IDLE: "đơn hẹn giờ",
+  ASSIGNING: "đang tìm tài xế",
+  ACCEPTED: "tài xế đã nhận",
+  CONFIRMING: "đang xác nhận",
+  PAYING: "đang thanh toán",
+  "IN PROCESS": "tài xế đã lấy hàng",
+  IN_PROCESS: "tài xế đã lấy hàng",
+  COMPLETED: "hoàn tất",
+  FAILED: "giao thất bại",
+  CANCELLED: "đã hủy",
+  ALLOCATING: "đang tìm tài xế",
+  PENDING_PICKUP: "tài xế đã nhận",
+  PICKING_UP: "đang đến lấy",
+  PENDING_DROP_OFF: "tài xế đã lấy hàng",
+  IN_DELIVERY: "đang giao",
+  BOARDED: "sắp tới điểm lấy",
+  ARRIVED: "đã tới điểm lấy",
+  COMPLETING: "sắp tới điểm giao",
+  IN_RETURN: "đang hoàn hàng",
+  RETURNED: "đã hoàn về người gửi",
+};
+
+function ahamoveStatusLabel(status?: string, sub?: string): string {
+  const mainKey = (status ?? "").trim().toUpperCase();
+  const main = AHAMOVE_STATUS_LABEL[mainKey] ?? (mainKey || "—");
+  const subKey = (sub ?? "").trim().toUpperCase();
+  // Đã hủy thì chỉ hiện "đã hủy", không ghép mốc cũ (sắp tới điểm lấy, ...).
+  if (mainKey === "CANCELLED") return main;
+  // BOARDED / ARRIVED là lúc còn đến điểm lấy. Đã lấy hàng thì bỏ.
+  const pickedUp = mainKey === "IN PROCESS" || mainKey === "IN_PROCESS" || mainKey === "COMPLETED" || mainKey === "FAILED";
+  if (pickedUp && (subKey === "BOARDED" || subKey === "ARRIVED")) {
+    return main;
+  }
+  const extra = subKey ? AHAMOVE_STATUS_LABEL[subKey] : "";
+  return extra ? `${main} · ${extra}` : main;
+}
+
+const AHAMOVE_CANCELLABLE = new Set([
+  "IDLE",
+  "ASSIGNING",
+  "ACCEPTED",
+  "CONFIRMING",
+  "PAYING",
+  "ALLOCATING",
+  "PENDING_PICKUP",
+  "PICKING_UP",
+]);
+
+function AhamoveCancelLink({ order }: { order: OrderX }) {
+  const { session } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const writable =
+    isApiEnabled() &&
+    (canWrite(session?.role, "nhap-kho-luan-chuyen") || canWrite(session?.role, "cho-ban-giao"));
+  const st = (order.partnerStatus ?? "").toUpperCase();
+  if (!writable || !order.partnerOrderId || !AHAMOVE_CANCELLABLE.has(st)) return null;
+  const doorPickup = Boolean(order.homePickup) && !order.pickedUpAt;
+  if (doorPickup) {
+    if (order.status !== "CONFIRMED" && order.status !== "WAITING") return null;
+  } else if (order.status !== "AT_DEST" && order.status !== "OUT_FOR_DELIVERY" && order.status !== "FAILED_DELIVERY") {
+    return null;
+  }
+  const cancel = async () => {
+    const grab = order.partnerCode === "GRAB";
+    const brand = grab ? "Grab" : "Ahamove";
+    if (!window.confirm(`Hủy đơn ${brand} của ${order.code}? Chỉ hủy được khi tài xế chưa lấy hàng.`)) return;
+    setBusy(true);
+    try {
+      if (grab) await grabCancel(order.code, "CPN hủy giao Grab");
+      else await ahamoveCancel(order.code, "CPN hủy giao Ahamove");
+      toast.success(
+        order.homePickup && !order.pickedUpAt
+          ? `Đã hủy Ahamove — ${order.code} về Chờ lấy hàng`
+          : `Đã hủy Ahamove — ${order.code} chuyển Giao thất bại`,
+      );
+      void refreshOrdersNow();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Hủy Ahamove thất bại");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      className={`${PILL} border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60`}
+      disabled={busy}
+      onClick={(e) => {
+        e.stopPropagation();
+        void cancel();
+      }}
+    >
+      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+      {busy ? "Đang hủy…" : order.partnerCode === "GRAB" ? "Hủy Grab" : "Hủy Ahamove"}
+    </button>
+  );
+}
+
+const PILL =
+  "inline-flex h-6 items-center gap-1 rounded-full border px-2 text-[11px] font-medium leading-none transition-colors";
+
+const SHIP_CLAIM_STATUS = new Set(["OUT_FOR_DELIVERY", "DELIVERED", "FAILED_DELIVERY"]);
+
+function ShipClaimButton({ order }: { order: OrderX }) {
+  const { session } = useAuth();
+  const [busy, setBusy] = useState(false);
+  if ((order.partnerCode !== "AHAMOVE" && order.partnerCode !== "GRAB") || !order.partnerOrderId || !SHIP_CLAIM_STATUS.has(order.status)) return null;
+  const me = session?.username?.trim().toLowerCase();
+  const confirmed = order.partnerShipConfirmedBy?.trim();
+  // Đã có người xác nhận giao ship (quét bàn giao trên app hoặc bấm bù) → không cần xác nhận bù nữa.
+  if (confirmed) {
+    return (
+      <span className="text-[11px] text-emerald-700">
+        {me && confirmed.toLowerCase() === me ? "Bạn đã xác nhận giao ship" : `Đã xác nhận giao ship: ${confirmed}`}
+      </span>
+    );
+  }
+  const writable =
+    isApiEnabled() &&
+    (canWrite(session?.role, "giao-tan-nha") ||
+      canWrite(session?.role, "pod-quay") ||
+      canWrite(session?.role, "giao-thanh-cong") ||
+      canWrite(session?.role, "cho-giao-lai") ||
+      canWrite(session?.role, "nhap-kho-luan-chuyen"));
+  if (!writable) return null;
+  const claim = async () => {
+    const note = `Xác nhận chịu nợ ship đơn ${order.code}? Nợ chuyển sang tài khoản bạn.`;
+    if (!window.confirm(note)) return;
+    setBusy(true);
+    try {
+      await ahamoveClaimShipDebt(order.code);
+      toast.success(`Đã chuyển nợ ship ${order.code} sang bạn`);
+      void refreshOrdersNow();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không xác nhận được nợ ship");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      className={`${PILL} border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-60`}
+      disabled={busy}
+      onClick={(e) => {
+        e.stopPropagation();
+        void claim();
+      }}
+    >
+      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+      {busy ? "Đang lưu…" : "Xác nhận bù"}
+    </button>
+  );
+}
+
+/** Đơn giao nội bộ: tên, số điện thoại và phí giao — cùng chỗ với khối Ahamove. */
+export function InternalShipperInfo({ order }: { order: OrderX }) {
+  if ((order.partnerCode === "AHAMOVE" || order.partnerCode === "GRAB") && order.partnerOrderId) return null;
+  const name = order.shipperName?.trim();
+  const phone = order.shipperPhone?.trim();
+  if (!name && !phone) return null;
+  const fee = order.deliveryFee ?? 0;
+  return (
+    <div className="mt-1 space-y-0.5 text-xs">
+      <div className="text-muted-foreground">
+        Shipper nội bộ: <span className="font-medium text-foreground">{name || "—"}</span>
+        {phone ? ` · ${phone}` : ""}
+      </div>
+      <div className="text-muted-foreground">
+        Phí giao: {fee > 0 ? `${fee.toLocaleString("vi-VN")}đ` : "chưa có số tiền"}
+      </div>
+    </div>
+  );
+}
+
+export function AhamoveInfo({ order }: { order: OrderX }) {
+  const st = order.partnerStatus ?? "";
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [lightbox, setLightbox] = useState<{ urls: string[]; labels: string[]; title: string } | null>(null);
+  const openPhotos = async () => {
+    if (!isApiEnabled()) {
+      const local = slidesOf(order.podPhotos);
+      if (local.urls.length) {
+        setLightbox({ ...local, title: `Ảnh Ahamove · ${order.code}` });
+        return;
+      }
+      if (order.partnerPodUrl) window.open(order.partnerPodUrl, "_blank", "noopener,noreferrer");
+      else toast.error("Chưa có ảnh nhận hoặc giao");
+      return;
+    }
+    setPhotoBusy(true);
+    try {
+      const detail = await getOrder(order.code, { ahamovePhotos: true });
+      const slides = slidesOf(detail.podPhotos);
+      if (!slides.urls.length && order.partnerPodUrl && isViewableImageUrl(order.partnerPodUrl)) {
+        slides.urls.push(order.partnerPodUrl);
+        slides.labels.push("Shipper giao");
+      }
+      if (!slides.urls.length) {
+        toast.error("Chưa có ảnh nhận hoặc giao");
+        return;
+      }
+      setLightbox({ ...slides, title: `Ảnh Ahamove · ${order.code}` });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không tải được ảnh");
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+  return (
+    <div className="mt-1 space-y-0.5 text-xs">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant="outline" className="border-orange-500 text-orange-700">
+          {order.partnerCode === "GRAB" ? "Grab" : "Ahamove"} · {ahamoveStatusLabel(st, order.partnerSubStatus)}
+        </Badge>
+        {order.partnerTrackingUrl ? (
+          <a
+            href={order.partnerTrackingUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={`${PILL} border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100`}
+          >
+            <MapPin className="h-3 w-3" />
+            Theo dõi
+          </a>
+        ) : null}
+        {hasAhamovePod(order) ? (
+          <button
+            type="button"
+            className={`${PILL} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-60`}
+            disabled={photoBusy}
+            onClick={(e) => {
+              e.stopPropagation();
+              void openPhotos();
+            }}
+          >
+            {photoBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageIcon className="h-3 w-3" />}
+            Ảnh nhận / giao
+          </button>
+        ) : null}
+        <AhamoveCancelLink order={order} />
+        <ShipClaimButton order={order} />
+      </div>
+      {order.partnerDriverName || order.partnerDriverPhone ? (
+        <div className="text-muted-foreground">
+          Tài xế: {order.partnerDriverName ?? ""} {order.partnerDriverPhone ?? ""}
+        </div>
+      ) : null}
+      {order.partnerCode === "AHAMOVE" || order.partnerCode === "GRAB" ? (
+        <div className="text-muted-foreground">
+          Phí {order.partnerCode === "GRAB" ? "Grab" : "Ahamove"}:{" "}
+          {order.partnerFee != null && order.partnerFee > 0
+            ? `${order.partnerFee.toLocaleString("vi-VN")}đ`
+            : "chưa có số tiền"}
+          {order.partnerPayMethod === "CASH"
+            ? " (tiền mặt)"
+            : order.partnerPayMethod === "BALANCE"
+              ? " (ví)"
+              : ""}
+        </div>
+      ) : null}
+      {order.partnerFailReason && (st === "FAILED" || st === "CANCELLED") ? (
+        <div className="text-destructive">{ahamoveFailReasonVi(order.partnerFailReason)}</div>
+      ) : null}
+      <AhamoveAdvanceRow order={order} />
+      <ImageLightbox
+        open={!!lightbox}
+        onOpenChange={(o) => {
+          if (!o) setLightbox(null);
+        }}
+        urls={lightbox?.urls ?? []}
+        labels={lightbox?.labels}
+        title={lightbox?.title}
+      />
+    </div>
+  );
+}
+
+function hasAhamovePod(order: OrderX): boolean {
+  if (order.hasPodPhoto) return true;
+  if (order.partnerPodUrl && isViewableImageUrl(order.partnerPodUrl)) return true;
+  return (order.podPhotos ?? []).some((p) => p.url && isViewableImageUrl(p.url));
+}
+
+function slidesOf(photos: OrderX["podPhotos"]): { urls: string[]; labels: string[] } {
+  const urls: string[] = [];
+  const labels: string[] = [];
+  for (const p of photos ?? []) {
+    if (p.url && isViewableImageUrl(p.url)) {
+      urls.push(p.url);
+      labels.push(podMomentLabel(p.label));
+    }
+  }
+  return { urls, labels };
+}
+
+/** Tài xế Ahamove ứng cước: nợ người bấm bàn giao ship. Hoàn lại khi giao không được. */
+function AhamoveAdvanceRow({ order }: { order: OrderX }) {
+  const { session } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const amount = order.partnerCodAmount ?? 0;
+  if (amount <= 0) return null;
+  const money = `${amount.toLocaleString("vi-VN")}đ`;
+  const writable = isApiEnabled() && canWrite(session?.role, "nhap-kho-luan-chuyen");
+  const refundDue = ahamoveRefundDue(order);
+  const debtor = order.partnerCodCollectedBy?.trim();
+
+  const run = async (fn: () => Promise<unknown>, ok: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast.success(ok);
+      void refreshOrdersNow();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Thao tác thất bại");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const refund = () => {
+    if (!window.confirm(`Đã trả lại ${money} cho tài xế Ahamove (hàng đã về VP)? Đơn ${order.code} sẽ quay lại còn nợ.`))
+      return;
+    void run(() => ahamoveAdvanceRefund(order.code), `Đã hoàn ${money} tiền ứng cho tài xế`);
+  };
+
+  const received = !!order.partnerCodCollectedAt || !!order.partnerShipConfirmedAt;
+  if (received && debtor && !refundDue) {
+    return (
+      <div className="text-emerald-700">
+        Đã thanh toán nhận ứng · nợ {debtor} · {money}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {refundDue ? (
+        <span className="font-medium text-destructive">Chưa hoàn {money} tiền ứng cho tài xế</span>
+      ) : received ? (
+        <span className="text-emerald-700">Đã thanh toán nhận ứng · {money}</span>
+      ) : (
+        <span className="text-amber-700">Chưa nhận tiền ứng · chờ ship đến lấy · {money}</span>
+      )}
+      {writable && refundDue ? (
+        <Button size="sm" variant="outline" className="h-6 px-2 text-xs text-destructive" disabled={busy} onClick={refund}>
+          Hoàn ứng cho tài xế
+        </Button>
+      ) : null}
+    </div>
+  );
+}

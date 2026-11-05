@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tạo đơn hàng X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+  </main>
+  <div class="scrim" style="align-items: flex-start; overflow-y: auto">
+    <div class="sheet order-sheet" role="dialog" aria-modal="true" aria-labelledby="o-title">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px">
+        <h1 id="o-title" class="page-title" style="font-size: 24px; line-height: 32px">Tạo đơn hàng</h1>
+        <a class="no-btn" href="ChoBanGiao.dc.html" aria-label="Đóng" onClick="{{exitClick}}" style="color: inherit; text-decoration: none"><span class="ms" aria-hidden="true">close</span></a>
+      </div>
+      <div class="order-layout">
+        <div class="stack" style="min-width: 0">
+          <div class="party-grid">
+            <section class="order-box stack">
+              <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">person</span></span>Người gửi</h2>
+              <label class="{{e_fromPhone}}"><span class="l">SĐT người gửi *</span><span class="box input-box"><input inputmode="tel" placeholder="Nhập SĐT hoặc 5 số đầu/cuối" value="{{v_fromPhone}}" onChange="{{on_fromPhone}}"></span><span class="err-msg">{{m_fromPhone}}</span></label>
+              <label class="{{e_fromName}}"><span class="l">Tên người gửi</span><span class="box input-box"><input placeholder="Tên người gửi" value="{{v_fromName}}" onChange="{{on_fromName}}"></span><span class="err-msg">{{m_fromName}}</span></label>
+              <div class="field cfg-field"><span class="l">VP gửi</span><div class="box input-box ro-box"><span class="ms" aria-hidden="true" style="font-size: 18px; color: var(--on-surface-variant)">lock</span><span>{{vpFromName}}</span></div></div>
+              <label class="toggle"><input class="switch" type="checkbox" checked="{{pick}}" onChange="{{togglePick}}"><span>Lấy tận nơi</span></label>
+              <sc-if value="{{pick}}" hint-placeholder-val="{{false}}">
+                <div class="stack door-box">
+                  <div class="{{e_pickAd}}"><span class="l">Địa chỉ lấy hàng *</span><div class="addr-row"><span class="box input-box addr-val"><span class="{{pickAddrCls}}">{{pickAddrText}}</span></span><button class="btn tonal" style="height: 40px" onClick="{{pickOpen}}">Chọn</button></div><span class="err-msg">{{m_pickAd}}</span></div>
+                  <div class="{{pickMapCls}}" role="img" aria-label="Bản đồ lấy tận nơi: chọn địa chỉ hoặc dán link trong popup địa chỉ"><span class="ms map-pin" aria-hidden="true">location_on</span><span class="map-cap">Bản đồ lấy tận nơi: chọn địa chỉ hoặc dán link trong popup địa chỉ</span></div>
+                  <sc-if value="{{pickNoGps}}" hint-placeholder-val="{{false}}"><div class="door-warn lab">VP chưa có GPS. Vào Master dữ liệu → VP, chọn địa chỉ để lưu tọa độ, rồi chọn lại VP trên đơn.</div></sc-if>
+                </div>
+              </sc-if>
+            </section>
+            <section class="order-box stack">
+              <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">person_pin_circle</span></span>Người nhận</h2>
+              <label class="{{e_toPhone}}"><span class="l">SĐT người nhận *</span><span class="box input-box"><input inputmode="tel" placeholder="Nhập SĐT" value="{{v_toPhone}}" onChange="{{on_toPhone}}"></span><span class="err-msg">{{m_toPhone}}</span></label>
+              <label class="{{e_toName}}"><span class="l">Tên người nhận</span><span class="box input-box"><input placeholder="Tên người nhận" value="{{v_toName}}" onChange="{{on_toName}}"></span><span class="err-msg">{{m_toName}}</span></label>
+              <div class="{{e_vpTo}} combo"><span class="l" id="l-vpTo">VP nhận *</span><span class="box input-box"><input role="combobox" aria-labelledby="l-vpTo" aria-expanded="{{vpToOpen}}" placeholder="Gõ để tìm VP nhận" value="{{v_vpTo}}" onChange="{{on_vpTo}}" onFocus="{{vpToFocus}}" onBlur="{{vpToBlur}}"><span class="ms" aria-hidden="true">expand_more</span></span><sc-if value="{{vpToOpen}}" hint-placeholder-val="{{false}}"><div class="combo-list" role="listbox"><sc-for list="{{vpToOpts}}" as="x" hint-placeholder-count="3"><button type="button" role="option" onMouseDown="{{x.pick}}">{{x.name}}</button></sc-for><sc-if value="{{vpToNone}}" hint-placeholder-val="{{false}}"><div class="combo-none">Không tìm thấy VP</div></sc-if></div></sc-if><span class="err-msg">{{m_vpTo}}</span></div>
+              <label class="{{e_cmnd}}"><span class="l">CMND/Passport</span><span class="box input-box"><input placeholder="Nhập số giấy tờ" value="{{v_cmnd}}" onChange="{{on_cmnd}}"></span><span class="err-msg">{{m_cmnd}}</span></label>
+              <label class="toggle"><input class="switch" type="checkbox" checked="{{drop}}" onChange="{{toggleDrop}}"><span>Giao tận nơi</span></label>
+              <sc-if value="{{drop}}" hint-placeholder-val="{{false}}">
+                <div class="stack door-box">
+                  <div class="{{e_dropAd}}"><span class="l">Địa chỉ giao hàng *</span><div class="addr-row"><span class="box input-box addr-val"><span class="{{dropAddrCls}}">{{dropAddrText}}</span></span><button class="btn tonal" style="height: 40px" onClick="{{dropOpen}}">Chọn</button></div><span class="err-msg">{{m_dropAd}}</span></div>
+                  <div class="{{dropMapCls}}" role="img" aria-label="Bản đồ giao tận nơi: chọn địa chỉ hoặc dán link trong popup địa chỉ"><span class="ms map-pin" aria-hidden="true">location_on</span><span class="map-cap">Bản đồ giao tận nơi: chọn địa chỉ hoặc dán link trong popup địa chỉ</span></div>
+                  <sc-if value="{{dropNoGps}}" hint-placeholder-val="{{false}}"><div class="door-warn lab">VP chưa có GPS. Vào Master dữ liệu → VP, chọn địa chỉ để lưu tọa độ, rồi chọn lại VP trên đơn.</div></sc-if>
+                </div>
+              </sc-if>
+            </section>
+          </div>
+
+          <section class="order-box stack">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+              <h2 class="group-title num sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">inventory_2</span></span><span>Danh sách hàng hoá ({{count}} kiện)</span></h2>
+              <button class="btn tonal" style="height: 36px" onClick="{{addPack}}"><span class="ms" aria-hidden="true">add</span>Thêm kiện</button>
+            </div>
+            <sc-for list="{{packs}}" as="p" hint-placeholder-count="1">
+              <div class="pack">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+                  <div class="title-small" style="font-weight: 600">{{p.name}}</div>
+                  <div class="act"><button class="text-act" onClick="{{p.clone}}">Nhân bản</button><button class="no" aria-label="{{p.delLabel}}" title="Xoá kiện" disabled="{{p.only}}" onClick="{{p.del}}"><span class="ms" aria-hidden="true">delete</span></button></div>
+                </div>
+                <div class="pack-grid">
+                  <label class="{{p.groupCls}} pack-wide"><span class="l">Nhóm hàng *</span><span class="box input-box sel-box"><select value="{{p.group}}" onChange="{{p.groupSet}}"><option value="">Chọn nhóm hàng</option><option>Hàng thường</option><option>Hàng dễ vỡ</option><option>Tài liệu</option><option>Thực phẩm</option></select><span class="ms" aria-hidden="true">expand_more</span></span><span class="err-msg">{{p.groupMsg}}</span></label>
+                  <label class="{{p.weightCls}}"><span class="l">Cân nặng (kg) *</span><span class="box input-box"><input inputmode="decimal" placeholder="0" value="{{p.weight}}" onChange="{{p.weightSet}}"></span><span class="err-msg">{{p.weightMsg}}</span></label>
+                  <label class="{{p.qtyCls}}"><span class="l">Số lượng món</span><span class="box input-box"><input inputmode="numeric" placeholder="1" value="{{p.qty}}" onChange="{{p.qtySet}}"></span><span class="err-msg">{{p.qtyMsg}}</span></label>
+                  <label class="{{p.declaredCls}}"><span class="l">Giá trị hàng (VNĐ)</span><span class="box input-box"><input inputmode="numeric" placeholder="0" value="{{p.declared}}" onChange="{{p.declaredSet}}"></span><span class="err-msg">{{p.declaredMsg}}</span></label>
+                  <div class="field cfg-field"><span class="l">Cước hàng (VNĐ)</span><div class="box input-box ro-box"><span class="{{p.feeCls}}">{{p.feeText}}</span></div></div>
+                  <label class="{{p.lCls}}"><span class="l">Dài (cm)</span><span class="box input-box"><input inputmode="numeric" placeholder="10" value="{{p.l}}" onChange="{{p.lSet}}"></span><span class="err-msg">{{p.lMsg}}</span></label>
+                  <label class="{{p.wCls}}"><span class="l">Rộng (cm)</span><span class="box input-box"><input inputmode="numeric" placeholder="10" value="{{p.w}}" onChange="{{p.wSet}}"></span><span class="err-msg">{{p.wMsg}}</span></label>
+                  <label class="{{p.hCls}}"><span class="l">Cao (cm)</span><span class="box input-box"><input inputmode="numeric" placeholder="10" value="{{p.h}}" onChange="{{p.hSet}}"></span><span class="err-msg">{{p.hMsg}}</span></label>
+                </div>
+              </div>
+            </sc-for>
+          </section>
+        </div>
+
+        <aside class="order-box stack order-side">
+          <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">payments</span></span>Thanh toán và ghi chú</h2>
+          <label class="field cfg-field"><span class="l">Hình thức thanh toán</span><span class="box input-box sel-box"><select value="{{payer}}" onChange="{{setPayer}}"><option value="Người gửi thanh toán">Người gửi thanh toán</option><option value="Người nhận thanh toán">Người nhận thanh toán</option><option value="Công nợ">Công nợ</option><option value="Thu cước 1 phần">Thu cước 1 phần</option></select><span class="ms" aria-hidden="true">expand_more</span></span></label>
+          <label class="field cfg-field"><span class="l">Thu hộ (COD)</span><span class="box input-box"><input inputmode="numeric" placeholder="0" value="{{cod}}" onChange="{{setCod}}"><span class="muted">VNĐ</span></span></label>
+          <div class="side-two"><div class="field cfg-field"><span class="l">Phí thu hộ COD</span><div class="box input-box" style="background: var(--low); border-color: transparent; padding-left: 0"><span class="muted">{{codFeeField}}</span></div></div><div class="field cfg-field"><span class="l">Giảm giá (hệ thống)</span><div class="box input-box" style="background: var(--low); border-color: transparent; padding-left: 0"><span class="muted">-</span></div></div></div>
+          <div class="opt-item">
+            <label class="lab opt-check"><input class="check" type="checkbox" checked="{{bankOn}}" onChange="{{toggleBank}}"><span class="ms opt-ic" aria-hidden="true">account_balance</span>Nhận tiền COD qua tài khoản</label>
+            <sc-if value="{{bankHas}}" hint-placeholder-val="{{false}}"><div class="opt-sum"><div style="min-width: 0"><div class="opt-sum-a">{{bankA}}</div><div class="opt-sum-b">{{bankB}}</div></div><button class="text-act" onClick="{{bankEdit}}">Sửa</button></div></sc-if>
+          </div>
+          <div class="opt-item">
+            <label class="lab opt-check"><input class="check" type="checkbox" checked="{{invOn}}" onChange="{{toggleInvoice}}"><span class="ms opt-ic" aria-hidden="true">receipt_long</span>Xuất hoá đơn</label>
+            <sc-if value="{{invHas}}" hint-placeholder-val="{{false}}"><div class="opt-sum"><div style="min-width: 0"><div class="opt-sum-a">{{invA}}</div><div class="opt-sum-b">{{invB}}</div></div><button class="text-act" onClick="{{invEdit}}">Sửa</button></div></sc-if>
+          </div>
+          <label class="{{e_note}}"><span class="l">Ghi chú đơn hàng</span><span class="box input-box"><input placeholder="Nhập ghi chú" value="{{v_note}}" onChange="{{on_note}}"></span><span class="err-msg">{{m_note}}</span></label>
+          <div class="side-foot stack">
+          <div class="total-box num">
+            <sc-if value="{{hasLines}}" hint-placeholder-val="{{true}}"><div class="fee-lines lab" style="margin-bottom: 8px">
+              <sc-for list="{{feeLines}}" as="l" hint-placeholder-count="2"><div class="fee-line"><span>{{l.name}}</span><span>{{l.text}} VNĐ</span></div></sc-for>
+            </div></sc-if>
+            <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="lab">Tổng phải thu</span><span class="kpi-val" style="font-size: 24px">{{totalText}} <span style="font-size: 12px; font-weight: 400">VNĐ</span></span></div>
+          </div>
+          <sc-if value="{{showTransfer}}" hint-placeholder-val="{{false}}"><label class="lab" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer"><input class="check" type="checkbox" checked="{{transfer}}" onChange="{{toggleTransfer}}">Khách có nhu cầu chuyển khoản</label></sc-if>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end">
+            <sc-if value="{{hasErr}}" hint-placeholder-val="{{false}}"><div class="err-sum" role="alert">{{errText}}</div></sc-if>
+            <button class="btn ghost" onClick="{{askReset}}">Xoá</button>
+            <button class="btn tonal" onClick="{{createPrint}}">Tạo và in</button>
+            <button class="btn" onClick="{{create}}">Tạo đơn</button>
+          </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <sc-if value="{{hasConfirm}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="c-title">
+      <h2 id="c-title" class="confirm-title">{{confirmTitle}}</h2>
+      <p class="lab muted" style="margin: 0">{{confirmBody}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{confirmClose}}">Đóng</button><sc-if value="{{confirmReset}}" hint-placeholder-val="{{false}}"><button class="btn danger" onClick="{{reset}}">Xoá dữ liệu</button></sc-if><sc-if value="{{confirmExit}}" hint-placeholder-val="{{false}}"><a class="btn danger" href="ChoBanGiao.dc.html" style="text-decoration: none">Thoát không lưu</a></sc-if></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{hasDone}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm done-sheet" role="dialog" aria-modal="true" aria-labelledby="d-title">
+      <div class="done-head"><span class="done-ic ms" aria-hidden="true">check_circle</span><div><h2 id="d-title" class="confirm-title">Tạo đơn thành công</h2><div class="lab muted num">Mã đơn {{doneCode}}</div></div></div>
+      <sc-if value="{{donePrinted}}" hint-placeholder-val="{{false}}"><p class="lab muted" style="margin: 0">Đã gửi tem tới máy in.</p></sc-if>
+      <sc-if value="{{doneQr}}" hint-placeholder-val="{{false}}">
+        <div class="qr-box">
+          <div class="qr-grid" role="img" aria-label="Mã QR mẫu"><sc-for list="{{qrCells}}" as="q" hint-placeholder-count="9"><i class="{{q.c}}"></i></sc-for></div>
+          <div class="num" style="text-align: center"><div class="lab muted">Số tiền cần chuyển</div><div class="kpi-val" style="font-size: 24px">{{doneTotal}} <span style="font-size: 12px; font-weight: 400">VNĐ</span></div><div class="lab muted">Nội dung: {{doneCode}} · QR mẫu</div></div>
+        </div>
+      </sc-if>
+      <div class="confirm-acts"><a class="btn ghost" href="ChoBanGiao.dc.html" style="text-decoration: none">Đóng</a><sc-if value="{{doneCanPrint}}" hint-placeholder-val="{{true}}"><button class="btn tonal">In tem</button></sc-if><button class="btn" onClick="{{reset}}">Tạo đơn mới</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{dlgBank}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="dialog" aria-modal="true" aria-labelledby="b-title">
+      <div class="dlg-head"><h2 id="b-title" class="confirm-title">Nhận tiền COD qua tài khoản</h2><button class="no-btn" aria-label="Đóng" onClick="{{dlgClose}}"><span class="ms" aria-hidden="true">close</span></button></div>
+      <label class="field cfg-field"><span class="l">Ngân hàng *</span><span class="box input-box sel-box"><select value="{{f_bk}}" onChange="{{set_bk}}"><option value="">Chọn ngân hàng</option><option>Vietcombank</option><option>BIDV</option><option>VietinBank</option><option>Techcombank</option></select><span class="ms" aria-hidden="true">expand_more</span></span></label>
+      <label class="field cfg-field"><span class="l">Số tài khoản *</span><span class="box input-box"><input inputmode="numeric" placeholder="Nhập số tài khoản" value="{{f_no}}" onChange="{{set_no}}"></span></label>
+      <label class="field cfg-field"><span class="l">Tên tài khoản *</span><span class="box input-box"><input placeholder="Chủ tài khoản" value="{{f_nm}}" onChange="{{set_nm}}"></span></label>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{dlgClose}}">Đóng</button><button class="btn" disabled="{{bankBad}}" onClick="{{dlgOk}}">Lưu thông tin</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{dlgInv}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet form-sheet" role="dialog" aria-modal="true" aria-labelledby="i-title">
+      <div class="dlg-head"><h2 id="i-title" class="confirm-title">Thông tin xuất hoá đơn</h2><button class="no-btn" aria-label="Đóng" onClick="{{dlgClose}}"><span class="ms" aria-hidden="true">close</span></button></div>
+      <p class="lab muted" style="margin: 0">Lấy MST của người trả cước: {{payerWho}}. Đổi hình thức thanh toán thì tra lại.</p>
+      <div class="opt-grid">
+        <label class="field cfg-field"><span class="l">Mã số thuế *</span><span class="box input-box"><input placeholder="MST công ty / CCCD chủ hộ" value="{{f_mst}}" onChange="{{set_mst}}"></span></label>
+        <div class="field cfg-field" style="justify-content: flex-end"><button class="btn tonal" style="height: 40px; align-self: flex-start" disabled="{{noMst}}" onClick="{{lookupMst}}">Tra MST</button></div>
+        <label class="field cfg-field  opt-wide"><span class="l">Tên công ty *</span><span class="box input-box"><input placeholder="Tự điền theo MST" value="{{f_co}}" onChange="{{set_co}}"></span></label>
+        <label class="field cfg-field  opt-wide"><span class="l">Địa chỉ công ty *</span><span class="box input-box"><input placeholder="Tự điền theo MST" value="{{f_ad}}" onChange="{{set_ad}}"></span></label>
+        <label class="field cfg-field"><span class="l">Email nhận hoá đơn *</span><span class="box input-box"><input inputmode="email" placeholder="example@company.com" value="{{f_em}}" onChange="{{set_em}}"></span></label>
+        <label class="field cfg-field"><span class="l">Tên người trên hoá đơn *</span><span class="box input-box"><input placeholder="Mặc định tên người trả cước" value="{{f_pn}}" onChange="{{set_pn}}"></span></label>
+        <label class="field cfg-field"><span class="l">CCCD / CMND</span><span class="box input-box"><input placeholder="Không bắt buộc" value="{{f_id}}" onChange="{{set_id}}"></span></label>
+        <label class="field cfg-field"><span class="l">SĐT trên hoá đơn</span><span class="box input-box"><input inputmode="tel" placeholder="Không bắt buộc" value="{{f_ph}}" onChange="{{set_ph}}"></span></label>
+      </div>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{dlgClose}}">Đóng</button><button class="btn" disabled="{{invBad}}" onClick="{{dlgOk}}">Lưu thông tin</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{hasAddr}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="dialog" aria-modal="true" aria-labelledby="a-title">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px"><h2 id="a-title" class="confirm-title">{{addrTitle}}</h2><button class="no-btn" aria-label="Đóng" onClick="{{addrClose}}"><span class="ms" aria-hidden="true">close</span></button></div>
+      <label class="field cfg-field"><span class="l">Link Google Maps</span><span class="box input-box"><input placeholder="Dán link, ví dụ https://www.google.com/maps/@20.97..." value="{{dLink}}" onChange="{{setDLink}}"></span></label>
+      <label class="toggle"><input class="switch" type="checkbox" checked="{{dOld}}" onChange="{{toggleDOld}}"><span>Trước sáp nhập</span></label>
+      <label class="field cfg-field"><span class="l">Tỉnh/Thành phố</span><span class="box input-box sel-box"><select value="{{dProv}}" onChange="{{setDProv}}"><option value="">Chọn</option><option>Hà Nội</option><option>Nam Định</option><option>Ninh Bình</option><option>Yên Bái</option></select><span class="ms" aria-hidden="true">expand_more</span></span></label>
+      <label class="field cfg-field"><span class="l">Phường/Xã</span><span class="box input-box sel-box"><select value="{{dWard}}" onChange="{{setDWard}}" disabled="{{noProv}}"><option value="">{{wardHint}}</option><option>Phường mẫu 1</option><option>Phường mẫu 2</option><option>Xã mẫu 3</option></select><span class="ms" aria-hidden="true">expand_more</span></span></label>
+      <label class="field cfg-field"><span class="l">Địa chỉ chi tiết</span><span class="box input-box"><input placeholder="Số nhà, ngõ ngách..." value="{{dLine}}" onChange="{{setDLine}}"></span></label>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{addrClose}}">Đóng</button><button class="btn" disabled="{{noAddr}}" onClick="{{addrOk}}">Xác nhận</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1100}}'>
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const num = (v) => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
+const COD = [[2000000, 30000], [5000000, 40000], [10000000, 60000], [15000000, 80000], [20000000, 100000]];
+const NO_GPS = '251 Lương Văn Thăng - Ninh Bình', FREE = 'Hà Nội';
+const doorFee = (ad, base) => !ad ? 0 : ad.prov === FREE ? 0 : base;
+const declareFee = (v) => v > 1000000 ? Math.round(v * 0.01) : 0;
+const codFee = (c) => { if (!c) return 0; const t = COD.find((x) => c <= x[0]); return t ? t[1] : Math.round(c * 0.005); };
+let nextId = 1;
+const MY_VP = '31A Nguyễn Quốc Trị - Hà Nội';
+const VPS = ['251 Lương Văn Thăng - Ninh Bình', '104 Song Hào - Nam Định', '77 Trần Anh Tông - Nam Định', '34 Trần Phú - Thái Bình', '46 Vũ Tuân - Việt Trì', 'Vincom - TX.Phú Thọ', 'IC8 Phú Ninh - Phú Thọ', '263 Nguyễn Thái Học - Yên Bái', 'Văn Phú - Yên Bái', '31A Nguyễn Quốc Trị - Hà Nội', '74 Phố Vọng - Hà Nội', '72 Trần Nhân Tông - Hà Nội', '55 Trần Đại Nghĩa - Hà Nội', '10 Ngõ 15 Ngọc Hồi - Hà Nội', '56 Nguyễn Quyền - Hà Nội', '88 Trương Công Giai - Hà Nội'];
+const plain = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase();
+const TIERS = [[3, 25000], [6, 35000], [10, 50000], [20, 70000], [30, 110000], [50, 140000]];
+const kgOf = (v) => parseFloat(String(v || '').replace(',', '.')) || 0;
+const priceOf = (kg) => { if (kg <= 0) return 0; const c = Math.ceil(kg), t = TIERS.find((x) => c <= x[0]); return t ? t[1] : 140000 + (c - 50) * 2500; };
+const newPack = () => ({ id: nextId++, group: '', weight: '', qty: '1', declared: '', l: '10', w: '10', h: '10' });
+const FRESH = () => ({ cod: '', pick: false, drop: false, invoice: false, bank: false, bankInfo: null, invInfo: null, dlg: null, f: {}, payer: 'Người gửi thanh toán', pickAd: null, dropAd: null, addr: null, d: null, form: {}, open: null, tried: false, ask: null, done: null, transfer: false });
+const QR = (() => { const n = 21, out = []; const ring = (a, b) => Math.max(Math.abs(a - 3), Math.abs(b - 3)) !== 2; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { let on; if (x < 7 && y < 7) on = ring(x, y); else if (x >= n - 7 && y < 7) on = ring(x - n + 7, y); else if (x < 7 && y >= n - 7) on = ring(x, y - n + 7); else if (x < 8 && y < 8 || x >= n - 8 && y < 8 || x < 8 && y >= n - 8) on = false; else on = ((x * 7 + y * 13 + x * y) % 5) < 2; out.push({ c: on ? 'on' : '' }); } return out; })();
+const blank = () => ({ link: '', old: false, prov: '', ward: '', line: '' });
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { packs: [newPack()], ...FRESH() }; }
+  renderVals() {
+    const s = this.state;
+    const fee = s.packs.reduce((a, p) => a + priceOf(kgOf(p.weight)), 0), cod = num(s.cod), cf = codFee(cod);
+    const declared = s.packs.reduce((a, p) => a + declareFee(num(p.declared)), 0);
+    const pf = s.pick ? doorFee(s.pickAd, 15000) : 0, df = s.drop ? doorFee(s.dropAd, 20000) : 0;
+    const up = (patch) => this.setState(patch);
+    const feeLines = [['Cước hàng', fee], ['Phí thu hộ COD', cf], ['Phí khai báo giá trị', declared], ['Phí lấy tận nơi', pf], ['Phí giao tận nơi', df]].filter((x) => x[1] > 0).map((x) => ({ name: x[0], text: fmt(x[1]) }));
+    const d = s.d || blank();
+    const setD = (k) => (e) => up({ d: { ...this.state.d, [k]: e.target.value, ...(k === 'prov' ? { ward: '' } : {}) } });
+    const doorVals = (k, ad, vp) => ({
+      [k + 'AddrText']: ad ? ad.text : 'Chưa chọn địa chỉ', [k + 'AddrCls']: ad ? '' : 'muted', [k + 'MapCls']: 'map-mock' + (ad ? ' on' : ''),
+      [k + 'NoGps']: vp === NO_GPS,
+      [k + 'Open']: () => up({ addr: k, d: ad ? { ...ad } : blank() }),
+    });
+    const form = s.form;
+    const setF = (k) => (e) => up({ form: { ...this.state.form, [k]: e.target.value } });
+    const req = { fromPhone: 'Nhập SĐT người gửi', toPhone: 'Nhập SĐT người nhận', vpTo: 'Chọn VP nhận' };
+    const fieldVals = {};
+    ['fromPhone', 'fromName', 'toPhone', 'toName', 'vpTo', 'cmnd', 'note'].forEach((k) => { const msg = s.tried && req[k] && !(form[k] || '').trim() ? req[k] : ''; fieldVals['v_' + k] = form[k] || ''; fieldVals['on_' + k] = setF(k); fieldVals['m_' + k] = msg; fieldVals['e_' + k] = 'field cfg-field' + (msg ? ' has-err' : ''); });
+    ['pick', 'drop'].forEach((k) => { const msg = s.tried && s[k] && !s[k + 'Ad'] ? 'Chọn địa chỉ' : ''; fieldVals['m_' + k + 'Ad'] = msg; fieldVals['e_' + k + 'Ad'] = 'field cfg-field' + (msg ? ' has-err' : ''); });
+    const comboVals = (k) => { const q = plain(form[k]); const isExact = VPS.includes(form[k]); const opts = VPS.filter((n) => isExact || !q || plain(n).includes(q)); return { [k + 'Open']: s.open === k, [k + 'None']: opts.length === 0, [k + 'Opts']: opts.map((name) => ({ name, pick: (e) => { e.preventDefault(); up({ form: { ...this.state.form, [k]: name }, open: null }); } })), [k + 'Focus']: () => up({ open: k }), [k + 'Blur']: () => { const v = this.state.form[k]; up({ open: null, form: { ...this.state.form, [k]: VPS.includes(v) ? v : '' } }); } }; };
+    const errCount = !s.tried ? 0 : Object.keys(req).filter((k) => !(form[k] || '').trim()).length + ['pick', 'drop'].filter((k) => s[k] && !s[k + 'Ad']).length + s.packs.reduce((a, p) => a + (p.group ? 0 : 1) + (kgOf(p.weight) > 0 ? 0 : 1), 0);
+    const missing = () => { const st = this.state; return Object.keys(req).some((k) => !(st.form[k] || '').trim()) || ['pick', 'drop'].some((k) => st[k] && !st[k + 'Ad']) || st.packs.some((p) => !p.group || kgOf(p.weight) <= 0); };
+    const total = fee + cf + declared + pf + df;
+    const submit = (mode) => () => { if (missing()) { up({ tried: true }); setTimeout(() => { const el = document.querySelector('.order-sheet .has-err'); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); const i = el.querySelector('input,select,button'); if (i) i.focus({ preventScroll: true }); } }, 60); return; } up({ done: { mode, qr: s.payer === 'Người gửi thanh toán' || s.transfer, total: fmt(total) } }); };
+    const dirty = Object.values(form).some((v) => (v || '').trim()) || !!s.cod || s.pick || s.drop || s.bank || s.invoice || s.transfer || s.payer !== 'Người gửi thanh toán' || s.packs.length > 1 || s.packs.some((p) => p.group || p.weight || p.declared || p.qty !== '1' || p.l !== '10' || p.w !== '10' || p.h !== '10');
+    const doReset = () => up({ packs: [newPack()], ...FRESH() });
+    const canOk = !!d.link.trim() || !!(d.prov && d.ward);
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light',
+      count: s.packs.length,
+      packs: s.packs.map((p, i) => { const setK = (k) => (e) => up({ packs: this.state.packs.map((x) => x.id === p.id ? { ...x, [k]: e.target.value } : x) }); const kg = kgOf(p.weight); const out = { name: 'Kiện ' + (i + 1), only: s.packs.length === 1, delLabel: 'Xoá kiện ' + (i + 1), feeText: kg > 0 ? fmt(priceOf(kg)) : 'Tự tính theo cân nặng', feeCls: 'muted',
+        clone: () => { const packs = [...this.state.packs]; packs.splice(i + 1, 0, { ...p, id: nextId++ }); up({ packs }); },
+        del: () => up({ packs: this.state.packs.filter((x) => x.id !== p.id) }) };
+        ['group', 'weight', 'qty', 'declared', 'l', 'w', 'h'].forEach((k) => { const msg = s.tried ? (k === 'group' && !p.group ? 'Chọn nhóm hàng' : k === 'weight' && kg <= 0 ? 'Nhập cân nặng' : '') : ''; out[k] = p[k]; out[k + 'Set'] = setK(k); out[k + 'Msg'] = msg; out[k + 'Cls'] = 'field cfg-field' + (msg ? ' has-err' : ''); });
+        return out; }),
+      addPack: () => up({ packs: [...this.state.packs, newPack()] }),
+      cod: s.cod, setCod: (e) => up({ cod: e.target.value }),
+      codFeeField: cod ? fmt(cf) + ' VNĐ' : 'Nhập COD trước',
+      feeLines, hasLines: feeLines.length > 0, totalText: fmt(total),
+      pick: s.pick, drop: s.drop,
+      togglePick: () => up({ pick: !s.pick }), toggleDrop: () => up({ drop: !s.drop }),
+      bankOn: s.bank || s.dlg === 'bank', invOn: s.invoice || s.dlg === 'inv',
+      toggleBank: () => s.bank ? up({ bank: false }) : up({ dlg: 'bank', f: { ...(s.bankInfo || {}) } }),
+      toggleInvoice: () => s.invoice ? up({ invoice: false }) : up({ dlg: 'inv', f: { ...(s.invInfo || {}) } }),
+      bankHas: s.bank && !!s.bankInfo, bankA: s.bankInfo ? s.bankInfo.bk + ' · ' + s.bankInfo.no : '', bankB: s.bankInfo ? s.bankInfo.nm : '', bankEdit: () => up({ dlg: 'bank', f: { ...s.bankInfo } }),
+      invHas: s.invoice && !!s.invInfo, invA: s.invInfo ? s.invInfo.co : '', invB: s.invInfo ? 'MST ' + s.invInfo.mst + ' · ' + s.invInfo.em : '', invEdit: () => up({ dlg: 'inv', f: { ...s.invInfo } }),
+      dlgBank: s.dlg === 'bank', dlgInv: s.dlg === 'inv', dlgClose: () => up({ dlg: null }),
+      dlgOk: () => s.dlg === 'bank' ? up({ dlg: null, bank: true, bankInfo: s.f }) : up({ dlg: null, invoice: true, invInfo: s.f }),
+      ...Object.fromEntries(['bk','no','nm','mst','co','ad','em','pn','id','ph'].flatMap((k) => [['f_' + k, s.f[k] || ''], ['set_' + k, (e) => up({ f: { ...this.state.f, [k]: e.target.value } })]])),
+      bankBad: !(s.f.bk && s.f.no && s.f.nm), invBad: !['mst','co','ad','em','pn'].every((k) => (s.f[k] || '').trim()),
+      noMst: !(s.f.mst || '').trim(), lookupMst: () => up({ f: { ...this.state.f, co: 'Công ty mẫu', ad: 'Địa chỉ công ty mẫu' } }),
+      ...fieldVals,
+      ...comboVals('vpTo'), vpFromName: MY_VP,
+      showTransfer: s.payer !== 'Người gửi thanh toán', transfer: s.transfer, toggleTransfer: () => up({ transfer: !s.transfer }),
+      hasErr: errCount > 0, errText: 'Còn ' + errCount + ' ô bắt buộc chưa điền',
+      create: submit('create'), createPrint: submit('print'),
+      askReset: () => dirty ? up({ ask: 'reset' }) : doReset(), exitClick: (e) => { if (dirty) { e.preventDefault(); up({ ask: 'exit' }); } },
+      hasConfirm: !!s.ask, confirmReset: s.ask === 'reset', confirmExit: s.ask === 'exit', confirmClose: () => up({ ask: null }),
+      confirmTitle: s.ask === 'reset' ? 'Xoá dữ liệu đã nhập?' : 'Thoát mà không tạo đơn?', confirmBody: s.ask === 'reset' ? 'Toàn bộ thông tin trong form sẽ bị xoá.' : 'Thông tin đã nhập sẽ không được lưu.',
+      hasDone: !!s.done, doneCode: 'PV0411MAU9', doneTotal: s.done ? s.done.total : '', doneQr: !!s.done && s.done.qr, donePrinted: !!s.done && s.done.mode === 'print', doneCanPrint: !!s.done && s.done.mode !== 'print', qrCells: QR,
+      payer: s.payer, setPayer: (e) => up({ payer: e.target.value }), payerWho: s.payer === 'Người nhận thanh toán' ? 'người nhận' : 'người gửi',
+      ...doorVals('pick', s.pickAd, MY_VP), ...doorVals('drop', s.dropAd, form.vpTo),
+      hasAddr: !!s.addr, addrTitle: s.addr === 'drop' ? 'Địa chỉ giao hàng' : 'Địa chỉ lấy hàng', addrClose: () => up({ addr: null, d: null }),
+      dLink: d.link, dOld: d.old, dProv: d.prov, dWard: d.ward, dLine: d.line,
+      setDLink: setD('link'), setDProv: setD('prov'), setDWard: setD('ward'), setDLine: setD('line'),
+      toggleDOld: () => up({ d: { ...this.state.d, old: !d.old } }),
+      noProv: !d.prov, wardHint: d.prov ? 'Chọn' : 'Chọn tỉnh trước', noAddr: !canOk,
+      addrOk: () => { const text = [d.line, d.ward, d.prov].filter(Boolean).join(', ') || 'Vị trí từ link Google Maps'; up({ [s.addr + 'Ad']: { ...d, text }, addr: null, d: null }); },
+      reset: doReset,
+    };
+  }
+}
+</script>
+</body>
+</html>

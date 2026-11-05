@@ -1,0 +1,1151 @@
+﻿import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { usePagedRows } from "@/lib/use-paged-rows";
+import { TablePagination } from "@/components/TablePagination";
+import { ProtectedPage } from "@/components/AppShell";
+import { M3Page } from "@/components/M3Page";
+import { Section, EmptyState } from "@/components/PageBits";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { OrderCodeLink } from "@/components/OrderHistoryDialog";
+import { StaffInfoPopover } from "@/components/StaffInfoPopover";
+import { OfficeRouteCell } from "@/components/OfficeRouteCell";
+import { formatVND, officeName, canonicalOfficeCode, type Order } from "@/lib/mock-data";
+import { useStore, type OrderX } from "@/lib/store";
+import { toast } from "sonner";
+import { Users2, ClipboardList, Banknote, Receipt, Search, Ban, History } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { isApiEnabled } from "@/lib/api/client";
+import {
+  createReceipt,
+  listReceiptCandidates,
+  listReceiptHistory,
+  waiveReceiptDues,
+  type ReceiptHistoryRow,
+  type ReceiptPortion,
+} from "@/lib/api/finance-config-api";
+import { ReceiptPayQrDialog } from "@/components/ReceiptPayQrDialog";
+import {
+  RECEIPT_CONFIRMED_EVENT,
+  type ReceiptConfirmedPayload,
+} from "@/lib/use-realtime-sync";
+import { assignedOfficeCode, hasAllOfficeScope, resolveViewOffice, VIEW_ALL_OFFICES } from "@/lib/office-scope";
+import {
+  deliveryActorForOrder,
+  debtOwnerLabel,
+  moneyReceivedAt,
+  receiptCollectableAmount,
+  receiptFarePortion,
+  UNKNOWN_DEBT_OWNER,
+} from "@/lib/finance-debt";
+import { useAuth } from "@/lib/auth";
+import { syncFinanceFromApi, syncOrdersFromApi } from "@/lib/api/sync";
+
+export const Route = createFileRoute("/phieu-thu")({
+  head: () => ({
+    meta: [
+      { title: "Phiếu thu — X.E" },
+      {
+        name: "description",
+        content:
+          "Tổng hợp đơn cần thu: gửi trả (kể cả đã thu đầu gửi TRUOC chưa nộp quỹ); nhận trả/COD sau giao thành công.",
+      },
+      { property: "og:title", content: "Phiếu thu — X.E" },
+      {
+        property: "og:description",
+        content: "Phiếu thu: gửi trả tại VP gửi; nhận trả/COD theo người giao khách.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: () => (
+    <ProtectedPage title="Phiếu thu" screen="phieu-thu">
+      <M3Page>
+        <Page />
+      </M3Page>
+    </ProtectedPage>
+  ),
+});
+
+type CandidateMeta = {
+  orderCode: string;
+  dueAmount: number;
+  onePayCollected?: boolean;
+  fareAmount?: number;
+  paidAmount?: number;
+  debtOwnerUsername?: string;
+  debtOwnerName?: string;
+  fromOfficeCode?: string;
+  status?: string;
+  portion?: ReceiptPortion;
+  collectedAt?: string;
+  shipDebtSubstitute?: boolean;
+};
+
+type DueOrder = Order & {
+  dueAmount: number;
+  debtOwner: string;
+  fareAmount?: number;
+  /** undefined = gộp cả 2 phần (cùng người) — BE tự phân bổ */
+  portion?: ReceiptPortion;
+  /** Thời điểm nhận tiền khách (không phải ngày tạo đơn). */
+  moneyAt?: string;
+  /** Người nộp đang chịu nợ ship thay vì người giao chưa xác nhận. */
+  shipDebtSubstitute?: boolean;
+  /** Đã CK thu hộ OnePay — còn thu 0đ. */
+  onePayCollected?: boolean;
+};
+
+const PORTION_LABEL: Record<ReceiptPortion, string> = {
+  SENDER: "Thu phía gửi",
+  DELIVERY: "Thu khi giao",
+  PARTNER_FEE: "Phí Ahamove đã trả tài xế",
+};
+
+const isFeeRow = (o: { portion?: ReceiptPortion }) => o.portion === "PARTNER_FEE";
+const rowKey = (o: { code: string; portion?: ReceiptPortion }) =>
+  isFeeRow(o) ? `${o.code}|PARTNER_FEE` : o.code;
+
+/** Ngày lịch VN (YYYY-MM-DD) từ ISO; rỗng nếu không parse được. */
+function localDayVn(iso?: string): string {
+  if (!iso?.trim()) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+
+function fmtDayVn(day: string): string {
+  if (!day || day.length < 10) return day || "—";
+  const [y, m, d] = day.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Lọc đúng 1 ngày tạo đơn (local VN). filterDay rỗng = không lọc. */
+function orderOnDay(createdAt: string | undefined, filterDay: string): boolean {
+  if (!filterDay) return true;
+  const day = localDayVn(createdAt);
+  return Boolean(day) && day === filterDay;
+}
+
+function Page() {
+  const { session } = useAuth();
+  const orders = useStore((s) => s.orders);
+  const users = useStore((s) => s.users);
+  const viewOfficeRaw = useStore((s) => s.viewOffice);
+  const viewOffice = resolveViewOffice(session, viewOfficeRaw);
+  /** AD / KT / tài khoản ALL: thấy nhiều người; còn lại chỉ chính mình. */
+  const seeAllOwners = hasAllOfficeScope(session);
+  const officeScope = assignedOfficeCode(viewOffice);
+  const selfOwner = (session?.username ?? "").trim();
+  const [q, setQ] = useState("");
+  const [staffFilter, setStaffFilter] = useState("");
+  const [filterDay, setFilterDay] = useState("");
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<Map<string, CandidateMeta> | null>(null);
+  const isAdmin = session?.role === "AD";
+  const canWaive = isAdmin && isApiEnabled();
+  const [waiveTarget, setWaiveTarget] = useState<{ title: string; orders: DueOrder[] } | null>(
+    null,
+  );
+  const [historyTick, setHistoryTick] = useState(0);
+  /** Sau tạo phiếu (API): hiện QR VietQR thu tiền. */
+  const [payQrCode, setPayQrCode] = useState<string | null>(null);
+
+  /** Username NV thuộc VP đang xem (so mã đã canonical). */
+  const ownersInScopedOffice = useMemo(() => {
+    if (!officeScope) return null;
+    const scope = (canonicalOfficeCode(officeScope) || officeScope).toUpperCase();
+    const set = new Set<string>();
+    for (const u of users) {
+      if (!u.active) continue;
+      const uOffice = (u.office ?? "").trim();
+      if (!uOffice || uOffice === VIEW_ALL_OFFICES) continue;
+      const code = (canonicalOfficeCode(uOffice) || uOffice).toUpperCase();
+      if (code === scope || uOffice.toUpperCase() === officeScope.toUpperCase()) {
+        set.add(u.username.trim().toLowerCase());
+      }
+    }
+    return set;
+  }, [users, officeScope]);
+
+  const reloadCandidates = () => {
+    if (!isApiEnabled()) {
+      setCandidates(null);
+      return;
+    }
+    const office = assignedOfficeCode(viewOffice);
+    listReceiptCandidates(office || undefined)
+      .then((rows) => {
+        const m = new Map<string, CandidateMeta>();
+        for (const r of rows ?? []) {
+          if (!r?.orderCode) continue;
+          m.set(`${r.orderCode}|${r.portion ?? ""}`, {
+            orderCode: r.orderCode,
+            portion: r.portion ?? undefined,
+            dueAmount: Number(r.dueAmount) || 0,
+            fareAmount: r.fareAmount != null ? Number(r.fareAmount) : undefined,
+            paidAmount: r.paidAmount != null ? Number(r.paidAmount) : undefined,
+            debtOwnerUsername: r.debtOwnerUsername ?? undefined,
+            debtOwnerName: r.debtOwnerName ?? undefined,
+            fromOfficeCode: r.fromOfficeCode ?? undefined,
+            status: r.status,
+            collectedAt:
+              typeof r.collectedAt === "string"
+                ? r.collectedAt
+                : r.collectedAt
+                  ? new Date(r.collectedAt as string | number | Date).toISOString()
+                  : undefined,
+            shipDebtSubstitute: r.shipDebtSubstitute === true,
+            onePayCollected: r.onePayCollected === true,
+          });
+        }
+        setCandidates(m);
+      })
+      .catch(() => setCandidates(null));
+  };
+
+  useEffect(() => {
+    reloadCandidates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewOffice, orders.length]);
+
+  // OnePay IPN xác nhận phiếu → danh sách nợ / lịch sử cập nhật ngay.
+  useEffect(() => {
+    const onConfirmed = (ev: Event) => {
+      const code = (ev as CustomEvent<ReceiptConfirmedPayload>).detail?.receiptCode?.trim();
+      if (!code) return;
+      reloadCandidates();
+      void syncFinanceFromApi().catch(() => undefined);
+      setHistoryTick((t) => t + 1);
+    };
+    window.addEventListener(RECEIPT_CONFIRMED_EVENT, onConfirmed);
+    return () => window.removeEventListener(RECEIPT_CONFIRMED_EVENT, onConfirmed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewOffice]);
+
+  useEffect(() => {
+    if (!seeAllOwners || !officeScope || users.length > 0 || !isApiEnabled()) return;
+    void import("@/lib/api/sync")
+      .then((m) => m.syncStaffFromApi())
+      .catch(() => undefined);
+  }, [seeAllOwners, officeScope, users.length]);
+
+  const dueOrders = useMemo((): DueOrder[] => {
+    const allowOwner = (owner: string) => {
+      const key = owner.trim().toLowerCase();
+      if (!key) return false;
+      // NV thường: chỉ chính mình.
+      if (!seeAllOwners) {
+        return Boolean(selfOwner) && key === selfOwner.toLowerCase();
+      }
+      // AD/KT + Toàn hệ thống: mọi người.
+      if (!officeScope || !ownersInScopedOffice) return true;
+      // AD/KT + chọn 1 VP: chỉ NV thuộc VP đó (vẫn gồm thu phía gửi + thu khi giao của họ).
+      if (ownersInScopedOffice.size === 0) return true; // chưa load master user → đừng ẩn hết
+      return ownersInScopedOffice.has(key);
+    };
+
+    // API bật: nguồn chính = candidates, mỗi đơn tối đa 2 phần (phía gửi / khi giao).
+    if (candidates) {
+      const out: DueOrder[] = [];
+      for (const meta of candidates.values()) {
+        const code = meta.orderCode;
+        const o = orders.find((x) => x.code === code);
+        const debtOwner = deliveryActorForOrder(
+          (o as OrderX | undefined) ?? ({ code, events: [], payments: [] } as unknown as OrderX),
+          meta.debtOwnerUsername,
+        );
+        if (!allowOwner(debtOwner)) continue;
+        const moneyAt =
+          meta.collectedAt ||
+          moneyReceivedAt(
+            (o as OrderX | undefined) ??
+              ({ code, events: [], payments: [], createdAt: "" } as unknown as OrderX),
+            meta.portion === "PARTNER_FEE" ? undefined : meta.portion,
+          ) ||
+          o?.createdAt ||
+          "";
+        out.push({
+          ...(o ??
+            ({
+              code,
+              status: "DELIVERED",
+              fromOffice: meta.fromOfficeCode ?? "",
+              toOffice: "",
+              fare: meta.fareAmount ?? 0,
+              paidAmount: meta.paidAmount ?? 0,
+              receiverName: "",
+              receiverPhone: "",
+              senderPhone: "",
+              createdAt: "",
+              updatedAt: "",
+            } as Order)),
+          code,
+          createdAt: o?.createdAt ?? "",
+          moneyAt,
+          dueAmount:
+            meta.portion === "PARTNER_FEE"
+              ? meta.dueAmount
+              : receiptCollectableAmount(
+                  {
+                    fare: meta.fareAmount ?? o?.fare ?? 0,
+                    paidAmount: meta.paidAmount ?? o?.paidAmount ?? 0,
+                    codAmount: o?.codAmount ?? 0,
+                  },
+                  meta.dueAmount,
+                ),
+          debtOwner,
+          fareAmount: meta.fareAmount ?? o?.fare,
+          portion: meta.portion,
+          shipDebtSubstitute: meta.shipDebtSubstitute,
+          onePayCollected: meta.onePayCollected,
+        });
+      }
+      // Cùng người chịu cả 2 phần → 1 dòng (phiếu thu không cho trùng đơn).
+      const merged = new Map<string, DueOrder>();
+      for (const row of out) {
+        const key = `${rowKey(row)}|${row.debtOwner}`;
+        const prev = merged.get(key);
+        if (!prev) {
+          merged.set(key, row);
+          continue;
+        }
+        // Giữ thời điểm nhận tiền sớm hơn khi gộp 2 phần
+        const moneyAt =
+          prev.moneyAt && row.moneyAt
+            ? prev.moneyAt <= row.moneyAt
+              ? prev.moneyAt
+              : row.moneyAt
+            : prev.moneyAt || row.moneyAt;
+        merged.set(key, {
+          ...prev,
+          dueAmount: prev.dueAmount + row.dueAmount,
+          portion: isFeeRow(prev) ? prev.portion : undefined,
+          moneyAt,
+          onePayCollected: prev.onePayCollected || row.onePayCollected,
+        });
+      }
+      return [...merged.values()].filter((row) => orderOnDay(row.moneyAt || row.createdAt, filterDay));
+    }
+
+    // Offline / mock: DELIVERED, hoặc GUI_TRA đã nhập kho gửi
+    const out: DueOrder[] = [];
+    for (const o of orders) {
+      const guiTraEarly =
+        o.collectForm === "GUI_TRA" &&
+        o.status !== "DRAFT" &&
+        o.status !== "CANCELLED" &&
+        o.status !== "RETURNING" &&
+        o.status !== "RETURNED" &&
+        o.status !== "FAILED_DELIVERY" &&
+        ["IN_TRANSIT", "WAITING", "AT_DEST", "OUT_FOR_DELIVERY", "DELIVERED", "CONFIRMED"].includes(
+          o.status,
+        );
+      if (o.status !== "DELIVERED" && !guiTraEarly) continue;
+      if (viewOffice && o.fromOffice !== viewOffice && o.toOffice !== viewOffice) continue;
+      if (guiTraEarly && o.status !== "DELIVERED" && viewOffice && o.fromOffice !== viewOffice)
+        continue;
+      const debtOwner = deliveryActorForOrder(o as OrderX);
+      if (!allowOwner(debtOwner)) continue;
+      const moneyAt = moneyReceivedAt(o as OrderX) || o.createdAt;
+      if (!orderOnDay(moneyAt, filterDay)) continue;
+      out.push({ ...o, dueAmount: receiptCollectableAmount(o), debtOwner, moneyAt });
+    }
+    return out;
+  }, [orders, candidates, viewOffice, seeAllOwners, selfOwner, officeScope, ownersInScopedOffice, filterDay]);
+
+  /** Tài khoản → tên nhân viên: ưu tiên tên BE trả kèm, sau đó danh mục nhân viên. */
+  const ownerNames = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of users) {
+      const name = u.displayName?.trim();
+      const login = u.username.trim().toLowerCase();
+      if (name) m.set(login, name);
+    }
+    for (const meta of candidates?.values() ?? []) {
+      const login = meta.debtOwnerUsername?.trim().toLowerCase();
+      const name = meta.debtOwnerName?.trim();
+      if (login && name) m.set(login, name);
+    }
+    return m;
+  }, [users, candidates]);
+
+  /** Gom theo người + ngày nhận tiền khách. */
+  const rowsByOwnerDay = useMemo(() => {
+    const map = new Map<string, DueOrder[]>();
+    for (const o of dueOrders) {
+      const day = localDayVn(o.moneyAt || o.createdAt) || "unknown";
+      const key = `${o.debtOwner}@@${day}`;
+      const list = map.get(key) ?? [];
+      list.push(o);
+      map.set(key, list);
+    }
+    return map;
+  }, [dueOrders]);
+
+  const groupKeys = useMemo(
+    () =>
+      [...rowsByOwnerDay.keys()].sort((a, b) => {
+        const [ownerA, dayA] = a.split("@@");
+        const [ownerB, dayB] = b.split("@@");
+        const dayCmp = (dayB || "").localeCompare(dayA || "");
+        if (dayCmp !== 0) return dayCmp;
+        return debtOwnerLabel(ownerA).localeCompare(debtOwnerLabel(ownerB), "vi");
+      }),
+    [rowsByOwnerDay],
+  );
+
+  const rows = useMemo(() => {
+    const kw = q.trim().toLowerCase();
+    return groupKeys
+      .filter((k) => {
+        const owner = k.split("@@")[0] ?? "";
+        if (staffFilter && owner !== staffFilter) return false;
+        if (
+          kw &&
+          !debtOwnerLabel(owner).toLowerCase().includes(kw) &&
+          !ownerNames.get(owner.trim().toLowerCase())?.toLowerCase().includes(kw)
+        )
+          return false;
+        return true;
+      })
+      .map((key) => {
+        const [owner, day] = key.split("@@");
+        const list = rowsByOwnerDay.get(key) ?? [];
+        return {
+          key,
+          owner,
+          day: day === "unknown" ? "" : day,
+          label: debtOwnerLabel(owner),
+          name:
+            owner === UNKNOWN_DEBT_OWNER ? "" : ownerNames.get(owner.trim().toLowerCase()) ?? owner,
+          count: list.length,
+          amount: list.reduce((a, o) => a + o.dueAmount, 0),
+        };
+      });
+  }, [groupKeys, staffFilter, q, rowsByOwnerDay, ownerNames]);
+  const { pageRows, pager } = usePagedRows(rows, "phieu-thu");
+
+  const ownerKeys = useMemo(
+    () =>
+      [...new Set(dueOrders.map((o) => o.debtOwner))].sort((a, b) =>
+        debtOwnerLabel(a).localeCompare(debtOwnerLabel(b), "vi"),
+      ),
+    [dueOrders],
+  );
+  const totals = useMemo(
+    () => ({
+      staff: rows.length,
+      orders: rows.reduce((a, r) => a + r.count, 0),
+      amount: rows.reduce((a, r) => a + r.amount, 0),
+    }),
+    [rows],
+  );
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Tiền đơn chưa nộp, gom theo <b>người chịu trách nhiệm</b> (thu phía gửi + thu khi giao).{" "}
+        {!seeAllOwners
+          ? `Bạn chỉ thấy đơn cần nộp của chính mình (${selfOwner || "—"}).`
+          : officeScope
+            ? `AD/KT đang xem VP ${officeName(officeScope) || officeScope} — chỉ hiện NV thuộc VP này.`
+            : "AD/KT đang xem toàn hệ thống — hiện mọi người tác động."}
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Kpi icon={Users2} label="Người tác động" value={String(totals.staff)} />
+        <Kpi icon={ClipboardList} label="Đơn cần nộp" value={String(totals.orders)} />
+        <Kpi icon={Banknote} label="Tiền còn thu" value={formatVND(totals.amount)} />
+      </div>
+
+      <Section>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Ngày nhận tiền</Label>
+            <Input type="date" value={filterDay} onChange={(e) => setFilterDay(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Người tác động</Label>
+            <SearchableSelect
+              value={staffFilter || "all"}
+              onValueChange={(v) => setStaffFilter(v === "all" ? "" : v)}
+              placeholder="Tất cả"
+              options={[
+                { value: "all", label: "Tất cả" },
+                ...ownerKeys.map((k) => {
+                  const name = ownerNames.get(k.trim().toLowerCase());
+                  return { value: k, label: name ? `${debtOwnerLabel(k)} · ${name}` : debtOwnerLabel(k) };
+                }),
+              ]}
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label className="text-xs">Tìm kiếm</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Tên / tài khoản người tác động"
+              />
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title={`Đơn cần nộp theo người · ngày (${rows.length})`}>
+        {rows.length === 0 ? (
+          <EmptyState>Không có đơn cần lập phiếu thu</EmptyState>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                  <th className="px-2 py-2">Người tác động</th>
+                  <th className="px-2 py-2">Tên nhân viên</th>
+                  <th className="px-2 py-2 text-right">Số đơn</th>
+                  <th className="px-2 py-2 text-right">Tiền còn thu</th>
+                  <th className="px-2 py-2 text-right">Ngày</th>
+                  <th className="px-2 py-2 text-right">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((r) => (
+                  <tr key={r.key} className="border-b hover:bg-muted/40">
+                    <td className="px-2 py-2 font-medium">
+                      {r.owner === UNKNOWN_DEBT_OWNER ? (
+                        r.label
+                      ) : (
+                        <StaffInfoPopover staffKey={r.owner}>{r.label}</StaffInfoPopover>
+                      )}
+                    </td>
+                    <td className="px-2 py-2">{r.name || "—"}</td>
+                    <td className="px-2 py-2 text-right">{r.count}</td>
+                    <td className="px-2 py-2 text-right font-semibold">{formatVND(r.amount)}</td>
+                    <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                      {r.day ? fmtDayVn(r.day) : "—"}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          className="gap-2"
+                          disabled={r.count === 0}
+                          onClick={() => setOpenKey(r.key)}
+                        >
+                          <Receipt className="h-4 w-4" />
+                          Tạo phiếu thu
+                        </Button>
+                        {canWaive ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-2 text-destructive hover:text-destructive"
+                            disabled={r.count === 0}
+                            onClick={() =>
+                              setWaiveTarget({
+                                title: `${r.label}${r.day ? ` · ${fmtDayVn(r.day)}` : ""}`,
+                                orders: (rowsByOwnerDay.get(r.key) ?? []).filter((o) => !isFeeRow(o)),
+                              })
+                            }
+                          >
+                            <Ban className="h-4 w-4" />
+                            Hủy nộp
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <TablePagination pager={pager} />
+          </div>
+        )}
+      </Section>
+
+      <ReceiptDialog
+        owner={openKey ? openKey.split("@@")[0] : null}
+        ownerLabel={openKey ? debtOwnerLabel(openKey.split("@@")[0] ?? "") : ""}
+        dayLabel={
+          openKey
+            ? (() => {
+                const d = openKey.split("@@")[1];
+                return d && d !== "unknown" ? fmtDayVn(d) : "";
+              })()
+            : ""
+        }
+        orders={openKey ? (rowsByOwnerDay.get(openKey) ?? []) : []}
+        onClose={() => setOpenKey(null)}
+        onCreated={(receiptCode) => {
+          reloadCandidates();
+          void syncFinanceFromApi().catch(() => undefined);
+          setHistoryTick((t) => t + 1);
+          if (receiptCode) setPayQrCode(receiptCode);
+        }}
+        onWaive={
+          canWaive
+            ? (picked) => {
+                const owner = openKey ? debtOwnerLabel(openKey.split("@@")[0] ?? "") : "";
+                setOpenKey(null);
+                setWaiveTarget({ title: owner, orders: picked });
+              }
+            : undefined
+        }
+      />
+
+      <ReceiptPayQrDialog
+        receiptCode={payQrCode}
+        open={Boolean(payQrCode)}
+        onOpenChange={(v) => {
+          if (!v) setPayQrCode(null);
+        }}
+        onPaid={() => {
+          reloadCandidates();
+          void syncFinanceFromApi().catch(() => undefined);
+          setHistoryTick((t) => t + 1);
+          toast.success("OnePay đã xác nhận thu phiếu");
+        }}
+      />
+
+      <WaiveDialog
+        target={waiveTarget}
+        onClose={() => setWaiveTarget(null)}
+        onDone={() => {
+          reloadCandidates();
+          setHistoryTick((t) => t + 1);
+        }}
+      />
+
+      {canWaive ? <HistorySection reloadKey={historyTick} /> : null}
+    </div>
+  );
+}
+
+function WaiveDialog({
+  target,
+  onClose,
+  onDone,
+}: {
+  target: { title: string; orders: DueOrder[] } | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setReason("");
+  }, [target]);
+
+  const orders = target?.orders ?? [];
+  const total = orders.reduce((a, o) => a + o.dueAmount, 0);
+
+  const submit = async () => {
+    const text = reason.trim();
+    if (!text) {
+      toast.error("Nhập lý do hủy nộp");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await waiveReceiptDues({
+        reason: text,
+        items: orders.map((o) => ({ orderCode: o.code, portion: o.portion })),
+      });
+      toast.success(`Đã hủy nộp ${orders.length} đơn · ${formatVND(Number(res.totalAmount) || 0)}`);
+      onClose();
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không hủy nộp được");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={Boolean(target)} onOpenChange={(v) => !v && !busy && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Hủy nộp · {target?.title}</DialogTitle>
+          <DialogDescription>
+            Bỏ {orders.length} đơn ({formatVND(total)}) khỏi danh sách cần nộp — người này không
+            phải nộp số tiền này nữa. Thao tác được ghi vào lịch sử.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-40 overflow-y-auto rounded-md border text-sm">
+          {orders.map((o) => (
+            <div key={`${o.code}|${o.portion ?? ""}`} className="flex justify-between border-b px-3 py-1.5 last:border-b-0">
+              <span className="font-medium">
+                {o.code}
+                {o.portion ? (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    {PORTION_LABEL[o.portion]}
+                  </span>
+                ) : null}
+              </span>
+              <span>{formatVND(o.dueAmount)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Lý do (bắt buộc)</Label>
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={255}
+            placeholder="VD: khách không thanh toán, đã xử lý ngoài hệ thống…"
+          />
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" disabled={busy} onClick={onClose}>
+            Quay lại
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={busy || !reason.trim() || orders.length === 0}
+            onClick={() => void submit()}
+          >
+            Xác nhận hủy nộp
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const HISTORY_ACTION_LABEL: Record<string, string> = {
+  RECEIPT_CREATE: "Tạo phiếu thu",
+  RECEIPT_CONFIRM: "Xác nhận thu",
+  RECEIPT_UNCONFIRM: "Hoàn tác xác nhận",
+  RECEIPT_DUE_WAIVE: "Hủy nộp",
+  RECEIPT_CANCEL: "Hủy phiếu thu",
+};
+
+function todayVn(offsetDays = 0): string {
+  return new Date(Date.now() + offsetDays * 86_400_000).toLocaleDateString("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+}
+
+function HistorySection({ reloadKey }: { reloadKey: number }) {
+  const [from, setFrom] = useState(() => todayVn(-6));
+  const [to, setTo] = useState(() => todayVn());
+  const [rows, setRows] = useState<ReceiptHistoryRow[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!from || !to) return;
+    let alive = true;
+    setError("");
+    listReceiptHistory(from, to)
+      .then((r) => alive && setRows(r ?? []))
+      .catch((e) => {
+        if (!alive) return;
+        setRows([]);
+        setError(e instanceof Error ? e.message : "Không tải được lịch sử");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [from, to, reloadKey]);
+  const { pageRows, pager } = usePagedRows(rows ?? [], "phieu-thu.history");
+
+  return (
+    <Section title={`Lịch sử thao tác (${rows?.length ?? 0})`}>
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Từ ngày</Label>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Đến ngày</Label>
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        </div>
+        <p className="pb-2 text-xs text-muted-foreground">
+          <History className="mr-1 inline h-3.5 w-3.5" />
+          Tạo phiếu, xác nhận thu, hoàn tác xác nhận, hủy nộp, hủy phiếu thu — tối đa 92 ngày.
+        </p>
+      </div>
+      {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
+      {!rows || rows.length === 0 ? (
+        <EmptyState>Chưa có thao tác trong khoảng này</EmptyState>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                <th className="px-2 py-2">Thời gian</th>
+                <th className="px-2 py-2">Người thao tác</th>
+                <th className="px-2 py-2">Thao tác</th>
+                <th className="px-2 py-2">Phiếu / Đơn</th>
+                <th className="px-2 py-2">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageRows.map((h) => (
+                <tr key={h.id} className="border-b align-top hover:bg-muted/40">
+                  <td className="px-2 py-2 whitespace-nowrap tabular-nums">
+                    {new Date(h.at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
+                  </td>
+                  <td className="px-2 py-2">
+                    <StaffInfoPopover staffKey={h.username}>{h.displayName || h.username || "—"}</StaffInfoPopover>
+                    {h.displayName && h.username ? (
+                      <div className="text-xs text-muted-foreground">{h.username}</div>
+                    ) : null}
+                  </td>
+                  <td
+                    className={`px-2 py-2 whitespace-nowrap font-medium ${
+                      h.action === "RECEIPT_DUE_WAIVE" || h.action === "RECEIPT_CANCEL" ? "text-destructive" : ""
+                    }`}
+                  >
+                    {HISTORY_ACTION_LABEL[h.action] ?? h.action}
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap">
+                    {h.entityType === "ReceiptDue" && h.entityId ? (
+                      <OrderCodeLink code={h.entityId} />
+                    ) : (
+                      h.entityId || "—"
+                    )}
+                  </td>
+                  <td className="px-2 py-2 text-muted-foreground">{h.detail || ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <TablePagination pager={pager} />
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function ReceiptDialog({
+  owner,
+  ownerLabel,
+  dayLabel,
+  orders,
+  onClose,
+  onCreated,
+  onWaive,
+}: {
+  owner: string | null;
+  ownerLabel: string;
+  dayLabel: string;
+  orders: DueOrder[];
+  onClose: () => void;
+  onCreated: (receiptCode?: string) => void;
+  onWaive?: (orders: DueOrder[]) => void;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [owner]);
+
+  const picked = orders.filter((o) => selected.has(rowKey(o)));
+  const total = picked.reduce((a, o) => a + o.dueAmount, 0);
+  const pickedFees = picked.filter(isFeeRow);
+  const substituteCodes = [
+    ...new Set(orders.filter((o) => o.shipDebtSubstitute).map((o) => o.code)),
+  ];
+  const allChecked = orders.length > 0 && orders.every((o) => selected.has(rowKey(o)));
+  const [busy, setBusy] = useState(false);
+
+  /** API bật thì chờ máy chủ lưu phiếu rồi mới báo thành công. store.addReceipt báo trước, lỗi sau bị nuốt. */
+  const submitViaApi = async () => {
+    const st = useStore.getState();
+    const payerCode = owner && owner !== UNKNOWN_DEBT_OWNER ? owner.toUpperCase() : undefined;
+    if (pickedFees.length > 0 && !payerCode) {
+      toast.error("Phí Ahamove chỉ trừ được khi có người nộp");
+      return;
+    }
+    const payerUser = st.users.find((u) => u.username.trim().toUpperCase() === payerCode);
+    const payerOffice = assignedOfficeCode(payerUser?.office) || undefined;
+    const viewOfficeCode = assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice)) || undefined;
+    const office = payerOffice || viewOfficeCode;
+    setBusy(true);
+    try {
+      const rec = await createReceipt({
+        payerName: ownerLabel,
+        payerCode,
+        officeCode: office && office !== VIEW_ALL_OFFICES ? office : undefined,
+        lines: picked.map((o) => ({
+          orderCode: o.code,
+          amountCollected: isFeeRow(o) ? o.dueAmount : Math.max(0, o.dueAmount),
+          portion: o.portion,
+        })),
+      });
+      toast.success(
+        pickedFees.length > 0
+          ? `Đã tạo phiếu thu ${rec.code} · ${picked.length - pickedFees.length} đơn · trừ ${pickedFees.length} phí Ahamove · ${formatVND(rec.total)}`
+          : `Đã tạo phiếu thu ${rec.code} · ${picked.length} đơn · ${formatVND(rec.total)}`,
+      );
+      setSelected(new Set());
+      onClose();
+      onCreated(rec.code);
+      void syncOrdersFromApi().catch(() => undefined);
+      void syncFinanceFromApi().catch(() => undefined);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không tạo được phiếu thu");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submit = () => {
+    const blocked = [...new Set(picked.filter((o) => o.shipDebtSubstitute).map((o) => o.code))];
+    if (blocked.length > 0) {
+      toast.error(
+        `Không tạo phiếu được. Điều phối phải xác nhận bù cho đơn: ${blocked.join(", ")}`,
+      );
+      return;
+    }
+    if (isApiEnabled()) {
+      void submitViaApi();
+      return;
+    }
+    const codes = [...selected];
+    if (!codes.length) return;
+    const st = useStore.getState();
+    const by = st.session?.username ?? "system";
+    const at = new Date().toISOString();
+    const payerName = ownerLabel;
+    const payerCode = owner && owner !== UNKNOWN_DEBT_OWNER ? owner.toUpperCase() : undefined;
+    const payerUser = payerCode
+      ? st.users.find((u) => u.username.trim().toUpperCase() === payerCode)
+      : undefined;
+    const payerOffice = assignedOfficeCode(payerUser?.office) || undefined;
+    const viewOfficeCode = assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice)) || undefined;
+    const rec = st.addReceipt({
+      payer: payerName,
+      payerCode,
+      total,
+      orderCodes: codes,
+      // Admin/KT (ALL): VP phiếu = VP người nộp tiền để DH cùng VP xem lại được.
+      office: payerOffice || viewOfficeCode,
+      lineAmounts: Object.fromEntries(
+        codes.map((c) => [c, orders.find((o) => o.code === c)?.dueAmount ?? 0]),
+      ),
+      linePortions: Object.fromEntries(
+        codes.map((c) => [c, orders.find((o) => o.code === c)?.portion]),
+      ),
+    });
+    // API bật: paidAmount đồng bộ lại từ BE (phần tiền đã thu không cộng thêm).
+    const bumpPaidLocally = !isApiEnabled();
+    for (const code of codes) {
+      const o = st.orders.find((x) => x.code === code);
+      const dueOrder = orders.find((x) => x.code === code);
+      if (!o || !dueOrder) continue;
+      const due = dueOrder.dueAmount;
+      if (due > 0) {
+        const toPaid = bumpPaidLocally ? receiptFarePortion(o, due) : 0;
+        st.updateOrder(code, {
+          paidAmount: (o.paidAmount ?? 0) + toPaid,
+          events: [
+            ...(o.events ?? []),
+            {
+              at,
+              by,
+              action: "RECEIPT_CREATED",
+              detail: `Phiếu thu ${rec.code} · ${formatVND(due)} · NV ${ownerLabel}`,
+            },
+          ],
+        });
+      } else {
+        st.updateOrder(code, {
+          events: [
+            ...(o.events ?? []),
+            {
+              at,
+              by,
+              action: "RECEIPT_CREATED",
+              detail: `Phiếu thu ${rec.code} · trách nhiệm · NV ${ownerLabel}`,
+            },
+          ],
+        });
+      }
+      st.audit({
+        action: "RECEIPT_CREATED",
+        entityType: "order",
+        entityId: code,
+        detail: `Phiếu thu ${rec.code} · NV ${ownerLabel}`,
+      });
+    }
+    toast.success(`Đã tạo phiếu thu ${rec.code} · ${codes.length} đơn · ${formatVND(total)}`);
+    setSelected(new Set());
+    onClose();
+    onCreated();
+  };
+
+  return (
+    <Dialog
+      open={Boolean(owner)}
+      onOpenChange={(v) => {
+        if (!v) {
+          setSelected(new Set());
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>
+            Tạo phiếu thu · {ownerLabel}
+            {dayLabel ? ` · ${dayLabel}` : ""}
+          </DialogTitle>
+          <DialogDescription>
+            Chọn đơn người này đang giữ tiền hoặc chịu trách nhiệm thu (phía gửi / khi giao)
+            {dayLabel ? ` · ngày nhận tiền ${dayLabel}` : ""}.
+          </DialogDescription>
+        </DialogHeader>
+
+        {substituteCodes.length > 0 ? (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            Người giao chưa quét xác nhận giao ship, nên {ownerLabel} đang chịu nợ thay các đơn:{" "}
+            {substituteCodes.join(", ")}. Không lập phiếu được — điều phối phải xác nhận bù trước.
+          </div>
+        ) : null}
+
+        <div className="max-h-[50vh] overflow-y-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-background">
+              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                <th className="w-10 px-2 py-2">
+                  <Checkbox
+                    checked={allChecked}
+                    onCheckedChange={(v) =>
+                      setSelected(v ? new Set(orders.map(rowKey)) : new Set())
+                    }
+                    aria-label="Chọn tất cả"
+                  />
+                </th>
+                <th className="px-2 py-2">Ngày</th>
+                <th className="px-2 py-2">Mã đơn hàng</th>
+                <th className="px-2 py-2">VP gửi → VP nhận</th>
+                <th className="px-2 py-2 text-right">Tiền còn thu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((o) => (
+                <tr key={rowKey(o)} className={`border-b hover:bg-muted/40 ${isFeeRow(o) ? "bg-amber-50/60" : ""}`}>
+                  <td className="px-2 py-2">
+                    <Checkbox
+                      checked={selected.has(rowKey(o))}
+                      onCheckedChange={(v) =>
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          if (v) next.add(rowKey(o));
+                          else next.delete(rowKey(o));
+                          return next;
+                        })
+                      }
+                      aria-label={`Chọn ${o.code}`}
+                    />
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                    {fmtDayVn(localDayVn(o.moneyAt || o.createdAt))}
+                  </td>
+                  <td className="px-2 py-2 font-medium">
+                    <OrderCodeLink code={o.code} />
+                    {o.portion ? (
+                      <div className="text-xs font-normal text-muted-foreground">
+                        {PORTION_LABEL[o.portion]}
+                      </div>
+                    ) : null}
+                    {o.onePayCollected ? (
+                      <div className="mt-0.5">
+                        <span className="inline-flex rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">
+                          Đã thu hộ OnePay
+                        </span>
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
+                    <OfficeRouteCell order={o} />
+                  </td>
+                  <td
+                    className={`px-2 py-2 text-right ${o.dueAmount < 0 ? "font-medium text-amber-700" : ""} ${o.onePayCollected && o.dueAmount === 0 ? "text-sky-700" : ""}`}
+                  >
+                    {formatVND(o.dueAmount)}
+                    {o.onePayCollected && o.dueAmount === 0 ? (
+                      <div className="text-[10px] font-normal text-sky-700">OnePay</div>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
+          <div className="text-sm">
+            Tổng tiền thu ({picked.length - pickedFees.length} đơn
+            {pickedFees.length ? ` · trừ ${pickedFees.length} phí Ahamove` : ""}):{" "}
+            <span className={`text-base font-semibold ${total < 0 ? "text-amber-700" : ""}`}>
+              {formatVND(total)}
+            </span>
+            {total < 0 ? (
+              <div className="text-xs text-amber-700">Số âm: công ty trả lại người nộp khoản phí đã ứng.</div>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Quay lại
+            </Button>
+            {onWaive ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2 text-destructive hover:text-destructive"
+                disabled={picked.length === pickedFees.length}
+                onClick={() => {
+                  const dues = picked.filter((o) => !isFeeRow(o));
+                  setSelected(new Set());
+                  onWaive(dues);
+                }}
+              >
+                <Ban className="h-4 w-4" />
+                Hủy nộp đơn đã chọn
+              </Button>
+            ) : null}
+            <Button size="sm" disabled={selected.size === 0 || busy} onClick={submit}>
+              Tạo phiếu
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Kpi({ icon: Icon, label, value }: { icon: typeof Users2; label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <div className="rounded-md bg-muted p-2">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-xs text-muted-foreground">{label}</div>
+          <div className="truncate text-base font-semibold">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Báo cáo theo giờ X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Báo cáo theo giờ" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <h1 class="page-title">Báo cáo theo giờ</h1>
+      <div style="display: flex; gap: 8px"><button class="btn ghost"><span class="ms" aria-hidden="true">refresh</span>Cập nhật dữ liệu</button><button class="btn tonal"><span class="ms" aria-hidden="true">download</span>Xuất</button></div>
+    </div>
+    <div class="seg" role="tablist" aria-label="Loại báo cáo" style="align-self: flex-start">
+      <button role="tab" class="{{tabA}}" aria-selected="{{isHour}}" onClick="{{showHour}}">Báo cáo theo giờ</button>
+      <button role="tab" class="{{tabB}}" aria-selected="{{isStock}}" onClick="{{showStock}}">Tồn kho</button>
+    </div>
+    <div class="filter-grid date-pair">
+      <sc-if value="{{isHour}}" hint-placeholder-val="{{true}}"><div class="field" style="flex: none"><span class="l" id="a1">Từ ngày</span><button class="box num" aria-labelledby="a1">03/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      <div class="field"><span class="l" id="a2">Đến ngày</span><button class="box num" aria-labelledby="a2">03/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      </sc-if><div class="field"><span class="l" id="a3">Chọn kho</span><button class="box" aria-labelledby="a3">Tất cả kho<span class="ms" aria-hidden="true">expand_more</span></button></div>
+    </div>
+    <sc-if value="{{isStock}}" hint-placeholder-val="{{false}}">
+      <section class="card stack">
+        <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">warehouse</span></span>Bảng tồn kho theo số giờ đã tồn</h2>
+        <div class="scroller">
+          <table class="tbl sticky-1" style="--tbl-min: 980px">
+            <thead><tr><th>Bưu cục</th><th>Loại</th><sc-for list="{{bands}}" as="b" hint-placeholder-count="10"><th class="r">{{b}}</th></sc-for></tr></thead>
+            <tbody>
+              <sc-for list="{{stock}}" as="o" hint-placeholder-count="6">
+                <tr><td style="font-weight: 500; white-space: nowrap">{{o.vp}}</td><td class="muted" style="white-space: nowrap">{{o.kind}}</td><sc-for list="{{o.cells}}" as="c" hint-placeholder-count="10"><td class="{{c.cls}}">{{c.t}}</td></sc-for></tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </sc-if>
+    <sc-if value="{{isHour}}" hint-placeholder-val="{{true}}">
+      <div class="stack">
+        <div class="hour-grid">
+          <sc-for list="{{series}}" as="s" hint-placeholder-count="3">
+            <section class="card stack num" style="gap: 12px">
+              <div>
+                <div class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms">{{s.icon}}</span></span><span class="lab muted">{{s.name}}</span></div>
+                <div class="kpi-val">{{s.totalText}}</div>
+                <div class="muted" style="font-size: 12px; line-height: 16px">{{s.note}}</div>
+              </div>
+              <div class="mini-chart mini-area" role="img" aria-label="{{s.aria}}">
+                <svg class="mini-svg" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
+                  <defs><linearGradient id="{{s.gid}}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-recv)" stop-opacity=".32"></stop><stop offset="1" stop-color="var(--chart-recv)" stop-opacity="0"></stop></linearGradient></defs>
+                  <g class="reveal"><path d="{{s.area}}" fill="{{s.fill}}"></path><path class="area-line recv-line" d="{{s.line}}"></path></g>
+                </svg>
+                <div class="mini-hits" onMouseLeave="{{clearHour}}">
+                  <sc-for list="{{s.pts}}" as="p" hint-placeholder-count="24">
+                    <span class="mini-hit" onMouseEnter="{{p.pick}}" onClick="{{p.pick}}">
+                      <sc-if value="{{p.on}}" hint-placeholder-val="{{false}}"><span class="xhair" aria-hidden="true"></span><i class="pt recv" style="bottom: {{p.b}}px"></i><span class="{{p.tipCls}}" aria-hidden="true"><b>{{p.hour}}</b> · <b>{{p.text}}</b> đơn</span></sc-if>
+                      <sc-if value="{{p.peak}}" hint-placeholder-val="{{false}}"><span class="peak num" style="bottom: {{p.peakB}}px" aria-hidden="true">Cao nhất {{p.text}}</span></sc-if>
+                    </span>
+                  </sc-for>
+                </div>
+              </div>
+              <div class="mini-axis muted"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div>
+            </section>
+          </sc-for>
+        </div>
+        <section class="card stack">
+          <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">table_chart</span></span>Bảng chi tiết theo giờ</h2>
+          <div class="scroller">
+            <table class="tbl sticky-1 compact" style="--tbl-min: 1240px">
+              <thead><tr><th>Loại</th><th class="r">Tổng</th><sc-for list="{{hours}}" as="h" hint-placeholder-count="24"><th class="r">{{h}}</th></sc-for></tr></thead>
+              <tbody>
+                <sc-for list="{{series}}" as="s" hint-placeholder-count="3">
+                  <tr><td class="main" style="white-space: nowrap">{{s.name}}</td><td class="r main">{{s.totalText}}</td><sc-for list="{{s.bars}}" as="b" hint-placeholder-count="24"><td class="{{b.cellCls}}">{{b.text}}</td></sc-for></tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1040}}'>
+const W = [0,0,0,0,1,2,5,12,20,24,26,22,18,24,28,25,20,12,6,3,1,0,0,0];
+const S = [['Đơn lấy',1034,'Tính từ lúc tạo đơn thành công'],['Đơn giao - trả',342,'Tính từ khi nhập kho'],['Đơn luân chuyển',627,'Tính từ lúc scan để đợi luân chuyển']];
+const BANDS = ['00 - 06','06 - 12','12 - 24','24 - 36','36 - 48','48 - 72','72 - 96','96 - 120','120 - 192','192+'];
+const STOCK = [['31A Nguyễn Quốc Trị - Hà Nội','Nhập kho gửi',[42,18,9,3,0,1,0,0,0,0]],['31A Nguyễn Quốc Trị - Hà Nội','Nhập kho giao',[56,31,12,6,2,1,1,0,0,0]],['104 Song Hào - Nam Định','Nhập kho gửi',[12,5,2,0,0,0,0,0,0,0]],['104 Song Hào - Nam Định','Nhập kho giao',[20,9,4,2,1,0,0,0,0,1]],['263 Nguyễn Thái Học - Yên Bái','Nhập kho gửi',[9,3,1,0,0,0,0,0,0,0]],['263 Nguyễn Thái Học - Yên Bái','Nhập kho giao',[14,7,3,1,0,1,0,0,0,0]]];
+const sum = W.reduce((a, b) => a + b, 0);
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'hour', hv: null }; }
+  renderVals() {
+    const hv = this.state.hv;
+    const series = S.map(([name, total, note], si) => {
+      const vals = W.map((w) => Math.floor(w / sum * total));
+      vals[14] += total - vals.reduce((a, b) => a + b, 0);
+      const max = Math.max(...vals);
+      const PLOT = 76, Y = (v) => 100 - v / max * PLOT, P = vals.map((v, i) => [(i + .5) * 10, Y(v)]);
+      let line = 'M' + P[0][0] + ' ' + P[0][1].toFixed(1);
+      for (let i = 0; i < P.length - 1; i++) { const [x1, y1] = P[i], [x2, y2] = P[i + 1], mx = (x1 + x2) / 2; line += ' C' + mx + ' ' + y1.toFixed(1) + ' ' + mx + ' ' + y2.toFixed(1) + ' ' + x2 + ' ' + y2.toFixed(1); }
+      const area = line + ' L' + P[P.length - 1][0] + ' 100 L' + P[0][0] + ' 100 Z', peakI = vals.indexOf(max), inThis = hv && hv.s === si;
+      const pts = vals.map((v, i) => { const on = !!inThis && hv.i === i; return { on, peak: !inThis && i === peakI, hour: String(i).padStart(2, '0') + 'h', text: fmt(v), b: v / max * PLOT - 5, peakB: v / max * PLOT + 8, tipCls: 'mini-tip num ' + (i < 5 ? 'start' : i > 18 ? 'end' : 'mid'), pick: () => this.setState({ hv: { s: si, i } }) }; });
+      const gid = 'mini-grad-' + si;
+      return { gid, fill: 'url(#' + gid + ')', line, area, pts, name, note, totalText: fmt(total), aria: name + ' theo khung giờ, tổng ' + fmt(total), bars: vals.map((v, i) => ({ v, text: v ? fmt(v) : '-', cellCls: v ? 'r' : 'r muted', h: v ? Math.max(3, Math.round(v / max * 96)) : 2, cls: v === max ? 'on' : '', title: String(i).padStart(2, '0') + 'h: ' + v + ' đơn' })) };
+    });
+    const t = this.state.tab;
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', series, clearHour: () => this.setState({ hv: null }),
+      bands: BANDS, stock: STOCK.map(([vp, kind, c]) => ({ vp, kind, cells: c.map((v) => ({ t: v ? fmt(v) : '-', cls: v ? 'r' : 'r muted' })) })),
+      hours: W.map((_, i) => String(i).padStart(2, '0') + 'h'),
+      isHour: t === 'hour', isStock: t === 'stock', tabA: t === 'hour' ? 'on' : '', tabB: t === 'stock' ? 'on' : '',
+      showHour: () => this.setState({ tab: 'hour' }), showStock: () => this.setState({ tab: 'stock' }),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const SI = {'Đơn lấy':'move_to_inbox','Đơn giao - trả':'local_shipping','Đơn luân chuyển':'sync_alt'};
+if (v.series) v.series = v.series.map((s) => ({ ...s, icon: SI[s.name] || 'inventory_2' }));
+return v; };
+</script>
+</body>
+</html>

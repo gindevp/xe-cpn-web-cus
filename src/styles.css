@@ -1,0 +1,206 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@import "./styles/cpn-m3.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  /* Material 3 CPN (design-ref/cpn.css) — light shell */
+  --radius: 1rem;
+  --background: #f4f3fa;
+  --foreground: #1a1b21;
+  --card: #ffffff;
+  --card-foreground: #1a1b21;
+  --popover: #ffffff;
+  --popover-foreground: #1a1b21;
+  --primary: #274ea1;
+  --primary-foreground: #ffffff;
+  --secondary: #dce2f9;
+  --secondary-foreground: #404659;
+  --muted: #f4f3fa;
+  --muted-foreground: #45464f;
+  --accent: #dae2ff;
+  --accent-foreground: #174295;
+  --destructive: #ba1a1a;
+  --destructive-foreground: #ffffff;
+  --success: #1e511e;
+  --success-foreground: #b8f1ad;
+  --warning: #594400;
+  --warning-foreground: #ffdf92;
+  --info: #174295;
+  --info-foreground: #dae2ff;
+  --border: #c5c6d0;
+  --input: #c5c6d0;
+  --ring: #274ea1;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1b21;
+  --sidebar-primary: #274ea1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f3fa;
+  --sidebar-accent-foreground: #1a1b21;
+  --sidebar-border: #e8e7ef;
+  --sidebar-ring: #274ea1;
+}
+
+.dark {
+  --background: oklch(0.15 0.02 260);
+  --foreground: oklch(0.98 0.003 250);
+  --card: oklch(0.2 0.02 260);
+  --card-foreground: oklch(0.98 0.003 250);
+  --popover: oklch(0.2 0.02 260);
+  --popover-foreground: oklch(0.98 0.003 250);
+  --primary: #3B6FD1;
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.28 0.02 260);
+  --secondary-foreground: oklch(0.98 0.003 250);
+  --muted: oklch(0.28 0.02 260);
+  --muted-foreground: oklch(0.7 0.02 260);
+  --accent: oklch(0.28 0.02 260);
+  --accent-foreground: oklch(0.98 0.003 250);
+  --destructive: oklch(0.6 0.22 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.62 0.15 150);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.75 0.15 75);
+  --warning-foreground: oklch(0.2 0.05 75);
+  --info: oklch(0.6 0.13 240);
+  --info-foreground: oklch(0.99 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: #3B6FD1;
+  --sidebar: oklch(0.18 0.02 260);
+  --sidebar-foreground: oklch(0.92 0.01 250);
+  --sidebar-primary: #3B6FD1;
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.26 0.02 260);
+  --sidebar-accent-foreground: oklch(0.99 0.005 250);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #3B6FD1;
+}
+
+.font-inter {
+  font-family: Inter, "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html, body {
+    font-family: var(--font-sans);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+  /*
+   * Chữ hoa tiếng Việt dấu chồng (Ễ, Ỗ, Ậ…): font Inter vẽ dấu vượt quá ascent,
+   * và Chrome cắt phần vượt đó bên trong <input>/<textarea> (div thường thì không)
+   * → NGUYỄN hiển thị thành NGUYÊN. Không line-height nào cứu được (đã thử 21px→2em),
+   * nên ô nhập dùng font hệ thống (Segoe UI/Arial hiển thị dấu chồng gọn trong ascent).
+   */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]),
+  textarea {
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Arial, "Helvetica Neue", sans-serif;
+    line-height: 1.4;
+  }
+}
+
+/* Minimal sidebar nav scrollbar — scoped, does not change sidebar width/layout */
+.sidebar-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(1 0 0 / 22%) transparent;
+}
+html.xe-native-shell,
+html.xe-native-shell body,
+html.xe-native-shell #root {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+html.xe-scan-immersive main {
+  padding: 0 !important;
+}
+
+/*
+ * Webapp / trình duyệt hẹp (< md). Desktop md+ không đụng tới.
+ * Bảng rộng cuộn trong khung; dialog không tràn khỏi màn.
+ */
+@media (max-width: 767px) {
+  main {
+    overflow-x: hidden;
+  }
+  main :is(.overflow-x-auto, div:has(> table)) {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  [role="dialog"] {
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem);
+    overflow: auto;
+  }
+}
+.sidebar-nav-scroll:hover {
+  scrollbar-color: oklch(1 0 0 / 38%) transparent;
+}
+.sidebar-nav-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb {
+  background-color: oklch(1 0 0 / 18%);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.sidebar-nav-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: oklch(1 0 0 / 35%);
+}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb:active {
+  background-color: oklch(1 0 0 / 45%);
+}

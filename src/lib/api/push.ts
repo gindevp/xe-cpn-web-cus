@@ -1,0 +1,377 @@
+import { toast } from "sonner";
+import { ApiError, isApiEnabled } from "./client";
+import { requestExtraFarePayer } from "../extra-fare-payer";
+import * as domain from "./domain-api";
+import type { OrderStatus, TripStatus } from "../mock-data";
+import { useStore, type OrderX, type TripX } from "../store";
+
+function tripFromDetail(detail?: string): string | undefined {
+  if (!detail) return undefined;
+  const m = detail.match(/Trip\s+(\S+)/i);
+  return m?.[1];
+}
+
+function officeFromDetail(detail?: string): string | undefined {
+  if (!detail) return undefined;
+  const m = detail.match(/VP\s+(\S+)/i);
+  return m?.[1];
+}
+
+/**
+ * Lệnh đồng bộ của cùng một đơn chạy tuần tự: BE lưu nguyên entity nên PATCH note và
+ * transition chạy song song sẽ ghi đè nhau (vd. mất [WHIN] khi nhập kho giao).
+ */
+const orderChains = new Map<string, Promise<void>>();
+
+function runForOrder(code: string, task: () => Promise<void>): Promise<void> {
+  const prev = orderChains.get(code) ?? Promise.resolve();
+  const next = prev.then(task, task);
+  orderChains.set(code, next);
+  void next.finally(() => {
+    if (orderChains.get(code) === next) orderChains.delete(code);
+  });
+  return next;
+}
+
+function auditFail(entityType: string, entityId: string, detail: string) {
+  useStore.getState().audit({ action: "API_SYNC_FAIL", entityType, entityId, detail });
+}
+
+function toastFail(code: string, action: string, err: unknown) {
+  const msg = err && typeof err === "object" && "message" in err ? String((err as { message?: string }).message) : String(err);
+  toast.error(`Đồng bộ BE thất bại: ${code} (${action})`, { description: msg });
+}
+
+function restoreOrder(code: string, prev?: OrderX) {
+  if (!prev) return;
+  useStore.setState((st) => ({
+    orders: st.orders.map((x) => (x.code === code ? prev : x)),
+  }));
+}
+
+function restoreTrip(code: string, prev?: TripX) {
+  if (!prev) return;
+  useStore.setState((st) => ({
+    trips: st.trips.map((x) => (x.code === code ? prev : x)),
+  }));
+}
+
+export type OrderPatchOpts = {
+  eventAction?: string;
+  eventDetail?: string;
+  /** Cước tăng sau khi người gửi đã trả đủ: ai trả phần chênh. */
+  extraFarePayer?: "SENDER" | "RECEIVER";
+  /** Hoàn thành công: số thu người gửi. */
+  returnCollect?: { amount: number; method: "TM" | "CK" | "THE" };
+};
+
+function patchBodyFromOrderPatch(patch: Partial<OrderX>, opts?: OrderPatchOpts): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (patch.senderName !== undefined) body.senderName = patch.senderName;
+  if (patch.senderPhone !== undefined) body.senderPhone = patch.senderPhone;
+  if (patch.receiverName !== undefined) body.receiverName = patch.receiverName;
+  if (patch.receiverPhone !== undefined) body.receiverPhone = patch.receiverPhone;
+  if (patch.note !== undefined) body.note = patch.note;
+  if (patch.pickupAddress !== undefined) body.pickupAddress = patch.pickupAddress;
+  if (patch.address !== undefined) body.deliveryAddress = patch.address;
+  if (patch.deliveryLat !== undefined) body.deliveryLat = patch.deliveryLat;
+  if (patch.deliveryLng !== undefined) body.deliveryLng = patch.deliveryLng;
+  if (patch.weightKg !== undefined) body.weightKg = patch.weightKg;
+  if (patch.quantity !== undefined) body.quantity = patch.quantity;
+  if (patch.fare !== undefined) body.fareAmount = patch.fare;
+  if (patch.goodsFare !== undefined) body.goodsFareAmount = patch.goodsFare;
+  if (patch.declaredFee !== undefined) body.declaredFeeAmount = patch.declaredFee;
+  if (patch.discountAmount !== undefined) body.discountAmount = patch.discountAmount;
+  if (patch.codAmount !== undefined) body.codAmount = patch.codAmount;
+  if (patch.codFee !== undefined) body.codFeeAmount = patch.codFee;
+  if (patch.bankName !== undefined) body.bankName = patch.bankName;
+  if (patch.bankAccountNo !== undefined) body.bankAccountNo = patch.bankAccountNo;
+  if (patch.bankAccountName !== undefined) body.bankAccountName = patch.bankAccountName;
+  if (patch.invoiceRequested !== undefined) body.invoiceRequested = patch.invoiceRequested;
+  if (patch.invoiceTaxCode !== undefined) body.invoiceTaxCode = patch.invoiceTaxCode;
+  if (patch.invoiceCompanyName !== undefined) body.invoiceCompanyName = patch.invoiceCompanyName;
+  if (patch.invoiceEmail !== undefined) body.invoiceEmail = patch.invoiceEmail;
+  if (patch.invoiceCompanyAddress !== undefined) body.invoiceCompanyAddress = patch.invoiceCompanyAddress;
+  if (patch.invoiceBuyerName !== undefined) body.invoiceBuyerName = patch.invoiceBuyerName;
+  if (patch.invoiceBuyerIdNumber !== undefined) body.invoiceBuyerIdNumber = patch.invoiceBuyerIdNumber;
+  if (patch.invoiceBuyerPhone !== undefined) body.invoiceBuyerPhone = patch.invoiceBuyerPhone;
+  if (patch.fromOffice !== undefined) body.fromOfficeCode = patch.fromOffice;
+  if (patch.toOffice !== undefined) body.toOfficeCode = patch.toOffice;
+  if (patch.hubOffice !== undefined) body.hubOfficeCode = patch.hubOffice;
+  if (patch.finalToOffice !== undefined) body.finalToOfficeCode = patch.finalToOffice;
+  if (patch.homePickup !== undefined) body.homePickup = patch.homePickup;
+  if (patch.homeDelivery !== undefined) body.homeDelivery = patch.homeDelivery;
+  if (patch.pickingAt !== undefined) body.pickingAt = patch.pickingAt;
+  if (patch.pickedUpAt !== undefined) body.pickedUpAt = patch.pickedUpAt;
+  if (patch.pickupStaff !== undefined) body.pickupStaffUsername = patch.pickupStaff;
+  if (patch.partnerCode !== undefined) body.partnerCode = patch.partnerCode;
+  if (patch.partnerFee !== undefined) body.partnerFeeAmount = patch.partnerFee;
+  if (opts?.eventAction) body.eventAction = opts.eventAction;
+  if (opts?.eventDetail) body.eventDetail = opts.eventDetail.slice(0, 255);
+  if (opts?.extraFarePayer && Object.keys(body).length) body.extraFarePayer = opts.extraFarePayer;
+  return body;
+}
+
+/** Tùy chọn cho POD: nêu rõ số thu của chính lần POD này (0 = không thu). */
+export type PushTransitionOpts = {
+  collectedAmount?: number;
+  paymentMethod?: "TM" | "CK" | "THE";
+  /** Đơn giao thất bại → giao thành công: lý do bắt buộc. */
+  failedReason?: string;
+  /** Admin: nhân viên đang giữ tiền khách — BE ghi đã thu đủ cho người này. */
+  debtOwnerUsername?: string;
+  /** Admin giao bù: lý do; ảnh POD không bắt buộc (chỉ gửi ảnh mới chụp). */
+  catchUpReason?: string;
+  photos?: string[];
+};
+
+/** Fire-and-forget BE sync after optimistic local store mutations. */
+export function pushOrderTransition(
+  code: string,
+  to: OrderStatus,
+  action: string,
+  detail?: string,
+  prev?: OrderX,
+  opts?: PushTransitionOpts,
+) {
+  if (!isApiEnabled() || !useStore.getState().online) return;
+  runForOrder(code, async () => {
+    try {
+      const a = action.replace(/_REPLAY$/, "");
+      if (a === "SCAN_OUT") {
+        const trip = tripFromDetail(detail);
+        if (trip) await domain.scanOut(trip, code, "ADD");
+        else await domain.transitionOrderApi(code, to, action, detail);
+      } else if (a === "SCAN_REMOVE") {
+        const trip = tripFromDetail(detail);
+        if (trip) await domain.scanOut(trip, code, "REMOVE");
+        else await domain.transitionOrderApi(code, to, action, detail);
+      } else if (a === "SCAN_IN") {
+        const officeCode = officeFromDetail(detail) ?? useStore.getState().session?.office;
+        await domain.scanIn({ orderCode: code, officeCode });
+      } else if (a === "POD" || a === "POD_QUAY" || a === "POD_HOME") {
+        const o = useStore.getState().orders.find((x) => x.code === code);
+        let photos = opts?.catchUpReason
+          ? domain.compactPodPhotos(opts.photos ?? [])
+          : domain.compactPodPhotos((o?.podPhotos ?? []).map((p) => p.url));
+        if (!photos.length && !opts?.catchUpReason) photos = ["local-pod-1"];
+        // Số thu phải là của chính lần POD này. Nếu caller không nêu rõ thì suy ra từ
+        // payment SAU cuối — nhưng bỏ qua payment đã ghi qua phiếu thu để không thu 2 lần.
+        const lastPay = [...(o?.payments ?? [])]
+          .reverse()
+          .find((p) => p.kind === "SAU" && p.note !== "RECEIPT");
+        await domain.podOrder(code, {
+          channel: a === "POD_QUAY" ? "COUNTER" : "HOME",
+          actualRecipientName: o?.receiverActualName || detail?.split(" · ")[0] || o?.receiverName || "N/A",
+          actualRecipientPhone: o?.receiverActualPhone,
+          photos,
+          collectedAmount: opts?.collectedAmount ?? lastPay?.amount,
+          paymentMethod: opts?.paymentMethod ?? lastPay?.method ?? "TM",
+          ...(opts?.failedReason ? { failedReason: opts.failedReason } : {}),
+          ...(opts?.debtOwnerUsername ? { debtOwnerUsername: opts.debtOwnerUsername } : {}),
+          ...(opts?.catchUpReason ? { catchUpReason: opts.catchUpReason } : {}),
+        });
+      } else if (a === "FAIL" || a === "FAIL_MAX" || a === "PUSH_FAIL_3") {
+        if (a !== "FAIL_MAX") {
+          await domain.failDelivery(code, detail || action);
+        }
+      } else if (a === "TAKE_JOB" || a === "PUSH_SHIP") {
+        await domain.assignShipper(code, { note: detail });
+      } else if (a === "RESTORE") {
+        await domain.restoreOrder(code);
+      } else {
+        await domain.transitionOrderApi(code, to, action, detail);
+      }
+    } catch (e: any) {
+      auditFail("order", code, `${action}: ${e?.message ?? e}`);
+      restoreOrder(code, prev);
+      toastFail(code, action, e);
+    }
+  });
+}
+
+export function pushTripTransition(code: string, to: TripStatus, prev?: TripX) {
+  if (!isApiEnabled() || !useStore.getState().online) return;
+  void (async () => {
+    try {
+      await domain.transitionTripApi(code, to);
+    } catch (e: any) {
+      auditFail("trip", code, `${to}: ${e?.message ?? e}`);
+      restoreTrip(code, prev);
+      toastFail(code, `TRIP_${to}`, e);
+    }
+  })();
+}
+
+/** Sync selected updateOrder patches to BE facades. */
+export function pushOrderPatch(
+  code: string,
+  patch: Partial<OrderX>,
+  prev?: OrderX,
+  opts?: OrderPatchOpts,
+): Promise<boolean> {
+  if (!isApiEnabled() || !useStore.getState().online) return Promise.resolve(true);
+  let ok = true;
+  let needPayer = false;
+  return runForOrder(code, async () => {
+    try {
+      if (patch.returnStage) {
+        const stage = patch.returnStage;
+        if (
+          stage === "RETURN_PENDING" &&
+          prev?.status !== "RETURNING" &&
+          prev?.status !== "RETURNED"
+        ) {
+          const reason = opts?.eventDetail?.trim() || "FE return flow";
+          await domain.returnStart(code, reason);
+          // BE đã set forwardStage + COD=0; đồng bộ stage local nếu FE gửi kèm.
+          if (patch.stage && typeof patch.stage === "string") {
+            await domain.forwardStage(code, patch.stage).catch(() => undefined);
+          }
+          return;
+        } else if (stage === "RT_DONE") {
+          const o = useStore.getState().orders.find((x) => x.code === code);
+          const photos = domain.compactPodPhotos((o?.podPhotos ?? []).map((p) => p.url).filter(Boolean));
+          if (!photos.length) {
+            toastFail(code, "RETURN_COMPLETE", new Error("Thiếu ảnh hoàn"));
+            return;
+          }
+          await domain.returnComplete(code, {
+            photos,
+            actualRecipientName: o?.receiverActualName ?? o?.senderName,
+            actualRecipientPhone: o?.receiverActualPhone ?? o?.senderPhone,
+            collectedAmount: opts?.returnCollect?.amount,
+            paymentMethod: opts?.returnCollect?.method,
+          });
+          return;
+        } else {
+          await domain.returnStage(code, stage);
+          return;
+        }
+      }
+      if (patch.stage && typeof patch.stage === "string") {
+        await domain.forwardStage(code, patch.stage);
+      }
+      if (patch.issue) {
+        if (patch.issue.resolvedAt) {
+          await domain.resolveIssue(
+            code,
+            opts?.eventDetail?.trim() || patch.issue.reason || "Resolved",
+          );
+        } else {
+          await domain.openIssue(
+            code,
+            patch.issue.type,
+            patch.issue.reason,
+            patch.issue.photos,
+          );
+        }
+      }
+      if (patch.status === "CONFIRMED" && prev?.status === "CANCELLED") {
+        await domain.restoreOrder(code);
+      }
+      if (patch.tripCode && patch.tripCode !== prev?.tripCode) {
+        await domain.assignOrderToTrip(code, patch.tripCode);
+      }
+      if (patch.shelf != null) {
+        await domain.scanIn({
+          orderCode: code,
+          officeCode: useStore.getState().session?.office,
+          shelfNumber: patch.shelf,
+        });
+      }
+      if (patch.pickedUpAt && !prev?.pickedUpAt) {
+        await domain.warehouseReceive(code);
+      } else if (
+        patch.pickingAt &&
+        !prev?.pickingAt &&
+        Object.keys(patch).every((k) => k === "pickingAt" || k === "pickupStaff")
+      ) {
+        await domain.pickupStart(code);
+      } else {
+        const body = patchBodyFromOrderPatch(patch, opts);
+        if (Object.keys(body).length) {
+          const saved = await domain.patchOrder(code, body);
+          // Đổi VP thì BE suy lại tuyến/lộ trình — lấy ngay để gán xe không dùng lộ cũ.
+          if (patch.fromOffice !== undefined || patch.toOffice !== undefined || patch.finalToOffice !== undefined) {
+            useStore.setState((st) => ({
+              orders: st.orders.map((x) =>
+                x.code === code ? { ...x, route: saved.route, itinerary: saved.itinerary } : x,
+              ),
+            }));
+          }
+          // Cước/phí tận nơi đổi: BE có thể tính lại cước, ghi thêm khoản người gửi trả
+          // hoặc chuyển sang "Thu cước 1 phần" — lấy lại số liệu tiền đã lưu.
+          if (
+            patch.fare !== undefined ||
+            patch.homeDelivery !== undefined ||
+            patch.homePickup !== undefined ||
+            opts?.extraFarePayer
+          ) {
+            useStore.setState((st) => ({
+              orders: st.orders.map((x) =>
+                x.code === code
+                  ? { ...x, fare: saved.fare, paidAmount: saved.paidAmount, collectForm: saved.collectForm }
+                  : x,
+              ),
+            }));
+          }
+        }
+      }
+    } catch (e: any) {
+      restoreOrder(code, prev);
+      if (prev && !opts?.extraFarePayer && errorKeyOf(e) === "error.extraFarePayerRequired") {
+        needPayer = true;
+        return;
+      }
+      auditFail("order", code, `patch: ${e?.message ?? e}`);
+      const action =
+        patch.returnStage === "RETURN_PENDING"
+          ? "RETURN_START"
+          : patch.returnStage === "RT_DONE"
+            ? "RETURN_COMPLETE"
+            : patch.returnStage
+              ? "RETURN_STAGE"
+              : "PATCH";
+      toastFail(code, action, e);
+      ok = false;
+    }
+  }).then(async () => {
+    // Máy chủ tính lại cước (vd. đổi địa chỉ giao tận nơi) làm tăng cước đơn người gửi đã trả đủ → hỏi ai trả rồi gửi lại.
+    if (!needPayer || !prev) return ok;
+    const payer = await requestExtraFarePayer(prev);
+    if (!payer) return false;
+    return useStore.getState().updateOrder(code, patch, { ...opts, extraFarePayer: payer });
+  });
+}
+
+function errorKeyOf(e: unknown): string | undefined {
+  if (!(e instanceof ApiError) || !e.body || typeof e.body !== "object") return undefined;
+  const b = e.body as { message?: string; properties?: { message?: string } };
+  return b.message ?? b.properties?.message;
+}
+
+export function pushOrderEvent(code: string, action: string, detail?: string) {
+  if (!isApiEnabled() || !useStore.getState().online) return;
+  void (async () => {
+    try {
+      await domain.logOrderEventApi(code, action, detail?.slice(0, 255));
+    } catch (e: any) {
+      auditFail("order", code, `event ${action}: ${e?.message ?? e}`);
+      toastFail(code, action, e);
+    }
+  })();
+}
+
+export function pushAdvanceLeg(code: string, prev?: OrderX) {
+  if (!isApiEnabled() || !useStore.getState().online) return;
+  runForOrder(code, async () => {
+    try {
+      await domain.advanceLeg(code);
+    } catch (e: any) {
+      auditFail("order", code, `advance-leg: ${e?.message ?? e}`);
+      restoreOrder(code, prev);
+      toastFail(code, "ADVANCE_LEG", e);
+    }
+  });
+}

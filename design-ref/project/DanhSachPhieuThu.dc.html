@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Danh sách phiếu thu X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Danh sách phiếu thu" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <div>
+        <h1 class="page-title">Danh sách phiếu thu</h1>
+      </div>
+      <div style="display: flex; gap: 8px"><button class="btn ghost">Xoá lọc</button><button class="btn tonal"><span class="ms" aria-hidden="true">download</span>Xuất</button></div>
+    </div>
+    <section class="sum-row num">
+      <div class="sum-lead"><div style="min-width: 0"><div class="rev-vp lab"><span class="ms fill" aria-hidden="true">account_balance_wallet</span>Tổng tiền</div><div class="sum-hero">2.174.517.117 <span class="sum-unit">VNĐ</span></div></div><svg class="rev-ill" viewBox="0 0 150 104" aria-hidden="true"><ellipse class="ill-soft" cx="75" cy="97" rx="68" ry="6"></ellipse><rect class="ill-mid" x="28" y="24" width="60" height="70" rx="5" transform="rotate(-8 58 59)"></rect><rect class="ill-main" x="44" y="14" width="62" height="80" rx="5"></rect><rect class="ill-paper" x="50" y="21" width="50" height="66" rx="3"></rect><rect class="ill-main" x="56" y="29" width="24" height="5" rx="2.5"></rect><rect class="ill-mid" x="56" y="41" width="38" height="5" rx="2.5"></rect><rect class="ill-mid" x="56" y="52" width="38" height="5" rx="2.5"></rect><rect class="ill-mid" x="56" y="63" width="38" height="5" rx="2.5"></rect><rect class="ill-box" x="88" y="62" width="50" height="30" rx="5"></rect><circle class="ill-paper" cx="113" cy="77" r="8"></circle><circle class="ill-box2" cx="113" cy="77" r="4"></circle></svg></div>
+      <div class="rev-tile card-tile "><span class="rev-ic" aria-hidden="true"><span class="ms fill">receipt_long</span></span><div style="min-width: 0"><div class="small muted">Số phiếu thu</div><div class="sum-val">1.045</div></div></div>
+    </section>
+    <div class="filter-grid">
+      <label class="field"><span class="l">Mã phiếu thu</span><span class="box input-box"><input type="search" placeholder="PT..."></span></label>
+      <label class="field"><span class="l">Mã nhân viên</span><span class="box input-box"><input type="search" placeholder="Mã / tên NV nộp tiền"></span></label>
+      <label class="field"><span class="l">CB điều phối</span><span class="box input-box"><input type="search" placeholder="Tài khoản lập phiếu"></span></label>
+      <div class="field"><span class="l" id="a1">Thu tiền từ ngày</span><button class="box num" aria-labelledby="a1">01/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      <div class="field"><span class="l" id="a2">Đến ngày</span><button class="box num" aria-labelledby="a2">03/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+      <div class="field"><span class="l" id="a3">Trạng thái thu</span><button class="box" aria-labelledby="a3">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+    </div>
+    <section class="card stack">
+      <div class="scroller">
+        <table class="tbl sticky-1" style="--tbl-min: 1120px">
+          <thead><tr><th>Mã phiếu thu</th><th>Văn phòng</th><th>CB điều phối</th><th>Người nộp tiền</th><th>Ngày thu</th><th>Lập phiếu</th><th class="r">Tổng tiền</th><th>Ảnh giao dịch</th><th>Trạng thái thu</th><th class="r">Thao tác</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="8">
+              <tr>
+                <td><button class="code">{{o.code}}</button></td><td style="white-space: nowrap">{{o.vp}}</td><td>{{o.by}}</td><td>{{o.payer}}</td><td style="white-space: nowrap">{{o.date}}</td><td style="white-space: nowrap">{{o.created}}</td><td class="r main">{{o.money}}</td>
+                <td><button class="text-act">Thêm ảnh</button></td>
+                <td><span class="{{o.tag}}">{{o.status}}</span></td>
+                <td><div class="act"><button class="text-act danger" onClick="{{askHuyPhieu}}">Huỷ phiếu</button></div></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><div class="pager-left"><span class="muted num lab">1-8 trên 1.045</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><span class="muted" aria-hidden="true" style="padding: 0 4px">…</span><button class="pg num" aria-label="Trang 105">105</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+    </section>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1120}}'>
+const R = [['PT0311MAU1','31A Nguyễn Quốc Trị - Hà Nội','Điều phối mẫu A','Nhân viên mẫu A','3.150.000',1],['PT0311MAU2','104 Song Hào - Nam Định','Điều phối mẫu B','Nhân viên mẫu B','2.480.000',1],['PT0311MAU3','263 Nguyễn Thái Học - Yên Bái','Điều phối mẫu C','Nhân viên mẫu C','1.960.000',0],['PT0311MAU4','31A Nguyễn Quốc Trị - Hà Nội','Điều phối mẫu A','Nhân viên mẫu D','1.425.000',1],['PT0311MAU5','251 Lương Văn Thăng - Ninh Bình','Điều phối mẫu D','Nhân viên mẫu E','870.000',0],['PT0311MAU6','34 Trần Phú - Thái Bình','Điều phối mẫu E','Nhân viên mẫu F','420.000',1],['PT0311MAU7','31A Nguyễn Quốc Trị - Hà Nội','Điều phối mẫu A','Nhân viên mẫu G','315.000',1],['PT0311MAU8','104 Song Hào - Nam Định','Điều phối mẫu B','Nhân viên mẫu H','210.000',0]];
+class Component extends DCLogic {
+  renderVals() {
+    const ASKS = {"askHuyPhieu": {"title": "Huỷ phiếu thu này?", "body": "Các đơn trong phiếu sẽ quay lại danh sách cần nộp.", "ok": "Huỷ phiếu"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    return {
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askHuyPhieu: askTo("askHuyPhieu"),
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true,
+      rows: R.map((r) => ({ code: r[0], vp: r[1], by: r[2], payer: r[3], date: '03/11/2026', created: '16:42 03/11', money: r[4], status: r[5] ? 'Đã thu' : 'Chờ xác nhận', tag: r[5] ? 'tag ok' : 'tag warn' })),
+    };
+  }
+}
+</script>
+</body>
+</html>

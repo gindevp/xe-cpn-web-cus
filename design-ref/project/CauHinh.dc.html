@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Cấu hình X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Cấu hình" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <h1 class="page-title">Cấu hình</h1>
+    <div class="seg" role="tablist" aria-label="Nhóm cấu hình" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="7"><button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.label}}</button></sc-for>
+    </div>
+    <sc-for list="{{sections}}" as="s" hint-placeholder-count="1">
+      <section class="card stack">
+        <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">{{s.icon}}</span></span>{{s.title}}</h2>
+        <sc-if value="{{s.hasDesc}}" hint-placeholder-val="{{false}}"><div class="lab muted" style="max-width: 860px; margin-top: -8px">{{s.desc}}</div></sc-if>
+        <div class="cfg-grid">
+          <sc-for list="{{s.fields}}" as="f" hint-placeholder-count="4">
+            <sc-if value="{{f.isInput}}" hint-placeholder-val="{{true}}"><label class="field cfg-field"><span class="l">{{f.label}}</span><span class="box input-box"><input placeholder="{{f.ph}}"></span></label></sc-if>
+            <sc-if value="{{f.isToggle}}" hint-placeholder-val="{{false}}"><label class="toggle cfg-wide"><input class="switch" type="checkbox" checked="{{f.on}}" onChange="{{f.toggle}}"><span>{{f.label}}</span></label></sc-if>
+            <sc-if value="{{f.isCheck}}" hint-placeholder-val="{{false}}"><label class="choice"><input class="check" type="checkbox" checked="{{f.on}}" onChange="{{f.toggle}}">{{f.label}}</label></sc-if>
+            <sc-if value="{{f.isNote}}" hint-placeholder-val="{{false}}"><div class="note cfg-wide">{{f.label}}</div></sc-if>
+            <sc-if value="{{f.isFile}}" hint-placeholder-val="{{false}}"><div class="file-row cfg-wide"><div style="flex: 1 1 200px; min-width: 0"><div style="font-weight: 500">{{f.label}}</div><div class="muted" style="font-size: 12px; line-height: 16px">{{f.ph}}</div></div><div class="act" style="flex-wrap: wrap">{{f.none}}<button class="text-act">Nghe</button><button class="text-act">Mặc định</button><button class="ok">Tải lên</button></div></div></sc-if>
+            <sc-if value="{{f.isUpload}}" hint-placeholder-val="{{false}}"><div class="upload cfg-wide"><span class="ms muted" aria-hidden="true">add_photo_alternate</span><div style="flex: 1 1 200px"><div style="font-weight: 500">{{f.label}}</div><div class="muted" style="font-size: 12px; line-height: 16px">Có thể Ctrl+V để dán ảnh.</div></div><button class="btn tonal">Chọn ảnh</button></div></sc-if>
+            <sc-if value="{{f.isChips}}" hint-placeholder-val="{{false}}"><div class="cfg-wide" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px"><span class="muted lab">Chèn nhanh:</span><sc-for list="{{f.chips}}" as="c" hint-placeholder-count="5"><button class="pill sm" style="height: 32px">{{c}}</button></sc-for></div></sc-if>
+            <sc-if value="{{f.isQr}}" hint-placeholder-val="{{false}}"><div class="upload cfg-wide"><span class="thumb" style="width: 96px; height: 96px"><span class="ms" aria-hidden="true" style="font-size: 40px">qr_code_2</span></span><div style="flex: 1 1 200px"><div style="font-weight: 500">Xem trước QR</div><div class="muted lab">Nội dung tự bỏ dấu, chỉ giữ chữ và số, tối đa 50 ký tự.</div></div></div></sc-if>
+            <sc-if value="{{f.isQrTable}}" hint-placeholder-val="{{false}}"><div class="scroller cfg-wide"><table class="tbl" style="--tbl-min: 560px"><thead><tr><th>Văn phòng</th><th>Đang chiếu</th><th>Link</th></tr></thead><tbody><sc-for list="{{f.rows}}" as="r" hint-placeholder-count="3"><tr><td style="font-weight: 500">{{r.vp}}</td><td><span class="{{r.tag}}">{{r.state}}</span></td><td><button class="text-act">Copy link</button></td></tr></sc-for></tbody></table></div></sc-if>
+          </sc-for>
+        </div>
+        <sc-if value="{{s.hasSave}}" hint-placeholder-val="{{true}}"><div style="display: flex; justify-content: flex-end"><button class="btn" onClick="{{s.ask}}">{{s.save}}</button></div></sc-if>
+      </section>
+    </sc-for>
+    <sc-if value="{{hasSnack}}" hint-placeholder-val="{{false}}">
+      <div class="snack" role="status" style="position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 10; min-width: min(90vw, 320px)"><span style="flex: 1">Đã lưu cấu hình</span><button onClick="{{hideSnack}}">Đóng</button></div>
+    </sc-if>
+  </main>
+  <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="c-title">
+      <h2 id="c-title" class="confirm-title">{{confirmTitle}}</h2>
+      <p class="lab muted" style="margin: 0">{{confirmBody}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{cancel}}">Đóng</button><button class="btn" onClick="{{confirm}}">Xác nhận lưu</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1000}}'>
+const T = {
+  maint: { label: 'Bảo trì', confirm: 'Bật bảo trì sẽ chặn người dùng ở các kênh đã chọn. Tài khoản admin vẫn vào được để tắt.', sections: [{ title: 'Cấu hình bảo trì', save: 'Lưu cấu hình', fields: [['t','Bật bảo trì',0],['k','Tất cả (app + web, NV + KH)',0],['k','App nhân viên',0],['k','App khách hàng',0],['k','Web nhân viên',0],['k','Web khách hàng',0],['n','Khi bật web nhân viên: tài khoản admin vẫn vào được để tắt bảo trì, người dùng khác bị chặn.'],['i','Tiêu đề','Hệ thống đang bảo trì'],['i','Nội dung','Vui lòng quay lại sau. Xin cảm ơn.'],['p','Ảnh bảo trì (tuỳ chọn, 1 ảnh)']] }] },
+  login: { label: 'Phiên đăng nhập', confirm: 'Đến giờ đã đặt, mọi tài khoản đang đăng nhập sẽ bị đăng xuất.', sections: [{ title: 'Tự đăng xuất theo giờ', save: 'Lưu cấu hình', desc: 'Đăng nhập sau giờ đó vẫn được, phiên mới kéo đến cùng giờ ngày hôm sau.', fields: [['t','Bật tự đăng xuất',1],['i','Giờ đăng xuất (giờ Việt Nam)','00:00']] }] },
+  look: { label: 'Tra cứu', confirm: 'Thay đổi áp dụng ngay cho các thiết bị đang tra cứu và máy chiếu QR.', sections: [{ title: 'Giới hạn tra cứu mỗi thiết bị', save: 'Lưu cấu hình', desc: 'Mỗi văn phòng chỉ một máy được chiếu QR. Khi tự làm mới, ảnh chụp mang về nhà sẽ hết hạn.', fields: [['t','Chặn khi tra cứu quá nhiều lần',1],['i','Số lần tối đa trong một ngày','0'],['i','QR văn phòng làm mới sau (giây)','0'],['t','Tự làm mới QR văn phòng khi tra cứu',1],['t','Tắt QR ngoài giờ, hết giờ tự phát mã mới',0],['i','Tắt từ','00:00'],['i','Bật lại','00:00'],['q']] }] },
+  update: { label: 'Update', confirm: 'App bản thấp hơn sẽ bị chặn ở màn hình cập nhật ngay lần mở tiếp theo.', sections: [{ title: 'Bắt buộc cập nhật app mobile', save: 'Lưu chính sách app', fields: [['i','Phiên bản tối thiểu','Ví dụ 1.40.0'],['i','Android versionCode tối thiểu','Bỏ trống = không xét'],['t','Bật chặn app cũ (tắt = không chặn ai, dùng khi cần gỡ gấp)',0],['n','App mobile đang cài bản thấp hơn sẽ bị chặn ở màn hình cập nhật ngay lần mở tiếp theo.']] }] },
+  voice: { label: 'Giọng quét', confirm: 'App sẽ tải giọng mới ở lần mở máy tiếp theo.', sections: [{ title: 'Giọng quét trên app', save: 'Lưu cấu hình', desc: 'App mở máy chỉ kiểm tra 1 lần: tệp không đổi thì dùng bản đã lưu. Không cấu hình thì dùng giọng mặc định trong app.', fields: [['f','Quét đúng (Được)','tep-mau-dung.mp3 · 8 KB'],['f','Quét sai (Sai)','tep-mau-sai.mp3 · 8 KB']] }] },
+  invoice: { label: 'Hoá đơn', confirm: 'Thay đổi ảnh hưởng đến việc tự xuất hoá đơn của các đơn sau khi lưu.', sections: [{ title: 'Tự xuất hoá đơn điện tử (MISA)', save: 'Lưu cấu hình', fields: [['t','Tự xuất hoá đơn sau 3 tiếng kể từ khi thanh toán (đơn đã giao thành công)',1],['n','Mốc thanh toán: gửi trả là lúc nhập kho gửi; nhận trả và COD là lúc giao thành công.']] }] },
+  pay: { label: 'Nộp tiền', confirm: 'Nhân viên sẽ nộp tiền vào tài khoản này từ lần tạo mã QR tiếp theo. Bạn kiểm tra kỹ số tài khoản.', sections: [{ title: 'Tài khoản nhận tiền nhân viên nộp', save: 'Lưu', fields: [['i','Ngân hàng *','Chọn ngân hàng'],['i','Số tài khoản *','Nhập số tài khoản'],['i','Chủ tài khoản *','Nhập tên chủ tài khoản'],['i','Nội dung chuyển khoản','Nhập mẫu nội dung'],['c',['{MA_NV}','{TEN_NV}','{MA_PHIEU}','{MA_VP}','{NGAY}']],['r']] }] },
+};
+const QR = [['31A Nguyễn Quốc Trị - Hà Nội','Đang chiếu','tag ok'],['104 Song Hào - Nam Định','Đang chiếu','tag ok'],['263 Nguyễn Thái Học - Yên Bái','Chưa chiếu','tag warn']];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'maint', flags: {}, confirm: false, saved: false }; }
+  renderVals() {
+    const s = this.state, cur = T[s.tab];
+    const map = (f) => {
+      const [t, label, x] = f, k = s.tab + label;
+      const r = { label: t === 'c' ? '' : label || '', ph: x || '', none: '', isInput: t === 'i', isToggle: t === 't', isCheck: t === 'k', isNote: t === 'n', isFile: t === 'f', isUpload: t === 'p', isChips: t === 'c', isQr: t === 'r', isQrTable: t === 'q' };
+      if (t === 't' || t === 'k') { const on = k in s.flags ? s.flags[k] : !!x; r.on = on; r.toggle = () => this.setState({ flags: { ...this.state.flags, [k]: !on } }); }
+      if (t === 'c') r.chips = label;
+      if (t === 'q') r.rows = QR.map((q) => ({ vp: q[0], state: q[1], tag: q[2] }));
+      return r;
+    };
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light',
+      tabs: Object.keys(T).map((id) => ({ label: T[id].label, on: id === s.tab, cls: id === s.tab ? 'on' : '', pick: () => this.setState({ tab: id, saved: false }) })),
+      sections: cur.sections.map((sec) => ({ title: sec.title, desc: sec.desc || '', hasDesc: !!sec.desc, fields: sec.fields.map(map), hasSave: !!sec.save, save: sec.save || '', ask: () => this.setState({ confirm: true, saved: false }) })),
+      confirming: s.confirm, confirmTitle: 'Lưu cấu hình ' + cur.label.toLowerCase() + '?', confirmBody: cur.confirm || '',
+      cancel: () => this.setState({ confirm: false }), confirm: () => this.setState({ confirm: false, saved: true }),
+      hasSnack: s.saved, hideSnack: () => this.setState({ saved: false }),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'Bảo trì':'build','Phiên đăng nhập':'login','Tra cứu':'qr_code_2','Update':'system_update','Giọng quét':'record_voice_over','Hoá đơn':'description','Nộp tiền':'account_balance'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+const curT = (v.tabs || []).find((t) => t.on);
+if (v.sections) v.sections = v.sections.map((x) => ({ ...x, icon: curT ? curT.icon : 'tune' }));
+return v; };
+</script>
+</body>
+</html>

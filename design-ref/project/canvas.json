@@ -1,0 +1,351 @@
+{
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "AppHero.dc.html": {
+   "h": 64,
+   "title": "Thành phần: Thanh đầu trang",
+   "w": 1176,
+   "x": -109,
+   "y": 8600
+  },
+  "AppNav.dc.html": {
+   "h": 980,
+   "title": "Thành phần: Menu chính",
+   "w": 216,
+   "x": -405,
+   "y": 8600
+  },
+  "BangGia.dc.html": {
+   "expand": "fill",
+   "h": 980,
+   "is_interactive": true,
+   "title": "Bảng giá",
+   "w": 1440,
+   "x": -405,
+   "y": 4110
+  },
+  "BaoCaoDoanhThu.dc.html": {
+   "expand": "fill",
+   "h": 1260,
+   "is_interactive": true,
+   "title": "Báo cáo doanh thu",
+   "w": 1440,
+   "x": 7195,
+   "y": 1052
+  },
+  "BaoCaoGio.dc.html": {
+   "expand": "fill",
+   "h": 960,
+   "is_interactive": true,
+   "title": "Báo cáo theo giờ",
+   "w": 1440,
+   "x": 1115,
+   "y": 2680
+  },
+  "BaoGioXe.dc.html": {
+   "expand": "fill",
+   "h": 1200,
+   "is_interactive": true,
+   "title": "Báo giờ xe đến/đi",
+   "w": 1440,
+   "x": 2635,
+   "y": 2680
+  },
+  "CauHinh.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "is_interactive": true,
+   "title": "Cấu hình",
+   "w": 1440,
+   "x": 1115,
+   "y": 7100
+  },
+  "ChamCong.dc.html": {
+   "expand": "fill",
+   "h": 960,
+   "is_interactive": true,
+   "title": "Chấm công",
+   "w": 1440,
+   "x": 1115,
+   "y": 5680
+  },
+  "ChoBanGiao.dc.html": {
+   "expand": "fill",
+   "h": 1250,
+   "is_interactive": true,
+   "title": "Chờ bàn giao",
+   "w": 1440,
+   "x": 1115,
+   "y": -348
+  },
+  "CrmSdt.dc.html": {
+   "expand": "fill",
+   "h": 1040,
+   "is_interactive": true,
+   "title": "CRM SĐT - MST",
+   "w": 1440,
+   "x": 5675,
+   "y": 1052
+  },
+  "DanhSachPhieuThu.dc.html": {
+   "expand": "fill",
+   "h": 1100,
+   "is_interactive": true,
+   "title": "Danh sách phiếu thu",
+   "w": 1440,
+   "x": 1115,
+   "y": 1052
+  },
+  "Dashboard-v2.dc.html": {
+   "expand": "fill",
+   "h": 1040,
+   "is_interactive": true,
+   "title": "Tổng quan",
+   "w": 1440,
+   "x": -405,
+   "y": -348
+  },
+  "KiemKe.dc.html": {
+   "expand": "fill",
+   "h": 1040,
+   "is_interactive": true,
+   "title": "Thông tin kiểm kê",
+   "w": 1440,
+   "x": -405,
+   "y": 2680
+  },
+  "MasterDuLieu.dc.html": {
+   "expand": "fill",
+   "h": 980,
+   "is_interactive": true,
+   "title": "Master dữ liệu",
+   "w": 1440,
+   "x": 2635,
+   "y": 4110
+  },
+  "NgoaiLe.dc.html": {
+   "expand": "fill",
+   "h": 1130,
+   "is_interactive": true,
+   "title": "Ngoại lệ - Huỷ",
+   "w": 1440,
+   "x": 5675,
+   "y": -348
+  },
+  "NhapKho.dc.html": {
+   "expand": "fill",
+   "h": 1200,
+   "is_interactive": true,
+   "title": "Nhập kho - Luân chuyển",
+   "w": 1440,
+   "x": 2635,
+   "y": -348
+  },
+  "NhomQuyen.dc.html": {
+   "expand": "fill",
+   "h": 2700,
+   "is_interactive": true,
+   "title": "Nhóm quyền",
+   "w": 1440,
+   "x": 2635,
+   "y": 5680
+  },
+  "PhienDangNhap.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "title": "Phiên đăng nhập & thiết bị",
+   "w": 1440,
+   "x": 4155,
+   "y": 5680
+  },
+  "PhieuThu.dc.html": {
+   "expand": "fill",
+   "h": 1328,
+   "is_interactive": true,
+   "title": "Phiếu thu",
+   "w": 1440,
+   "x": -405,
+   "y": 1052
+  },
+  "PhuPhi.dc.html": {
+   "expand": "fill",
+   "h": 1310,
+   "is_interactive": true,
+   "title": "Cài đặt phụ phí",
+   "w": 1440,
+   "x": 1115,
+   "y": 4110
+  },
+  "QuanLyCod.dc.html": {
+   "expand": "fill",
+   "h": 1020,
+   "is_interactive": true,
+   "title": "Quản lý đơn COD",
+   "w": 1440,
+   "x": 2635,
+   "y": 1052
+  },
+  "QuanLyHoaDon.dc.html": {
+   "expand": "fill",
+   "h": 1240,
+   "is_interactive": true,
+   "title": "Quản lý hoá đơn",
+   "w": 1440,
+   "x": 4155,
+   "y": 1052
+  },
+  "TaiKhoan.dc.html": {
+   "expand": "fill",
+   "h": 1000,
+   "is_interactive": true,
+   "title": "Tài khoản",
+   "w": 1440,
+   "x": -405,
+   "y": 5680
+  },
+  "TaoDonHang.dc.html": {
+   "expand": "fill",
+   "h": 1100,
+   "is_interactive": true,
+   "title": "Tạo đơn hàng",
+   "w": 1440,
+   "x": 2635,
+   "y": 7100
+  },
+  "ThanhCong.dc.html": {
+   "expand": "fill",
+   "h": 1150,
+   "is_interactive": true,
+   "title": "Thành công",
+   "w": 1440,
+   "x": 4155,
+   "y": -348
+  },
+  "TichHop.dc.html": {
+   "expand": "fill",
+   "h": 1200,
+   "is_interactive": true,
+   "title": "Tích hợp",
+   "w": 1440,
+   "x": -405,
+   "y": 7100
+  },
+  "GiaoDichThuHo.dc.html": {
+   "expand": "fill",
+   "h": 980,
+   "is_interactive": true,
+   "title": "Giao dịch thu hộ",
+   "w": 1440,
+   "x": 8715,
+   "y": 1052
+  },
+  "DangNhap.dc.html": {
+   "expand": "fill",
+   "h": 900,
+   "is_interactive": true,
+   "title": "Đăng nhập",
+   "w": 1440,
+   "x": -1925,
+   "y": -348
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-11-02T10:00:00Z",
+  "v": 1
+ },
+ "designSystems": [
+  {
+   "artifact": "https://claude.ai/artifact/6SFvEikERow7aqFXLCts1g",
+   "copiedAt": "2026-11-04T02:50:00Z",
+   "namespace": "cpnmaterial3",
+   "title": "CPN – Material 3",
+   "version": "1793760281-1230"
+  }
+ ],
+ "launch": {
+  "view": "canvas"
+ },
+ "noteOrder": [
+  "finance",
+  "ops",
+  "data",
+  "people",
+  "sys"
+ ],
+ "notes": {
+  "data": {
+   "kind": "title1",
+   "maxW": 1440,
+   "text": "Giá và dữ liệu",
+   "w": 240,
+   "x": -405,
+   "y": 3850
+  },
+  "finance": {
+   "kind": "title1",
+   "maxW": 1440,
+   "text": "Tài chính",
+   "w": 240,
+   "x": -405,
+   "y": 792
+  },
+  "ops": {
+   "kind": "title1",
+   "maxW": 1440,
+   "text": "Vận hành",
+   "w": 240,
+   "x": -405,
+   "y": 2420
+  },
+  "people": {
+   "kind": "title1",
+   "maxW": 1440,
+   "text": "Nhân sự và quyền",
+   "w": 240,
+   "x": -405,
+   "y": 5420
+  },
+  "sys": {
+   "kind": "title1",
+   "maxW": 1440,
+   "text": "Hệ thống và tạo đơn",
+   "w": 240,
+   "x": -405,
+   "y": 6840
+  }
+ },
+ "order": [
+  "DangNhap.dc.html",
+  "Dashboard-v2.dc.html",
+  "ChoBanGiao.dc.html",
+  "NhapKho.dc.html",
+  "ThanhCong.dc.html",
+  "NgoaiLe.dc.html",
+  "PhieuThu.dc.html",
+  "DanhSachPhieuThu.dc.html",
+  "GiaoDichThuHo.dc.html",
+  "QuanLyCod.dc.html",
+  "QuanLyHoaDon.dc.html",
+  "CrmSdt.dc.html",
+  "BaoCaoDoanhThu.dc.html",
+  "KiemKe.dc.html",
+  "BaoCaoGio.dc.html",
+  "BaoGioXe.dc.html",
+  "BangGia.dc.html",
+  "PhuPhi.dc.html",
+  "MasterDuLieu.dc.html",
+  "TaiKhoan.dc.html",
+  "ChamCong.dc.html",
+  "NhomQuyen.dc.html",
+  "PhienDangNhap.dc.html",
+  "TichHop.dc.html",
+  "CauHinh.dc.html",
+  "TaoDonHang.dc.html",
+  "AppNav.dc.html",
+  "AppHero.dc.html"
+ ],
+ "pages": [],
+ "title": "CPN Web – Material 3"
+}

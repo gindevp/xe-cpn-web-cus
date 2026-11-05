@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Phiên đăng nhập và thiết bị X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Phiên đăng nhập &amp; thiết bị" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <div style="flex: 1 1 480px; min-width: 0">
+        <h1 class="page-title">Phiên đăng nhập &amp; thiết bị</h1>
+        <div class="lab muted" style="max-width: 760px">Đăng nhập trên trình duyệt hoặc thiết bị lạ cần được duyệt. Duyệt xong người dùng đăng nhập lại là vào được.</div>
+      </div>
+      <button class="btn tonal"><span class="ms" aria-hidden="true">refresh</span>Tải lại</button>
+    </div>
+    <div class="seg" role="tablist" aria-label="Loại danh sách" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.label}}<span class="count num">{{t.count}}</span></button>
+      </sc-for>
+    </div>
+    <section class="card stack">
+      <label class="box input-box" style="max-width: 360px"><span class="ms muted" aria-hidden="true">search</span><input type="search" placeholder="Tài khoản / thiết bị / IP" aria-label="Tìm tài khoản, thiết bị, IP"></label>
+
+      <sc-if value="{{isPending}}" hint-placeholder-val="{{true}}">
+        <div class="stack">
+          <sc-if value="{{noPending}}" hint-placeholder-val="{{false}}"><div class="empty" style="padding: 48px 16px"><span class="ms muted" aria-hidden="true" style="font-size: 40px">verified_user</span><h2 class="group-title" style="margin-top: 12px">Không có yêu cầu chờ duyệt</h2></div></sc-if>
+          <sc-if value="{{hasPending}}" hint-placeholder-val="{{true}}">
+            <div class="scroller"><table class="tbl" style="--tbl-min: 760px"><thead><tr><th>Tài khoản</th><th>Kênh</th><th>Thiết bị</th><th>Yêu cầu lúc</th><th class="r">Tác vụ</th></tr></thead><tbody>
+              <sc-for list="{{pending}}" as="o" hint-placeholder-count="2"><tr><td class="main">{{o.acc}}</td><td>{{o.ch}}</td><td><span class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms">{{o.devIcon}}</span></span>{{o.dev}}</span></td><td class="num">{{o.time}}</td><td><div class="act"><button class="text-act danger" onClick="{{o.reject}}">Từ chối</button><button class="ok" onClick="{{o.approve}}">Duyệt</button></div></td></tr></sc-for>
+            </tbody></table></div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isDevices}}" hint-placeholder-val="{{false}}">
+        <div class="scroller"><table class="tbl" style="--tbl-min: 760px"><thead><tr><th>Tài khoản</th><th>Thiết bị</th><th>Trạng thái</th><th>Dùng gần nhất</th><th class="r">Tác vụ</th></tr></thead><tbody>
+          <sc-for list="{{devices}}" as="o" hint-placeholder-count="5"><tr><td class="main">{{o.acc}}</td><td><span class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms">{{o.devIcon}}</span></span>{{o.dev}}</span></td><td><span class="tag ok">Đã duyệt</span></td><td class="num">{{o.time}}</td><td><div class="act"><button class="text-act danger" onClick="{{o.ask}}">Thu hồi</button></div></td></tr></sc-for>
+        </tbody></table></div>
+      </sc-if>
+
+      <sc-if value="{{isSessions}}" hint-placeholder-val="{{false}}">
+        <div class="scroller"><table class="tbl" style="--tbl-min: 860px"><thead><tr><th>Tài khoản</th><th>Kênh</th><th>Thiết bị</th><th>Đăng nhập lúc</th><th>Hoạt động gần nhất</th><th class="r">Tác vụ</th></tr></thead><tbody>
+          <sc-for list="{{sessions}}" as="o" hint-placeholder-count="5"><tr><td class="main">{{o.acc}}</td><td>{{o.ch}}</td><td><span class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms">{{o.devIcon}}</span></span>{{o.dev}}</span></td><td class="num">{{o.time}}</td><td class="num muted">{{o.last}}</td><td><div class="act"><button class="text-act danger" onClick="{{o.ask}}">Đăng xuất</button></div></td></tr></sc-for>
+        </tbody></table></div>
+      </sc-if>
+    </section>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim">
+      <div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="ask-title" style="width: min(100%, 440px)">
+        <h2 id="ask-title" style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600">{{ask.title}}</h2>
+        <p class="lab muted" style="margin: 0">{{ask.body}}</p>
+        <div style="display: flex; justify-content: flex-end; gap: 8px"><button class="btn ghost" onClick="{{cancelAsk}}">Đóng</button><button class="btn danger" onClick="{{confirmAsk}}">{{ask.ok}}</button></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+const DEV = ['Chrome trên Windows mẫu', 'Điện thoại Android mẫu', 'iPhone mẫu', 'Edge trên Windows mẫu', 'Điện thoại Android mẫu'];
+const CH = ['Web', 'App', 'App', 'Web', 'App'];
+const acc = (i) => 'nv_mau0' + (i + 1);
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'pending', done: {}, gone: {}, ask: null }; }
+  renderVals() {
+    const s = this.state, t = s.tab;
+    const pend = [0, 1].filter((i) => !s.done[i]);
+    const live = (kind) => DEV.map((dev, i) => ({ dev, i })).filter((x) => !s.gone[kind + x.i]);
+    const TXT = { reject: ['Từ chối yêu cầu của ', 'Người dùng sẽ không đăng nhập được trên thiết bị này.', 'Từ chối'], revoke: ['Thu hồi thiết bị của ', 'Thiết bị phải được duyệt lại ở lần đăng nhập sau.', 'Thu hồi'], logout: ['Đăng xuất ', 'Phiên này sẽ kết thúc ngay. Người dùng cần đăng nhập lại.', 'Đăng xuất'] };
+    const a = s.ask ? { title: TXT[s.ask.kind][0] + acc(s.ask.i) + '?', body: TXT[s.ask.kind][1], ok: TXT[s.ask.kind][2] } : {};
+    return {
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light',
+      tabs: [['pending', 'Chờ duyệt', pend.length], ['devices', 'Thiết bị đã duyệt', 137 + live('revoke').length], ['sessions', 'Phiên đang đăng nhập', 33 + live('logout').length]].map(([id, label, count]) => ({ label, count, on: id === t, cls: id === t ? 'on' : '', pick: () => this.setState({ tab: id }) })),
+      isPending: t === 'pending', isDevices: t === 'devices', isSessions: t === 'sessions',
+      hasPending: pend.length > 0, noPending: pend.length === 0,
+      pending: pend.map((i) => ({ acc: acc(i), ch: CH[i], dev: DEV[i], time: '09:1' + i + ' 04/11/2026', approve: () => this.setState({ done: { ...this.state.done, [i]: true } }), reject: () => this.setState({ ask: { kind: 'reject', i } }) })),
+      hasAsk: !!s.ask, ask: a, cancelAsk: () => this.setState({ ask: null }),
+      confirmAsk: () => { const k = this.state.ask; if (k.kind === 'reject') this.setState({ ask: null, done: { ...this.state.done, [k.i]: true } }); else this.setState({ ask: null, gone: { ...this.state.gone, [k.kind + k.i]: true } }); },
+      devices: live('revoke').map(({ dev, i }) => ({ acc: acc(i), dev, time: '08:5' + i + ' 04/11/2026', ask: () => this.setState({ ask: { kind: 'revoke', i } }) })),
+      sessions: live('logout').map(({ dev, i }) => ({ acc: acc(i), ch: CH[i], dev, time: '07:3' + i + ' 04/11/2026', last: '09:2' + i + ' 04/11/2026', ask: () => this.setState({ ask: { kind: 'logout', i } }) })),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'Chờ duyệt':'pending_actions','Thiết bị đã duyệt':'verified','Phiên đang đăng nhập':'devices'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+const di = (o) => ({ ...o, devIcon: /điện thoại|android|ios|iphone/i.test(o.dev || '') ? 'smartphone' : 'computer' });
+['pending','devices','sessions'].forEach((k) => { if (v[k]) v[k] = v[k].map(di); });
+return v; };
+</script>
+</body>
+</html>

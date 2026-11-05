@@ -1,0 +1,761 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { ProtectedPage } from "@/components/AppShell";
+import { M3Page } from "@/components/M3Page";
+import { Section } from "@/components/PageBits";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { formatVND, isOtherGoodsGroup } from "@/lib/mock-data";
+import { MoneyInput } from "@/components/MoneyInput";
+import { NumberInput } from "@/components/NumberInput";
+import { parseDecimalText, sanitizeDecimalText } from "@/lib/decimal-input";
+import { useStore, type PricingRule, type ProductPriceRule } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { canWrite } from "@/lib/rbac";
+import { hasOverageConfig } from "@/lib/pricing";
+import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/bang-gia")({
+  head: () => ({ meta: [{ title: "Bảng giá — X.E" }] }),
+  component: () => (
+    <ProtectedPage title="Quản lý bảng giá" screen="bang-gia">
+      <M3Page>
+        <Page />
+      </M3Page>
+    </ProtectedPage>
+  ),
+});
+
+function Page() {
+  const { session } = useAuth();
+  const products = useStore((s) => s.productPricing);
+  const writable = canWrite(session?.role, "bang-gia");
+
+  return (
+    <Section title="Bảng giá">
+      <Tabs defaultValue="rules">
+        <TabsList>
+          <TabsTrigger value="rules">Phí vận chuyển</TabsTrigger>
+          <TabsTrigger value="product">Giá theo sản phẩm ({products.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="rules" className="mt-4">
+          <FreightPricing writable={writable} />
+        </TabsContent>
+        <TabsContent value="product" className="mt-4">
+          <ProductPricing writable={writable} />
+        </TabsContent>
+      </Tabs>
+    </Section>
+  );
+}
+
+/** Cân nhập tay: `3,5` và `3.5` đều là 3.5 (xem lib/decimal-input). */
+const parseDec = (raw: string) => parseDecimalText(raw) ?? 0;
+const fmtKg = (kg: number) =>
+  Number(kg ?? 0).toLocaleString("vi-VN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+/** UI nhập KG thập phân; BE lưu stepGram (gram). */
+const toStepGram = (kg: number) => Math.max(0, Math.round((kg ?? 0) * 1000));
+const fromStepGram = (g: number) => (g ?? 0) / 1000;
+
+/** Mức mới bắt đầu trên mốc cũ 1 KG (vd mức cũ hết 3 KG → mức mới từ 4 KG). */
+const KG_UNIT_STEP = 1;
+/** Cân rơi vào quãng hở (3,1–4,0) được findWeightBand() tính theo mức kế tiếp. */
+const nextMinKg = (prevMaxKg: number) => Number((prevMaxKg + KG_UNIT_STEP).toFixed(3));
+
+type BandDraft = {
+  minKg: number;
+  /** Để rỗng khi thêm mức — người dùng phải tự nhập. */
+  maxKgText: string;
+  unit: number;
+  stepKg: number;
+  addFee: number;
+};
+
+type Basis = "KG";
+
+/** Nhãn + quy đổi của bảng cân: bước lưu gram. */
+const BASIS_UI: Record<
+  Basis,
+  {
+    title: string;
+    minLabel: string;
+    maxLabel: string;
+    stepLabel: string;
+    unitName: string;
+    fmt: (v: number) => string;
+    toStep: (v: number) => number;
+    fromStep: (v: number) => number;
+    nextMin: (prevMax: number) => number;
+  }
+> = {
+  KG: {
+    title: "Giá theo cân nặng",
+    minLabel: "Cân tối thiểu (KG)",
+    maxLabel: "Cân tối đa (KG)",
+    stepLabel: "Tăng thêm (KG)",
+    unitName: "KG",
+    fmt: fmtKg,
+    toStep: toStepGram,
+    fromStep: fromStepGram,
+    nextMin: nextMinKg,
+  },
+};
+
+function FreightPricing({ writable }: { writable: boolean }) {
+  const rules = useStore((s) => s.pricingRules);
+  const storeRoutes = useStore((s) => s.routes);
+  const { branchNames } = useBranchItineraryMaster();
+  const tuyenOptions = branchNames.length ? branchNames : storeRoutes;
+  const copyPricingToRoutes = useStore((s) => s.copyPricingToRoutes);
+  const [tuyen, setTuyen] = useState(tuyenOptions[0] ?? "");
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyTargets, setCopyTargets] = useState<string[]>([]);
+  const [copyReplace, setCopyReplace] = useState(true);
+  const [copying, setCopying] = useState(false);
+
+  useEffect(() => {
+    if (!tuyen && tuyenOptions[0]) setTuyen(tuyenOptions[0]);
+    else if (tuyen && tuyenOptions.length && !tuyenOptions.includes(tuyen)) setTuyen(tuyenOptions[0] ?? "");
+  }, [tuyen, tuyenOptions]);
+
+  const kgRows = rules
+    .filter((r) => r.route === tuyen && r.basis !== "SIZE")
+    .sort((a, b) => a.minKg - b.minKg);
+
+  const otherTuyens = useMemo(
+    () => tuyenOptions.filter((r) => r && r !== tuyen),
+    [tuyenOptions, tuyen],
+  );
+
+  const openCopy = () => {
+    if (!tuyen) return toast.error("Vui lòng chọn tuyến nguồn");
+    if (!kgRows.length) return toast.error("Tuyến này chưa có mức cước để copy");
+    if (!otherTuyens.length) return toast.error("Không còn tuyến đích để copy");
+    setCopyTargets([]);
+    setCopyReplace(true);
+    setCopyOpen(true);
+  };
+
+  const toggleCopyTarget = (name: string, checked: boolean) => {
+    setCopyTargets((prev) => (checked ? [...prev, name] : prev.filter((x) => x !== name)));
+  };
+
+  const confirmCopy = async () => {
+    if (!copyTargets.length) return toast.error("Chọn ít nhất một tuyến đích");
+    setCopying(true);
+    try {
+      const result = await copyPricingToRoutes(tuyen, copyTargets, { replaceExisting: copyReplace });
+      if (result.copiedTo.length) {
+        toast.success(
+          `Đã copy ${kgRows.length} mức sang ${result.copiedTo.length} tuyến: ${result.copiedTo.join(", ")}`,
+        );
+      }
+      if (result.skipped.length) {
+        toast.message(
+          copyReplace
+            ? `Bỏ qua (không tìm thấy): ${result.skipped.join(", ")}`
+            : `Bỏ qua (đã có bảng giá): ${result.skipped.join(", ")}`,
+        );
+      }
+      if (!result.copiedTo.length && !result.skipped.length) {
+        toast.error("Không copy được tuyến nào");
+      }
+      setCopyOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không copy được bảng giá");
+    } finally {
+      setCopying(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">Tuyến</span>
+        <SearchableSelect
+          value={tuyen}
+          onValueChange={setTuyen}
+          className="h-9 w-56"
+          placeholder="Chọn tuyến"
+          options={tuyenOptions.map((r) => ({ value: r, label: r }))}
+        />
+        {writable && (
+          <Button size="sm" variant="outline" className="gap-1" onClick={openCopy} disabled={!kgRows.length}>
+            <Copy className="h-4 w-4" /> Copy sang tuyến khác
+          </Button>
+        )}
+        {!writable && (
+          <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Chế độ chỉ xem</span>
+        )}
+      </div>
+
+      <BandTable basis="KG" tuyen={tuyen} rows={kgRows} writable={writable}>
+        Một bảng giá cho tuyến, dùng cả hai chiều. Cân tính cước = cân lớn hơn giữa cân thật và khối lượng quy đổi
+        Dài × Rộng × Cao / 5000 (làm tròn lên 0,1 kg), rồi lấy mức giá theo cân. Mức mới bắt đầu trên mức cũ 1 KG
+        (0–3, 4–6, 7–10…); cân lẻ nằm giữa hai mức — ví dụ <strong>3,5 KG</strong> — tính theo mức trên (4–6). Phí TC
+        là giá cố định trong khoảng (VNĐ). Vượt max mức cuối: số bước = làm tròn lên (KG vượt / Tăng thêm), tiền = Phí
+        TC + số bước × Cộng thêm — để Tăng thêm = 0 thì Cộng thêm lưu 0 và không tính thêm tiền vượt cân. Đang set
+        tăng thêm thì không thêm khoảng giá khác.
+      </BandTable>
+
+      <Dialog
+        open={copyOpen}
+        onOpenChange={(o) => {
+          if (!copying) setCopyOpen(o);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copy bảng giá sang tuyến khác</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Nguồn: <strong>{tuyen}</strong> ({kgRows.length} mức cân). Chọn tuyến
+            đích để áp dụng cùng các khoảng / phí.
+          </p>
+          <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-2">
+            {otherTuyens.map((name) => {
+              const checked = copyTargets.includes(name);
+              const hasPrice = rules.some((r) => r.route === name);
+              return (
+                <label
+                  key={name}
+                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60"
+                >
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) => toggleCopyTarget(name, v === true)}
+                  />
+                  <span className="flex-1 text-sm">{name}</span>
+                  {hasPrice && (
+                    <span className="text-[11px] text-amber-700 dark:text-amber-400">đã có giá</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setCopyTargets(otherTuyens)}
+            >
+              Chọn tất cả
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setCopyTargets([])}>
+              Bỏ chọn
+            </Button>
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <Checkbox checked={copyReplace} onCheckedChange={(v) => setCopyReplace(v === true)} className="mt-0.5" />
+            <span>
+              Ghi đè nếu tuyến đích đã có bảng giá (xóa mức cũ rồi copy). Bỏ chọn = bỏ qua tuyến đã có giá.
+            </span>
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyOpen(false)} disabled={copying}>
+              Hủy
+            </Button>
+            <Button onClick={() => void confirmCopy()} disabled={copying || !copyTargets.length}>
+              {copying ? "Đang copy…" : `Copy (${copyTargets.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function BandTable({
+  basis,
+  tuyen,
+  rows,
+  writable,
+  children,
+}: {
+  basis: Basis;
+  tuyen: string;
+  rows: PricingRule[];
+  writable: boolean;
+  children: ReactNode;
+}) {
+  const ui = BASIS_UI[basis];
+  const upsert = useStore((s) => s.upsertPricing);
+  const remove = useStore((s) => s.removePricing);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<PricingRule | null>(null);
+  const [draft, setDraft] = useState<BandDraft>({
+    minKg: 0,
+    maxKgText: "",
+    unit: 0,
+    stepKg: 0,
+    addFee: 0,
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PricingRule | null>(null);
+
+  const last = rows[rows.length - 1];
+  const overageLocked = hasOverageConfig(last);
+
+  const openAdd = () => {
+    if (!tuyen) {
+      toast.error("Vui lòng chọn tuyến");
+      return;
+    }
+    if (overageLocked) {
+      toast.error("Đang dùng Tăng thêm / Cộng thêm. Xóa hai trường đó ở mức cuối trước khi thêm khoảng giá.");
+      return;
+    }
+    setEditing(null);
+    setDraft({
+      minKg: last ? ui.nextMin(last.maxKg) : 0,
+      maxKgText: "",
+      unit: 0,
+      stepKg: 0,
+      addFee: 0,
+    });
+    setFormOpen(true);
+  };
+
+  const openEdit = (r: PricingRule) => {
+    setEditing(r);
+    setDraft({
+      minKg: r.minKg,
+      maxKgText: String(r.maxKg),
+      unit: r.unit,
+      stepKg: ui.fromStep(r.stepG ?? 0),
+      addFee: r.addFee ?? 0,
+    });
+    setFormOpen(true);
+  };
+
+  const isLastRow = (r: PricingRule | null) => !!r && last?.id === r.id;
+  const allowOverage = !editing || isLastRow(editing);
+
+  const confirmSave = async () => {
+    if (!draft.maxKgText.trim()) {
+      toast.error(`Nhập ${ui.maxLabel.toLowerCase()}`);
+      return;
+    }
+    const maxKg = parseDec(draft.maxKgText);
+    if (maxKg <= draft.minKg) {
+      toast.error(`${ui.maxLabel} phải lớn hơn ${ui.minLabel.toLowerCase()}`);
+      return;
+    }
+    if (!allowOverage && (draft.stepKg > 0 || draft.addFee > 0)) {
+      toast.error("Chỉ mức cuối mới được set Tăng thêm / Cộng thêm");
+      return;
+    }
+    const stepG = allowOverage ? ui.toStep(draft.stepKg) : 0;
+    // Không có bậc Tăng thêm thì không có tiền vượt — Cộng thêm luôn lưu 0.
+    const addFee = allowOverage && stepG > 0 ? Math.round(draft.addFee) : 0;
+    const payload: PricingRule = {
+      id: editing?.id ?? "PR-" + Math.random().toString(36).slice(2, 8).toUpperCase(),
+      route: tuyen,
+      tier: `${draft.minKg}-${maxKg} ${ui.unitName}`,
+      minKg: draft.minKg,
+      maxKg,
+      unit: Math.round(draft.unit),
+      surcharge: editing?.surcharge ?? 0,
+      dimDivisor: 5000,
+      effectiveFrom: editing?.effectiveFrom ?? new Date().toISOString(),
+      kmMin: editing?.kmMin ?? 2,
+      kmRate: editing?.kmRate ?? 5000,
+      stepG,
+      addFee,
+      basis,
+    };
+    setSaving(true);
+    try {
+      await upsert(payload);
+      toast.success(editing ? "Đã lưu mức cước trên server" : "Đã thêm mức cước trên server");
+      setFormOpen(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Không lưu được phí vận chuyển lên server");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{ui.title}</h3>
+        {writable && (
+          <Button size="sm" variant="outline" className="gap-1" onClick={openAdd}>
+            <Plus className="h-4 w-4" /> Thêm mức
+          </Button>
+        )}
+      </div>
+
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 w-14 text-center">TT</th>
+              <th className="px-3 py-2 text-right">{ui.minLabel}</th>
+              <th className="px-3 py-2 text-right">{ui.maxLabel}</th>
+              <th className="px-3 py-2 text-right">Phí TC (VNĐ)</th>
+              <th className="px-3 py-2 text-right">{ui.stepLabel}</th>
+              <th className="px-3 py-2 text-right">Cộng thêm (VNĐ)</th>
+              <th className="px-3 py-2 w-20"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
+                  Chưa có mức cước cho tuyến này
+                </td>
+              </tr>
+            )}
+            {rows.map((r, i) => (
+              <tr key={r.id} className="border-t">
+                <td className="px-3 py-2 text-center text-muted-foreground">{i + 1}</td>
+                <td className="px-3 py-2 text-right">{ui.fmt(r.minKg)}</td>
+                <td className="px-3 py-2 text-right">{ui.fmt(r.maxKg)}</td>
+                <td className="px-3 py-2 text-right">{formatVND(r.unit)}</td>
+                <td className="px-3 py-2 text-right">{ui.fmt(ui.fromStep(r.stepG ?? 0))}</td>
+                <td className="px-3 py-2 text-right">{formatVND(r.addFee ?? 0)}</td>
+                <td className="px-3 py-2 text-right">
+                  {writable && (
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(r)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget(r)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">{children}</p>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Sửa mức cước" : "Thêm mức cước"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>{ui.minLabel}</Label>
+              <NumberInput
+                decimal
+                min={0}
+                readOnly={!editing}
+                aria-readonly={!editing}
+                className={!editing ? "bg-muted text-muted-foreground" : undefined}
+                title={!editing ? "Tự tính từ mức cuối — không sửa" : undefined}
+                value={draft.minKg}
+                onChange={(minKg) => editing && setDraft((d) => ({ ...d, minKg }))}
+              />
+              {!editing && (
+                <p className="text-[11px] text-muted-foreground">
+                  {last ? `Nối tiếp mức cuối (${ui.fmt(last.maxKg)} ${ui.unitName})` : "Mức đầu tiên"} — không sửa
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>{ui.maxLabel}</Label>
+              <Input
+                inputMode="decimal"
+                placeholder={`Nhập ${ui.maxLabel.toLowerCase()}`}
+                value={draft.maxKgText}
+                onChange={(e) =>
+                  setDraft((d) => ({ ...d, maxKgText: sanitizeDecimalText(e.target.value) }))
+                }
+              />
+            </div>
+            <div className="space-y-1 col-span-2">
+              <Label>Phí TC (VNĐ)</Label>
+              <MoneyInput value={draft.unit} onChange={(unit) => setDraft((d) => ({ ...d, unit }))} />
+            </div>
+            {allowOverage && (
+              <>
+                <div className="space-y-1">
+                  <Label>{ui.stepLabel}</Label>
+                  <NumberInput
+                    decimal
+                    min={0}
+                    value={draft.stepKg}
+                    onChange={(stepKg) => setDraft((d) => ({ ...d, stepKg }))}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Cộng thêm (VNĐ)</Label>
+                  <MoneyInput value={draft.addFee} onChange={(addFee) => setDraft((d) => ({ ...d, addFee }))} />
+                  {draft.stepKg <= 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Tăng thêm = 0 → Cộng thêm lưu 0.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={confirmSave} disabled={saving}>
+              {saving ? "Đang lưu…" : "Lưu"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa mức cước?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mức này sẽ bị xóa khỏi {ui.title.toLowerCase()} tuyến {tuyen}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteTarget) return;
+                try {
+                  await remove(deleteTarget.id);
+                  toast.success("Đã xoá mức cước trên server");
+                  setDeleteTarget(null);
+                } catch (err: any) {
+                  toast.error(err?.message ?? "Không xóa được trên server");
+                }
+              }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function ProductPricing({ writable }: { writable: boolean }) {
+  const products = useStore((s) => s.productPricing);
+  const upsert = useStore((s) => s.upsertProductPrice);
+  const remove = useStore((s) => s.removeProductPrice);
+  const [q, setQ] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<ProductPriceRule | null>(null);
+  const [group, setGroup] = useState("");
+  const [name, setName] = useState("");
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [price, setPrice] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<ProductPriceRule | null>(null);
+
+  const list = products.filter(
+    (p) => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.group.toLowerCase().includes(q.toLowerCase()),
+  );
+  const groups = Array.from(new Set(list.map((p) => p.group)));
+
+  const openAdd = () => {
+    setEditing(null);
+    setGroup("");
+    setName("");
+    setCurrentPrice(0);
+    setPrice(0);
+    setFormOpen(true);
+  };
+
+  const openEdit = (p: ProductPriceRule) => {
+    setEditing(p);
+    setGroup(p.group);
+    setName(p.name);
+    setCurrentPrice(p.currentPrice);
+    setPrice(p.price);
+    setFormOpen(true);
+  };
+
+  const confirmSave = () => {
+    if (!name.trim()) {
+      toast.error("Nhập tên hàng hóa");
+      return;
+    }
+    if (!group.trim()) {
+      toast.error("Nhập nhóm hàng");
+      return;
+    }
+    if (isOtherGoodsGroup(group)) {
+      toast.error("Không dùng nhóm hàng Khác — loại Khác đã có sẵn lúc tạo đơn để nhập theo tên");
+      return;
+    }
+    upsert({
+      id: editing?.id ?? "PP-" + Date.now(),
+      group: group.trim(),
+      name: name.trim(),
+      currentPrice,
+      price,
+    });
+    toast.success(editing ? "Đã lưu giá sản phẩm" : "Đã thêm giá sản phẩm");
+    setFormOpen(false);
+  };
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Input className="h-9 w-64" placeholder="Tìm nhóm hàng / tên hàng hóa" value={q} onChange={(e) => setQ(e.target.value)} />
+        {writable && (
+          <Button size="sm" className="ml-auto" onClick={openAdd}>
+            Thêm dòng
+          </Button>
+        )}
+      </div>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 w-12">STT</th>
+              <th className="px-3 py-2 w-48">Nhóm hàng</th>
+              <th className="px-3 py-2">Tên hàng hóa</th>
+              <th className="px-3 py-2 text-right w-36">Giá hiện tại</th>
+              <th className="px-3 py-2 text-right w-40">Giá áp dụng</th>
+              <th className="px-3 py-2 text-right w-24">% giảm</th>
+              <th className="px-3 py-2 w-24"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g, gi) => {
+              const rows = list.filter((p) => p.group === g);
+              return rows.map((p, i) => {
+                const pct = p.currentPrice ? ((p.price - p.currentPrice) / p.currentPrice) * 100 : 0;
+                return (
+                  <tr key={p.id} className="border-t align-middle">
+                    {i === 0 && (
+                      <td className="px-3 py-2 text-muted-foreground" rowSpan={rows.length}>
+                        {gi + 1}
+                      </td>
+                    )}
+                    {i === 0 && (
+                      <td className="px-3 py-2 font-medium align-top" rowSpan={rows.length}>
+                        {g}
+                      </td>
+                    )}
+                    <td className="px-3 py-2">{p.name}</td>
+                    <td className="px-3 py-2 text-right text-muted-foreground">{formatVND(p.currentPrice)}</td>
+                    <td className="px-3 py-2 text-right">{formatVND(p.price)}</td>
+                    <td className={`px-3 py-2 text-right ${pct < 0 ? "text-emerald-600" : pct > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                      {pct.toFixed(2)}%
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {writable && (
+                        <div className="flex justify-end gap-1">
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(p)}>
+                            Xóa
+                          </Button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              });
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Tab này chưa áp vào giá lúc tạo đơn hàng. Cước đơn đang lấy từ tab Phí vận chuyển theo tuyến.
+      </p>
+
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Sửa giá sản phẩm" : "Thêm giá sản phẩm"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="space-y-1">
+              <Label>Nhóm hàng</Label>
+              <Input
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                placeholder="VD: Điện tử, Thực phẩm"
+              />
+              <p className="text-[11px] text-muted-foreground">Không dùng tên Khác — loại đó đã có lúc tạo đơn để nhập theo tên.</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Tên hàng hóa</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Giá hiện tại</Label>
+                <MoneyInput value={currentPrice} onChange={setCurrentPrice} />
+              </div>
+              <div className="space-y-1">
+                <Label>Giá áp dụng</Label>
+                <MoneyInput value={price} onChange={setPrice} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>
+              Hủy
+            </Button>
+            <Button onClick={confirmSave}>Lưu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa giá sản phẩm?</AlertDialogTitle>
+            <AlertDialogDescription>{deleteTarget?.name}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) remove(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

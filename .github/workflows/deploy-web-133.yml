@@ -1,0 +1,81 @@
+name: Deploy web cus 133
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-cus-133
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository_owner == 'gindevp'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Nitro node server
+        env:
+          NITRO_PRESET: node-server
+          # Cùng BE demo trên 133 như FE cũ
+          VITE_API_BASE_URL: https://api.cpn.xevietnam.com
+        run: npm run build
+
+      - name: Pack output
+        run: tar -C .output -czf cpn-web-cus-output.tgz .
+
+      - name: Upload output
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.CPN_WEB_SSH_HOST }}
+          username: root
+          key: ${{ secrets.CPN_WEB_SSH_KEY }}
+          port: ${{ secrets.CPN_WEB_SSH_PORT }}
+          source: cpn-web-cus-output.tgz
+          target: /opt/cpn-web-cus
+          overwrite: true
+
+      - name: Recreate cpn-web-cus
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.CPN_WEB_SSH_HOST }}
+          username: root
+          key: ${{ secrets.CPN_WEB_SSH_KEY }}
+          port: ${{ secrets.CPN_WEB_SSH_PORT }}
+          command_timeout: 20m
+          script_stop: true
+          script: |
+            set -eu
+            mkdir -p /opt/cpn-web-cus
+            test -f /opt/cpn-web-cus/cpn-web-cus-output.tgz
+            rm -rf /opt/cpn-web-cus/.output.next
+            mkdir -p /opt/cpn-web-cus/.output.next
+            tar -xzf /opt/cpn-web-cus/cpn-web-cus-output.tgz -C /opt/cpn-web-cus/.output.next
+            test -f /opt/cpn-web-cus/.output.next/server/index.mjs
+            rm -f /opt/cpn-web-cus/cpn-web-cus-output.tgz
+            rm -rf /opt/cpn-web-cus/.output.prev
+            if [ -d /opt/cpn-web-cus/.output ]; then
+              mv /opt/cpn-web-cus/.output /opt/cpn-web-cus/.output.prev
+            fi
+            mv /opt/cpn-web-cus/.output.next /opt/cpn-web-cus/.output
+            docker rm -f cpn-web-cus >/dev/null 2>&1 || true
+            docker run -d --name cpn-web-cus --restart unless-stopped --memory 512m \
+              -p 8089:3000 \
+              -v /opt/cpn-web-cus/.output:/app \
+              -w /app \
+              -e PORT=3000 \
+              -e HOST=0.0.0.0 \
+              node:20-bookworm-slim \
+              node server/index.mjs
+            sleep 3
+            curl -fsS -o /dev/null http://127.0.0.1:8089/ || { docker logs --tail 80 cpn-web-cus; exit 1; }

@@ -1,0 +1,2346 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import {
+  Trash2,
+  Plus,
+  Copy,
+  Save,
+  User,
+  PackagePlus,
+  MapPin,
+  Truck,
+  Receipt,
+  Printer,
+} from "lucide-react";
+import { AddressPicker } from "@/components/AddressPicker";
+import { TransitHubNotice } from "@/components/TransitHubNotice";
+import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
+import { toast } from "sonner";
+import { useStore, type OrderX } from "@/lib/store";
+
+/** Ô chọn địa chỉ (tỉnh/phường/số nhà) khi LTN/GTN — link GPS không lưu nên shipper cần địa chỉ này. */
+const SHOW_ORDER_ADDRESSES = true;
+
+/** Đơn mới gửi cho store.addOrder — giữ lại để gửi lại y nguyên sau khi nhân viên xác nhận. */
+type NewOrderPayload = OrderX;
+import {
+  OTHER_GOODS,
+  goodsGroupSelectOptions,
+  isOtherGoodsGroup,
+  officeSelectOption,
+  officeOptionValue,
+  findOfficeByToken,
+  allOfficeSelectOptions,
+  formatVND,
+  provinceHintFromItinerarySide,
+  provinceHintFromOffice,
+  canonicalOfficeCode,
+  resolveItineraryFromOffices,
+  type Order,
+} from "@/lib/mock-data";
+import {
+  genOrderCode,
+  calcDeclaredValueFee,
+  calcCodFee,
+  computeGoodsLineFare,
+  isValidVNPhone,
+  calcHomeDoorFees,
+  VAGUE_DOOR_FEE,
+  sumPackageChargeKg,
+  hasRoutePricing,
+} from "@/lib/pricing";
+import {
+  DEFAULT_TRANSIT_POLICY,
+  loadTransitHubPolicy,
+  resolveTransitPlan,
+  type TransitHubPolicy,
+} from "@/lib/transit-hub";
+import { MoneyInput } from "@/components/MoneyInput";
+import { NameInput } from "@/components/NameInput";
+import { PhoneInput } from "@/components/PhoneInput";
+import { NumberInput } from "@/components/NumberInput";
+import { toUpperName } from "@/lib/vn-name";
+import { isValidVietnamTaxCode, normalizeTaxCode } from "@/lib/vn-tax-code";
+import { TaxCodeInput } from "@/components/TaxCodeInput";
+import {
+  invoiceBuyerProfiles,
+  listOrdersPage,
+  resolveBuyerCompany,
+  type InvoiceBuyerProfile,
+} from "@/lib/api/domain-api";
+import { BuyerProfileChips } from "@/components/BuyerProfileChips";
+import { isApiEnabled } from "@/lib/api/client";
+import { PrintLabelDialog } from "@/components/PrintLabelDialog";
+import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
+import type { GuestCollect } from "@/lib/api/domain-api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  embedPackageDims,
+  embedPackageFares,
+  embedPackageGoods,
+  embedPackageItemQtys,
+  embedPackageValues,
+  embedPackageWeightsKg,
+  embedWarehouseInSeqs,
+  splitMoney,
+  warehouseInSeqs,
+} from "@/lib/package-label";
+import { cn } from "@/lib/utils";
+import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
+import { useAuth } from "@/lib/auth";
+import { assignedOfficeCode, hasAllOfficeScope } from "@/lib/office-scope";
+import { canAlwaysEditSender, canEditReceiverOffice } from "@/lib/order-edit-policy";
+
+type Item = {
+  id: string;
+  sl: number;
+  /** Nhóm hàng — từ Bảng giá → Giá theo sản phẩm (cột nhóm hàng). */
+  group: string;
+  /** Tên hàng hóa trong nhóm, hoặc "Khác". */
+  kind: string;
+  /** Tên hàng tự nhập — chỉ dùng khi nhóm/loại là "Khác". */
+  name: string;
+  weight: number;
+  dai: number;
+  rong: number;
+  cao: number;
+  value: number;
+  note: string;
+  fare: number;
+};
+
+const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
+
+/** Hình thức thanh toán */
+const PAY_METHODS = ["Người gửi thanh toán", "Người nhận thanh toán", "Công nợ", "Thu cước 1 phần"];
+
+/** Giảm giá hệ thống — chỉ khi BE/policy cung cấp (chưa có thì 0) */
+function systemDiscount(_subtotal: number) {
+  return 0;
+}
+
+/** Tên người: chữ hoa, giữ dấu tiếng Việt — xem lib/vn-name. */
+
+/** Đơn gần nhất có SĐT khớp (người gửi hoặc người nhận). */
+function latestOrderByPhone(
+  orders: Order[],
+  phone: string,
+  role: "sender" | "receiver",
+): Order | null {
+  const p = onlyDigits(phone);
+  if (p.length < 9) return null;
+  let best: Order | null = null;
+  let bestAt = 0;
+  for (const o of orders) {
+    const match =
+      role === "sender"
+        ? onlyDigits(o.senderPhone ?? "") === p
+        : onlyDigits(o.receiverPhone ?? "") === p;
+    if (!match) continue;
+    const at = new Date(o.updatedAt ?? o.createdAt).getTime();
+    if (at >= bestAt) {
+      bestAt = at;
+      best = o;
+    }
+  }
+  return best;
+}
+
+const RECENT_RECEIVER_LIMIT = 5;
+const PHONE_SUFFIX_LEN = 5;
+const PHONE_SUGGEST_LIMIT = 8;
+
+type PhoneSuggest = {
+  key: string;
+  phone: string;
+  name: string;
+  order: Order;
+  matchedRole: "sender" | "receiver";
+};
+
+/** Khách có SĐT bắt đầu hoặc kết thúc bằng đúng 5 số. Ưu tiên vai trùng ô đang nhập, rồi đơn mới hơn. */
+function phoneSuggestions(orders: Order[], affix: string, field: "sender" | "receiver"): PhoneSuggest[] {
+  if (affix.length !== PHONE_SUFFIX_LEN) return [];
+  const best = new Map<
+    string,
+    { at: number; order: Order; matchedRole: "sender" | "receiver"; phone: string; name: string; prefer: boolean }
+  >();
+  const take = (order: Order, role: "sender" | "receiver") => {
+    const raw = role === "sender" ? order.senderPhone : order.receiverPhone;
+    const name = role === "sender" ? order.senderName : order.receiverName;
+    const digits = onlyDigits(raw ?? "");
+    if (digits.length < 9 || (!digits.startsWith(affix) && !digits.endsWith(affix))) return;
+    const at = new Date(order.updatedAt ?? order.createdAt).getTime() || 0;
+    const prefer = role === field;
+    const prev = best.get(digits);
+    if (prev && ((prev.prefer && !prefer) || (prev.prefer === prefer && prev.at >= at))) return;
+    best.set(digits, {
+      at,
+      order,
+      matchedRole: role,
+      phone: (raw ?? digits).trim() || digits,
+      name: (name ?? "").trim(),
+      prefer,
+    });
+  };
+  for (const o of orders) {
+    take(o, "sender");
+    take(o, "receiver");
+  }
+  return [...best.values()]
+    .sort((a, b) => Number(b.prefer) - Number(a.prefer) || b.at - a.at)
+    .slice(0, PHONE_SUGGEST_LIMIT)
+    .map((x) => ({
+      key: onlyDigits(x.phone),
+      phone: x.phone,
+      name: x.name,
+      order: x.order,
+      matchedRole: x.matchedRole,
+    }));
+}
+
+/** Người nhận khác nhau (theo SĐT) của các đơn có SĐT gửi này, mới nhất trước. */
+function recentReceiversOf(orders: Order[], senderPhone: string): Order[] {
+  const p = onlyDigits(senderPhone);
+  const seen = new Set<string>();
+  const out: Order[] = [];
+  const sorted = orders
+    .filter((o) => onlyDigits(o.senderPhone ?? "") === p && onlyDigits(o.receiverPhone ?? "").length >= 9)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  for (const o of sorted) {
+    const rp = onlyDigits(o.receiverPhone);
+    if (seen.has(rp)) continue;
+    seen.add(rp);
+    out.push(o);
+    if (out.length >= RECENT_RECEIVER_LIMIT) break;
+  }
+  return out;
+}
+
+/** So chip «người nhận gần đây» — tránh setState khi sync đơn làm nhảy UI. */
+function sameRecentReceivers(a: Order[], b: Order[]) {
+  if (a.length !== b.length) return false;
+  return a.every((o, i) => {
+    const x = b[i];
+    return (
+      onlyDigits(o.receiverPhone) === onlyDigits(x.receiverPhone) &&
+      toUpperName(o.receiverName ?? "") === toUpperName(x.receiverName ?? "") &&
+      (o.finalToOffice || o.toOffice) === (x.finalToOffice || x.toOffice)
+    );
+  });
+}
+
+/**
+ * Cước từng kiện = cước dòng (1 dòng = 1 kiện), tổng = cước hàng của đơn.
+ * Chỉ chia cước hàng — phí thu hộ COD / tận nơi / khai giá là phí của cả đơn, không rải vào kiện.
+ */
+function faresPerPackage(items: Item[], goodsFare: number): number[] {
+  const n = items.length || 1;
+  const goods = items.map((i) => Math.round(Number(i.fare) || 0));
+  const goodsSum = goods.reduce((s, v) => s + v, 0);
+  const rest = Math.max(0, Math.round(Number(goodsFare) || 0) - goodsSum);
+  const restParts = splitMoney(rest, n);
+  return goods.map((g, i) => g + (restParts[i] ?? 0));
+}
+
+function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFare: number) {
+  const qtys = items.map((i) => Math.max(1, Number(i.sl) || 1));
+  const weights = items.map((i) => Math.max(0, Number(i.weight) || 0));
+  const { goodsKinds, goodsNames } = packagesFromItems(items);
+  let note = embedPackageGoods(body, goodsKinds, goodsNames);
+  note = embedPackageFares(note, faresPerPackage(items, goodsFare));
+  note = embedPackageItemQtys(note, qtys);
+  note = embedPackageWeightsKg(note, weights);
+  note = embedPackageDims(
+    note,
+    items.map((i) => ({ d: Number(i.dai) || 0, r: Number(i.rong) || 0, c: Number(i.cao) || 0 })),
+  );
+  note = embedPackageValues(
+    note,
+    items.map((i) => Math.max(0, Math.round(Number(i.value) || 0))),
+  );
+  return note;
+}
+
+/** Mỗi dòng hàng = 1 kiện; SL = số lượng SP trong kiện (khai báo). */
+function packagesFromItems(items: Item[]) {
+  const packageCount = Math.max(1, items.length);
+  const goodsKinds = items.map((i) => (i.kind ?? "").trim() || "Hàng hoá");
+  const goodsNames = items.map((i) =>
+    (i.kind ?? "").trim() === OTHER_GOODS ? (i.name ?? "").trim() : "",
+  );
+  return { packageCount, goodsKinds, goodsNames, goodsLabel: goodsKinds.join(", ") };
+}
+
+const newItem = (): Item => ({
+  id: Math.random().toString(36).slice(2, 9),
+  sl: 1,
+  group: "",
+  kind: "",
+  name: "",
+  weight: 1,
+  dai: 10,
+  rong: 10,
+  cao: 10,
+  value: 0,
+
+  note: "",
+  fare: 0,
+});
+
+export type TaoDonInitial = {
+  code?: string;
+  route?: string;
+  itinerary?: string;
+  senderPhone?: string;
+  senderName?: string;
+  fromOffice?: string;
+  homePickup?: boolean;
+  pickupAddr?: string;
+  pickupFee?: number;
+  receiverPhone?: string;
+  receiverName?: string;
+  toOffice?: string;
+  /** VP trung chuyển đã lưu (đơn tỉnh–tỉnh). */
+  hubOffice?: string;
+  idNumber?: string;
+  homeDeliver?: boolean;
+  deliverAddr?: string;
+  deliverDate?: string;
+  deliverFee?: number;
+  items?: Item[];
+  orderNote?: string;
+  codAmount?: number;
+  surchargeExtra?: number;
+  /** Phí khai giá đã lưu trên đơn — dùng khi sửa đơn vì giá trị khai báo từng kiện không được lưu lại. */
+  declaredFee?: number;
+  payMethod?: string;
+  prepaid?: number;
+  ckSender?: boolean;
+  bankName?: string;
+  bankAccountNo?: string;
+  bankAccountName?: string;
+  invoiceRequested?: boolean;
+  invoiceTaxCode?: string;
+  invoiceCompanyName?: string;
+  invoiceEmail?: string;
+  invoiceCompanyAddress?: string;
+  invoiceBuyerName?: string;
+  invoiceBuyerIdNumber?: string;
+  invoiceBuyerPhone?: string;
+};
+
+function PhoneSuggestMenu({
+  items,
+  loading,
+  onPick,
+}: {
+  items: PhoneSuggest[];
+  loading: boolean;
+  onPick: (item: PhoneSuggest) => void;
+}) {
+  if (!loading && items.length === 0) {
+    return (
+      <p className="mt-1 text-xs text-muted-foreground">Không thấy SĐT nào kết thúc bằng các số này.</p>
+    );
+  }
+  return (
+    <div className="mt-1 max-h-52 overflow-auto rounded-md border bg-popover p-1 shadow-md">
+      {loading ? <p className="px-2 py-1.5 text-xs text-muted-foreground">Đang tìm SĐT…</p> : null}
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className="flex w-full flex-col rounded px-2 py-1.5 text-left hover:bg-muted"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onPick(item)}
+        >
+          <span className="text-sm font-medium">{toUpperName(item.name) || "Không tên"}</span>
+          <span className="text-xs text-muted-foreground">{onlyDigits(item.phone)}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function TaoDonDialog({
+  open,
+  onOpenChange,
+  mode = "create",
+  initial,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  mode?: "create" | "edit";
+  initial?: TaoDonInitial;
+}) {
+  const { session } = useAuth();
+  const { branchCodeOf, findItinerary, itineraries } = useBranchItineraryMaster();
+  const offices = useStore((s) => s.offices);
+  const productPricing = useStore((s) => s.productPricing);
+  const doorFees = useStore((s) => s.doorFees);
+  const homeDeliveryDefault = useStore((s) => s.surcharges.homeDelivery.amount);
+
+  /**
+   * VP gắn tài khoản (điều phối / NV). Admin / scope ALL không khóa.
+   * Khớp master bằng token + mã chuẩn — tránh miss khi session lưu ND vs VP_ND.
+   */
+  const staffOfficeCode = useMemo(() => {
+    if (!session || hasAllOfficeScope(session)) return "";
+    return assignedOfficeCode(session.office);
+  }, [session]);
+
+  const staffOffice = useMemo(() => {
+    if (!staffOfficeCode) return undefined;
+    const byToken = findOfficeByToken(staffOfficeCode, offices);
+    if (byToken) return byToken;
+    const canon = canonicalOfficeCode(staffOfficeCode);
+    return offices.find(
+      (o) =>
+        canonicalOfficeCode(o.code) === canon ||
+        o.code === staffOfficeCode ||
+        o.name === staffOfficeCode,
+    );
+  }, [staffOfficeCode, offices]);
+
+  /** NV bó VP: luôn khóa VP gửi (kể cả lúc master VP chưa khớp xong). */
+  const lockFromOffice = Boolean(staffOfficeCode);
+
+  const lockedFromOfficeValue = useMemo(() => {
+    if (!lockFromOffice) return "";
+    if (staffOffice) return officeOptionValue(staffOffice);
+    return staffOfficeCode;
+  }, [lockFromOffice, staffOffice, staffOfficeCode]);
+
+  /** Sửa đơn: người nhận chỉ xem. Admin / Điều phối vẫn sửa được thông tin người gửi. */
+  const partyLocked = mode === "edit";
+  const senderLocked = partyLocked && !canAlwaysEditSender(session?.role);
+  const lockedInputClass = partyLocked ? "bg-muted text-muted-foreground" : undefined;
+  const senderLockedClass = senderLocked ? "bg-muted text-muted-foreground" : undefined;
+  const editOrder = useStore((s) =>
+    mode === "edit" && initial?.code ? s.orders.find((o) => o.code === initial.code) : undefined,
+  );
+  /** AD được sửa VP nhận chỉ khi đơn đang nhập kho gửi. */
+  const canEditToOffice = canEditReceiverOffice(editOrder, session?.role);
+  const toOfficeLocked = partyLocked && !canEditToOffice;
+
+  /** Nhóm hàng từ Bảng giá → Giá theo sản phẩm; "Khác" để tự nhập tên. */
+  const goodsGroupOptions = useMemo(
+    () => goodsGroupSelectOptions(productPricing),
+    [productPricing],
+  );
+
+  const productNameOptions = (group: string) => {
+    if (!group || isOtherGoodsGroup(group)) return [];
+    const names = [
+      ...new Set(
+        productPricing
+          .filter((p) => p.group.trim() === group)
+          .map((p) => p.name.trim())
+          .filter(Boolean),
+      ),
+    ].sort((a, b) => a.localeCompare(b, "vi"));
+    return names.map((n) => ({ value: n, label: n }));
+  };
+
+  /** Suy nhóm từ tên SP khi sửa đơn cũ chưa có group. */
+  const resolveGroup = (it: Item) => {
+    const group = (it.group ?? "").trim();
+    if (group) return group;
+    const kind = (it.kind ?? "").trim();
+    if (isOtherGoodsGroup(kind)) return OTHER_GOODS;
+    const hit = productPricing.find((p) => p.name.trim().toLowerCase() === kind.toLowerCase());
+    return hit?.group.trim() ?? "";
+  };
+  const defaultBranch = initial?.route ?? "";
+  const [route, setRoute] = useState<string>(defaultBranch);
+  const [itinerary, setItinerary] = useState<string>(initial?.itinerary ?? "");
+  // Sender
+  const [senderPhone, setSenderPhone] = useState(initial?.senderPhone ?? "");
+  const [senderName, setSenderName] = useState(toUpperName(initial?.senderName ?? ""));
+  const [fromOffice, setFromOffice] = useState(initial?.fromOffice ?? "");
+  const [homePickup, setHomePickup] = useState(initial?.homePickup ?? false);
+  const [pickupAddr, setPickupAddr] = useState(initial?.pickupAddr ?? "");
+  const [pickupFee, setPickupFee] = useState(initial?.pickupFee ?? 0);
+  const [pickupKm, setPickupKm] = useState<number | null>(null);
+  const [pickupPin, setPickupPin] = useState<{ lat: number; lng: number } | null>(null);
+  // Receiver
+  const [receiverPhone, setReceiverPhone] = useState(initial?.receiverPhone ?? "");
+  const [receiverName, setReceiverName] = useState(toUpperName(initial?.receiverName ?? ""));
+  const [toOffice, setToOffice] = useState(initial?.toOffice ?? "");
+  const [idNumber, setIdNumber] = useState(initial?.idNumber ?? "");
+  const [homeDeliver, setHomeDeliver] = useState(initial?.homeDeliver ?? false);
+  const [deliverAddr, setDeliverAddr] = useState(initial?.deliverAddr ?? "");
+  const [deliverDate, setDeliverDate] = useState(initial?.deliverDate ?? "");
+  const [deliverFee, setDeliverFee] = useState(initial?.deliverFee ?? 0);
+  const [deliverKm, setDeliverKm] = useState<number | null>(null);
+  const [deliverPin, setDeliverPin] = useState<{ lat: number; lng: number } | null>(null);
+  // Items
+  const [items, setItems] = useState<Item[]>(() =>
+    (initial?.items?.length ? initial.items : [newItem()]).map((it) => ({
+      ...newItem(),
+      ...it,
+      group: it.group ?? "",
+      kind: it.kind ?? "",
+      name: it.name ?? "",
+    })),
+  );
+  // Payment
+  const [orderNote, setOrderNote] = useState(initial?.orderNote ?? "");
+  const [codAmount, setCodAmount] = useState(initial?.codAmount ?? 0);
+  const [ckSender, setCkSender] = useState(initial?.ckSender ?? false);
+  const [bankName, setBankName] = useState(initial?.bankName ?? "");
+  const [bankAccountNo, setBankAccountNo] = useState(initial?.bankAccountNo ?? "");
+  const [bankAccountName, setBankAccountName] = useState(initial?.bankAccountName ?? "");
+  const [invoiceRequested, setInvoiceRequested] = useState(initial?.invoiceRequested ?? false);
+  const [invoiceTaxCode, setInvoiceTaxCode] = useState(initial?.invoiceTaxCode ?? "");
+  const [invoiceCompanyName, setInvoiceCompanyName] = useState(initial?.invoiceCompanyName ?? "");
+  const [invoiceEmail, setInvoiceEmail] = useState(initial?.invoiceEmail ?? "");
+  const [invoiceCompanyAddress, setInvoiceCompanyAddress] = useState(
+    initial?.invoiceCompanyAddress ?? "",
+  );
+  const [invoiceBuyerName, setInvoiceBuyerName] = useState(toUpperName(initial?.invoiceBuyerName ?? ""));
+  const invoiceBuyerTouched = useRef(Boolean(toUpperName(initial?.invoiceBuyerName ?? "")));
+  const [invoiceBuyerIdNumber, setInvoiceBuyerIdNumber] = useState(initial?.invoiceBuyerIdNumber ?? "");
+  const [invoiceBuyerPhone, setInvoiceBuyerPhone] = useState(initial?.invoiceBuyerPhone ?? "");
+  const [surchargeExtra, setSurchargeExtra] = useState(initial?.surchargeExtra ?? 0);
+  const [prepaid, setPrepaid] = useState(initial?.prepaid ?? 0);
+  const [payMethod, setPayMethod] = useState(initial?.payMethod ?? PAY_METHODS[0]);
+  /** Chỉ hiện khi «Người gửi thanh toán» — khách muốn CK OnePay thay vì thu TM ngay. */
+  const [requestSenderTransfer, setRequestSenderTransfer] = useState(false);
+  const [transferQr, setTransferQr] = useState<{
+    code: string;
+    collect: GuestCollect | null;
+  } | null>(null);
+
+  const senderAutofillPhone = useRef("");
+  const receiverAutofillPhone = useRef("");
+  /** Đã gọi API người nhận gần đây cho SĐT này (tránh spam khi store.orders đổi do SSE). */
+  const recentReceiversFetchedPhone = useRef("");
+
+  // When reopening in edit mode with different initial, resync fields.
+  useEffect(() => {
+    if (!open || !initial) return;
+    setRoute(initial.route ?? "");
+    setItinerary(initial.itinerary ?? "");
+    setSenderPhone(initial.senderPhone ?? "");
+    setSenderName(toUpperName(initial.senderName ?? ""));
+    const fromRec = findOfficeByToken(initial.fromOffice, offices);
+    const toRec = findOfficeByToken(initial.toOffice, offices);
+    setFromOffice(fromRec ? officeOptionValue(fromRec) : (initial.fromOffice ?? ""));
+    setHomePickup(initial.homePickup ?? false);
+    setPickupAddr(initial.pickupAddr ?? "");
+    setPickupPin(null);
+    setPickupFee(initial.pickupFee ?? 0);
+    setReceiverPhone(initial.receiverPhone ?? "");
+    setReceiverName(toUpperName(initial.receiverName ?? ""));
+    setToOffice(toRec ? officeOptionValue(toRec) : (initial.toOffice ?? ""));
+    setIdNumber(initial.idNumber ?? "");
+    setHomeDeliver(initial.homeDeliver ?? false);
+    setDeliverAddr(initial.deliverAddr ?? "");
+    setDeliverPin(null);
+    setDeliverDate(initial.deliverDate ?? "");
+    setDeliverFee(initial.deliverFee ?? 0);
+    setItems(
+      (initial.items?.length ? initial.items : [newItem()]).map((it) => ({
+        ...newItem(),
+        ...it,
+        group: it.group ?? "",
+        kind: it.kind ?? "",
+        name: it.name ?? "",
+      })),
+    );
+    setOrderNote(initial.orderNote ?? "");
+    setCodAmount(initial.codAmount ?? 0);
+    setCkSender(initial.ckSender ?? false);
+    setBankName(initial.bankName ?? "");
+    setBankAccountNo(initial.bankAccountNo ?? "");
+    setBankAccountName(initial.bankAccountName ?? "");
+    setInvoiceRequested(initial.invoiceRequested ?? false);
+    setInvoiceTaxCode(initial.invoiceTaxCode ?? "");
+    setInvoiceCompanyName(initial.invoiceCompanyName ?? "");
+    setInvoiceEmail(initial.invoiceEmail ?? "");
+    setInvoiceCompanyAddress(initial.invoiceCompanyAddress ?? "");
+    const savedBuyer = toUpperName(initial.invoiceBuyerName ?? "");
+    invoiceBuyerTouched.current = savedBuyer.length > 0;
+    setInvoiceBuyerName(savedBuyer);
+    setInvoiceBuyerIdNumber(initial.invoiceBuyerIdNumber ?? "");
+    setInvoiceBuyerPhone(initial.invoiceBuyerPhone ?? "");
+    setSurchargeExtra(initial.surchargeExtra ?? 0);
+    setPrepaid(initial.prepaid ?? 0);
+    setPayMethod(initial.payMethod ?? PAY_METHODS[0]);
+    setRequestSenderTransfer(false);
+    senderAutofillPhone.current = "";
+    receiverAutofillPhone.current = "";
+    recentReceiversFetchedPhone.current = "";
+  }, [open, initial, offices]);
+
+  useEffect(() => {
+    if (!open) {
+      senderAutofillPhone.current = "";
+      receiverAutofillPhone.current = "";
+      recentReceiversFetchedPhone.current = "";
+    }
+  }, [open]);
+
+  const resetForm = () => {
+    setRoute("");
+    setItinerary("");
+    setSenderPhone("");
+    setSenderName("");
+    setFromOffice(lockedFromOfficeValue);
+    setHomePickup(false);
+    setPickupAddr("");
+    setPickupFee(0);
+    setPickupKm(null);
+    setPickupPin(null);
+    setReceiverPhone("");
+    setReceiverName("");
+    setToOffice("");
+    setIdNumber("");
+    setHomeDeliver(false);
+    setDeliverAddr("");
+    setDeliverDate("");
+    setDeliverFee(0);
+    setDeliverKm(null);
+    setDeliverPin(null);
+    setItems([newItem()]);
+    setOrderNote("");
+    setCodAmount(0);
+    setCkSender(false);
+    setBankName("");
+    setBankAccountNo("");
+    setBankAccountName("");
+    setInvoiceRequested(false);
+    setInvoiceTaxCode("");
+    setInvoiceCompanyName("");
+    setInvoiceEmail("");
+    setInvoiceCompanyAddress("");
+    setInvoiceBuyerName("");
+    invoiceBuyerTouched.current = false;
+    setInvoiceBuyerIdNumber("");
+    setInvoiceBuyerPhone("");
+    setSurchargeExtra(0);
+    setPrepaid(0);
+    setPayMethod(PAY_METHODS[0]);
+    setRequestSenderTransfer(false);
+    senderAutofillPhone.current = "";
+    receiverAutofillPhone.current = "";
+    recentReceiversFetchedPhone.current = "";
+    invoiceProfilePhone.current = "";
+    invoiceAutoTax.current = "";
+  };
+
+  // Autofill tên + địa chỉ từ đơn gần nhất khi nhập lại SĐT khách.
+  // Không phụ thuộc store.orders — SSE/poll đổi orders sẽ không gọi lại API.
+  useEffect(() => {
+    if (!open || mode === "edit") return;
+    const phone = onlyDigits(senderPhone);
+    if (phone.length < 9) {
+      senderAutofillPhone.current = "";
+      return;
+    }
+    if (senderAutofillPhone.current === phone) return;
+
+    const apply = (prev: Order) => {
+      senderAutofillPhone.current = phone;
+      if (prev.senderName) setSenderName(toUpperName(prev.senderName));
+      if (prev.pickupAddress) {
+        setPickupAddr(prev.pickupAddress);
+        setPickupPin(null);
+        if (prev.homePickup) setHomePickup(true);
+      }
+    };
+
+    const local = latestOrderByPhone(useStore.getState().orders, phone, "sender");
+    if (local?.senderName) {
+      apply(local);
+      return;
+    }
+    if (local?.pickupAddress) {
+      setPickupAddr(local.pickupAddress);
+      setPickupPin(null);
+      if (local.homePickup) setHomePickup(true);
+    }
+    if (!isApiEnabled()) {
+      senderAutofillPhone.current = phone;
+      return;
+    }
+
+    senderAutofillPhone.current = phone;
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      listOrdersPage({ keyword: phone, size: 40, searchAllOffices: true, sort: "updatedAt,desc" })
+        .then(({ rows }) => {
+          if (cancelled || onlyDigits(senderPhone) !== phone) return;
+          const prev = latestOrderByPhone(rows, phone, "sender");
+          if (!prev) return;
+          if (prev.senderName) setSenderName(toUpperName(prev.senderName));
+          if (prev.pickupAddress) {
+            setPickupAddr(prev.pickupAddress);
+            setPickupPin(null);
+            if (prev.homePickup) setHomePickup(true);
+          }
+        })
+        .catch(() => undefined);
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [senderPhone, open, mode]);
+
+  // MST chỉ lấy của người trả cước, theo hình thức thanh toán. COD không đổi người trả cước.
+  const payerIsReceiver = payMethod === "Người nhận thanh toán" || payMethod === "Thu cước 1 phần";
+  const invoicePayerPhone = onlyDigits(payerIsReceiver ? receiverPhone : senderPhone);
+  const invoicePayerName = toUpperName(payerIsReceiver ? receiverName : senderName);
+  useEffect(() => {
+    if (invoiceBuyerTouched.current) return;
+    setInvoiceBuyerName(invoicePayerName);
+  }, [invoicePayerName]);
+  const invoiceProfilePhone = useRef("");
+  const invoiceAutoTax = useRef("");
+  const [invoiceProfiles, setInvoiceProfiles] = useState<InvoiceBuyerProfile[]>([]);
+  const clearAutoInvoice = () => {
+    const autoTax = invoiceAutoTax.current;
+    if (!autoTax || normalizeTaxCode(invoiceTaxCode) !== autoTax) return;
+    invoiceAutoTax.current = "";
+    setInvoiceRequested(false);
+    setInvoiceTaxCode("");
+    setInvoiceCompanyName("");
+    setInvoiceCompanyAddress("");
+    setInvoiceEmail("");
+  };
+  const applyBuyerProfile = async (p: InvoiceBuyerProfile) => {
+    invoiceAutoTax.current = normalizeTaxCode(p.taxCode ?? "");
+    setInvoiceRequested(true);
+    setInvoiceTaxCode(p.taxCode ?? "");
+    if (p.email) setInvoiceEmail(p.email);
+    const company = await resolveBuyerCompany(p);
+    setInvoiceCompanyName(company.companyName);
+    setInvoiceCompanyAddress(company.address);
+  };
+  useEffect(() => {
+    if (!open || mode === "edit" || !isApiEnabled()) return;
+    if (invoicePayerPhone.length < 9) {
+      if (invoiceProfilePhone.current === "") return;
+      invoiceProfilePhone.current = "";
+      setInvoiceProfiles([]);
+      clearAutoInvoice();
+      return;
+    }
+    if (invoiceProfilePhone.current === invoicePayerPhone) return;
+    invoiceProfilePhone.current = invoicePayerPhone;
+    let cancelled = false;
+    (async () => {
+      const list = await invoiceBuyerProfiles(invoicePayerPhone).catch(() => []);
+      if (cancelled) return;
+      setInvoiceProfiles(list);
+      const autoTax = invoiceAutoTax.current;
+      if (!list.length) {
+        if (autoTax && normalizeTaxCode(invoiceTaxCode) === autoTax) clearAutoInvoice();
+        return;
+      }
+      const replaceAuto = !!autoTax && normalizeTaxCode(invoiceTaxCode) === autoTax;
+      if (invoiceTaxCode.trim() && !replaceAuto) {
+        setInvoiceRequested(true);
+        return;
+      }
+      await applyBuyerProfile(list[0]);
+      if (cancelled) return;
+      toast.message(
+        list.length > 1
+          ? `Người trả tiền từng xuất HĐ công ty (${list.length} MST) — đã điền MST gần nhất và tra lại; chọn MST khác hoặc bỏ tích nếu khách không lấy HĐ`
+          : `Người trả tiền từng xuất HĐ công ty — đã tích Xuất hoá đơn và tra lại MST; bỏ tích nếu khách không lấy HĐ`,
+      );
+    })();
+    return () => {
+      cancelled = true;
+      if (invoiceProfilePhone.current === invoicePayerPhone) invoiceProfilePhone.current = "";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mode, invoicePayerPhone]);
+
+  const [recentReceivers, setRecentReceivers] = useState<Order[]>([]);
+  useEffect(() => {
+    const phone = onlyDigits(senderPhone);
+    if (!open || mode === "edit" || phone.length < 9) {
+      recentReceiversFetchedPhone.current = "";
+      setRecentReceivers((cur) => (cur.length ? [] : cur));
+      return;
+    }
+    const localRows = useStore.getState().orders;
+    const fromLocal = recentReceiversOf(localRows, phone);
+    setRecentReceivers((cur) => (sameRecentReceivers(cur, fromLocal) ? cur : fromLocal));
+    if (!isApiEnabled()) return;
+    // Đã lấy API cho SĐT này rồi — bỏ qua khi sync đơn làm re-render.
+    if (recentReceiversFetchedPhone.current === phone) return;
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      listOrdersPage({ keyword: phone, size: 60, searchAllOffices: true })
+        .then(({ rows }) => {
+          if (cancelled || onlyDigits(senderPhone) !== phone) return;
+          recentReceiversFetchedPhone.current = phone;
+          const next = recentReceiversOf([...rows, ...useStore.getState().orders], phone);
+          setRecentReceivers((cur) => (sameRecentReceivers(cur, next) ? cur : next));
+        })
+        .catch(() => undefined);
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [senderPhone, open, mode]);
+
+  const pickRecentReceiver = (o: Order) => {
+    receiverAutofillPhone.current = onlyDigits(o.receiverPhone);
+    setReceiverPhone(o.receiverPhone);
+    setReceiverName(toUpperName(o.receiverName ?? ""));
+    setDeliverAddr(o.address ?? "");
+    setDeliverPin(null);
+    setHomeDeliver(Boolean(o.homeDelivery));
+    const toRec = findOfficeByToken(o.finalToOffice || o.toOffice, offices);
+    if (toRec && !toOfficeLocked) setToOffice(officeOptionValue(toRec));
+  };
+
+  const [senderSuggestRows, setSenderSuggestRows] = useState<Order[]>([]);
+  const [receiverSuggestRows, setReceiverSuggestRows] = useState<Order[]>([]);
+  const [senderSuggestOn, setSenderSuggestOn] = useState(false);
+  const [receiverSuggestOn, setReceiverSuggestOn] = useState(false);
+  const [phoneSuggesting, setPhoneSuggesting] = useState<"sender" | "receiver" | null>(null);
+  const senderSuffix = onlyDigits(senderPhone);
+  const receiverSuffix = onlyDigits(receiverPhone);
+  const suggestEnabled = open && mode !== "edit" && !partyLocked;
+
+  useEffect(() => {
+    if (!suggestEnabled || senderSuffix.length !== PHONE_SUFFIX_LEN) {
+      setSenderSuggestRows([]);
+      setPhoneSuggesting((cur) => (cur === "sender" ? null : cur));
+      return;
+    }
+    const local = useStore.getState().orders;
+    setSenderSuggestRows(local);
+    if (!isApiEnabled()) return;
+    let cancelled = false;
+    setPhoneSuggesting("sender");
+    const t = window.setTimeout(() => {
+      listOrdersPage({
+        phoneEndsWith: senderSuffix,
+        size: 40,
+        searchAllOffices: true,
+        sort: "updatedAt,desc",
+        cancelRequests: "include",
+      })
+        .then(({ rows }) => {
+          if (!cancelled) setSenderSuggestRows([...rows, ...useStore.getState().orders]);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setPhoneSuggesting((cur) => (cur === "sender" ? null : cur));
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [suggestEnabled, senderSuffix]);
+
+  useEffect(() => {
+    if (!suggestEnabled || receiverSuffix.length !== PHONE_SUFFIX_LEN) {
+      setReceiverSuggestRows([]);
+      setPhoneSuggesting((cur) => (cur === "receiver" ? null : cur));
+      return;
+    }
+    const local = useStore.getState().orders;
+    setReceiverSuggestRows(local);
+    if (!isApiEnabled()) return;
+    let cancelled = false;
+    setPhoneSuggesting("receiver");
+    const t = window.setTimeout(() => {
+      listOrdersPage({
+        phoneEndsWith: receiverSuffix,
+        size: 40,
+        searchAllOffices: true,
+        sort: "updatedAt,desc",
+        cancelRequests: "include",
+      })
+        .then(({ rows }) => {
+          if (!cancelled) setReceiverSuggestRows([...rows, ...useStore.getState().orders]);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setPhoneSuggesting((cur) => (cur === "receiver" ? null : cur));
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [suggestEnabled, receiverSuffix]);
+
+  const senderSuggests = senderSuggestOn ? phoneSuggestions(senderSuggestRows, senderSuffix, "sender") : [];
+  const receiverSuggests = receiverSuggestOn ? phoneSuggestions(receiverSuggestRows, receiverSuffix, "receiver") : [];
+
+  const pickSenderSuggest = (s: PhoneSuggest) => {
+    const phone = onlyDigits(s.phone);
+    senderAutofillPhone.current = phone;
+    setSenderPhone(phone);
+    if (s.name) setSenderName(toUpperName(s.name));
+    if (s.matchedRole === "sender" && s.order.pickupAddress) {
+      setPickupAddr(s.order.pickupAddress);
+      setPickupPin(null);
+      if (s.order.homePickup) setHomePickup(true);
+    }
+    setSenderSuggestOn(false);
+  };
+
+  const pickReceiverSuggest = (s: PhoneSuggest) => {
+    if (s.matchedRole === "receiver") {
+      pickRecentReceiver(s.order);
+    } else {
+      const phone = onlyDigits(s.phone);
+      receiverAutofillPhone.current = phone;
+      setReceiverPhone(phone);
+      if (s.name) setReceiverName(toUpperName(s.name));
+    }
+    setReceiverSuggestOn(false);
+  };
+
+  useEffect(() => {
+    if (!open || mode === "edit") return;
+    const phone = onlyDigits(receiverPhone);
+    if (phone.length < 9) {
+      receiverAutofillPhone.current = "";
+      return;
+    }
+    if (receiverAutofillPhone.current === phone) return;
+
+    const apply = (prev: Order) => {
+      receiverAutofillPhone.current = phone;
+      if (prev.receiverName) setReceiverName(toUpperName(prev.receiverName));
+      if (prev.address) {
+        setDeliverAddr(prev.address);
+        setDeliverPin(null);
+        if (prev.homeDelivery) setHomeDeliver(true);
+      }
+    };
+
+    const local = latestOrderByPhone(useStore.getState().orders, phone, "receiver");
+    if (local?.receiverName) {
+      apply(local);
+      return;
+    }
+    if (local?.address) {
+      setDeliverAddr(local.address);
+      setDeliverPin(null);
+      if (local.homeDelivery) setHomeDeliver(true);
+    }
+    if (!isApiEnabled()) {
+      receiverAutofillPhone.current = phone;
+      return;
+    }
+
+    receiverAutofillPhone.current = phone;
+    let cancelled = false;
+    const t = window.setTimeout(() => {
+      listOrdersPage({ keyword: phone, size: 40, searchAllOffices: true, sort: "updatedAt,desc" })
+        .then(({ rows }) => {
+          if (cancelled || onlyDigits(receiverPhone) !== phone) return;
+          const prev = latestOrderByPhone(rows, phone, "receiver");
+          if (!prev) return;
+          if (prev.receiverName) setReceiverName(toUpperName(prev.receiverName));
+          if (prev.address) {
+            setDeliverAddr(prev.address);
+            setDeliverPin(null);
+            if (prev.homeDelivery) setHomeDeliver(true);
+          }
+        })
+        .catch(() => undefined);
+    }, 300);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [receiverPhone, open, mode]);
+
+  // Create: luôn gắn VP gửi = VP tài khoản điều phối/NV (trừ admin).
+  useEffect(() => {
+    if (!open || initial || !lockFromOffice || !lockedFromOfficeValue) return;
+    setFromOffice(lockedFromOfficeValue);
+  }, [open, initial, lockFromOffice, lockedFromOfficeValue]);
+
+  const [transitPolicy, setTransitPolicy] = useState<TransitHubPolicy>(DEFAULT_TRANSIT_POLICY);
+  useEffect(() => {
+    if (open) void loadTransitHubPolicy().then(setTransitPolicy);
+  }, [open]);
+
+  /**
+   * Đơn tỉnh–tỉnh đi 2 chặng qua VP trung chuyển: cước = tổng 2 tuyến.
+   * Đơn cũ (chưa có VP trung chuyển) sửa mà không đổi VP gửi/nhận thì giữ 1 tuyến như trước.
+   */
+  const transitPlan = useMemo(() => {
+    const fromRec = findOfficeByToken(fromOffice, offices);
+    const toRec = findOfficeByToken(toOffice, offices);
+    const plan = resolveTransitPlan(fromRec, toRec, offices, transitPolicy, itineraries);
+    if (!plan || mode !== "edit" || initial?.hubOffice) return plan;
+    const sameEnds =
+      fromRec?.code === findOfficeByToken(initial?.fromOffice, offices)?.code &&
+      toRec?.code === findOfficeByToken(initial?.toOffice, offices)?.code;
+    return sameEnds ? null : plan;
+  }, [fromOffice, toOffice, offices, transitPolicy, itineraries, mode, initial]);
+
+  // Suy tuyến + lộ trình từ VP gửi / VP nhận.
+  useEffect(() => {
+    if (!open) return;
+    const fromRec = findOfficeByToken(fromOffice, offices);
+    const toRec = findOfficeByToken(toOffice, offices);
+    if (!fromRec || !toRec) {
+      if (!initial) {
+        setRoute("");
+        setItinerary("");
+      }
+      return;
+    }
+    if (transitPlan) {
+      setRoute(transitPlan.legs[0].route);
+      setItinerary(transitPlan.legs[0].itineraryName);
+      return;
+    }
+    const hit = resolveItineraryFromOffices(fromRec, toRec, itineraries);
+    if (hit) {
+      setRoute(hit.branchName);
+      setItinerary(hit.itineraryName);
+      return;
+    }
+    if (!initial) {
+      setRoute("");
+      setItinerary("");
+    }
+  }, [open, fromOffice, toOffice, offices, itineraries, initial, transitPlan]);
+
+  const selectedItinerary = useMemo(
+    () =>
+      findItinerary(route, itinerary) ??
+      resolveItineraryFromOffices(
+        findOfficeByToken(fromOffice, offices),
+        findOfficeByToken(toOffice, offices),
+        itineraries,
+      )?.itinerary,
+    [findItinerary, route, itinerary, fromOffice, toOffice, offices, itineraries],
+  );
+
+  const pickupProvinceHint = useMemo(() => {
+    const fromHint = provinceHintFromOffice(findOfficeByToken(fromOffice, offices));
+    if (fromHint) return fromHint;
+    return provinceHintFromItinerarySide(selectedItinerary, "from", offices);
+  }, [fromOffice, selectedItinerary, offices]);
+
+  /** Tỉnh nhận: ưu tiên VP nhận đã chọn, không thì điểm đến lộ trình. */
+  const deliverProvinceHint = useMemo(() => {
+    const fromToOffice = provinceHintFromOffice(findOfficeByToken(toOffice, offices));
+    if (fromToOffice) return fromToOffice;
+    return provinceHintFromItinerarySide(selectedItinerary, "to", offices);
+  }, [toOffice, selectedItinerary, offices]);
+
+  const fromOfficeOptions = useMemo(() => {
+    if (lockFromOffice) {
+      if (staffOffice) return [officeSelectOption(staffOffice)];
+      if (staffOfficeCode) {
+        return [{ value: staffOfficeCode, label: staffOfficeCode, keywords: staffOfficeCode }];
+      }
+    }
+    return allOfficeSelectOptions(offices);
+  }, [lockFromOffice, staffOffice, staffOfficeCode, offices]);
+
+  const toOfficeOptions = useMemo(() => allOfficeSelectOptions(offices), [offices]);
+
+  const goodsFare = items.reduce((s, i) => s + (Number(i.fare) || 0), 0);
+  const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+  /** Cân tra phí tận nơi: từng kiện max(thật, DxRxC/5000) rồi cộng. */
+  const doorChargeKg = sumPackageChargeKg(items, totalWeight);
+  const codFee = codAmount > 0 ? Number(surchargeExtra || 0) : 0;
+
+  // Phí tận nơi = bảng /phu-phi khi có KM; GTN/LTN đã có địa chỉ mà chưa ra km → mức tối thiểu 50k (như form khách).
+  useEffect(() => {
+    if (partyLocked) return;
+    const fees = calcHomeDoorFees({
+      chargeKg: doorChargeKg || 1,
+      homePickup,
+      homeDelivery: homeDeliver,
+      pickupKm: homePickup ? pickupKm : null,
+      deliveryKm: homeDeliver ? deliverKm : null,
+    });
+    const pickup =
+      homePickup && pickupAddr.trim() && !(pickupKm != null && pickupKm > 0)
+        ? Math.max(fees.pickupFee, VAGUE_DOOR_FEE)
+        : fees.pickupFee;
+    const delivery =
+      homeDeliver && deliverAddr.trim() && !(deliverKm != null && deliverKm > 0)
+        ? Math.max(fees.deliveryFee, VAGUE_DOOR_FEE)
+        : fees.deliveryFee;
+    setPickupFee(pickup);
+    setDeliverFee(delivery);
+  }, [
+    partyLocked,
+    homePickup,
+    homeDeliver,
+    pickupKm,
+    deliverKm,
+    pickupAddr,
+    deliverAddr,
+    doorChargeKg,
+    doorFees,
+    homeDeliveryDefault,
+  ]);
+
+  useEffect(() => {
+    if (!homePickup || !pickupAddr.trim()) setPickupKm(null);
+  }, [homePickup, pickupAddr]);
+  useEffect(() => {
+    if (!homeDeliver || !deliverAddr.trim()) setDeliverKm(null);
+  }, [homeDeliver, deliverAddr]);
+
+  const pickupFeeVal = homePickup ? Number(pickupFee || 0) : 0;
+  const deliverFeeVal = homeDeliver ? Number(deliverFee || 0) : 0;
+  const declaredValue = items.reduce((s, i) => s + (Number(i.value) || 0), 0);
+  // Sửa đơn không nạp lại được giá trị khai báo từng kiện, nên giữ phí khai giá đã lưu để không mất tiền.
+  const declaredFee =
+    declaredValue > 0 ? calcDeclaredValueFee(declaredValue) : (initial?.declaredFee ?? 0);
+  const subtotal = goodsFare + pickupFeeVal + deliverFeeVal + codFee + declaredFee;
+  // Giảm giá do hệ thống tự áp theo chính sách, không cho sửa tay
+  const discountVND = systemDiscount(subtotal);
+  const totalFare = Math.max(0, subtotal - discountVND);
+  // Người gửi thanh toán: không ghi thu TM lúc tạo — còn nợ để tác vụ «Tạo QR CK» luôn dùng được
+  // (checkbox chỉ bật VA + popup ngay sau lưu). Thu TM: nhập kho gửi / thu tay sau.
+  const paidNow =
+    payMethod === "Người gửi thanh toán"
+      ? 0
+      : payMethod === "Thu cước 1 phần"
+        ? Math.min(totalFare, Number(prepaid) || 0)
+        : 0;
+  const unpaid = Math.max(0, totalFare - paidNow);
+  useEffect(() => {
+    if (!codAmount) {
+      setSurchargeExtra(0);
+      return;
+    }
+    const cfg = useStore.getState().surcharges?.cod;
+    setSurchargeExtra(calcCodFee(codAmount, cfg));
+  }, [codAmount]);
+
+  const pricingRules = useStore((s) => s.pricingRules);
+  useEffect(() => {
+    setItems((prev) => {
+      let changed = false;
+      const routes = transitPlan ? transitPlan.legs.map((l) => l.route) : [route];
+      const next = prev.map((it) => {
+        const line = routes.reduce(
+          (sum, r) =>
+            sum +
+            computeGoodsLineFare({
+              group: it.group,
+              kind: it.kind,
+              name: it.name,
+              sl: it.sl,
+              weight: it.weight,
+              route: r,
+              d: it.dai,
+              r: it.rong,
+              c: it.cao,
+            }),
+          0,
+        );
+        if (it.fare === line) return it;
+        changed = true;
+        return { ...it, fare: line };
+      });
+      return changed ? next : prev;
+    });
+  }, [route, items, pricingRules, productPricing, transitPlan]);
+
+  const clear = () => {
+    setSenderPhone("");
+    setSenderName("");
+    setReceiverPhone("");
+    setReceiverName("");
+    setHomePickup(false);
+    setPickupAddr("");
+    setPickupPin(null);
+    setHomeDeliver(false);
+    setDeliverAddr("");
+    setDeliverPin(null);
+    setDeliverDate("");
+    setIdNumber("");
+    setItems([newItem()]);
+    setOrderNote("");
+    setCodAmount(0);
+    setCkSender(false);
+    setBankName("");
+    setBankAccountNo("");
+    setBankAccountName("");
+    setInvoiceRequested(false);
+    setInvoiceTaxCode("");
+    setInvoiceCompanyName("");
+    setInvoiceEmail("");
+    setInvoiceCompanyAddress("");
+    setInvoiceBuyerName("");
+    invoiceBuyerTouched.current = false;
+    setInvoiceBuyerIdNumber("");
+    setInvoiceBuyerPhone("");
+    setSurchargeExtra(0);
+    setPrepaid(0);
+    invoiceAutoTax.current = "";
+
+    setPickupFee(0);
+    setDeliverFee(0);
+  };
+
+  const addOrder = useStore((s) => s.addOrder);
+  const updateOrder = useStore((s) => s.updateOrder);
+  const [saving, setSaving] = useState(false);
+  const [printCode, setPrintCode] = useState<string | null>(null);
+  /** Đơn đang chờ nhân viên xác nhận vì VP đã vượt 1000 đơn trong ngày. */
+  const [overflowAsk, setOverflowAsk] = useState<{
+    payload: NewOrderPayload;
+    action: "save" | "print";
+    message: string;
+  } | null>(null);
+
+  const submit = async (action: "save" | "print") => {
+    if (saving) return;
+    if (!senderPhone || !receiverPhone) {
+      toast.error("Vui lòng nhập SĐT người gửi và người nhận");
+      return;
+    }
+    if (!isValidVNPhone(senderPhone) || !isValidVNPhone(receiverPhone)) {
+      toast.error("SĐT không hợp lệ — cần 10 số, đầu 03/05/07/08/09");
+      return;
+    }
+    if (SHOW_ORDER_ADDRESSES && homePickup && !pickupAddr.trim()) {
+      toast.error("Vui lòng chọn địa chỉ lấy hàng tận nơi");
+      return;
+    }
+    if (SHOW_ORDER_ADDRESSES && homeDeliver && !deliverAddr.trim()) {
+      toast.error("Vui lòng chọn địa chỉ giao hàng tận nơi");
+      return;
+    }
+    if (!fromOffice || !toOffice) {
+      toast.error("Vui lòng chọn VP gửi và VP nhận");
+      return;
+    }
+    if (transitPlan?.missingLeg) {
+      const l = transitPlan.missingLeg;
+      toast.error(`Đơn trung chuyển: chưa có tuyến/lộ trình ${l.fromName} → ${l.toName}. Cấu hình lộ trình rồi tạo lại.`);
+      return;
+    }
+    if (!route || !itinerary) {
+      toast.error(
+        "Không suy ra được tuyến/lộ trình từ VP gửi và VP nhận. Kiểm tra điểm lộ trình trên master văn phòng và danh mục lộ trình.",
+      );
+      return;
+    }
+    if (transitPlan) {
+      const noPrice = transitPlan.legs.find((l) => !hasRoutePricing(l.route));
+      if (noPrice && items.some((it) => isOtherGoodsGroup(resolveGroup(it)))) {
+        toast.error(`Đơn trung chuyển: tuyến ${noPrice.route} (${noPrice.fromName} → ${noPrice.toName}) chưa có bảng giá.`);
+        return;
+      }
+    }
+    if (items.some((it) => !resolveGroup(it))) {
+      toast.error("Vui lòng chọn nhóm hàng cho mỗi kiện");
+      return;
+    }
+    if (items.some((it) => !isOtherGoodsGroup(resolveGroup(it)) && !(it.kind ?? "").trim())) {
+      toast.error("Vui lòng chọn tên hàng hóa cho mỗi kiện");
+      return;
+    }
+    if (items.some((it) => isOtherGoodsGroup(resolveGroup(it)) && !(it.name ?? "").trim())) {
+      toast.error("Vui lòng nhập tên hàng hoá khi chọn nhóm Khác");
+      return;
+    }
+    if (items.some((it) => !(Number(it.weight) >= 1))) {
+      toast.error("Mỗi kiện phải có cân nặng tối thiểu 1 kg");
+      return;
+    }
+    if (invoiceRequested) {
+      if (!toUpperName(invoiceBuyerName)) {
+        toast.error("Nhập tên người trên hóa đơn");
+        return;
+      }
+      if (!invoiceTaxCode.trim() || !invoiceEmail.trim()) {
+        toast.error("Vui lòng điền đủ thông tin xuất hoá đơn");
+        return;
+      }
+      if (!invoiceCompanyName.trim() || !invoiceCompanyAddress.trim()) {
+        toast.error("Chưa có tên / địa chỉ công ty — bấm Tra để lấy thông tin theo MST");
+        return;
+      }
+      if (!isValidVietnamTaxCode(invoiceTaxCode)) {
+        toast.error("Mã số thuế không hợp lệ — kiểm tra lại (MISA không nhận MST điền bừa)");
+        return;
+      }
+      const idDigits = onlyDigits(invoiceBuyerIdNumber);
+      if (idDigits && idDigits.length !== 9 && idDigits.length !== 12) {
+        toast.error("CCCD/CMND phải gồm 9 hoặc 12 chữ số (hoặc để trống)");
+        return;
+      }
+      const phoneDigits = onlyDigits(invoiceBuyerPhone);
+      if (phoneDigits && (phoneDigits.length < 9 || phoneDigits.length > 11)) {
+        toast.error("SĐT trên hóa đơn không hợp lệ (hoặc để trống)");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invoiceEmail.trim())) {
+        toast.error("Email nhận hoá đơn không hợp lệ");
+        return;
+      }
+    }
+    if (mode !== "edit" && payMethod === "Thu cước 1 phần") {
+      const part = Number(prepaid) || 0;
+      if (part <= 0 || part >= totalFare) {
+        toast.error("Thu cước 1 phần: nhập số tiền đã thu lớn hơn 0 và nhỏ hơn tổng cước");
+        return;
+      }
+    }
+    if (!offices.length) {
+      toast.error("Danh sách văn phòng chưa tải xong — vui lòng đợi vài giây rồi thử lại");
+      return;
+    }
+    const { resolveOfficeCodeStrict } = await import("@/lib/api/sync");
+    const fromCode = resolveOfficeCodeStrict(fromOffice);
+    const toCode = resolveOfficeCodeStrict(toOffice);
+    if (!fromCode) {
+      toast.error(
+        `Không xác định được VP gửi (“${fromOffice}”). Chọn VP trong danh sách (vd. VP Nam Định), không dùng tên tỉnh/tuyến.`,
+      );
+      return;
+    }
+    if (!toCode) {
+      toast.error(
+        `Không xác định được VP nhận (“${toOffice}”). Chọn VP trong danh sách hoặc tải lại trang.`,
+      );
+      return;
+    }
+    if (mode === "edit") {
+      if (initial?.code) {
+        const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+        const { packageCount } = packagesFromItems(items);
+        const prev = useStore.getState().orders.find((o) => o.code === initial.code);
+        const nextSender = toUpperName(senderName);
+        const nextReceiver = toUpperName(receiverName) || "—";
+        const detailParts = [
+          prev?.senderName !== nextSender
+            ? `Người gửi ${prev?.senderName ?? "—"}→${nextSender}`
+            : "",
+          prev?.senderPhone !== senderPhone
+            ? `SĐT gửi ${prev?.senderPhone ?? "—"}→${senderPhone}`
+            : "",
+          prev?.receiverName !== nextReceiver
+            ? `Người nhận ${prev?.receiverName ?? "—"}→${nextReceiver}`
+            : "",
+          prev?.receiverPhone !== receiverPhone
+            ? `SĐT nhận ${prev?.receiverPhone ?? "—"}→${receiverPhone}`
+            : "",
+          prev?.fromOffice !== fromCode || prev?.toOffice !== toCode
+            ? `Tuyến ${prev?.fromOffice ?? "—"}→${prev?.toOffice ?? "—"} → ${fromCode}→${toCode}`
+            : "",
+          Math.abs((prev?.weightKg ?? 0) - totalWeight) > 1e-6
+            ? `KL ${prev?.weightKg ?? 0}→${totalWeight}`
+            : "",
+          (prev?.quantity ?? 0) !== packageCount
+            ? `Số kiện ${prev?.quantity ?? 0}→${packageCount}`
+            : "",
+          (prev?.fare ?? 0) !== totalFare ? `Cước ${prev?.fare ?? 0}→${totalFare}` : "",
+          (prev?.codAmount ?? 0) !== codAmount ? `COD ${prev?.codAmount ?? 0}→${codAmount}` : "",
+          !!prev?.homeDelivery !== homeDeliver
+            ? `GTN ${prev?.homeDelivery ? "có" : "không"}→${homeDeliver ? "có" : "không"}`
+            : "",
+          !!prev?.homePickup !== homePickup
+            ? `LTN ${prev?.homePickup ? "có" : "không"}→${homePickup ? "có" : "không"}`
+            : "",
+        ]
+          .filter(Boolean)
+          .join("; ")
+          .slice(0, 240);
+        const ok = await updateOrder(
+          initial.code,
+          {
+            senderPhone,
+            senderName: nextSender,
+            receiverName: nextReceiver,
+            receiverPhone,
+            fromOffice: fromCode,
+            toOffice: toCode,
+            finalToOffice: toCode,
+            note: embedWarehouseInSeqs(
+              orderNoteWithPackages(orderNote, items, goodsFare),
+              warehouseInSeqs(prev ?? { note: undefined }),
+            ),
+            weightKg: totalWeight,
+            quantity: packageCount,
+            fare: totalFare,
+            goodsFare,
+            declaredFee,
+            discountAmount: discountVND,
+            codAmount: codAmount > 0 ? codAmount : 0,
+            codFee: codAmount > 0 ? codFee : 0,
+            pickupAddress: homePickup ? pickupAddr || undefined : undefined,
+            address: homeDeliver ? deliverAddr || undefined : undefined,
+            deliveryLat: homeDeliver ? deliverPin?.lat : undefined,
+            deliveryLng: homeDeliver ? deliverPin?.lng : undefined,
+            homeDelivery: homeDeliver,
+            homePickup,
+            bankName: ckSender ? bankName || undefined : "",
+            bankAccountNo: ckSender ? bankAccountNo || undefined : "",
+            bankAccountName: ckSender ? bankAccountName || undefined : "",
+            invoiceRequested,
+            invoiceTaxCode: invoiceRequested ? normalizeTaxCode(invoiceTaxCode) : "",
+            invoiceCompanyName: invoiceRequested ? invoiceCompanyName.trim() : "",
+            invoiceEmail: invoiceRequested ? invoiceEmail.trim() : "",
+            invoiceCompanyAddress: invoiceRequested ? invoiceCompanyAddress.trim() : "",
+            invoiceBuyerName: invoiceRequested ? toUpperName(invoiceBuyerName) : "",
+            invoiceBuyerIdNumber: invoiceRequested ? onlyDigits(invoiceBuyerIdNumber) || "" : "",
+            invoiceBuyerPhone: invoiceRequested ? onlyDigits(invoiceBuyerPhone) || "" : "",
+          },
+          {
+            eventAction: "ORDER_EDIT",
+            eventDetail: detailParts || "Sửa form tạo đơn",
+          },
+        );
+        if (!ok) return;
+      }
+      toast.success(`Đã cập nhật đơn hàng${initial?.code ? ` ${initial.code}` : ""}`);
+      onOpenChange(false);
+      return;
+    }
+
+    const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
+    const { packageCount, goodsLabel } = packagesFromItems(items);
+    const code = genOrderCode(fromCode);
+    const now = new Date().toISOString();
+
+    await persist(
+      {
+        code,
+        senderPhone,
+        senderName: toUpperName(senderName),
+        receiverName: toUpperName(receiverName) || "—",
+        receiverPhone,
+        fromOffice: fromCode,
+        toOffice: toCode,
+        finalToOffice: toCode,
+        goodsType: goodsLabel,
+        // Thu cước 1 phần: phần còn lại người nhận trả khi giao.
+        // Đơn có COD vẫn giữ người trả cước; COD nhận biết qua codAmount.
+        collectForm:
+          payMethod === "Người nhận thanh toán" || payMethod === "Thu cước 1 phần" ? "NHAN_TRA" : "GUI_TRA",
+        onCredit: payMethod === "Công nợ",
+        weightKg: totalWeight,
+        quantity: packageCount,
+        fare: totalFare,
+        goodsFare,
+        declaredFee,
+        discountAmount: discountVND,
+        pickupFee: Number(pickupFee) || 0,
+        deliveryFee: Number(deliverFee) || 0,
+        pickupKm: homePickup && pickupKm != null ? pickupKm : undefined,
+        deliveryKm: homeDeliver && deliverKm != null ? deliverKm : undefined,
+        route,
+        itinerary,
+        branchCode: branchCodeOf(route),
+        status: "CONFIRMED",
+        createdAt: now,
+        updatedAt: now,
+        note: orderNoteWithPackages(orderNote, items, goodsFare),
+        homeDelivery: homeDeliver,
+        homePickup,
+        paidAmount: paidNow,
+        pickupAddress: homePickup ? pickupAddr || undefined : undefined,
+        address: homeDeliver ? deliverAddr || undefined : undefined,
+        deliveryLat: homeDeliver ? deliverPin?.lat : undefined,
+        deliveryLng: homeDeliver ? deliverPin?.lng : undefined,
+        codAmount: codAmount > 0 ? codAmount : 0,
+        codFee: codAmount > 0 ? codFee : 0,
+        bankName: ckSender ? bankName || undefined : undefined,
+        bankAccountNo: ckSender ? bankAccountNo || undefined : undefined,
+        bankAccountName: ckSender ? bankAccountName || undefined : undefined,
+        invoiceRequested,
+        invoiceTaxCode: invoiceRequested ? normalizeTaxCode(invoiceTaxCode) : undefined,
+        invoiceCompanyName: invoiceRequested ? invoiceCompanyName.trim() : undefined,
+        invoiceEmail: invoiceRequested ? invoiceEmail.trim() : undefined,
+        invoiceCompanyAddress: invoiceRequested ? invoiceCompanyAddress.trim() : undefined,
+        invoiceBuyerName: invoiceRequested ? toUpperName(invoiceBuyerName) : undefined,
+        invoiceBuyerIdNumber: invoiceRequested ? onlyDigits(invoiceBuyerIdNumber) || undefined : undefined,
+        invoiceBuyerPhone: invoiceRequested ? onlyDigits(invoiceBuyerPhone) || undefined : undefined,
+      },
+      action,
+    );
+  };
+
+  /** Lưu đơn lên BE; VP vượt 1000 đơn/ngày thì hỏi lại rồi gọi chính hàm này với cờ xác nhận. */
+  const persist = async (
+    payload: NewOrderPayload,
+    action: "save" | "print",
+    confirmDailyOverflow?: boolean,
+  ) => {
+    setSaving(true);
+    try {
+      const wantTransfer = requestSenderTransfer && payMethod === "Người gửi thanh toán";
+      const result = await addOrder(payload, {
+        ...(confirmDailyOverflow ? { confirmDailyOverflow: true } : {}),
+        ...(wantTransfer ? { requestSenderTransfer: true } : {}),
+      });
+
+      if (!result.ok) {
+        if (result.needsDailyOverflowConfirm) {
+          setOverflowAsk({ payload, action, message: result.error });
+          return;
+        }
+        toast.error(result.error);
+        return;
+      }
+
+      const savedCode = result.code;
+      if (result.warning) {
+        toast.warning(result.warning, { duration: 15000 });
+      }
+      if (action === "print") {
+        toast.success(`Đã lưu đơn ${savedCode} — mở in tem`);
+        setPrintCode(savedCode);
+      } else {
+        toast.success(`Đã lưu đơn ${savedCode}`);
+      }
+      if (wantTransfer) {
+        setTransferQr({ code: savedCode, collect: result.collect ?? null });
+      }
+      resetForm();
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateItem = (id: string, patch: Partial<Item>) =>
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+
+  const duplicateItem = (id: string) =>
+    setItems((prev) => {
+      const idx = prev.findIndex((it) => it.id === id);
+      if (idx < 0) return prev;
+      const copy = { ...prev[idx], id: Math.random().toString(36).slice(2, 9) };
+      return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
+    });
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1560px] flex-col overflow-hidden p-0">
+          <DialogTitle className="sr-only">
+            {mode === "edit"
+              ? `Sửa đơn hàng${initial?.code ? ` · ${initial.code}` : ""}`
+              : "Tạo đơn hàng"}
+          </DialogTitle>
+
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-[19px] pb-[19px] pt-[32px] lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="min-w-0 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-2">
+              {(route || itinerary) && (
+                <p className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  Tuyến / lộ trình (tự suy từ VP):{" "}
+                  <span className="font-medium text-foreground">
+                    {[route, itinerary].filter(Boolean).join(" · ") || "—"}
+                  </span>
+                </p>
+              )}
+
+              {/* Sender section */}
+              <Section icon={<User className="h-4 w-4" />} title="Người gửi">
+                {partyLocked && (
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    {senderLocked
+                      ? "Sửa đơn không đổi được thông tin người gửi / người nhận"
+                      : "Admin / Điều phối sửa được tên, SĐT và địa chỉ người gửi ở mọi trạng thái. Người nhận không đổi ở form này"}
+                    {canEditToOffice ? " — được sửa VP nhận khi đơn đang nhập kho gửi." : "."}
+                  </p>
+                )}
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <F label="SĐT Người Gửi *">
+                    <div className="relative">
+                      <PhoneInput
+                        placeholder="VD: 0371234567 · 5 số đầu/cuối"
+                        value={senderPhone}
+                        readOnly={senderLocked}
+                        quietUntilComplete
+                        className={senderLockedClass}
+                        onChange={setSenderPhone}
+                        onFocus={() => setSenderSuggestOn(true)}
+                        onBlur={() => setSenderSuggestOn(false)}
+                      />
+                      {senderSuggestOn && senderSuffix.length === PHONE_SUFFIX_LEN ? (
+                        <PhoneSuggestMenu
+                          loading={phoneSuggesting === "sender" && senderSuggests.length === 0}
+                          items={senderSuggests}
+                          onPick={pickSenderSuggest}
+                        />
+                      ) : null}
+                    </div>
+                  </F>
+                  <F label="Tên người gửi">
+                    <NameInput
+                      placeholder="Tên người gửi"
+                      value={senderName}
+                      readOnly={senderLocked}
+                      className={senderLockedClass}
+                      onChange={setSenderName}
+                    />
+                  </F>
+                  <F label="VP gửi *">
+                    <SearchableSelect
+                      value={fromOffice}
+                      onValueChange={(v) => {
+                        if (lockFromOffice || partyLocked) return;
+                        setFromOffice(v);
+                      }}
+                      className={`h-auto min-h-9 py-1.5 ${lockFromOffice ? "bg-muted text-muted-foreground" : ""}`}
+                      placeholder={lockFromOffice ? "Đang gắn VP tài khoản…" : "Chọn VP gửi"}
+                      emptyText="Không có văn phòng"
+                      disabled={lockFromOffice || partyLocked}
+                      options={fromOfficeOptions}
+                    />
+                  </F>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
+                  <label className="flex items-center gap-2 whitespace-nowrap pb-2.5 text-sm">
+                    <Checkbox
+                      checked={homePickup}
+                      disabled={partyLocked}
+                      onCheckedChange={(v) => {
+                        setHomePickup(Boolean(v));
+                      }}
+                    />
+                    <MapPin className="h-3.5 w-3.5 text-success" />
+                    Lấy tận nơi
+                  </label>
+                  {SHOW_ORDER_ADDRESSES && homePickup ? (
+                    <AddressPicker
+                      label="Địa chỉ lấy hàng"
+                      required
+                      value={pickupAddr}
+                      onChange={setPickupAddr}
+                      onPinChange={setPickupPin}
+                      allowMapLink
+                      preferredProvince={pickupProvinceHint}
+                      disabled={senderLocked}
+                    />
+                  ) : null}
+                </div>
+                {homePickup ? (
+                  <div className="mt-3 w-full min-w-0">
+                    <HomeDeliveryMap
+                      enabled
+                      address={pickupAddr}
+                      fixedPin={pickupPin}
+                      label="lấy tận nơi"
+                      officeLat={findOfficeByToken(fromOffice, offices)?.latitude ?? null}
+                      officeLng={findOfficeByToken(fromOffice, offices)?.longitude ?? null}
+                      officeAddress={findOfficeByToken(fromOffice, offices)?.address}
+                      onKmChange={setPickupKm}
+                    />
+                  </div>
+                ) : null}
+              </Section>
+
+              {/* Receiver section */}
+              <Section icon={<Truck className="h-4 w-4" />} title="Người nhận">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                  <F label="SĐT Người Nhận *">
+                    <div className="relative">
+                      <PhoneInput
+                        placeholder="VD: 0377654321 · 5 số đầu/cuối"
+                        value={receiverPhone}
+                        readOnly={partyLocked}
+                        quietUntilComplete
+                        className={lockedInputClass}
+                        onChange={setReceiverPhone}
+                        onFocus={() => setReceiverSuggestOn(true)}
+                        onBlur={() => setReceiverSuggestOn(false)}
+                      />
+                      {receiverSuggestOn && receiverSuffix.length === PHONE_SUFFIX_LEN ? (
+                        <PhoneSuggestMenu
+                          loading={phoneSuggesting === "receiver" && receiverSuggests.length === 0}
+                          items={receiverSuggests}
+                          onPick={pickReceiverSuggest}
+                        />
+                      ) : null}
+                    </div>
+                  </F>
+                  <F label="Tên người nhận">
+                    <NameInput
+                      placeholder="Tên người nhận"
+                      value={receiverName}
+                      readOnly={partyLocked}
+                      className={lockedInputClass}
+                      onChange={setReceiverName}
+                    />
+                  </F>
+                  <F label="VP Nhận *">
+                    <SearchableSelect
+                      value={toOffice}
+                      onValueChange={setToOffice}
+                      className="h-auto min-h-9 py-1.5"
+                      placeholder="Chọn VP nhận"
+                      emptyText="Không có văn phòng"
+                      disabled={toOfficeLocked}
+                      options={toOfficeOptions}
+                    />
+                  </F>
+                  <F label="CMND/Passport">
+                    <Input
+                      placeholder="VD: 191943210"
+                      value={idNumber}
+                      readOnly={partyLocked}
+                      className={lockedInputClass}
+                      onChange={(e) => setIdNumber(e.target.value)}
+                    />
+                  </F>
+                </div>
+                {!partyLocked && recentReceivers.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Người nhận gần đây của SĐT gửi:</span>
+                    {recentReceivers.map((o) => {
+                      const active = onlyDigits(o.receiverPhone) === onlyDigits(receiverPhone);
+                      const toName = findOfficeByToken(o.finalToOffice || o.toOffice, offices)?.name;
+                      return (
+                        <button
+                          key={onlyDigits(o.receiverPhone)}
+                          type="button"
+                          onClick={() => pickRecentReceiver(o)}
+                          title={[o.address, toName].filter(Boolean).join(" · ") || undefined}
+                          className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                            active
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "hover:border-primary hover:bg-primary/5"
+                          }`}
+                        >
+                          <span className="font-medium">{toUpperName(o.receiverName ?? "") || "Không tên"}</span>
+                          <span className="text-muted-foreground"> · {o.receiverPhone}</span>
+                          {toName ? <span className="text-muted-foreground"> · {toName}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
+                  <label className="flex items-center gap-2 whitespace-nowrap pb-2.5 text-sm">
+                    <Checkbox
+                      checked={homeDeliver}
+                      disabled={partyLocked}
+                      onCheckedChange={(v) => setHomeDeliver(Boolean(v))}
+                    />
+                    <MapPin className="h-3.5 w-3.5 text-success" />
+                    Giao tận nơi
+                  </label>
+                  {SHOW_ORDER_ADDRESSES && homeDeliver ? (
+                    <AddressPicker
+                      label="Địa chỉ giao hàng"
+                      required
+                      value={deliverAddr}
+                      onChange={setDeliverAddr}
+                      onPinChange={setDeliverPin}
+                      allowMapLink
+                      preferredProvince={deliverProvinceHint}
+                      disabled={partyLocked}
+                    />
+                  ) : null}
+                </div>
+                {homeDeliver ? (
+                  <div className="mt-3 w-full min-w-0">
+                    <HomeDeliveryMap
+                      enabled
+                      address={deliverAddr}
+                      fixedPin={deliverPin}
+                      label="giao tận nơi"
+                      officeLat={findOfficeByToken(toOffice, offices)?.latitude ?? null}
+                      officeLng={findOfficeByToken(toOffice, offices)?.longitude ?? null}
+                      officeAddress={findOfficeByToken(toOffice, offices)?.address}
+                      onKmChange={setDeliverKm}
+                    />
+                  </div>
+                ) : null}
+                <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
+              </Section>
+
+              {/* Items table */}
+              <Section icon={<PackagePlus className="h-4 w-4" />} title="Danh sách hàng hóa">
+                <div className="space-y-3">
+                  {items.map((it, idx) => {
+                    const group = resolveGroup(it);
+                    const isOther = isOtherGoodsGroup(group);
+                    const showProduct = Boolean(group) && !isOther;
+                    const cols = isOther
+                      ? "1fr 1fr 68px 68px 68px"
+                      : showProduct
+                        ? "1fr 1fr 68px 68px 68px"
+                        : "1fr 68px 68px 68px";
+                    const row2 = "72px 90px 1fr 1fr 2fr";
+                    return (
+                      <div key={it.id} className="rounded-lg border bg-background px-4 pb-3 pt-2.5">
+                        {/* Header row */}
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Kiện {idx + 1}
+                          </span>
+                          {items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
+                              className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                        {/* Row 1: nhóm hàng · [tên hàng] · dài · rộng · cao */}
+                        <div className="grid gap-3" style={{ gridTemplateColumns: cols }}>
+                          <F label="Nhóm hàng">
+                            <SearchableSelect
+                              value={group}
+                              onValueChange={(v) =>
+                                updateItem(it.id, {
+                                  group: v,
+                                  kind: isOtherGoodsGroup(v) ? OTHER_GOODS : "",
+                                  name: "",
+                                })
+                              }
+                              className="h-9"
+                              placeholder="Chọn nhóm hàng"
+                              options={goodsGroupOptions}
+                            />
+                          </F>
+                          {showProduct && (
+                            <F label="Tên hàng hóa">
+                              <SearchableSelect
+                                value={it.kind}
+                                onValueChange={(v) => updateItem(it.id, { kind: v, name: "" })}
+                                className="h-9"
+                                placeholder="Chọn tên hàng hóa"
+                                options={productNameOptions(group)}
+                              />
+                            </F>
+                          )}
+                          {isOther && (
+                            <F label="Nhập tên hàng hoá *">
+                              <Input
+                                className="h-9"
+                                placeholder="Nhập tên hàng hóa"
+                                value={it.name}
+                                onChange={(e) =>
+                                  updateItem(it.id, { name: e.target.value, kind: OTHER_GOODS })
+                                }
+                                required
+                              />
+                            </F>
+                          )}
+                          <F label="Dài (cm)">
+                            <NumberInput
+                              className="h-9 w-full"
+                              placeholder="0"
+                              value={it.dai}
+                              onChange={(dai) => updateItem(it.id, { dai })}
+                            />
+                          </F>
+                          <F label="Rộng (cm)">
+                            <NumberInput
+                              className="h-9 w-full"
+                              placeholder="0"
+                              value={it.rong}
+                              onChange={(rong) => updateItem(it.id, { rong })}
+                            />
+                          </F>
+                          <F label="Cao (cm)">
+                            <NumberInput
+                              className="h-9 w-full"
+                              placeholder="0"
+                              value={it.cao}
+                              onChange={(cao) => updateItem(it.id, { cao })}
+                            />
+                          </F>
+                        </div>
+                        {/* Row 2: số lượng · cân nặng · giá trị · cước · ghi chú */}
+                        <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: row2 }}>
+                          <F label="Số lượng">
+                            <NumberInput
+                              className="h-9 w-full"
+                              value={it.sl}
+                              onChange={(sl) => updateItem(it.id, { sl })}
+                            />
+                          </F>
+                          <F label="Cân nặng (KG)">
+                            <NumberInput
+                              className="h-9 w-full"
+                              decimal
+                              min={1}
+                              value={it.weight}
+                              onChange={(weight) => updateItem(it.id, { weight })}
+                            />
+                          </F>
+                          <F label="Giá trị hàng">
+                            <MoneyInput
+                              value={it.value}
+                              onChange={(value) => updateItem(it.id, { value })}
+                            />
+                          </F>
+                          <F label="Cước hàng">
+                            <MoneyInput
+                              value={it.fare}
+                              onChange={() => undefined}
+                              readOnly
+                              tabIndex={-1}
+                            />
+                          </F>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setItems((p) => [...p, newItem()])}
+                      className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm kiện
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const last = items[items.length - 1];
+                        if (last) duplicateItem(last.id);
+                      }}
+                      className="flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
+                      aria-label="Nhân bản kiện cuối"
+                      title="Nhân bản kiện cuối"
+                    >
+                      <Copy className="h-4 w-4 shrink-0" />
+                      Nhân bản
+                    </button>
+                  </div>
+                </div>
+              </Section>
+            </div>
+
+            <div className="min-w-0 space-y-5 lg:sticky lg:top-0 lg:h-full lg:self-start lg:overflow-y-auto lg:pl-1">
+              {/* Payment section */}
+              <Section icon={<Receipt className="h-4 w-4" />} title="Thanh toán & ghi chú">
+                <div className="space-y-4">
+                  {/* LEFT: Payment details */}
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <F label="Hình thức thanh toán">
+                        <SearchableSelect
+                          value={payMethod}
+                          onValueChange={(v) => {
+                            setPayMethod(v);
+                            if (v !== "Người gửi thanh toán") setRequestSenderTransfer(false);
+                          }}
+                          className="h-9"
+                          options={PAY_METHODS.map((m) => ({
+                            value: m,
+                            label: m,
+                          }))}
+                        />
+                      </F>
+                      {payMethod === "Thu cước 1 phần" && (
+                        <F label="Người gửi trả trước">
+                          <MoneyInput value={prepaid} onChange={setPrepaid} />
+                        </F>
+                      )}
+                      <F label="Thu Hộ (COD)">
+                        <MoneyInput value={codAmount} onChange={setCodAmount} />
+                      </F>
+                      <F label="Phí thu hộ COD">
+                        <MoneyInput
+                          value={surchargeExtra}
+                          onChange={setSurchargeExtra}
+                          disabled={!codAmount}
+                          placeholder={!codAmount ? "Nhập Thu hộ COD trước" : ""}
+                        />
+                      </F>
+                      <F label="Giảm giá (hệ thống)">
+                        <Input value={formatVND(discountVND)} readOnly disabled />
+                      </F>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={ckSender}
+                          onCheckedChange={(v) => setCkSender(Boolean(v))}
+                        />
+                        Tài khoản nhận thu hộ
+                      </label>
+                      {ckSender && (
+                        <div className="grid grid-cols-1 gap-2 rounded-md border bg-background p-2.5 sm:grid-cols-3">
+                          <F label="Ngân hàng">
+                            <SearchableSelect
+                              value={bankName}
+                              onValueChange={setBankName}
+                              className="h-9"
+                              placeholder="Chọn ngân hàng"
+                              options={[
+                                "Vietcombank",
+                                "VietinBank",
+                                "BIDV",
+                                "Agribank",
+                                "Techcombank",
+                                "MB Bank",
+                                "ACB",
+                                "VPBank",
+                                "TPBank",
+                                "Sacombank",
+                                "SHB",
+                                "HDBank",
+                                "VIB",
+                                "MSB",
+                                "OCB",
+                              ].map((b) => ({ value: b, label: b }))}
+                            />
+                          </F>
+                          <F label="Số tài khoản">
+                            <Input
+                              placeholder="Nhập số tài khoản"
+                              value={bankAccountNo}
+                              onChange={(e) => setBankAccountNo(e.target.value)}
+                            />
+                          </F>
+                          <F label="Tên tài khoản">
+                            <Input
+                              placeholder="Chủ tài khoản"
+                              value={bankAccountName}
+                              onChange={(e) => setBankAccountName(e.target.value)}
+                            />
+                          </F>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={invoiceRequested}
+                          onCheckedChange={(v) => setInvoiceRequested(Boolean(v))}
+                        />
+                        Xuất hoá đơn
+                      </label>
+                      {invoiceRequested && (
+                        <div className="grid grid-cols-1 gap-2.5 rounded-md border border-sky-200 bg-sky-50/70 p-3">
+                          <p className="text-[11px] text-muted-foreground">
+                            Lấy MST của người trả cước: {payerIsReceiver ? "người nhận" : "người gửi"}
+                            {invoicePayerPhone ? ` · ${invoicePayerPhone}` : ""}. Đổi hình thức thanh toán thì tra lại.
+                          </p>
+                          <F label="Tên người trên hóa đơn *">
+                            <NameInput
+                              placeholder="Mặc định tên người trả cước"
+                              value={invoiceBuyerName}
+                              onChange={(v) => {
+                                invoiceBuyerTouched.current = true;
+                                setInvoiceBuyerName(v);
+                              }}
+                            />
+                          </F>
+                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <F label="CCCD / CMND">
+                              <Input
+                                inputMode="numeric"
+                                placeholder="Không bắt buộc"
+                                value={invoiceBuyerIdNumber}
+                                maxLength={12}
+                                onChange={(e) => setInvoiceBuyerIdNumber(e.target.value.replace(/\D/g, ""))}
+                              />
+                            </F>
+                            <F label="SĐT trên hóa đơn">
+                              <PhoneInput
+                                placeholder="Không bắt buộc"
+                                value={invoiceBuyerPhone}
+                                onChange={setInvoiceBuyerPhone}
+                              />
+                            </F>
+                          </div>
+                          <BuyerProfileChips
+                            phone={invoicePayerPhone}
+                            profiles={invoiceProfiles}
+                            selectedTaxCode={invoiceTaxCode}
+                            onPick={(p) => void applyBuyerProfile(p)}
+                          />
+                          <F label="Mã số thuế *">
+                            <TaxCodeInput
+                              value={invoiceTaxCode}
+                              onChange={setInvoiceTaxCode}
+                              onFound={(info) => {
+                                setInvoiceCompanyName(info.companyName);
+                                setInvoiceCompanyAddress(info.address);
+                              }}
+                            />
+                          </F>
+                          <F label="Tên công ty *">
+                            <Input
+                              className="bg-muted"
+                              placeholder="Tự điền theo MST"
+                              value={invoiceCompanyName}
+                              readOnly
+                              tabIndex={-1}
+                            />
+                          </F>
+                          <F label="Email nhận hoá đơn *">
+                            <Input
+                              type="email"
+                              placeholder="example@company.com"
+                              value={invoiceEmail}
+                              onChange={(e) => setInvoiceEmail(e.target.value)}
+                            />
+                          </F>
+                          <F label="Địa chỉ công ty *">
+                            <Input
+                              className="bg-muted"
+                              placeholder="Tự điền theo MST"
+                              value={invoiceCompanyAddress}
+                              readOnly
+                              tabIndex={-1}
+                            />
+                          </F>
+                        </div>
+                      )}
+                    </div>
+
+                    <F label="Ghi chú đơn hàng">
+                      <Textarea
+                        rows={3}
+                        placeholder="Nhập ghi chú"
+                        value={orderNote}
+                        onChange={(e) => setOrderNote(e.target.value)}
+                      />
+                    </F>
+                  </div>
+
+                  {/* RIGHT: Summary */}
+                  <div>
+                    <div className="rounded-md border bg-muted/30 p-3 space-y-1.5 text-sm">
+                      <div className="mb-1 text-xs font-medium text-muted-foreground">
+                        Thông tin thanh toán
+                      </div>
+                      <Row label="Cước hàng" value={goodsFare} always />
+                      <Row label="Cước lấy hàng tận nơi" value={pickupFeeVal} />
+                      {homePickup && pickupKm != null && pickupKm > 0 ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Theo bảng phí · {pickupKm.toFixed(2)} km
+                        </p>
+                      ) : homePickup && pickupAddr.trim() ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Chưa ra km — tạm {VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ
+                        </p>
+                      ) : null}
+                      <Row label="Cước giao hàng tận nơi" value={deliverFeeVal} />
+                      {homeDeliver && deliverKm != null && deliverKm > 0 ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Theo bảng phí · {deliverKm.toFixed(2)} km
+                        </p>
+                      ) : homeDeliver && deliverAddr.trim() ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Chưa ra km — tạm {VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ
+                        </p>
+                      ) : null}
+                      <Row label="Phí thu hộ COD" value={codFee} />
+                      <Row label="Phí khai báo giá trị" value={declaredFee} />
+                      <Row label="Giảm giá" value={-discountVND} />
+                      <Row label="Đã thu" value={paidNow} />
+
+                      <div className="border-t pt-1.5 flex items-center justify-between font-semibold">
+                        <span>Tổng phải thu</span>
+                        <span className="text-primary">
+                          {totalFare.toLocaleString("vi-VN")} VND
+                        </span>
+                      </div>
+                      {unpaid > 0 && (
+                        <div className="flex items-center justify-between text-xs text-destructive">
+                          <span>Còn phải thu</span>
+                          <span>{unpaid.toLocaleString("vi-VN")} VND</span>
+                        </div>
+                      )}
+                      {mode !== "edit" && payMethod === "Người gửi thanh toán" ? (
+                        <label className="flex items-center gap-2 border-t pt-2 text-sm">
+                          <Checkbox
+                            checked={requestSenderTransfer}
+                            onCheckedChange={(v) => setRequestSenderTransfer(Boolean(v))}
+                          />
+                          <span className="font-medium">Khách có nhu cầu chuyển khoản</span>
+                        </label>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </Section>
+            </div>
+          </div>
+
+          {/* Footer actions */}
+          <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-card px-[19px] py-[13px]">
+            {mode === "edit" ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={saving}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-primary"
+                  onClick={() => void submit("save")}
+                  disabled={saving}
+                >
+                  <Save className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Lưu thay đổi"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="gap-1.5"
+                  onClick={clear}
+                  disabled={saving}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Xóa
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-primary"
+                  onClick={() => void submit("save")}
+                  disabled={saving}
+                >
+                  <Save className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Tạo đơn"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => void submit("print")}
+                  disabled={saving}
+                >
+                  <Printer className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Tạo và in"}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <PrintLabelDialog
+        code={printCode}
+        batchPackages
+        autoPrint
+        open={!!printCode}
+        onOpenChange={(v) => {
+          if (!v) setPrintCode(null);
+        }}
+      />
+
+      <OrderTransferQrDialog
+        open={!!transferQr}
+        orderCode={transferQr?.code ?? null}
+        initial={transferQr?.collect}
+        onOpenChange={(v) => {
+          if (!v) setTransferQr(null);
+        }}
+      />
+
+      <AlertDialog open={!!overflowAsk} onOpenChange={(o) => !o && setOverflowAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vượt 1000 đơn trong ngày</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overflowAsk?.message}. Vẫn tạo đơn này (đã vượt ngưỡng 1000 đơn/VP trong ngày)?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const ask = overflowAsk;
+                setOverflowAsk(null);
+                if (ask) void persist(ask.payload, ask.action, true);
+              }}
+            >
+              Vẫn tạo đơn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
+        {icon}
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Khoản phụ = 0 thì ẩn dòng; chỉ dòng `always` (cước hàng) luôn hiện. */
+function Row({ label, value, always }: { label: string; value: number; always?: boolean }) {
+  if (!always && !value) return null;
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span>{formatVND(value)}</span>
+    </div>
+  );
+}
+
+function F({
+  label,
+  children,
+  labelClassName,
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+  labelClassName?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className={cn("text-xs font-medium text-muted-foreground", labelClassName)}>
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}

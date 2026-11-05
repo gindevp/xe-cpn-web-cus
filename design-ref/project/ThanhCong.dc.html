@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thành công X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{rootClass}}">
+
+  <dc-import name="AppNav" active="" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+
+  <main class="pad page">
+
+    <dc-import name="AppHero" active="Thành công" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="flex: 1 1 320px; min-width: 0">
+        <h1 class="page-title">Thành công</h1>
+        <div class="muted" style="font-size: 13px; line-height: 20px">Danh sách chung giao thành công và hoàn thành công.</div>
+      </div>
+      <div class="filters">
+        <div class="field" style="flex: 0 0 150px"><span class="l" id="f-loai">Loại</span><button class="box" aria-labelledby="f-loai">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+        <div class="field" style="flex: 0 0 150px"><span class="l" id="f-ht">Hình thức</span><button class="box" aria-labelledby="f-ht">Tất cả<span class="ms" aria-hidden="true">expand_more</span></button></div>
+      </div>
+    </div>
+
+    <section class="card" style="display: flex; flex-direction: column; gap: 16px">
+      <h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">task_alt</span></span>Danh sách thành công (44.490)</h2>
+      <div class="scroller">
+        <table class="tbl" style="--tbl-min: 1120px">
+          <thead><tr><th>Mã đơn</th><th>Thời gian</th><th>Người gửi</th><th>Người nhận</th><th>VP gửi → VP nhận</th><th>Đơn hàng</th><th class="r">COD</th><th class="r">Cước phí</th><th class="r">Đã thu</th><th>Hoá đơn</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="10">
+              <tr>
+                <td><button class="code" data-step="{{step}}">{{o.code}}</button><button class="link" style="display: block; margin-top: 2px">Xem POD</button></td>
+                <td style="white-space: nowrap">{{o.time}}<span class="sub">{{o.date}}</span><span class="sub">{{o.how}}</span></td>
+                <td><span style="font-weight: 500">{{o.from}}</span><span class="sub">{{o.fromPhone}}</span></td>
+                <td><span style="font-weight: 500">{{o.to}}</span><span class="sub">{{o.toPhone}}</span></td>
+                <td>{{o.vpFrom}}<span class="sub">→ {{o.vpTo}}</span></td>
+                <td><span style="font-weight: 500">{{o.pack}}</span><span class="sub">{{o.goods}}</span></td>
+                <td class="r muted">—</td>
+                <td class="r"><span class="main">{{o.fee}}</span><span class="sub">{{o.payer}}</span></td>
+                <td class="r main">{{o.fee}}</td>
+                <td><span class="tag ok">Đã xuất cá nhân</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+          <span class="muted num" style="font-size: 13px">1-10 trên 44.490 đơn</span>
+          <button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px">
+          <button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button>
+          <button class="pg on num" aria-label="Trang 1">1</button>
+          <button class="pg num" aria-label="Trang 2">2</button>
+          <span class="muted" aria-hidden="true" style="padding: 0 4px">…</span>
+          <button class="pg num" style="padding: 0 8px" aria-label="Trang 4449">4449</button>
+          <button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1150}}'>
+const rowOf = (i, c, t, l, vf, vt, p, g, f, pay, how) => ({ code: c, time: t, date: '03/11/2026', from: 'Khách mẫu ' + l, fromPhone: '0900 000 10' + i, to: 'Người nhận ' + l, toPhone: '0900 000 20' + i, vpFrom: vf, vpTo: vt, pack: p, goods: g, fee: f, payer: pay, how });
+const ROWS = [
+  rowOf(1,'BC0311MCU1','16:52:10','A','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 1,5 kg','Giày dép','35.000','Người nhận trả','Giao tại bưu cục'),
+  rowOf(2,'BC0311MCU2','16:40:32','B','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 8 kg','Thực phẩm','70.000','Người gửi trả','Giao tại bưu cục'),
+  rowOf(3,'PV0311MCU3','16:21:45','C','31A Nguyễn Quốc Trị - Hà Nội','104 Song Hào - Nam Định','1 kiện · 3 kg','Quần áo','40.000','Người nhận trả','Giao tận nơi'),
+  rowOf(4,'BC0311MCU4','15:59:03','D','34 Trần Phú - Thái Bình','31A Nguyễn Quốc Trị - Hà Nội','3 kiện · 12 kg','Linh kiện','95.000','Người gửi trả','Giao tại bưu cục'),
+  rowOf(5,'LD0311MCU5','15:38:27','E','31A Nguyễn Quốc Trị - Hà Nội','263 Nguyễn Thái Học - Yên Bái','1 kiện · 0,5 kg','Giấy tờ','30.000','Người nhận trả','Giao tại bưu cục'),
+  rowOf(6,'BC0311MCU6','15:15:50','F','251 Lương Văn Thăng - Ninh Bình','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 5 kg','Mỹ phẩm','45.000','Người gửi trả','Giao tận nơi'),
+  rowOf(7,'PV0311MCU7','14:44:12','G','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 6 kg','Quần áo','60.000','Người nhận trả','Giao tại bưu cục'),
+  rowOf(8,'BC0311MCU8','14:18:36','H','31A Nguyễn Quốc Trị - Hà Nội','34 Trần Phú - Thái Bình','1 kiện · 2 kg','Thực phẩm','35.000','Người gửi trả','Giao tại bưu cục'),
+  rowOf(9,'LD0311MCU9','13:50:09','I','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 4 kg','Linh kiện','50.000','Người nhận trả','Giao tại bưu cục'),
+];
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      step: 'Thành công', stepCls: stepCls('Thành công'),
+      dark: !!this.props.dark, rootClass: (this.props.dark ? 'theme-dark' : 'theme-light') + ' shell', yes: true, rows: ROWS,
+          };
+  }
+}
+</script>
+</body>
+</html>

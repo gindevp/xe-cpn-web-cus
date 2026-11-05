@@ -1,0 +1,269 @@
+import { isNativeWebView } from "../native-shell";
+
+/** JWT trong localStorage — tab khác lắng nghe `storage` trên key này để đồng bộ đăng xuất. */
+export const TOKEN_KEY = "xe-m3-jwt";
+
+declare global {
+  interface Window {
+    ReactNativeWebView?: { postMessage: (msg: string) => void };
+    __XE_NATIVE_API_BASE__?: string;
+    __XE_NATIVE_TOKEN__?: string;
+    __XE_NATIVE_OFFICE__?: string;
+    __XE_NATIVE_LOGIN__?: string;
+    __XE_NATIVE_ROLE__?: string;
+    __xeApplyScan?: (code: string) => void;
+  }
+}
+
+export function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    const injected = window.__XE_NATIVE_API_BASE__?.replace(/\/$/, "");
+    if (injected) return injected;
+    if (isNativeWebView()) {
+      const host = window.location.hostname;
+      if (host && host !== "localhost" && !host.includes("vercel.app")) {
+        return `${window.location.protocol}//${host}:7080`;
+      }
+    }
+  }
+  const raw = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "").replace(/\/$/, "");
+  return lanRewrite(raw);
+}
+
+/** Dev mở qua IP LAN (máy khác trong mạng): API localhost → cùng host với trang, giữ port. */
+function lanRewrite(base: string): string {
+  if (typeof window === "undefined" || !base) return base;
+  const host = window.location.hostname;
+  if (!host || host === "localhost" || host === "127.0.0.1") return base;
+  try {
+    const u = new URL(base);
+    if (u.hostname !== "localhost" && u.hostname !== "127.0.0.1") return base;
+    u.hostname = host;
+    return u.toString().replace(/\/$/, "");
+  } catch {
+    return base;
+  }
+}
+
+export function isApiEnabled(): boolean {
+  return getApiBase().length > 0;
+}
+
+export function getToken(): string | null {
+  if (typeof window !== "undefined" && window.__XE_NATIVE_TOKEN__) {
+    return window.__XE_NATIVE_TOKEN__;
+  }
+  if (typeof localStorage === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null) {
+  if (typeof window !== "undefined") {
+    if (token) window.__XE_NATIVE_TOKEN__ = token;
+    else delete window.__XE_NATIVE_TOKEN__;
+  }
+  if (typeof localStorage === "undefined") return;
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    resetSessionExpireNotice();
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+  constructor(message: string, status: number, body?: unknown) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+/** BE trả 401 kèm `error.userNotActivated` khi jhi_user.activated = 0. */
+export const ACCOUNT_LOCKED_MESSAGE = "Tài khoản đã bị khóa. Liên hệ quản trị viên để mở lại.";
+
+export function isAccountLockedError(e: unknown): boolean {
+  if (!(e instanceof ApiError)) return false;
+  const b = (typeof e.body === "object" && e.body ? e.body : {}) as {
+    message?: string;
+    properties?: { message?: string };
+  };
+  return (b.message ?? b.properties?.message) === "error.userNotActivated";
+}
+
+/** BE trả 401 `error.sessionRevoked` khi phiên bị thu hồi (đăng nhập nơi khác / admin đăng xuất từ xa). */
+export const SESSION_REVOKED_EVENT = "xe-m3:session-revoked";
+export const SESSION_REVOKED_MESSAGE =
+  "Phiên đăng nhập đã kết thúc (tài khoản đăng nhập nơi khác hoặc bị admin đăng xuất). Vui lòng đăng nhập lại.";
+export const SESSION_EXPIRED_MESSAGE = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+
+let sessionExpireNotified = false;
+
+function notifyStaffSessionExpired(message: string) {
+  if (typeof window === "undefined" || sessionExpireNotified) return;
+  if (isNativeWebView()) return;
+  sessionExpireNotified = true;
+  window.dispatchEvent(new CustomEvent(SESSION_REVOKED_EVENT, { detail: { message } }));
+}
+
+/** Cho phép báo 401 lần nữa sau khi đăng nhập lại. */
+export function resetSessionExpireNotice() {
+  sessionExpireNotified = false;
+}
+
+type RequestOpts = {
+  method?: string;
+  body?: unknown;
+  auth?: boolean;
+  headers?: Record<string, string>;
+  /** Huỷ request nếu quá hạn (mạng di động treo không trả về) — ném ApiError status 0, code "timeout". */
+  timeoutMs?: number;
+};
+
+export const REQUEST_TIMEOUT_CODE = "timeout";
+
+export function isRequestTimeout(e: unknown): boolean {
+  return e instanceof ApiError && e.status === 0 && e.body === REQUEST_TIMEOUT_CODE;
+}
+
+export async function apiRequest<T = unknown>(path: string, opts: RequestOpts = {}): Promise<T> {
+  const base = getApiBase();
+  if (!base) throw new ApiError("API base URL not configured", 0);
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...(opts.headers ?? {}),
+  };
+  if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+  if (opts.auth !== false) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  const controller = opts.timeoutMs ? new AbortController() : undefined;
+  const timer = controller ? setTimeout(() => controller.abort(), opts.timeoutMs) : undefined;
+  let res: Response;
+  let text: string;
+  try {
+    res = await fetch(`${base}${path}`, {
+      method: opts.method ?? (opts.body !== undefined ? "POST" : "GET"),
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      signal: controller?.signal,
+    });
+    if (res.status === 204) return undefined as T;
+    text = await res.text();
+  } catch (e) {
+    if (controller?.signal.aborted) {
+      throw new ApiError("Kết nối quá chậm — máy chủ chưa phản hồi", 0, REQUEST_TIMEOUT_CODE);
+    }
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!res.ok) {
+    const rawText = typeof data === "string" ? data : "";
+    const d = (typeof data === "object" && data ? data : {}) as {
+      title?: string;
+      detail?: string;
+      message?: string;
+      params?: string;
+      properties?: { message?: string; params?: string };
+      fieldErrors?: Array<{ field?: string; message?: string; objectName?: string }>;
+    };
+    const fields = (d?.fieldErrors ?? [])
+      .map((f) => `${f.field ?? f.objectName ?? "?"}: ${f.message ?? ""}`)
+      .filter((s) => s.trim() !== ":")
+      .join("; ");
+    const blob = rawText || JSON.stringify(data ?? "");
+    const errKey =
+      d?.message ||
+      d?.properties?.message ||
+      (blob.includes("error.routeNotFound") ? "error.routeNotFound" : "") ||
+      (blob.includes("error.officeNotFound") ? "error.officeNotFound" : "");
+    const human =
+      errKey === "error.routeNotFound"
+        ? "Không tìm thấy tuyến trên hệ thống — thêm/bật tuyến ở Master dữ liệu"
+        : errKey === "error.officeNotFound"
+          ? "Không tìm thấy văn phòng"
+          : errKey === "error.vehicleNotFound"
+            ? "Không tìm thấy xe"
+            : errKey === "error.driverNotFound"
+              ? "Không tìm thấy tài xế"
+                : errKey === "error.userNotActivated"
+                ? ACCOUNT_LOCKED_MESSAGE
+                : errKey === "error.goongKeyMissing"
+                  ? "Chưa cấu hình Goong API key — vào Tích hợp → Goong / Distance Matrix"
+                : errKey === "error.ahamoveTokenMissing" ||
+                      errKey === "error.ahamoveNoService" ||
+                      errKey === "error.ahamoveServices" ||
+                      errKey === "error.ahamoveEstimate" ||
+                      errKey === "error.ahamoveServiceRequired"
+                    ? (typeof d?.title === "string" && d.title !== "Bad Request" ? d.title : "Lỗi Ahamove")
+                    : errKey === "error.osmAutocomplete" ||
+                      errKey === "error.osmPlace" ||
+                      errKey === "error.osmPlaceEmpty" ||
+                      errKey === "error.osmNoCoords" ||
+                      errKey === "error.osmPlaceIdInvalid" ||
+                      errKey === "error.osmReverse" ||
+                      errKey === "error.goongAutocomplete" ||
+                      errKey === "error.goongPlace" ||
+                      errKey === "error.goongPlaceEmpty" ||
+                      errKey === "error.goongNoCoords" ||
+                      errKey === "error.placeIdRequired"
+                    ? (typeof d?.title === "string" && d.title !== "Bad Request" ? d.title : "Lỗi tìm địa chỉ")
+                    : errKey.startsWith("error.")
+                      ? errKey === "error.receiptNotConfirmed"
+                        ? "Phiếu thu chưa được xác nhận (đã hoàn tác hoặc chưa thu)"
+                        : errKey === "error.receiptAlreadyConfirmed"
+                          ? "Phiếu thu đã được xác nhận"
+                          : errKey === "error.receiptUnconfirmExpired"
+                            ? "Đã qua 0h — không hoàn tác phiếu xác nhận ngày trước"
+                            : typeof d?.title === "string" && d.title !== "Bad Request"
+                              ? d.title
+                              : errKey
+                      : "";
+    const detail =
+      typeof d?.detail === "string" && d.detail && d.detail !== "null" ? d.detail : "";
+    let msg =
+      fields ||
+      detail ||
+      human ||
+      (typeof d?.title === "string" && d.title !== "Bad Request" ? d.title : "") ||
+      (rawText && !rawText.includes("ProblemDetail") ? rawText : "") ||
+      `HTTP ${res.status}`;
+    // Never surface Java ProblemDetailWithCause.toString() in the UI
+    if (String(msg).includes("ProblemDetail")) {
+      msg = human || "Không thực hiện được thao tác (lỗi máy chủ)";
+    }
+    if (res.status === 401) {
+      const skipLogout =
+        opts.auth === false ||
+        path.includes("/api/authenticate") ||
+        path.includes("/api/logout-session");
+      if (errKey === "error.sessionRevoked") {
+        msg = SESSION_REVOKED_MESSAGE;
+      }
+      if (!skipLogout && getToken()) {
+        if (errKey !== "error.sessionRevoked" && errKey !== "error.userNotActivated") {
+          msg = SESSION_EXPIRED_MESSAGE;
+        }
+        notifyStaffSessionExpired(msg);
+      }
+    }
+    throw new ApiError(String(msg), res.status, data);
+  }
+  return data as T;
+}

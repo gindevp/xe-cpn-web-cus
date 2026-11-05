@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chờ bàn giao X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{rootClass}}">
+
+  <dc-import name="AppNav" active="" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+
+  <main class="pad page">
+
+    <dc-import name="AppHero" active="Chờ bàn giao" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="flex: 1 1 360px; min-width: 0">
+        <h1 class="page-title">Chờ bàn giao</h1>
+        <div class="muted" style="font-size: 13px; line-height: 20px">{{desc}}</div>
+      </div>
+    </div>
+
+    <div class="seg" role="tablist" aria-label="Trạng thái bàn giao" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+        <button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.label}}<span class="count num">{{t.count}}</span></button>
+      </sc-for>
+    </div>
+
+    <section class="card" style="display: flex; flex-direction: column; gap: 16px">
+      <sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+        <div style="padding: 64px 16px; text-align: center">
+          <span class="ms" aria-hidden="true" style="font-size: 40px; color: var(--on-surface-variant)">inbox</span>
+          <h2 style="margin: 12px 0 4px; font-size: 15px; line-height: 22px; font-weight: 600">Không có đơn nào</h2>
+          <div class="muted" style="font-size: 13px">Tab này hiện chưa có đơn cần xử lý.</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{hasRows}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-height: 40px">
+            <div style="font-size: 15px; line-height: 22px; font-weight: 600">{{selText}}</div>
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+              <button class="btn text" disabled="{{noSel}}" onClick="{{askHuy}}">{{cancelLabel}}</button>
+              <button class="btn" disabled="{{noSel}}">{{confirmLabel}}</button>
+            </div>
+          </div>
+
+          <div class="scroller">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width: 18px"><input class="check" type="checkbox" aria-label="Chọn tất cả" checked="{{allSel}}" onChange="{{toggleAll}}"></th>
+                  <th>Mã đơn</th><th>Người gửi</th><th>Người nhận</th><th>VP gửi → VP nhận</th><th>Đơn hàng</th><th>Ảnh</th><th class="r">COD</th><th class="r">Cước phí</th><th class="r">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{rows}}" as="o" hint-placeholder-count="10">
+                  <tr class="{{o.cls}}">
+                    <td><input class="check" type="checkbox" aria-label="{{o.selLabel}}" checked="{{o.sel}}" onChange="{{o.toggle}}"></td>
+                    <td><button class="code" data-step="{{step}}">{{o.code}}</button><span class="sub">{{o.source}}</span><span class="sub">{{o.time}}</span></td>
+                    <td><span class="main" style="font-weight: 500">{{o.from}}</span><span class="sub">{{o.fromPhone}}</span></td>
+                    <td><span class="main" style="font-weight: 500">{{o.to}}</span><span class="sub">{{o.toPhone}}</span></td>
+                    <td>{{o.vpFrom}}<span class="sub">→ {{o.vpTo}}</span></td>
+                    <td><span style="font-weight: 500">{{o.pack}}</span><span class="sub">{{o.goods}}</span></td>
+                    <td><span class="thumb" role="img" aria-label="Chưa có ảnh"><span class="ms" aria-hidden="true">image</span></span></td>
+                    <td class="r muted">—</td>
+                    <td class="r"><span class="main">{{o.fee}}</span><span class="sub">{{o.payer}}</span></td>
+                    <td><div class="act"><button class="ok" aria-label="{{o.okLabel}}">Nhập kho</button><button class="no" aria-label="{{o.noLabel}}" title="Huỷ đơn" onClick="{{askHuy}}"><span class="ms" aria-hidden="true">delete</span></button></div></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+              <span class="muted num" style="font-size: 13px">{{rangeText}}</span>
+              <button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px">
+              <button class="pg" aria-label="Trang trước" disabled="{{isFirst}}" onClick="{{prev}}"><span class="ms" aria-hidden="true">chevron_left</span></button>
+              <sc-for list="{{pages}}" as="p" hint-placeholder-count="2">
+                <button class="{{p.cls}}" aria-label="{{p.aria}}" onClick="{{p.pick}}">{{p.n}}</button>
+              </sc-for>
+              <button class="pg" aria-label="Trang sau" disabled="{{isLast}}" onClick="{{next}}"><span class="ms" aria-hidden="true">chevron_right</span></button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1120}}'>
+const A = 'Khách tạo đơn tự mang hàng đến bưu cục hoặc quét QR tại bưu cục, chờ xác nhận nhập kho';
+const TABS = [['nhan','Chờ nhận hàng',12,A],['lay','Chờ lấy hàng',0,'Đơn chờ lấy hàng'],['dang','Đang lấy hàng',0,'Đơn đang lấy hàng']];
+const SAMPLE = [
+  ['PV0311MAU1','Quét QR tại bưu cục','16:42:08 3/11/2026','Khách mẫu A','0900 000 101','Người nhận A','0900 000 201','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 1,5 kg','Giấy tờ','35.000','Người nhận trả'],
+  ['PV0311MAU2','Tự mang đến bưu cục','16:30:51 3/11/2026','Khách mẫu B','0900 000 102','Người nhận B','0900 000 202','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 8 kg','Thực phẩm','70.000','Người gửi trả'],
+  ['PV0311MAU3','Quét QR tại bưu cục','16:18:22 3/11/2026','Khách mẫu C','0900 000 103','Người nhận C','0900 000 203','31A Nguyễn Quốc Trị - Hà Nội','104 Song Hào - Nam Định','1 kiện · 3 kg','Quần áo','40.000','Người nhận trả'],
+  ['PV0311MAU4','Tự mang đến bưu cục','15:57:40 3/11/2026','Khách mẫu D','0900 000 104','Người nhận D','0900 000 204','34 Trần Phú - Thái Bình','31A Nguyễn Quốc Trị - Hà Nội','3 kiện · 12 kg','Linh kiện','95.000','Người gửi trả'],
+  ['PV0311MAU5','Quét QR tại bưu cục','15:41:13 3/11/2026','Khách mẫu E','0900 000 105','Người nhận E','0900 000 205','31A Nguyễn Quốc Trị - Hà Nội','263 Nguyễn Thái Học - Yên Bái','1 kiện · 0,5 kg','Giấy tờ','30.000','Người nhận trả'],
+  ['PV0311MAU6','Quét QR tại bưu cục','15:12:36 3/11/2026','Khách mẫu F','0900 000 106','Người nhận F','0900 000 206','251 Lương Văn Thăng - Ninh Bình','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 5 kg','Mỹ phẩm','45.000','Người gửi trả'],
+  ['PV0311MAU7','Tự mang đến bưu cục','14:48:05 3/11/2026','Khách mẫu G','0900 000 107','Người nhận G','0900 000 207','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 6 kg','Quần áo','60.000','Người nhận trả'],
+  ['PV0311MAU8','Quét QR tại bưu cục','14:20:47 3/11/2026','Khách mẫu H','0900 000 108','Người nhận H','0900 000 208','31A Nguyễn Quốc Trị - Hà Nội','34 Trần Phú - Thái Bình','1 kiện · 2 kg','Thực phẩm','35.000','Người gửi trả'],
+  ['PV0311MAU9','Quét QR tại bưu cục','13:55:19 3/11/2026','Khách mẫu I','0900 000 109','Người nhận I','0900 000 209','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 4 kg','Linh kiện','50.000','Người nhận trả'],
+  ['PV0311MA10','Tự mang đến bưu cục','13:32:02 3/11/2026','Khách mẫu K','0900 000 110','Người nhận K','0900 000 210','31A Nguyễn Quốc Trị - Hà Nội','251 Lương Văn Thăng - Ninh Bình','4 kiện · 15 kg','Thực phẩm','120.000','Người gửi trả'],
+  ['PV0311MA11','Quét QR tại bưu cục','11:08:33 3/11/2026','Khách mẫu L','0900 000 111','Người nhận L','0900 000 211','IC8 Phú Ninh - Phú Thọ','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 1 kg','Giấy tờ','30.000','Người nhận trả'],
+  ['PV0311MA12','Tự mang đến bưu cục','10:26:54 3/11/2026','Khách mẫu M','0900 000 112','Người nhận M','0900 000 212','31A Nguyễn Quốc Trị - Hà Nội','IC8 Phú Ninh - Phú Thọ','2 kiện · 7 kg','Mỹ phẩm','65.000','Người gửi trả'],
+];
+const SIZE = 10;
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'nhan', page: 1, sel: { PV0311MAU2: true, PV0311MAU5: true } };
+  }
+  renderVals() {
+    const ASKS = {"askHuy": {"title": "Huỷ đơn?", "body": "Đơn sẽ chuyển sang mục Đơn huỷ. Bạn có thể khôi phục ở màn Ngoại lệ - Huỷ.", "ok": "Huỷ đơn"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    const s = this.state;
+    const tabs = TABS.map(([id, label, count]) => ({
+      label, count, on: s.tab === id, cls: s.tab === id ? 'on' : '',
+      pick: () => this.setState({ tab: id, page: 1 }),
+    }));
+    const cur = TABS.find((t) => t[0] === s.tab);
+    const pageCount = Math.ceil(SAMPLE.length / SIZE);
+    const start = (s.page - 1) * SIZE;
+    const slice = SAMPLE.slice(start, start + SIZE);
+    const rows = slice.map((r) => {
+      const code = r[0], sel = !!s.sel[code];
+      return {
+      
+        code, source: r[1], time: r[2], from: r[3], fromPhone: r[4], to: r[5], toPhone: r[6], vpFrom: r[7], vpTo: r[8],
+        pack: r[9], goods: r[10], fee: r[11], payer: r[12], sel, cls: sel ? 'sel' : '',
+        selLabel: 'Chọn ' + code, okLabel: 'Xác nhận nhập kho ' + code, noLabel: 'Huỷ đơn ' + code,
+        toggle: () => this.setState({ sel: { ...this.state.sel, [code]: !sel } }),
+      };
+    });
+    const selCount = SAMPLE.filter((r) => s.sel[r[0]]).length;
+    const allSel = rows.length > 0 && rows.every((r) => r.sel);
+    const hasRows = cur[2] > 0;
+    return {
+      step: cur[1], stepCls: stepCls(cur[1]),
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askHuy: askTo("askHuy"),
+      dark: !!this.props.dark, rootClass: (this.props.dark ? 'theme-dark' : 'theme-light') + ' shell',
+      tabs, rows, selCount, allSel, desc: cur[3], hasRows, isEmpty: !hasRows,
+      noSel: selCount === 0,
+      cancelLabel: 'Huỷ đơn (' + selCount + ')', confirmLabel: 'Xác nhận nhập kho (' + selCount + ')',
+      selText: selCount ? 'Đã chọn ' + selCount + ' đơn' : cur[2] + ' đơn chờ nhận hàng',
+      rangeText: (start + 1) + '-' + (start + slice.length) + ' trên ' + SAMPLE.length + ' đơn',
+      toggleAll: () => {
+        const sel = { ...this.state.sel };
+        slice.forEach((r) => { sel[r[0]] = !allSel; });
+        this.setState({ sel });
+      },
+      pages: Array.from({ length: pageCount }, (_, i) => ({
+        n: i + 1, aria: 'Trang ' + (i + 1), cls: 'pg num' + (s.page === i + 1 ? ' on' : ''),
+        pick: () => this.setState({ page: i + 1 }),
+      })),
+      isFirst: s.page === 1, isLast: s.page === pageCount,
+      prev: () => this.setState({ page: Math.max(1, s.page - 1) }),
+      next: () => this.setState({ page: Math.min(pageCount, s.page + 1) }),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'Chờ nhận hàng':'qr_code_scanner','Chờ lấy hàng':'pending_actions','Đang lấy hàng':'delivery_dining'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+return v; };
+</script>
+</body>
+</html>

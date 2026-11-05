@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>CRM SĐT - MST X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="CRM SĐT - MST" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div class="title-row">
+      <div style="flex: 1 1 480px; min-width: 0">
+        <h1 class="page-title">CRM SĐT - MST</h1>
+        <div class="lab muted" style="max-width: 760px">Mỗi số tối đa 5 MST. Tick Auto HĐ để MST được gợi ý khi tạo đơn và tự xuất HĐ công ty. Bỏ hết tick của một SĐT thì xuất cá nhân.</div>
+      </div>
+      <button class="btn"><span class="ms" aria-hidden="true">add</span>Thêm MST</button>
+    </div>
+    <section class="card stack">
+      <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px">
+        <label class="field" style="flex: 1 1 280px; max-width: 480px"><span class="l">SĐT hoặc tên công ty</span><span class="box input-box"><span class="ms muted" aria-hidden="true">search</span><input type="search" placeholder="SĐT, tên công ty, hoặc để trống"></span></label>
+        <button class="btn tonal">Tìm</button>
+      </div>
+      <h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">contact_phone</span></span>SĐT và MST (91)</h2>
+      <div class="scroller">
+        <table class="tbl" style="--tbl-min: 780px">
+          <thead><tr><th style="width: 140px">Số điện thoại</th><th style="width: 180px">Tên</th><th>MST đang gắn · Auto HĐ công ty</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="o" hint-placeholder-count="6">
+              <tr>
+                <td class="main" style="white-space: nowrap">{{o.phone}}</td><td><span class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms fill">person</span></span>{{o.name}}</span></td>
+                <td>
+                  <div style="display: flex; flex-direction: column; gap: 8px">
+                    <sc-for list="{{o.msts}}" as="m" hint-placeholder-count="1">
+                      <div class="mst">
+                        <div style="flex: 1 1 240px; min-width: 0"><span style="font-weight: 500">{{m.company}}</span><span class="sub">MST {{m.no}}</span></div>
+                        <label class="lab" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer"><input class="check" type="checkbox" checked="{{m.auto}}" onChange="{{m.toggle}}">Auto HĐ</label>
+                        <div class="act"><button class="text-act">Sửa</button><button class="text-act danger" onClick="{{askXoa}}">Xoá</button></div>
+                      </div>
+                    </sc-for>
+                    <button class="text-act" style="align-self: flex-start">+ Thêm MST ({{o.count}}/5)</button>
+                  </div>
+                </td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div class="pager"><div class="pager-left"><span class="muted num lab">1-5 trên 91</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><span class="muted" aria-hidden="true" style="padding: 0 4px">…</span><button class="pg num" aria-label="Trang 10">10</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+    </section>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1040}}'>
+const R = [['0900 000 301','Khách mẫu A',[['Công ty mẫu A','0100000001']]],['0900 000 302','Khách mẫu B',[['Công ty mẫu B','0100000002'],['Công ty mẫu C','0100000003']]],['0900 000 303','Khách mẫu C',[['Công ty mẫu D','0100000004']]],['0900 000 304','Khách mẫu D',[['Công ty mẫu E','0100000005']]],['0900 000 305','Khách mẫu E',[['Công ty mẫu F','0100000006']]]];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { off: { '0100000003': true } }; }
+  renderVals() {
+    const ASKS = {"askXoa": {"title": "Xoá MST này khỏi số điện thoại?", "body": "MST sẽ không còn được gợi ý khi tạo đơn.", "ok": "Xoá"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    const s = this.state;
+    return {
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askXoa: askTo("askXoa"),
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true,
+      rows: R.map((r) => ({ phone: r[0], name: r[1], count: r[2].length, msts: r[2].map((m) => ({ company: m[0], no: m[1], auto: !s.off[m[1]], toggle: () => this.setState({ off: { ...this.state.off, [m[1]]: !this.state.off[m[1]] } }) })) })),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Menu chính</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<nav class="{{cls}}" aria-label="Điều hướng chính" style="height: 100%; min-height: 100%; font-family: Inter, 'Noto Sans', system-ui, sans-serif; color: var(--on-surface)">
+  <a class="brand" href="Dashboard-v2.dc.html" aria-label="X.E Việt Nam, về Tổng quan"><img src="logo-xe.png" alt="X.E Việt Nam"></a>
+  <a class="create-btn" href="TaoDonHang.dc.html" aria-label="Tạo đơn hàng"><span class="ms" aria-hidden="true">add</span><span class="side-text">Tạo đơn hàng</span></a>
+  <sc-if value="{{hasOpen}}" hint-placeholder-val="{{false}}"><div class="menu-back nav-back" onClick="{{closeAll}}"></div></sc-if>
+  <sc-for list="{{nav}}" as="g" hint-placeholder-count="5">
+    <div class="nav-group" onMouseEnter="{{g.enter}}" onMouseLeave="{{leave}}" onFocus="{{g.open}}" onBlur="{{g.blur}}" onKeyDown="{{g.key}}">
+      <button class="{{g.cls}}" aria-haspopup="true" aria-expanded="{{g.isOpen}}" aria-label="{{g.cap}}" onClick="{{g.open}}"><span class="nav-pill" aria-hidden="true"><span class="{{g.iconCls}}">{{g.icon}}</span></span><span class="nav-short">{{g.short}}</span></button>
+      <sc-if value="{{g.isOpen}}" hint-placeholder-val="{{false}}">
+        <div class="nav-fly">
+          <div class="nav-fly-title">{{g.cap}}</div>
+          <sc-for list="{{g.items}}" as="l" hint-placeholder-count="4">
+            <a class="{{l.cls}}" href="{{l.href}}" aria-current="{{l.current}}"><span class="{{l.iconCls}}" aria-hidden="true">{{l.icon}}</span><span>{{l.label}}</span></a>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </sc-for>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"text","default":"Tổng quan"},"dark":{"editor":"boolean","default":false},"$preview":{"width":216,"height":980}}'>
+const NAV = [
+  ['Vận hành', 'Vận hành', 'local_shipping', [['dashboard','Tổng quan','Dashboard-v2.dc.html'],['inventory','Thông tin kiểm kê','KiemKe.dc.html'],['schedule','Báo cáo theo giờ','BaoCaoGio.dc.html'],['departure_board','Báo giờ xe đến/đi','BaoGioXe.dc.html']]],
+  ['Tài chính', 'Tài chính', 'account_balance_wallet', [['receipt','Phiếu thu','PhieuThu.dc.html'],['receipt_long','Danh sách phiếu thu','DanhSachPhieuThu.dc.html'],['swap_horiz','Giao dịch thu hộ','GiaoDichThuHo.dc.html'],['payments','Quản lý đơn COD','QuanLyCod.dc.html'],['description','Quản lý hoá đơn','QuanLyHoaDon.dc.html'],['contact_phone','CRM SĐT - MST','CrmSdt.dc.html'],['bar_chart','Báo cáo doanh thu','BaoCaoDoanhThu.dc.html']]],
+  ['Giá và dữ liệu', 'Dữ liệu', 'database', [['sell','Bảng giá','BangGia.dc.html'],['price_change','Cài đặt phụ phí','PhuPhi.dc.html'],['database','Master dữ liệu','MasterDuLieu.dc.html']]],
+  ['Nhân sự và quyền', 'Nhân sự', 'group', [['person','Tài khoản','TaiKhoan.dc.html'],['event_available','Chấm công','ChamCong.dc.html'],['admin_panel_settings','Nhóm quyền','NhomQuyen.dc.html'],['devices','Phiên đăng nhập & thiết bị','PhienDangNhap.dc.html']]],
+  ['Hệ thống', 'Hệ thống', 'settings', [['hub','Tích hợp','TichHop.dc.html'],['settings','Cấu hình','CauHinh.dc.html']]],
+];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { open: null }; this.timer = null; }
+  renderVals() {
+    const active = this.props.active ?? 'Tổng quan', open = this.state.open;
+    const cancel = () => { clearTimeout(this.timer); this.timer = null; };
+    const closeSoon = () => { cancel(); this.timer = setTimeout(() => this.setState({ open: null }), 180); };
+    const closeAll = () => { cancel(); this.setState({ open: null }); };
+    return {
+      cls: 'side rail ' + (this.props.dark ? 'theme-dark' : 'theme-light'),
+      hasOpen: open !== null, closeAll, leave: () => { if (window.innerWidth > 760) closeSoon(); },
+      nav: NAV.map(([cap, short, icon, items], i) => {
+        const has = items.some((x) => x[1] === active), isOpen = open === i;
+        return {
+          cap, short, icon, isOpen,
+          cls: 'nav-head' + (has ? ' on' : '') + (isOpen ? ' open' : ''),
+          iconCls: 'ms' + (has ? ' fill' : ''),
+          enter: () => { if (window.innerWidth > 760) { cancel(); if (this.state.open !== i) this.setState({ open: i }); } },
+          open: () => { cancel(); if (this.state.open !== i) this.setState({ open: i }); },
+          blur: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) closeSoon(); },
+          key: (e) => { if (e.key === 'Escape') closeAll(); },
+          items: items.map(([ic, label, href]) => ({
+            icon: ic, label, href: href || '#', current: label === active ? 'page' : 'false',
+            cls: 'nav-item' + (label === active ? ' on' : ''),
+            iconCls: 'ms' + (label === active ? ' fill' : ''),
+          })),
+        };
+      }),
+    };
+  }
+}
+</script>
+</body>
+</html>

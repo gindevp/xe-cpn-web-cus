@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhập kho - Luân chuyển X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{rootClass}}">
+
+  <dc-import name="AppNav" active="" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+
+  <main class="pad page">
+
+    <dc-import name="AppHero" active="Nhập kho - Luân chuyển" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div style="flex: 1 1 360px; min-width: 0">
+        <h1 class="page-title">{{tabLabel}}</h1>
+        <div class="muted" style="font-size: 13px; line-height: 20px">{{desc}}</div>
+      </div>
+    </div>
+
+    <div class="seg" role="tablist" aria-label="Trạng thái đơn" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="7">
+        <button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.short}}<span class="count num">{{t.count}}</span></button>
+      </sc-for>
+    </div>
+
+    <section class="card" style="display: flex; flex-direction: column; gap: 16px">
+      <div class="th-row" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+        <div style="font-size: 15px; line-height: 22px; font-weight: 600">{{headText}}</div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+          <sc-for list="{{bulk}}" as="b" hint-placeholder-count="3">
+            <button class="{{b.cls}}" disabled="{{noSel}}" onClick="{{b.run}}">{{b.text}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+        <div class="empty">
+          <span class="ms" aria-hidden="true" style="font-size: 40px; color: var(--on-surface-variant)">inbox</span>
+          <h2 class="group-title" style="margin: 12px 0 4px">Không có đơn nào</h2>
+          <div class="muted" style="font-size: 13px">Tab này hiện chưa có đơn cần xử lý.</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isVehicle}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 24px">
+          <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+            <div style="display: flex; flex-direction: column; gap: 12px">
+              <h2 class="group-title num">{{g.title}}</h2>
+              <div class="veh-grid">
+                <sc-for list="{{g.items}}" as="v" hint-placeholder-count="3">
+                  <button class="veh veh-btn num" aria-label="{{v.aria}}" onClick="{{v.open}}">
+                      <span class="plate">{{v.plate}}</span>
+                      <span style="display: block; font-size: 13px; line-height: 18px; font-weight: 500">{{v.driver}}<span class="sub" style="font-weight: 400">{{v.route}}</span></span>
+                      <span style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+                        <span><span class="val-sm" style="display: block">{{v.don}}</span><span class="sub" style="margin: 0">Số đơn</span></span>
+                        <span><span class="val-sm" style="display: block">{{v.kien}}</span><span class="sub" style="margin: 0">Số kiện</span></span>
+                        <span><span class="val-sm" style="display: block">{{v.kg}}</span><span class="sub" style="margin: 0">Tổng cân nặng</span></span>
+                      </span>
+                    </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isTable}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div class="scroller">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width: 18px"><input class="check" type="checkbox" aria-label="Chọn tất cả" checked="{{allSel}}" onChange="{{toggleAll}}"></th>
+                  <th>Mã đơn</th><th>Người gửi</th><th>Người nhận</th><th>VP gửi → VP nhận</th><th>Đơn hàng</th><th class="r">COD</th><th class="r">Cước phí</th>
+                  <sc-if value="{{showNote}}" hint-placeholder-val="{{false}}"><th>Ghi chú</th></sc-if>
+                  <th class="r">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{rows}}" as="o" hint-placeholder-count="8">
+                  <tr class="{{o.cls}}">
+                    <td><input class="check" type="checkbox" aria-label="{{o.selLabel}}" checked="{{o.sel}}" onChange="{{o.toggle}}"></td>
+                    <td><button class="code" data-step="{{step}}" data-bank="{{o.bankFlag}}" data-invoice="{{o.invFlag}}">{{o.code}}</button><span class="sub">Nhập kho: {{o.time}}</span></td>
+                    <td><span style="font-weight: 500">{{o.from}}</span><span class="sub">{{o.fromPhone}}</span><sc-if value="{{o.hasPick}}" hint-placeholder-val="{{false}}"><span class="sub" style="max-width: 200px">Lấy tận nơi: {{o.pickAddr}}</span></sc-if></td>
+                    <td><span style="font-weight: 500">{{o.to}}</span><span class="sub">{{o.toPhone}}</span><sc-if value="{{o.hasDrop}}" hint-placeholder-val="{{false}}"><span class="sub" style="max-width: 200px">Giao tận nơi: {{o.dropAddr}}</span></sc-if></td>
+                    <td>{{o.vpFrom}}<span class="sub">→ {{o.vpTo}}</span></td>
+                    <td><span style="font-weight: 500">{{o.pack}}</span><span class="sub">{{o.goods}}</span></td>
+                    <td class="r"><sc-if value="{{o.hasCod}}" hint-placeholder-val="{{false}}"><span class="main">{{o.cod}}</span></sc-if><sc-if value="{{o.noCod}}" hint-placeholder-val="{{true}}"><span class="muted">—</span></sc-if></td>
+                    <td class="r"><span class="main">{{o.fee}}</span><span class="sub">{{o.payer}}</span></td>
+                    <sc-if value="{{showNote}}" hint-placeholder-val="{{false}}"><td class="muted">—</td></sc-if>
+                    <td><div class="act"><button class="ok" aria-label="{{o.okLabel}}">{{rowAction}}</button><button class="no" aria-label="{{o.moreLabel}}" title="Tác vụ đơn"><span class="ms" aria-hidden="true">more_vert</span></button></div></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+              <span class="muted num" style="font-size: 13px">{{rangeText}}</span>
+              <button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px">
+              <button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button>
+              <button class="pg on num" aria-label="Trang 1">1</button>
+              <button class="pg num" aria-label="Trang 2">2</button>
+              <button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+
+  <sc-if value="{{hasVehicle}}" hint-placeholder-val="{{false}}">
+    <div class="scrim">
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="veh-title">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px">
+          <div>
+            <h2 id="veh-title" class="num" style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600">{{vehicle.plate}}</h2>
+            <div class="muted" style="font-size: 13px; line-height: 20px">{{vehicle.driver}} · {{vehicle.route}}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px"><button class="no-btn" aria-label="Đóng" onClick="{{closeVehicle}}"><span class="ms" aria-hidden="true">close</span></button></div>
+        </div>
+        <div class="num" style="display: flex; flex-wrap: wrap; gap: 8px 32px">
+          <div><div class="val-sm">{{vehicle.don}}</div><div class="sub" style="margin: 0">Số đơn</div></div>
+          <div><div class="val-sm">{{vehicle.kien}}</div><div class="sub" style="margin: 0">Số kiện</div></div>
+          <div><div class="val-sm">{{vehicle.kg}}</div><div class="sub" style="margin: 0">Tổng cân nặng</div></div>
+        </div>
+        <sc-if value="{{vehicleEmpty}}" hint-placeholder-val="{{false}}">
+          <div class="empty" style="padding: 40px 16px"><h3 class="group-title">Xe không còn đơn nào</h3></div>
+        </sc-if>
+        <sc-if value="{{vehicleHasOrders}}" hint-placeholder-val="{{true}}">
+          <div class="scroller" style="flex: 1; min-height: 0; overflow-y: auto">
+            <table class="tbl" style="--tbl-min: 680px">
+              <thead><tr><th>Mã đơn</th><th>Người gửi</th><th>Người nhận</th><th>Đơn hàng</th><th class="r">Tác vụ</th></tr></thead>
+              <tbody>
+                <sc-for list="{{vehicle.orders}}" as="o" hint-placeholder-count="6">
+                  <tr>
+                    <td><button class="code" data-step="{{step}}">{{o.code}}</button></td>
+                    <td><span style="font-weight: 500">{{o.from}}</span><span class="sub">{{o.fromPhone}}</span></td>
+                    <td><span style="font-weight: 500">{{o.to}}</span><span class="sub">{{o.toPhone}}</span></td>
+                    <td><span style="font-weight: 500">{{o.pack}}</span><span class="sub">{{o.goods}}</span></td>
+                    <td><div class="act"><sc-if value="{{isWaiting}}" hint-placeholder-val="{{true}}"><button class="ok" aria-label="{{o.moveLabel}}" onClick="{{o.move}}">Chuyển xe</button></sc-if><button class="ok" aria-label="{{o.removeLabel}}" onClick="{{o.remove}}">Gỡ khỏi xe</button><button class="no" aria-label="{{o.moreLabel}}" title="Ghi nhận" aria-haspopup="menu" onClick="{{o.menu}}"><span class="ms" aria-hidden="true">more_vert</span></button></div></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </sc-if>
+        <sc-if value="{{hasUndo}}" hint-placeholder-val="{{false}}">
+          <div class="snack" role="status"><span style="flex: 1">{{undoText}}</span><button onClick="{{undo}}">Hoàn tác</button></div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{hasMenu}}" hint-placeholder-val="{{false}}">
+    <div class="menu-back" onClick="{{menuClose}}"></div>
+    <div class="row-menu" role="menu" style="{{menuStyle}}">
+      <button role="menuitem" onClick="{{menuNl}}">Ghi nhận ngoại lệ</button>
+      <button role="menuitem" onClick="{{menuTl}}">Ghi nhận thất lạc</button>
+      <button role="menuitem" onClick="{{menuHh}}">Ghi nhận hư hỏng</button>
+    </div>
+  </sc-if>
+  <sc-if value="{{hasAct}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="act-title">
+      <h2 id="act-title" class="confirm-title">{{actTitle}}</h2>
+      <p class="lab muted" style="margin: 0">{{actBody}}</p>
+      <sc-if value="{{actIsMove}}" hint-placeholder-val="{{false}}">
+        <label class="field cfg-field"><span class="l">Xe chuyển đến *</span><span class="box input-box sel-box"><select value="{{actTo}}" onChange="{{setActTo}}"><option value="">Chọn xe</option><sc-for list="{{moveOpts}}" as="m" hint-placeholder-count="3"><option value="{{m.plate}}">{{m.text}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></label>
+      </sc-if>
+      <sc-if value="{{actIsRecord}}" hint-placeholder-val="{{false}}">
+        <label class="field cfg-field"><span class="l">Ghi chú</span><textarea class="area" placeholder="Nhập ghi chú"></textarea></label>
+      </sc-if>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{actClose}}">Đóng</button><button class="btn" disabled="{{actBad}}" onClick="{{actOk}}">{{actOkText}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1200}}'>
+const TABS = [
+  { id: 'lay', label: 'Lấy hàng thành công', short: 'Lấy hàng', count: 0, kind: 'empty', bulk: [], desc: 'Shipper đã lấy hàng thành công từ người gửi nhưng chưa mang về nhập kho' },
+  { id: 'gui', label: 'Nhập kho gửi', short: 'Nhập kho gửi', count: 83, kind: 'table', bulk: ['Hoàn người gửi', 'Huỷ hoàn', 'Huỷ đơn', 'Gán lên xe'], act: 'Gán lên xe', desc: 'Điều phối xác nhận nhập kho khi nhận hàng từ khách/shipper' },
+  { id: 'doi', label: 'Đợi trung chuyển giao', short: 'Đợi trung chuyển', count: 51, kind: 'vehicle', bulk: [], desc: 'Đơn đã gán lên xe, chờ bốc xếp lên hàng. Bấm vào thẻ xe để xem đơn và gỡ từng đơn khỏi xe.' },
+  { id: 'xe', label: 'Hàng trên xe', short: 'Hàng trên xe', count: 287, kind: 'vehicle', bulk: [], desc: 'Đơn tài xế đã bốc lên xe. Bấm vào thẻ xe để xem đơn và gỡ từng đơn khỏi xe.' },
+  { id: 'giao', label: 'Nhập kho giao', short: 'Nhập kho giao', count: 445, kind: 'table', note: true, bulk: ['Hoàn người gửi', 'Giao thành công bù'], act: 'Bàn giao shipper', desc: 'Đơn đã nhập kho tại bưu cục giao, chờ bàn giao shipper đi giao' },
+  { id: 'dang', label: 'Đang giao hàng', short: 'Đang giao', count: 2, kind: 'table', bulk: ['Giao thất bại', 'Giao thành công'], act: 'Giao thành công', desc: 'Đơn hàng đã bàn giao cho shipper đi giao tận nhà cho khách' },
+  { id: 'fail', label: 'Giao hàng không thành công', short: 'Giao không thành công', count: 0, kind: 'empty', bulk: ['Hoàn người gửi', 'Nhập kho giao lại', 'Giao thành công'], desc: 'Shipper giao không thành công trả về bưu cục, hoặc khách không đến bưu cục nhận. Giao thành công cần nhập lý do.' },
+];
+const SAMPLE = [
+  ['PV0311MBU1','16:42 03/11/2026','Khách mẫu A','0900 000 101','Người nhận A','0900 000 201','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 1,5 kg','Giấy tờ','35.000','Người nhận trả'],
+  ['PV0311MBU2','16:30 03/11/2026','Khách mẫu B','0900 000 102','Người nhận B','0900 000 202','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 8 kg','Thực phẩm','70.000','Người gửi trả'],
+  ['LD0311MBU3','16:18 03/11/2026','Khách mẫu C','0900 000 103','Người nhận C','0900 000 203','31A Nguyễn Quốc Trị - Hà Nội','104 Song Hào - Nam Định','1 kiện · 3 kg','Quần áo','40.000','Người nhận trả'],
+  ['PV0311MBU4','15:57 03/11/2026','Khách mẫu D','0900 000 104','Người nhận D','0900 000 204','34 Trần Phú - Thái Bình','31A Nguyễn Quốc Trị - Hà Nội','3 kiện · 12 kg','Linh kiện','95.000','Người gửi trả'],
+  ['LD0311MBU5','15:41 03/11/2026','Khách mẫu E','0900 000 105','Người nhận E','0900 000 205','31A Nguyễn Quốc Trị - Hà Nội','263 Nguyễn Thái Học - Yên Bái','1 kiện · 0,5 kg','Giấy tờ','30.000','Người nhận trả'],
+  ['PV0311MBU6','15:12 03/11/2026','Khách mẫu F','0900 000 106','Người nhận F','0900 000 206','251 Lương Văn Thăng - Ninh Bình','31A Nguyễn Quốc Trị - Hà Nội','1 kiện · 5 kg','Mỹ phẩm','45.000','Người gửi trả'],
+  ['PV0311MBU7','14:48 03/11/2026','Khách mẫu G','0900 000 107','Người nhận G','0900 000 207','104 Song Hào - Nam Định','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 6 kg','Quần áo','60.000','Người nhận trả'],
+  ['LD0311MBU8','14:20 03/11/2026','Khách mẫu H','0900 000 108','Người nhận H','0900 000 208','31A Nguyễn Quốc Trị - Hà Nội','34 Trần Phú - Thái Bình','1 kiện · 2 kg','Thực phẩm','35.000','Người gửi trả'],
+];
+const FULL_CASE = ['LD0311MBU9','16:50 03/11/2026','Khách mẫu K','0900 000 109','Người nhận K','0900 000 209','263 Nguyễn Thái Học - Yên Bái','31A Nguyễn Quốc Trị - Hà Nội','2 kiện · 10 kg','Linh kiện','85.000','Người gửi trả'];
+const FULL_EXTRA = { hasPick: true, pickAddr: 'Số 12 đường Mẫu, TP Yên Bái', hasDrop: true, dropAddr: 'Số 34 phố Mẫu, Cầu Giấy, Hà Nội', hasCod: true, noCod: false, cod: '1.500.000', codVia: 'Nhận qua tài khoản', hasInvoice: true, bankFlag: '1', invFlag: '1' };
+const VEH = [
+  { title: 'Xuất phát 12:30 03/11 · 2 xe', items: [
+    { n: 1, plate: '29X-000.01', driver: 'Tài xế mẫu A', route: '34 Trần Phú - Thái Bình → 104 Song Hào - Nam Định', load: '1 đơn · 1 kiện · 14 kg', don: 1, kien: 1, kg: '14 kg', scan: '11:54 03/11' },
+    { n: 6, plate: '29X-000.02', driver: 'Tài xế mẫu B', route: '31A Nguyễn Quốc Trị - Hà Nội → 263 Nguyễn Thái Học - Yên Bái', load: '6 đơn · 8 kiện · 42 kg', don: 6, kien: 8, kg: '42 kg', scan: '11:40 03/11' },
+  ] },
+  { title: 'Xuất phát 12:00 03/11 · 3 xe', items: [
+    { n: 9, plate: '29X-000.03', driver: 'Tài xế mẫu C', route: '31A Nguyễn Quốc Trị - Hà Nội → 251 Lương Văn Thăng - Ninh Bình', load: '9 đơn · 9 kiện · 17,5 kg', don: 9, kien: 9, kg: '17,5 kg', scan: '11:59 03/11' },
+    { n: 12, plate: '29X-000.04', driver: 'Tài xế mẫu D', route: '31A Nguyễn Quốc Trị - Hà Nội → 104 Song Hào - Nam Định', load: '12 đơn · 15 kiện · 60 kg', don: 12, kien: 15, kg: '60 kg', scan: '11:32 03/11' },
+    { n: 4, plate: '29X-000.05', driver: 'Tài xế mẫu E', route: '31A Nguyễn Quốc Trị - Hà Nội → 34 Trần Phú - Thái Bình', load: '4 đơn · 4 kiện · 11 kg', don: 4, kien: 4, kg: '11 kg', scan: '11:21 03/11' },
+  ] },
+];
+const fmtKg = (n) => String(Math.round(n * 10) / 10).replace('.', ',') + ' kg';
+const ordersOf = (v) => Array.from({ length: v.n }, (_, i) => {
+  const r = SAMPLE[i % SAMPLE.length];
+  const m = r[8].match(/^(\d+) kiện · ([\d,]+) kg$/);
+  return { code: 'XE' + v.plate.slice(-2) + 'MAU' + String(i + 1).padStart(2, '0'), from: r[2], fromPhone: r[3], to: r[4], toPhone: r[5], pack: r[8], goods: r[9], kien: +m[1], kgNum: parseFloat(m[2].replace(',', '.')) };
+});
+const RECORD = { nl: { title: 'Ghi nhận ngoại lệ', tab: 'Hàng ngoại lệ' }, tl: { title: 'Ghi nhận thất lạc', tab: 'Hàng thất lạc' }, hh: { title: 'Ghi nhận hư hỏng', tab: 'Hàng hư hỏng' } };
+const stepCls = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'gui', sel: { PV0311MBU2: true, LD0311MBU5: true }, plate: null, removed: {}, last: null };
+  }
+  renderVals() {
+    const ASKS = {"askHuy": {"title": "Huỷ đơn đã chọn?", "body": "Đơn sẽ chuyển sang mục Đơn huỷ. Bạn có thể khôi phục ở màn Ngoại lệ - Huỷ.", "ok": "Huỷ đơn"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    const s = this.state, act = s.act;
+    const cur = TABS.find((t) => t.id === s.tab);
+    const rows = [FULL_CASE, ...SAMPLE.slice(0, cur.id === 'dang' ? 1 : 8)].map((r) => {
+      const code = r[0], sel = !!s.sel[code];
+      return {
+       noCod: true, bankFlag: '', invFlag: '', ...(r === FULL_CASE ? FULL_EXTRA : {}), code, time: r[1], from: r[2], fromPhone: r[3], to: r[4], toPhone: r[5], vpFrom: r[6], vpTo: r[7], pack: r[8], goods: r[9], fee: r[10], payer: r[11], sel, cls: sel ? 'sel' : '', selLabel: 'Chọn ' + code, okLabel: cur.act + ' ' + code, moreLabel: 'Tác vụ đơn ' + code, toggle: () => this.setState({ sel: { ...this.state.sel, [code]: !sel } }) };
+    });
+    const groups = VEH.map((g) => ({ ...g, items: g.items.map((v) => {
+      const orders = ordersOf(v).filter((o) => !s.removed[o.code]).map((o) => ({ ...o, removeLabel: 'Gỡ ' + o.code + ' khỏi xe', remove: () => this.setState({ removed: { ...this.state.removed, [o.code]: true }, last: { code: o.code, text: 'Đã gỡ ' + o.code + ', đơn về Nhập kho gửi' } }),
+        moveLabel: 'Chuyển ' + o.code + ' sang xe khác', move: () => this.setState({ act: { type: 'move', code: o.code }, actTo: '' }),
+        moreLabel: 'Ghi nhận cho đơn ' + o.code, menu: (e) => { const b = e.currentTarget.getBoundingClientRect(); const up = b.bottom + 150 > window.innerHeight; this.setState({ menu: { code: o.code, right: Math.max(8, window.innerWidth - b.right), top: up ? b.top - 142 : b.bottom + 4 } }); } }));
+      return { ...v, orders, don: orders.length, kien: orders.reduce((a, o) => a + o.kien, 0), kg: fmtKg(orders.reduce((a, o) => a + o.kgNum, 0)), aria: 'Xem đơn trên xe ' + v.plate, open: () => this.setState({ plate: v.plate, last: null }) };
+    }) }));
+    const vehicle = groups.flatMap((g) => g.items).find((v) => v.plate === s.plate) || null;
+    const allSel = rows.length > 0 && rows.every((r) => r.sel);
+    const selCount = cur.kind === 'table' ? rows.filter((r) => r.sel).length : 0;
+    return {
+      step: cur.label, stepCls: stepCls(cur.label),
+      hasMenu: !!s.menu, menuClose: () => this.setState({ menu: null }), menuStyle: s.menu ? { top: s.menu.top + 'px', right: s.menu.right + 'px' } : {},
+      ...Object.fromEntries([['menuNl', 'nl'], ['menuTl', 'tl'], ['menuHh', 'hh']].map(([k, ty]) => [k, () => this.setState({ act: { type: ty, code: this.state.menu.code }, menu: null })])),
+      hasAct: !!s.act, actIsMove: act && act.type === 'move', actIsRecord: act && act.type !== 'move', actTitle: !act ? '' : act.type === 'move' ? 'Chuyển đơn ' + act.code + ' sang xe khác' : RECORD[act.type].title + ' đơn ' + act.code + '?', actBody: !act ? '' : act.type === 'move' ? 'Đơn rời xe ' + s.plate + ' và nằm trong danh sách của xe được chọn.' : 'Đơn rời xe và chuyển sang mục ' + RECORD[act.type].tab + ' ở màn Ngoại lệ - Huỷ.', actOkText: !act ? '' : act.type === 'move' ? 'Chuyển xe' : RECORD[act.type].title,
+      actTo: s.actTo || '', setActTo: (e) => this.setState({ actTo: e.target.value }), actBad: !!act && act.type === 'move' && !s.actTo, actClose: () => this.setState({ act: null }),
+      moveOpts: VEH.flatMap((g) => g.items).filter((v) => v.plate !== s.plate).map((v) => ({ plate: v.plate, text: v.plate + ' · ' + v.route })),
+      actOk: () => this.setState({ removed: { ...this.state.removed, [act.code]: true }, act: null, last: { code: act.code, text: act.type === 'move' ? 'Đã chuyển ' + act.code + ' sang xe ' + s.actTo : 'Đã chuyển ' + act.code + ' sang ' + RECORD[act.type].tab } }),
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askHuy: askTo("askHuy"),
+      dark: !!this.props.dark, rootClass: (this.props.dark ? 'theme-dark' : 'theme-light') + ' shell',
+            tabs: TABS.map((t) => ({ short: t.short, count: t.count, on: t.id === s.tab, cls: t.id === s.tab ? 'on' : '', pick: () => this.setState({ tab: t.id }) })),
+      tabLabel: cur.label, desc: cur.desc, yes: true,
+      isEmpty: cur.kind === 'empty', isVehicle: cur.kind === 'vehicle', isTable: cur.kind === 'table',
+      showNote: !!cur.note, rowAction: cur.act, isOnTruck: cur.id === 'xe', isWaiting: cur.id === 'doi', groups, rows, hasVehicle: !!vehicle, vehicle, vehicleEmpty: !!vehicle && vehicle.orders.length === 0, vehicleHasOrders: !!vehicle && vehicle.orders.length > 0, closeVehicle: () => this.setState({ plate: null, last: null, menu: null, act: null }), hasUndo: !!s.last, undoText: s.last ? s.last.text : '', undo: () => { const removed = { ...this.state.removed }; delete removed[this.state.last.code]; this.setState({ removed, last: null }); }, allSel,
+      noSel: selCount === 0,
+      headText: selCount ? 'Đã chọn ' + selCount + ' đơn' : cur.count + ' đơn',
+      bulk: cur.bulk.map((text, i) => ({ text: text + ' (' + selCount + ')', cls: i === cur.bulk.length - 1 ? 'btn' : text === 'Huỷ đơn' ? 'btn text' : 'btn ghost', run: text === 'Huỷ đơn' ? askTo('askHuy') : undefined })),
+      rangeText: '1-' + rows.length + ' trên ' + cur.count + ' đơn',
+      toggleAll: () => { const sel = { ...this.state.sel }; rows.forEach((r) => { sel[r.code] = !allSel; }); this.setState({ sel }); },
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'Lấy hàng':'move_to_inbox','Nhập kho gửi':'inventory_2','Đợi trung chuyển':'sync_alt','Hàng trên xe':'local_shipping','Nhập kho giao':'warehouse','Đang giao':'delivery_dining','Giao không thành công':'assignment_late'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+return v; };
+</script>
+</body>
+</html>

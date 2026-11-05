@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhóm quyền X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Nhóm quyền" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <div>
+      <h1 class="page-title">Nhóm quyền</h1>
+      <div class="lab muted">Mỗi tài khoản thuộc một chức danh. Sửa = xem + ghi, Xem = chỉ đọc, Không = ẩn màn.</div>
+    </div>
+    <div class="role-layout">
+      <section class="card stack" style="padding: 16px; gap: 8px">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 8px">
+          <h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">badge</span></span>Chức danh (7)</h2>
+          <button class="btn tonal" style="height: 36px; padding: 0 12px"><span class="ms" aria-hidden="true">add</span>Thêm</button>
+        </div>
+        <sc-for list="{{roles}}" as="r" hint-placeholder-count="7">
+          <button class="{{r.cls}}" aria-pressed="{{r.on}}" onClick="{{r.pick}}"><span class="who"><span class="rev-ic sm" aria-hidden="true"><span class="ms">{{r.icon}}</span></span><span style="min-width: 0"><span style="display: block; font-weight: 500">{{r.name}}</span><span class="role-sub num">{{r.sub}}</span></span></span></button>
+        </sc-for>
+      </section>
+
+      <section class="card stack" style="min-width: 0">
+        <div class="title-row sticky-bar" style="align-items: flex-start">
+          <div>
+            <h2 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600">{{cur.name}}</h2>
+            <div class="lab muted">Mã {{cur.code}} · Nhóm quyền dựng sẵn theo chức danh</div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+            <sc-if value="{{editable}}" hint-placeholder-val="{{true}}">
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px">
+                <button class="no-btn" aria-label="Sửa thông tin chức danh" title="Sửa thông tin chức danh"><span class="ms" aria-hidden="true">edit</span></button>
+                <button class="no-btn" aria-label="Xoá chức danh" title="Xoá chức danh" onClick="{{askXoaCd}}"><span class="ms" aria-hidden="true">delete</span></button>
+                <button class="btn" onClick="{{askSave}}">Lưu quyền</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+        <sc-if value="{{isAdmin}}" hint-placeholder-val="{{false}}">
+          <div class="note">Chức danh Admin có toàn quyền và không thể bị giới hạn, để tránh tự khoá mất quyền quản trị.</div>
+        </sc-if>
+        <label class="lab" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; align-self: flex-start"><input class="check" type="checkbox">Hiện 5 màn chưa lên menu</label>
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+          <div class="perm-group">
+            <div class="perm-head">
+              <h3 class="group-title">{{g.name}}</h3>
+              <sc-if value="{{editable}}" hint-placeholder-val="{{true}}">
+                <div style="display: flex; gap: 2px"><button class="text-act" onClick="{{g.allEdit}}">Sửa tất cả</button><button class="text-act" onClick="{{g.allView}}">Xem tất cả</button><button class="text-act" onClick="{{g.allNone}}">Không tất cả</button></div>
+              </sc-if>
+            </div>
+            <sc-for list="{{g.items}}" as="i" hint-placeholder-count="4">
+              <div class="perm-row">
+                <div style="min-width: 0">{{i.name}}</div>
+                <div class="perm-seg" role="radiogroup" aria-label="{{i.name}}">
+                  <sc-for list="{{i.opts}}" as="o" hint-placeholder-count="3">
+                    <button role="radio" aria-checked="{{o.on}}" class="{{o.cls}}" disabled="{{isAdmin}}" onClick="{{o.pick}}">{{o.label}}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+    <sc-if value="{{saved}}" hint-placeholder-val="{{false}}">
+      <div class="snack" role="status" style="position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 10; min-width: min(90vw, 320px)"><span style="flex: 1">Đã lưu quyền của {{cur.name}}</span><button onClick="{{hideSaved}}">Đóng</button></div>
+    </sc-if>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
+    <div class="scrim">
+      <div class="sheet" role="alertdialog" aria-modal="true" aria-labelledby="perm-title" style="width: min(100%, 440px)">
+        <h2 id="perm-title" style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600">Lưu quyền của {{cur.name}}?</h2>
+        <p class="lab muted" style="margin: 0">Thay đổi áp dụng cho tất cả tài khoản thuộc chức danh này ({{curCount}} tài khoản).</p>
+        <div style="display: flex; justify-content: flex-end; gap: 8px"><button class="btn ghost" onClick="{{cancelSave}}">Đóng</button><button class="btn" onClick="{{save}}">Xác nhận lưu</button></div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1120}}'>
+const ROLES = [['AD','Admin',12],['DH','Điều phối hàng hoá',24],['KT','Kế toán',6],['DPHK','Điều phối hành khách',18],['TBC','Trưởng bưu cục',9],['TCN','Trưởng chi nhánh',4],['TD','Tổng đài',7]];
+const GROUPS = [['Tổng quan',['Tổng quan']],['Hoạt động',['Chờ bàn giao','Nhập kho - Luân chuyển - Đang giao','Giao thành công','Chờ giao lại','Đơn hoàn','Đơn huỷ','Ngoại lệ - Thất lạc - Hư hỏng','Tồn kho','Báo cáo đơn theo giờ','Theo dõi báo giờ xe đến/đi']],['Vận đơn',['Vận đơn - đơn chờ gán xe và chi tiết đơn','Hàng trên xe - huỷ đơn','Đơn hàng đến - điều chỉnh','Hàng đã giao - hoàn hàng','Đẩy ship đối tác']],['Tài chính',['Phiếu thu','Danh sách phiếu thu','Quản lý đơn COD','Quản lý hoá đơn','CRM SĐT - MST','Báo cáo doanh thu']],['Quản trị',['Bảng giá','Cài đặt phụ phí','Master dữ liệu','Tài khoản','Nhóm quyền','Tích hợp','Bảo trì','Chấm công - xem và xuất bảng công']],['Tác vụ app',['Lên hàng - web: Hàng chờ lên xe','Xuống hàng - web: Quét nhập','Kiểm kho - web: Thông tin kiểm kê','Giao khách tại quầy (POD) - app và web','Giao khách tận nhà (shipper)']]];
+const OPT = [['edit','Sửa'],['view','Xem'],['none','Không']];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { role: 'DH', perm: {}, saved: false, confirm: false }; }
+  renderVals() {
+    const ASKS = {"askXoaCd": {"title": "Xoá chức danh này?", "body": "Tài khoản thuộc chức danh này cần được gán chức danh khác.", "ok": "Xoá"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    const s = this.state, isAdmin = s.role === 'AD';
+    const cr = ROLES.find((r) => r[0] === s.role);
+    const key = (n) => s.role + '|' + n;
+    const get = (n, gi) => isAdmin ? 'edit' : (s.perm[key(n)] || (gi === 1 ? 'edit' : 'view'));
+    const setMany = (names, v) => { const perm = { ...this.state.perm }; names.forEach((n) => { perm[key(n)] = v; }); this.setState({ perm, saved: false }); };
+    return {
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askXoaCd: askTo("askXoaCd"),
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light',
+      isAdmin, editable: !isAdmin, cur: { name: cr[1], code: cr[0] }, saved: s.saved,
+      curCount: cr[2], confirming: s.confirm, askSave: () => this.setState({ confirm: true, saved: false }), cancelSave: () => this.setState({ confirm: false }), save: () => this.setState({ confirm: false, saved: true }), hideSaved: () => this.setState({ saved: false }),
+      roles: ROLES.map(([code, name, n]) => ({ name, on: code === s.role, sub: code + ' · ' + n + ' tài khoản', cls: 'role-btn' + (code === s.role ? ' on' : ''), pick: () => this.setState({ role: code, saved: false }) })),
+      groups: GROUPS.map(([name, items], gi) => ({
+        name,
+        allEdit: () => setMany(items, 'edit'), allView: () => setMany(items, 'view'), allNone: () => setMany(items, 'none'),
+        items: items.map((n) => ({ name: n, opts: OPT.map(([id, label]) => { const on = get(n, gi) === id; return { label, on, cls: on ? 'on' : '', pick: () => setMany([n], id) }; }) })),
+      })),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const RI = {'Admin':'shield_person','Điều phối hàng hoá':'inventory_2','Kế toán':'calculate','Điều phối hành khách':'groups','Trưởng bưu cục':'store','Trưởng chi nhánh':'domain','Tổng đài':'headset_mic','Tổng đài ':'headset_mic'};
+if (v.roles) v.roles = v.roles.map((r) => ({ ...r, icon: RI[r.name] || 'badge' }));
+return v; };
+</script>
+</body>
+</html>

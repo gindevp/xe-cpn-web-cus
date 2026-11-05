@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Dashboard X.E, bản 2</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>
+.theme-light{
+--primary:#274ea1;--on-primary:#ffffff;--primary-container:#dae2ff;--on-primary-container:#174295;--secondary:#585e71;--secondary-container:#dce2f9;--on-secondary-container:#404659;
+--tertiary-container:#fa7603;--error:#ba1a1a;--success:#376934;
+--on-surface:#1a1b21;--on-surface-variant:#45464f;--lowest:#ffffff;--low:#f4f3fa;--high:#e8e7ef;--inverse-surface:#2f3036;--inverse-on-surface:#f1f0f7;--outline-variant:#c5c6d0}
+.theme-dark{
+--primary:#b2c5ff;--on-primary:#002c72;--primary-container:#174295;--on-primary-container:#dae2ff;--secondary:#c0c6dd;--secondary-container:#404659;--on-secondary-container:#dce2f9;
+--tertiary-container:#fa7603;--error:#ffb4ab;--success:#9cd593;
+--on-surface:#e2e2e9;--on-surface-variant:#c5c6d0;--lowest:#1e1f25;--low:#121318;--high:#33343a;--inverse-surface:#e2e2e9;--inverse-on-surface:#2f3036;--outline-variant:#45464f}
+.font-inter{--f:Inter,'Noto Sans',system-ui,sans-serif}
+body{margin:0}
+button,input{font-family:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
+.ms{font-family:'Material Symbols Outlined';font-weight:300;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;white-space:nowrap;display:inline-block;font-feature-settings:'liga';user-select:none;flex:none}
+.ms.fill{font-variation-settings:'FILL' 1;font-weight:400}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--on-surface-variant)}
+.page-title{font-size:28px;line-height:36px;font-weight:600;letter-spacing:-.3px;margin:0}
+.card-title{font-size:15px;line-height:22px;font-weight:600;margin:0}
+.lab{font-size:13px;line-height:20px;font-weight:400}
+.small{font-size:12px;line-height:16px}
+.val{font-size:22px;line-height:30px;font-weight:600;letter-spacing:-.2px}
+.hero{font-size:32px;line-height:40px;font-weight:600;letter-spacing:-.5px}
+.pill.sm{height:36px;padding:0 12px;background:var(--low)}
+.kpi{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:16px}
+.chip-ic{display:grid;place-items:center;width:36px;height:36px;border-radius:9999px;background:var(--low);flex:none}
+.up{color:var(--success)}.bad{color:var(--error)}
+.delta{display:inline-flex;align-items:center;gap:2px;font-size:12px;line-height:16px;font-weight:600}
+.meter{display:flex;gap:3px;height:6px}
+.meter i{display:block;height:100%;border-radius:3px}
+.scroller{overflow-x:auto}
+.plot{position:relative;height:280px;min-width:1180px;box-sizing:border-box}
+.gl{position:absolute;left:56px;right:0;border-top:1px dashed var(--outline-variant)}
+.gl span{position:absolute;right:100%;top:-8px;margin-right:10px}
+.days{position:absolute;left:56px;right:0;top:0;bottom:0;display:grid;grid-template-columns:repeat(31,minmax(0,1fr))}
+.day{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:0;border:0;background:none;border-radius:8px}
+.day .bars{display:flex;align-items:flex-end;gap:2px}
+.day .bars i{display:block;width:8px;border-radius:4px 4px 0 0}
+.sent{background:var(--chart-sent)}.recv{background:var(--chart-recv)}
+.day .d{height:24px;line-height:24px;font-size:11px;color:var(--on-surface-variant)}
+.day.on .d{color:var(--on-surface);font-weight:600}
+
+.tip{position:absolute;z-index:2;bottom:188px;padding:10px 14px;border-radius:16px;background:var(--inverse-surface);color:var(--inverse-on-surface);font-size:12px;line-height:18px;text-align:left;white-space:nowrap}
+.tip.mid{left:50%;transform:translateX(-50%)}.tip.start{left:0}.tip.end{right:0}
+.tip b{font-weight:600}
+.legend{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:0;border-radius:9999px;background:var(--low);font-size:12px;font-weight:500}
+.legend.off{background:none;color:var(--on-surface-variant);text-decoration:line-through}
+.dot{width:10px;height:10px;border-radius:9999px;flex:none}
+.hours{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:4px;height:300px}
+.hour{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;padding:0;border:0;background:none}
+.hour i{display:block;width:100%;max-width:22px;border-radius:6px 6px 2px 2px;background:var(--primary-container)}
+.hour.on i{background:var(--primary)}
+.hour .v{font-size:11px;line-height:14px;font-weight:600}
+.hour .t{height:16px;font-size:10px;line-height:16px;color:var(--on-surface-variant)}
+.tbl th{position:sticky;top:0;background:var(--low);text-align:right;padding:10px 16px;font-size:12px;font-weight:500;color:var(--on-surface-variant)}
+.tbl th:first-child{border-radius:12px 0 0 12px;text-align:left}.tbl th:last-child{border-radius:0 12px 12px 0}
+.tbl td{text-align:right;padding:10px 16px}.tbl td:first-child{text-align:left}
+@media (max-width:760px){
+.kpi{grid-template-columns:1fr}
+}
+</style>
+</helmet>
+<div class="{{rootClass}}">
+
+  <dc-import name="AppNav" active="Tổng quan" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+
+  <main class="pad page">
+
+    <dc-import name="AppHero" active="" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+      <div>
+        <h1 class="page-title">Tổng quan</h1>
+        <div class="lab muted">Hoạt động kinh doanh</div>
+      </div>
+      <div class="filters" style="align-items: flex-end; flex-wrap: wrap">
+        <div class="field" style="flex: 0 0 160px"><span class="l" id="d1">Từ ngày</span><button class="box num" aria-labelledby="d1">01/10/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+        <div class="field" style="flex: 0 0 160px"><span class="l" id="d2">Đến ngày</span><button class="box num" aria-labelledby="d2">31/10/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+        <div class="field" style="flex: 0 0 180px"><span class="l" id="d3">Văn phòng gửi</span><button class="box" aria-labelledby="d3">Tất cả văn phòng<span class="ms" aria-hidden="true">expand_more</span></button></div>
+        <button class="btn tonal"><span class="ms" aria-hidden="true">download</span>Xuất CSV</button>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+      <div class="seg" role="tablist" aria-label="Loại báo cáo">
+        <button role="tab" class="{{tabA}}" onClick="{{showBiz}}">Báo cáo kinh doanh</button>
+        <button role="tab" class="{{tabB}}" onClick="{{showRoute}}">Doanh thu theo tuyến</button>
+      </div>
+    </div>
+
+    <sc-if value="{{isRoute}}" hint-placeholder-val="{{false}}">
+      <section class="card" style="padding: 64px 24px; text-align: center">
+        <h2 class="card-title">Doanh thu theo tuyến</h2>
+        <p class="lab muted">[Cần ảnh hoặc dữ liệu của tab này để thiết kế]</p>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isBiz}}" hint-placeholder-val="{{true}}">
+      <div style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px">
+
+        <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+          <div class="kpi-groups">
+            <section class="card kg">
+              <div class="kg-head"><h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">payments</span></span>Doanh thu</h2><span class="kg-note small muted">% so với tháng trước</span></div>
+              <div class="kg-grid"><div class="kg-cell lead"><div class="lab muted">Tổng doanh thu</div><div class="num"><span class="hero kg-main">1.801.043.667</span> <span class="small muted">VND</span></div><div class="kg-delta"><span class="delta up num"><span class="ms" aria-hidden="true" style="font-size: 16px">north_east</span>2.704,2%</span><span class="small muted">so với tháng trước</span></div></div><div class="kg-cell"><div class="lab muted">Đã thu</div><div class="num"><span class="val">1.775.730.667</span> <span class="small muted">VND</span></div><div class="kg-delta"><span class="delta up num"><span class="ms" aria-hidden="true" style="font-size: 16px">north_east</span>12.713,8%</span><span class="small muted">so với tháng trước</span></div></div><div class="kg-cell"><div class="lab muted">Còn phải thu</div><div class="num"><span class="val">25.313.000</span> <span class="small muted">VND</span></div><div class="kg-delta"><span class="delta up num"><span class="ms" aria-hidden="true" style="font-size: 16px">south_east</span>49,7%</span><span class="small muted">so với tháng trước</span></div></div></div>
+              <div class="kg-bar"><div class="meter" role="img" aria-label="Đã thu 98,6%"><i style="width: 98.6%; background: var(--primary)"></i><i style="flex: 1; background: var(--low)"></i></div><span class="small muted num">Đã thu 98,6%</span></div>
+            </section>
+            <section class="card kg">
+              <div class="kg-head"><h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">inventory_2</span></span>Đơn hàng</h2><span class="kg-note small muted">% so với tháng trước</span></div>
+              <div class="kg-grid"><div class="kg-cell lead"><div class="lab muted">Tổng số đơn</div><div class="num"><span class="hero kg-main">42.115</span> <span class="small muted">đơn</span></div><div class="kg-delta"><span class="delta up num"><span class="ms" aria-hidden="true" style="font-size: 16px">north_east</span>12.858,5%</span><span class="small muted">so với tháng trước</span></div></div><div class="kg-cell"><div class="lab muted">Giao thành công</div><div class="num"><span class="val">41.323</span> <span class="small muted">đơn</span></div><div class="kg-delta"><span class="delta up num"><span class="ms" aria-hidden="true" style="font-size: 16px">north_east</span>16.562,5%</span><span class="small muted">so với tháng trước</span></div></div><div class="kg-cell"><div class="lab muted">Đơn tồn</div><div class="num"><span class="val">792</span> <span class="small muted">đơn</span></div><div class="kg-delta"><span class="delta bad num"><span class="ms" aria-hidden="true" style="font-size: 16px">north_east</span>928,6%</span><span class="small muted">so với tháng trước</span></div></div></div>
+              <div class="kg-bar"><div class="meter" role="img" aria-label="Giao thành công 98,1%"><i style="width: 98.1%; background: var(--primary)"></i><i style="flex: 1; background: var(--low)"></i></div><span class="small muted num">Giao thành công 98,1%</span></div>
+            </section>
+          </div>
+
+          <section class="card" style="flex: 1; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px">
+              <div>
+                <h2 class="card-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">calendar_month</span></span>Số lượng đơn hàng theo ngày</h2>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+                <button class="{{sentCls}}" aria-pressed="{{showSent}}" onClick="{{toggleSent}}"><span class="dot sent" aria-hidden="true"></span>Đơn gửi</button>
+                <button class="{{recvCls}}" aria-pressed="{{showRecv}}" onClick="{{toggleRecv}}"><span class="dot recv" aria-hidden="true"></span>Đơn nhận</button>
+                <button class="pill sm" onClick="{{toggleView}}"><span class="ms" aria-hidden="true">{{viewIcon}}</span>{{viewLabel}}</button>
+              </div>
+            </div>
+
+            <sc-if value="{{isChart}}" hint-placeholder-val="{{true}}">
+              <div class="scroller">
+                <div class="plot">
+                  <sc-for list="{{ticks}}" as="t" hint-placeholder-count="5">
+                    <div class="gl" style="top: {{t.top}}px"><span class="small muted num">{{t.text}}</span></div>
+                  </sc-for>
+                  <div class="fee-band" aria-hidden="true"><span class="ms">payments</span>Cước</div>
+                  <svg class="area-svg" viewBox="0 0 310 256" preserveAspectRatio="none" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="grad-recv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-recv)" stop-opacity=".32"></stop><stop offset="1" stop-color="var(--chart-recv)" stop-opacity="0"></stop></linearGradient>
+                      <linearGradient id="grad-sent" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--chart-sent)" stop-opacity=".32"></stop><stop offset="1" stop-color="var(--chart-sent)" stop-opacity="0"></stop></linearGradient>
+                    </defs>
+                    <sc-if value="{{showRecv}}" hint-placeholder-val="{{true}}"><g class="reveal"><path d="{{recvArea}}" fill="url(#grad-recv)"></path><path class="area-line recv-line" d="{{recvLine}}"></path></g></sc-if>
+                    <sc-if value="{{showSent}}" hint-placeholder-val="{{true}}"><g class="reveal d2"><path d="{{sentArea}}" fill="url(#grad-sent)"></path><path class="area-line sent-line" d="{{sentLine}}"></path></g></sc-if>
+                  </svg>
+                  <div class="days" onMouseLeave="{{clearDay}}">
+                    <sc-for list="{{days}}" as="d" hint-placeholder-count="31">
+                      <button class="{{d.cls}}" aria-label="{{d.aria}}" onMouseEnter="{{d.pick}}" onFocus="{{d.pick}}" onClick="{{d.pick}}">
+                        <sc-if value="{{d.isSel}}" hint-placeholder-val="{{false}}"><span class="xhair" aria-hidden="true"></span><sc-if value="{{showRecv}}" hint-placeholder-val="{{true}}"><i class="pt recv" style="bottom: {{d.recvB}}px"></i></sc-if><sc-if value="{{showSent}}" hint-placeholder-val="{{true}}"><i class="pt sent" style="bottom: {{d.sentB}}px"></i></sc-if></sc-if>
+                        <span class="pl-fee num" aria-hidden="true">{{d.fee}}</span>
+                        <sc-if value="{{showRecv}}" hint-placeholder-val="{{true}}"><span class="pl pl-r num" style="bottom: {{d.recvL}}px" aria-hidden="true">{{d.recvText}}</span></sc-if>
+                        <sc-if value="{{showSent}}" hint-placeholder-val="{{true}}"><span class="pl pl-s num" style="bottom: {{d.sentL}}px" aria-hidden="true">{{d.sentText}}</span></sc-if>
+                        <span class="d num">{{d.day}}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+            <sc-if value="{{isTable}}" hint-placeholder-val="{{false}}">
+              <div class="scroller" style="max-height: 280px; overflow-y: auto">
+                <table class="tbl">
+                  <thead><tr><th>Ngày</th><th>Đơn gửi</th><th>Đơn nhận</th><th>Cước</th></tr></thead>
+                  <tbody>
+                    <sc-for list="{{days}}" as="d" hint-placeholder-count="31">
+                      <tr><td>{{d.label}}</td><td>{{d.sentText}}</td><td>{{d.recvText}}</td><td>{{d.fee}}</td></tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </sc-if>
+          </section>
+        </div>
+
+        <section class="card stack" style="flex: 1 1 100%; min-width: 0; gap: 16px">
+          <div class="hr-head">
+            <div style="min-width: 0">
+              <h2 class="card-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">schedule</span></span>Số lượng đơn hàng theo khung giờ</h2>
+            </div>
+            <div class="hr-tools">
+              <button class="{{hrSentCls}}" aria-pressed="{{hrShowSent}}" onClick="{{hrToggleSent}}"><span class="dot sent" aria-hidden="true"></span>Đơn gửi</button>
+              <button class="{{hrRecvCls}}" aria-pressed="{{hrShowRecv}}" onClick="{{hrToggleRecv}}"><span class="dot recv" aria-hidden="true"></span>Đơn nhận</button>
+              <div class="field" style="flex: 0 0 150px; min-width: 0"><span class="l" id="hr-d">Ngày</span><button class="box num" aria-labelledby="hr-d">02/11/2026<span class="ms" aria-hidden="true">calendar_today</span></button></div>
+            </div>
+          </div>
+          <div class="scroller">
+            <div class="hr-plot">
+              <sc-for list="{{hrCols}}" as="c" hint-placeholder-count="12">
+                <div class="hr-col">
+                  <div class="hr-bars">
+                    <sc-if value="{{hrShowSent}}" hint-placeholder-val="{{true}}"><div class="hr-bar"><button class="hr-num num" disabled="{{c.noS}}" aria-label="{{c.sAria}}" onClick="{{c.openS}}">{{c.sText}}</button><i class="sent" style="height: {{c.sH}}px"></i></div></sc-if>
+                    <sc-if value="{{hrShowRecv}}" hint-placeholder-val="{{true}}"><div class="hr-bar"><button class="hr-num num" disabled="{{c.noR}}" aria-label="{{c.rAria}}" onClick="{{c.openR}}">{{c.rText}}</button><i class="recv" style="height: {{c.rH}}px"></i></div></sc-if>
+                  </div>
+                  <span class="hr-tick num">{{c.label}}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+
+        <section class="card stack" style="flex: 1 1 100%; min-width: 0; gap: 16px">
+          <div>
+            <h2 class="card-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">store</span></span>Số đơn theo văn phòng / khung giờ</h2>
+          </div>
+          <div class="scroller">
+            <table class="tbl compact vp-hours" style="--tbl-min: 1000px">
+              <thead><tr><th>Văn phòng</th><sc-for list="{{hrLabels}}" as="l" hint-placeholder-count="12"><th class="r">{{l}}</th></sc-for><th class="r">Tổng</th></tr></thead>
+              <tbody>
+                <sc-for list="{{vpRows}}" as="r" hint-placeholder-count="6">
+                  <tr><td style="font-weight: 500; white-space: nowrap">{{r.name}}</td><sc-for list="{{r.cells}}" as="x" hint-placeholder-count="12"><td class="r"><button class="vp-num num" disabled="{{x.no}}" aria-label="{{x.aria}}" onClick="{{x.open}}">{{x.text}}</button></td></sc-for><td class="r main">{{r.total}}</td></tr>
+                </sc-for>
+              </tbody>
+              <tfoot><tr><td>Tổng</td><sc-for list="{{vpFoot}}" as="v" hint-placeholder-count="12"><td class="r">{{v}}</td></sc-for><td class="r">{{hrAll}}</td></tr></tfoot>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </sc-if>
+    <sc-if value="{{hasList}}" hint-placeholder-val="{{false}}">
+      <div class="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="l-title">
+        <div class="dlg-head"><div style="min-width: 0"><h2 id="l-title" class="confirm-title">{{listTitle}}</h2><div class="lab muted num">{{listSub}}</div></div><button class="no-btn" aria-label="Đóng" onClick="{{listClose}}"><span class="ms" aria-hidden="true">close</span></button></div>
+        <div class="scroller" style="flex: 1; min-height: 0; overflow-y: auto">
+          <table class="tbl" style="--tbl-min: 720px">
+            <thead><tr><th>Mã đơn</th><th>Loại</th><th>Người gửi</th><th>Người nhận</th><th>VP gửi → VP nhận</th><th class="r">Giờ sự kiện</th></tr></thead>
+            <tbody><sc-for list="{{listRows}}" as="o" hint-placeholder-count="6"><tr><td><button class="code" data-step="{{o.step}}">{{o.code}}</button></td><td><span class="{{o.tag}}">{{o.type}}</span></td><td style="font-weight: 500">{{o.from}}</td><td style="font-weight: 500">{{o.to}}</td><td>{{o.route}}</td><td class="r">{{o.at}}</td></tr></sc-for></tbody>
+          </table>
+        </div>
+      </div></div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1040}}">
+const DAILY = [[220,777,'42,4tr'],[447,1420,'54,3tr'],[620,1280,'54,7tr'],[327,1074,'45,2tr'],[805,1355,'60,3tr'],[740,1490,'61,7tr'],[719,1507,'64tr'],[773,1487,'60,3tr'],[751,1513,'63,4tr'],[595,1222,'53,8tr'],[384,1104,'50,9tr'],[780,1415,'64,9tr'],[717,1469,'62,5tr'],[778,1532,'63,5tr'],[757,1497,'62,3tr'],[776,1468,'64,2tr'],[678,1333,'57,1tr'],[383,1094,'47,1tr'],[846,1516,'67,8tr'],[801,1601,'65,9tr'],[686,1400,'59,1tr'],[733,1518,'66,1tr'],[645,1393,'58,9tr'],[592,1265,'55,7tr'],[337,1063,'48tr'],[690,1434,'66tr'],[561,1162,'49,2tr'],[682,1375,'58,4tr'],[733,1461,'60,4tr'],[629,1349,'55,4tr'],[574,1283,'57,4tr']];
+const HOURS = ['00-02h','02-04h','04-06h','06-08h','08-10h','10-12h','12-14h','14-16h','16-18h','18-20h','20-22h','22-24h'];
+const H_SENT = [0,0,2,30,90,120,140,110,46,0,0,0], H_RECV = [0,0,0,20,101,216,305,297,117,0,0,0];
+const VP_MAU = [['31A Nguyễn Quốc Trị - Hà Nội', 0.14], ['74 Phố Vọng - Hà Nội', 0.1], ['34 Trần Phú - Thái Bình', 0.08], ['72 Trần Nhân Tông - Hà Nội', 0.08], ['263 Nguyễn Thái Học - Yên Bái', 0.07], ['55 Trần Đại Nghĩa - Hà Nội', 0.07], ['104 Song Hào - Nam Định', 0.06], ['10 Ngõ 15 Ngọc Hồi - Hà Nội', 0.06], ['56 Nguyễn Quyền - Hà Nội', 0.06], ['251 Lương Văn Thăng - Ninh Bình', 0.05], ['88 Trương Công Giai - Hà Nội', 0.05], ['77 Trần Anh Tông - Nam Định', 0.04], ['46 Vũ Tuân - Việt Trì', 0.04], ['IC8 Phú Ninh - Phú Thọ', 0.04], ['Vincom - TX.Phú Thọ', 0.03], ['Văn Phú - Yên Bái', 0.03]];
+const splitVp = (v) => { const out = VP_MAU.map((x) => Math.floor(v * x[1])); let rest = v - out.reduce((a, b) => a + b, 0); for (let i = 0; rest > 0; i = (i + 1) % out.length, rest--) out[i]++; return out; };
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'biz', sel: null, hrSent: true, hrRecv: true, list: null, showSent: true, showRecv: true, view: 'chart', rule: false };
+  }
+  renderVals() {
+    const s = this.state;
+    const BASE = 256, MAX = 2000, PLOT = 190;
+    const peakIdx = DAILY.reduce((m, d, i) => d[1] > DAILY[m][1] ? i : m, 0);
+    const curve = (k) => { const P = DAILY.map((d, i) => [(i + .5) * 10, BASE - d[k] / MAX * PLOT]); let line = 'M' + P[0][0] + ' ' + P[0][1].toFixed(1); for (let i = 0; i < P.length - 1; i++) { const [x1, y1] = P[i], [x2, y2] = P[i + 1], mx = (x1 + x2) / 2; line += ' C' + mx + ' ' + y1.toFixed(1) + ' ' + mx + ' ' + y2.toFixed(1) + ' ' + x2 + ' ' + y2.toFixed(1); } return { line, area: line + ' L' + P[P.length - 1][0] + ' ' + BASE + ' L' + P[0][0] + ' ' + BASE + ' Z' }; };
+    const selD = s.sel ? DAILY[s.sel - 1] : null;
+    const feeSum = DAILY.reduce((a, d) => a + parseFloat(String(d[2]).replace(',', '.')), 0);
+    const monthFee = (feeSum / 1000).toFixed(2).replace('.', ',') + ' tỷ';
+    const cRecv = curve(1), cSent = curve(0);
+    const days = DAILY.map((d, i) => {
+      const day = i + 1, on = s.sel === day;
+      const short = String(day).padStart(2, '0') + '/10';
+      return {
+        day, short, label: short + '/2026', isSel: on,
+        sentText: fmt(d[0]), recvText: fmt(d[1]), fee: d[2],
+        recvL: 24 + d[1] / MAX * PLOT + 7, sentL: 24 + d[0] / MAX * PLOT + 7, recvB: 24 + d[1] / MAX * PLOT - 5, sentB: 24 + d[0] / MAX * PLOT - 5, showPeak: !s.sel && s.showRecv && i === peakIdx, peakB: 24 + d[1] / MAX * PLOT + 12,
+        cls: 'day' + (on ? ' on' : ''),
+        tipCls: 'tip ' + (day < 6 ? 'start' : day > 26 ? 'end' : 'mid'),
+        aria: 'Ngày ' + short + ': gửi ' + fmt(d[0]) + ', nhận ' + fmt(d[1]) + ', cước ' + d[2],
+        pick: () => this.setState({ sel: day }),
+      };
+    });
+    const ticks = [2000, 1000, 0].map((v) => ({ text: fmt(v), top: BASE - Math.round(v / MAX * PLOT) }));
+    const openList = (title, sub, types) => () => this.setState({ list: { title, sub, types } });
+    const hrMax = Math.max(...H_SENT, ...H_RECV);
+    const H = (v) => v ? Math.max(4, Math.round(v / hrMax * 170)) : 0;
+    const hrCols = HOURS.map((label, i) => { const a = H_SENT[i], b = H_RECV[i]; return { label, sH: H(a), rH: H(b), sText: a ? fmt(a) : '-', rText: b ? fmt(b) : '-', noS: !a, noR: !b, sAria: label + ': ' + a + ' đơn gửi, xem danh sách', rAria: label + ': ' + b + ' đơn nhận, xem danh sách', openS: openList('Đơn gửi khung ' + label, fmt(a) + ' đơn · 02/11/2026', ['Gửi']), openR: openList('Đơn nhận khung ' + label, fmt(b) + ' đơn · 02/11/2026', ['Nhận']) }; });
+    const totals = HOURS.map((_, i) => H_SENT[i] + H_RECV[i]);
+    const grid = totals.map(splitVp);
+    const vpRows = VP_MAU.map((x, r) => ({ name: x[0], total: fmt(grid.reduce((a, g) => a + g[r], 0)), cells: HOURS.map((label, i) => { const v = grid[i][r]; return { text: v ? fmt(v) : '-', no: !v, aria: x[0] + ', ' + label + ': ' + v + ' đơn, xem danh sách', open: openList(x[0] + ' · ' + label, fmt(v) + ' đơn · 02/11/2026', ['Gửi', 'Nhận']) }; }) }));
+    const listRows = s.list ? Array.from({ length: 6 }, (_, i) => { const type = s.list.types[i % s.list.types.length]; const n = String(i + 1); return { step: type === 'Gửi' ? 'Nhập kho gửi' : 'Nhập kho giao', stepCls: 'tag info', code: (type === 'Gửi' ? 'PV' : 'LD') + '0211MAU' + n, type, tag: 'tag ' + (type === 'Gửi' ? 'warn' : 'info'), from: 'Khách mẫu ' + 'ABCDEF'[i], to: 'Người nhận ' + 'ABCDEF'[i], route: VP_MAU[i % 6][0] + ' → ' + VP_MAU[(i + 2) % 6][0], at: '12:' + String(5 + i * 8).padStart(2, '0') + ' 02/11' }; }) : [];
+    const isTable = s.view === 'table';
+    return {
+      dark: !!this.props.dark, rootClass: (this.props.dark ? 'theme-dark' : 'theme-light') + ' shell font-inter',
+      readIcon: selD ? 'event' : 'date_range', readLabel: selD ? String(s.sel).padStart(2, '0') + '/10/2026' : 'Cả tháng 10/2026', readSent: fmt(selD ? selD[0] : DAILY.reduce((a, d) => a + d[0], 0)), readRecv: fmt(selD ? selD[1] : DAILY.reduce((a, d) => a + d[1], 0)), readFee: selD ? selD[2] : monthFee,
+      recvLine: cRecv.line, recvArea: cRecv.area, sentLine: cSent.line, sentArea: cSent.area, clearDay: () => this.setState({ sel: null }),
+      days, ticks, hrCols, hrLabels: HOURS, vpRows, vpFoot: totals.map((v) => v ? fmt(v) : '-'),
+      hrSentTotal: fmt(H_SENT.reduce((a, b) => a + b, 0)), hrRecvTotal: fmt(H_RECV.reduce((a, b) => a + b, 0)), hrAll: fmt(totals.reduce((a, b) => a + b, 0)),
+      hrShowSent: s.hrSent, hrShowRecv: s.hrRecv, hrSentCls: 'legend' + (s.hrSent ? '' : ' off'), hrRecvCls: 'legend' + (s.hrRecv ? '' : ' off'),
+      hrToggleSent: () => this.setState({ hrSent: !s.hrSent }), hrToggleRecv: () => this.setState({ hrRecv: !s.hrRecv }),
+      hasList: !!s.list, listTitle: s.list ? s.list.title : '', listSub: s.list ? s.list.sub : '', listRows, listClose: () => this.setState({ list: null }),
+      isBiz: s.tab === 'biz', isRoute: s.tab === 'route',
+      tabA: s.tab === 'biz' ? 'on' : '', tabB: s.tab === 'route' ? 'on' : '',
+      showBiz: () => this.setState({ tab: 'biz' }), showRoute: () => this.setState({ tab: 'route' }),
+      showSent: s.showSent, showRecv: s.showRecv,
+      sentCls: 'legend' + (s.showSent ? '' : ' off'), recvCls: 'legend' + (s.showRecv ? '' : ' off'),
+      toggleSent: () => this.setState({ showSent: !s.showSent }),
+      toggleRecv: () => this.setState({ showRecv: !s.showRecv }),
+      isChart: !isTable, isTable,
+      viewIcon: isTable ? 'bar_chart' : 'table_rows', viewLabel: isTable ? 'Biểu đồ' : 'Bảng',
+      toggleView: () => this.setState({ view: isTable ? 'chart' : 'table' }),
+      showRule: s.rule, toggleRule: () => this.setState({ rule: !s.rule }),
+    };
+  }
+}
+</script>
+</body>
+</html>

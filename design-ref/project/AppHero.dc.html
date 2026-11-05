@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thanh đầu trang</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{cls}}" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-family: Inter, 'Noto Sans', system-ui, sans-serif; color: var(--on-surface); font-size: 14px; line-height: 20px">
+  <div class="search-wrap">
+    <label class="pill search"><span class="ms" aria-hidden="true">search</span><input type="search" role="combobox" aria-expanded="{{srOpen}}" aria-controls="sr-list" autocomplete="off" placeholder="Tìm mã đơn, SĐT…" aria-label="Tìm mã đơn, SĐT" value="{{srQ}}" onChange="{{srChange}}" onFocus="{{srFocus}}" onBlur="{{srBlur}}" onKeyDown="{{srKey}}"></label>
+    <sc-if value="{{srOpen}}" hint-placeholder-val="{{false}}">
+      <div class="sr-pop" id="sr-list" role="listbox" aria-label="Kết quả tìm kiếm">
+        <div class="sr-count lab muted num">{{srCount}}</div>
+        <sc-for list="{{srItems}}" as="r" hint-placeholder-count="3">
+          <button type="button" class="{{r.cls}}" role="option" aria-selected="{{r.on}}" onMouseDown="{{r.pick}}">
+            <span class="sr-top"><span class="sr-code num">{{r.code.a}}<mark class="{{r.code.m}}">{{r.code.b}}</mark>{{r.code.c}}</span><span class="{{r.statusCls}}">{{r.status}}</span><span class="sr-time num">Tạo {{r.time}}</span><span class="{{r.payCls}}">{{r.pay}}: {{r.amount}}</span></span>
+            <span class="sr-line sr-strong"><span class="ms" aria-hidden="true">person</span><span class="num">{{r.toName.a}}<mark class="{{r.toName.m}}">{{r.toName.b}}</mark>{{r.toName.c}} • {{r.toPhone.a}}<mark class="{{r.toPhone.m}}">{{r.toPhone.b}}</mark>{{r.toPhone.c}}</span></span>
+            <span class="sr-line"><span class="ms" aria-hidden="true">inventory_2</span><span>{{r.goods.a}}<mark class="{{r.goods.m}}">{{r.goods.b}}</mark>{{r.goods.c}}</span></span>
+            <span class="sr-line"><span class="ms" aria-hidden="true">location_on</span><span class="sr-route">{{r.vpFrom}}<span class="ms sr-arrow" aria-hidden="true">arrow_right_alt</span>{{r.vpTo}}</span><span class="sr-from num"><span class="ms" aria-hidden="true">call</span>Gửi: <b>{{r.fromPhone.a}}<mark class="{{r.fromPhone.m}}">{{r.fromPhone.b}}</mark>{{r.fromPhone.c}}</b></span></span>
+          </button>
+        </sc-for>
+        <sc-if value="{{srNone}}" hint-placeholder-val="{{false}}"><div class="sr-none"><span class="ms" aria-hidden="true">search_off</span><div>Không tìm thấy đơn phù hợp. Thử mã đơn hoặc SĐT khác.</div></div></sc-if>
+      </div>
+    </sc-if>
+  </div>
+  <nav class="hero-links" aria-label="Lối tắt đơn hàng" style="display: flex; gap: 8px">
+    <sc-for list="{{links}}" as="l" hint-placeholder-count="4">
+      <a class="{{l.cls}}" href="{{l.href}}">{{l.label}}<sc-if value="{{l.hasCount}}" hint-placeholder-val="{{false}}"><span class="count num">{{l.count}}</span></sc-if></a>
+    </sc-for>
+  </nav>
+  <div style="display: flex; align-items: center; gap: 12px; margin-left: auto">
+    <button class="pill">Toàn hệ thống<span class="ms" aria-hidden="true">expand_more</span></button>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="text-align: right">
+        <div style="font-size: 13px; line-height: 18px; font-weight: 600">hunght</div>
+        <div class="muted" style="font-size: 12px; line-height: 16px">Admin</div>
+      </div>
+      <div aria-hidden="true" style="display: grid; place-items: center; width: 40px; height: 40px; border-radius: 9999px; background: var(--primary-container); color: var(--on-primary-container); font-weight: 600">H</div>
+    </div>
+  </div>
+  <sc-if value="{{hasOrder}}" hint-placeholder-val="{{false}}">
+    <div class="scrim detail-scrim" style="align-items: flex-start; overflow-y: auto">
+      <div class="sheet order-sheet" role="dialog" aria-modal="true" aria-labelledby="od-title">
+        <div class="dlg-head" style="flex-wrap: wrap">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0"><h1 id="od-title" class="page-title num" style="font-size: 24px; line-height: 32px">{{o.title}}</h1><sc-if value="{{o.hasStatus}}" hint-placeholder-val="{{false}}"><span class="{{o.statusCls}}">{{o.status}}</span></sc-if></div>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto">
+            <sc-if value="{{isViewing}}" hint-placeholder-val="{{true}}"><button class="btn tonal" disabled="{{noEdit}}" title="{{editTitle}}" onClick="{{startEdit}}"><span class="ms" aria-hidden="true">edit</span>Sửa đơn</button><button class="btn" onClick="{{openTem}}"><span class="ms" aria-hidden="true">print</span>In đơn</button></sc-if>
+            <button class="no-btn" aria-label="Đóng" onClick="{{tryClose}}"><span class="ms" aria-hidden="true">close</span></button>
+          </div>
+        </div>
+        <div class="order-layout">
+          <div class="stack" style="min-width: 0">
+            <div class="party-grid">
+              <section class="order-box stack"><h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">person</span></span>Người gửi</h2><sc-for list="{{oFrom}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></section>
+              <section class="order-box stack"><h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">person_pin_circle</span></span>Người nhận</h2><sc-for list="{{oTo}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></section>
+            </div>
+            <section class="order-box stack">
+              <h2 class="group-title num sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">inventory_2</span></span><span>Danh sách hàng hoá ({{o.packCount}} kiện)</span></h2>
+              <sc-for list="{{oPacks}}" as="p" hint-placeholder-count="1">
+                <div class="pack">
+                  <div class="title-small" style="font-weight: 600">{{p.name}}</div>
+                  <div class="pack-grid"><sc-for list="{{p.fields}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></div>
+                </div>
+              </sc-for>
+            </section>
+          </div>
+          <aside class="order-box stack order-side">
+            <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">payments</span></span>Thanh toán và ghi chú</h2>
+            <sc-for list="{{oPayTop}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for>
+            <div class="view-opt"><div class="{{bkLabelCls}}"><span class="l l-ic"><span class="ms" aria-hidden="true">account_balance</span>Nhận tiền COD qua tài khoản</span><sc-if value="{{bkOff}}" hint-placeholder-val="{{false}}"><div class="view-val">Không</div></sc-if></div><sc-if value="{{bkOn}}" hint-placeholder-val="{{true}}"><div class="{{sumCls}}"><div style="min-width: 0"><div class="opt-sum-a">{{bkA}}</div><div class="opt-sum-b">{{bkB}}</div></div><button class="text-act" aria-expanded="{{bkOpen}}" onClick="{{bkAct}}">{{bkActText}}</button></div><sc-if value="{{bkOpen}}" hint-placeholder-val="{{false}}"><div class="stack view-more"><sc-for list="{{bkFields}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></div></sc-if></sc-if></div>
+            <div class="view-opt"><div class="{{ivLabelCls}}"><span class="l l-ic"><span class="ms" aria-hidden="true">receipt_long</span>Xuất hoá đơn</span><sc-if value="{{ivOff}}" hint-placeholder-val="{{false}}"><div class="view-val">Không</div></sc-if></div><sc-if value="{{ivOn}}" hint-placeholder-val="{{true}}"><div class="{{sumCls}}"><div style="min-width: 0"><div class="opt-sum-a">{{ivA}}</div><div class="opt-sum-b">{{ivB}}</div></div><button class="text-act" aria-expanded="{{ivOpen}}" onClick="{{ivAct}}">{{ivActText}}</button></div><sc-if value="{{ivOpen}}" hint-placeholder-val="{{false}}"><div class="stack view-more"><sc-for list="{{ivFields}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></div></sc-if></sc-if></div>
+            <sc-for list="{{oPayNote}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for>
+            <div class="side-foot stack">
+              <div class="total-box num">
+                <div class="fee-lines lab" style="margin-bottom: 8px"><sc-for list="{{oLines}}" as="l" hint-placeholder-count="1"><div class="fee-line"><span>{{l.name}}</span><span>{{l.text}} VNĐ</span></div></sc-for></div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline"><span class="lab">Tổng phải thu</span><span class="kpi-val" style="font-size: 24px">{{o.total}} <span style="font-size: 12px; font-weight: 400">VNĐ</span></span></div>
+              </div>
+              <sc-if value="{{isViewing}}" hint-placeholder-val="{{true}}"><div style="display: flex; justify-content: flex-end"><button class="btn ghost" onClick="{{tryClose}}">Đóng</button></div></sc-if>
+              <sc-if value="{{isEditing}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px"><sc-if value="{{editBad}}" hint-placeholder-val="{{false}}"><div class="err-sum">Còn thông tin bắt buộc đang để trống</div></sc-if><button class="btn ghost" onClick="{{cancelEdit}}">Huỷ sửa</button><button class="btn" disabled="{{editBad}}" onClick="{{saveEdit}}">Lưu thay đổi</button></div></sc-if>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{hasSaved}}" hint-placeholder-val="{{false}}"><div class="snack toast" role="status" style="z-index: 45"><span style="flex: 1">Đã lưu thay đổi</span></div></sc-if>
+    <sc-if value="{{askDiscard}}" hint-placeholder-val="{{false}}">
+      <div class="scrim detail-top"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="od-ask"><h2 id="od-ask" class="confirm-title">Bỏ các thay đổi?</h2><p class="lab muted" style="margin: 0">Những thông tin vừa sửa sẽ không được lưu.</p><div class="confirm-acts"><button class="btn ghost" onClick="{{keepEdit}}">Đóng</button><button class="btn danger" onClick="{{discardEdit}}">Bỏ thay đổi</button></div></div></div>
+    </sc-if>
+    <sc-if value="{{bkDlg}}" hint-placeholder-val="{{false}}">
+      <div class="scrim detail-top"><div class="sheet confirm" role="dialog" aria-modal="true" aria-labelledby="bk-t"><div class="dlg-head"><h2 id="bk-t" class="confirm-title">Nhận tiền COD qua tài khoản</h2><button class="no-btn" aria-label="Đóng" onClick="{{subClose}}"><span class="ms" aria-hidden="true">close</span></button></div><div class="stack"><sc-for list="{{bkFields}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></div><div class="confirm-acts"><button class="btn" onClick="{{subClose}}">Xong</button></div></div></div>
+    </sc-if>
+    <sc-if value="{{ivDlg}}" hint-placeholder-val="{{false}}">
+      <div class="scrim detail-top"><div class="sheet form-sheet" role="dialog" aria-modal="true" aria-labelledby="iv-t"><div class="dlg-head"><h2 id="iv-t" class="confirm-title">Thông tin xuất hoá đơn</h2><button class="no-btn" aria-label="Đóng" onClick="{{subClose}}"><span class="ms" aria-hidden="true">close</span></button></div><div class="opt-grid"><sc-for list="{{ivFields}}" as="f" hint-placeholder-count="3"><div class="{{f.cls}}"><span class="l">{{f.l}}</span><sc-if value="{{f.isText}}" hint-placeholder-val="{{true}}"><div class="view-val">{{f.v}}</div></sc-if><sc-if value="{{f.isRo}}" hint-placeholder-val="{{false}}"><div class="box input-box ro-box"><span>{{f.v}}</span></div></sc-if><sc-if value="{{f.isIn}}" hint-placeholder-val="{{false}}"><span class="box input-box"><input aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"></span></sc-if><sc-if value="{{f.isSel}}" hint-placeholder-val="{{false}}"><span class="box input-box sel-box"><select aria-label="{{f.l}}" value="{{f.raw}}" onChange="{{f.set}}"><sc-for list="{{f.opts}}" as="x" hint-placeholder-count="2"><option value="{{x}}">{{x}}</option></sc-for></select><span class="ms" aria-hidden="true">expand_more</span></span></sc-if></div></sc-for></div><div class="confirm-acts"><button class="btn" onClick="{{subClose}}">Xong</button></div></div></div>
+    </sc-if>
+    <sc-if value="{{hasTem}}" hint-placeholder-val="{{false}}">
+      <div class="scrim detail-top"><div class="sheet tem-sheet" role="dialog" aria-modal="true" aria-labelledby="tem-title">
+        <div class="dlg-head"><div style="min-width: 0"><h2 id="tem-title" class="confirm-title">In đơn {{o.code}}</h2><div class="lab muted num">{{temSub}}</div></div><button class="no-btn" aria-label="Đóng" onClick="{{closeTem}}"><span class="ms" aria-hidden="true">close</span></button></div>
+        <div class="tem-scroll"><div class="tem-list" style="{{temZoom}}">
+          <sc-for list="{{tems}}" as="t" hint-placeholder-count="1">
+            <div class="tem" data-label="Tem vận đơn">
+              <div class="tem-top">
+                <div class="tem-left"><div class="tem-hub">{{t.hub}}</div><div class="tem-time">In: {{t.time}}</div></div>
+                <div class="tem-right"><div class="tem-code">{{t.code}}</div><div class="tem-qr" role="img" aria-label="Mã QR đơn hàng"><sc-for list="{{temQr}}" as="q" hint-placeholder-count="9"><i class="{{q.c}}"></i></sc-for></div></div>
+              </div>
+              <div class="tem-route">{{t.route}}</div>
+              <div class="tem-money">
+                <div class="tem-state">{{t.state}}</div>
+                <sc-for list="{{t.lines}}" as="l" hint-placeholder-count="1"><div class="tem-line"><span>{{l.name}}</span><b>{{l.text}} đ</b></div></sc-for>
+                <div class="tem-total"><b>Tổng cần thu</b><strong>{{t.total}} đ</strong></div>
+              </div>
+              <div class="tem-warn">KHÔNG CHO XEM HÀNG, KIỂM TRA KĨ NGOẠI QUAN TRƯỚC KHI NHẬN</div>
+              <div class="tem-to"><div class="tem-big">{{t.name}}</div><div class="tem-big" style="letter-spacing: 1px">{{t.phone}}</div><sc-if value="{{t.hasAddr}}" hint-placeholder-val="{{false}}"><span class="tem-addr">{{t.addr}}</span></sc-if></div>
+              <div class="tem-goods"><b>Nội dung: {{t.goods}}</b><b style="white-space: nowrap">{{t.kg}} KG</b></div>
+              <div class="tem-foot"><b class="tem-hot">1900 1155</b><span>Xác nhận đã nhận hàng nguyên vẹn</span><span class="tem-time2">In: {{t.time}}</span></div>
+            </div>
+          </sc-for>
+        </div></div>
+        <div class="confirm-acts"><button class="btn ghost" onClick="{{closeTem}}">Đóng</button><button class="btn" onClick="{{printTem}}"><span class="ms" aria-hidden="true">print</span>In {{temCount}} tem</button></div>
+      </div></div>
+    </sc-if>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"text","default":""},"dark":{"editor":"boolean","default":false},"$preview":{"width":1176,"height":64}}'>
+const NUM = (v) => parseInt(String(v || '').replace(/\D/g, ''), 10) || 0;
+const FMT = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const VPS = ['251 Lương Văn Thăng - Ninh Bình', '104 Song Hào - Nam Định', '77 Trần Anh Tông - Nam Định', '34 Trần Phú - Thái Bình', '46 Vũ Tuân - Việt Trì', 'Vincom - TX.Phú Thọ', 'IC8 Phú Ninh - Phú Thọ', '263 Nguyễn Thái Học - Yên Bái', 'Văn Phú - Yên Bái', '31A Nguyễn Quốc Trị - Hà Nội', '74 Phố Vọng - Hà Nội', '72 Trần Nhân Tông - Hà Nội', '55 Trần Đại Nghĩa - Hà Nội', '10 Ngõ 15 Ngọc Hồi - Hà Nội', '56 Nguyễn Quyền - Hà Nội', '88 Trương Công Giai - Hà Nội'];
+const HUB = {'251 Lương Văn Thăng - Ninh Bình': 'NBH', '104 Song Hào - Nam Định': 'NDH', '77 Trần Anh Tông - Nam Định': 'NDH', '34 Trần Phú - Thái Bình': 'TBH', '46 Vũ Tuân - Việt Trì': 'PTO', 'Vincom - TX.Phú Thọ': 'PTO', 'IC8 Phú Ninh - Phú Thọ': 'PTO', '263 Nguyễn Thái Học - Yên Bái': 'YBI', 'Văn Phú - Yên Bái': 'YBI', '31A Nguyễn Quốc Trị - Hà Nội': 'HNI', '74 Phố Vọng - Hà Nội': 'HNI', '72 Trần Nhân Tông - Hà Nội': 'HNI', '55 Trần Đại Nghĩa - Hà Nội': 'HNI', '10 Ngõ 15 Ngọc Hồi - Hà Nội': 'HNI', '56 Nguyễn Quyền - Hà Nội': 'HNI', '88 Trương Công Giai - Hà Nội': 'HNI'};
+const GROUPS = ['Hàng thường', 'Hàng dễ vỡ', 'Tài liệu', 'Thực phẩm'];
+const PAYERS = ['Người gửi thanh toán', 'Người nhận thanh toán', 'Công nợ', 'Thu cước 1 phần'];
+const TIERS = [[3, 25000], [6, 35000], [10, 50000], [20, 70000], [30, 110000], [50, 140000]];
+const kgOf = (v) => parseFloat(String(v || '').replace(',', '.')) || 0;
+const priceOf = (kg) => { if (kg <= 0) return 0; const c = Math.ceil(kg), t = TIERS.find((x) => c <= x[0]); return t ? t[1] : 140000 + (c - 50) * 2500; };
+const codFeeOf = (c) => !c ? 0 : c <= 2000000 ? 30000 : c <= 5000000 ? 40000 : c <= 10000000 ? 60000 : c <= 15000000 ? 80000 : c <= 20000000 ? 100000 : Math.round(c * 0.005);
+const fmtKg = (n) => String(Math.round(n * 10) / 10).replace('.', ',');
+const LOCKED = ['Thành công', 'Đơn huỷ'];
+const stepClsOf = (s) => 'tag ' + (/Thành công/.test(s) && !/không/.test(s) ? 'ok' : /huỷ|thất lạc|hư hỏng|không thành công/i.test(s) ? 'err' : /ngoại lệ/i.test(s) ? 'warn' : 'info');
+const QR = (() => { const n = 25, out = []; const ring = (a, b) => Math.max(Math.abs(a - 3), Math.abs(b - 3)) !== 2; for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { let on; if (x < 7 && y < 7) on = ring(x, y); else if (x >= n - 7 && y < 7) on = ring(x - n + 7, y); else if (x < 7 && y >= n - 7) on = ring(x, y - n + 7); else if ((x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8)) on = false; else on = ((x * 11 + y * 17 + x * y) % 5) < 2; out.push({ c: on ? 'on' : '' }); } return out; })();
+const readRow = (btn) => {
+  const td = btn.closest('td'), tr = btn.closest('tr'), table = btn.closest('table');
+  if (!td || !tr || !table) return null;
+  const ths = [...table.querySelectorAll('thead th')].map((x) => x.textContent.trim());
+  const tds = [...tr.children];
+  const colName = ths[tds.indexOf(td)];
+  if (colName !== 'Mã đơn' && colName !== 'Mã đơn hàng' && !(colName === 'Mã đơn / phiếu' && !/^PT/.test(btn.textContent.trim()))) return null;
+  const cell = (name) => { const c = tds[ths.findIndex((h) => h.startsWith(name))]; if (!c) return { main: '', subs: [] }; const copy = c.cloneNode(true); const subs = [...copy.querySelectorAll('.sub')].map((s) => s.textContent.trim()); copy.querySelectorAll('.sub,button').forEach((s) => s.remove()); return { main: copy.textContent.trim(), subs }; };
+  const from = cell('Người gửi'), to = cell('Người nhận'), vp = cell('VP gửi'), pk = cell('Đơn hàng'), fee = cell('Cước'), cod = cell('COD');
+    const pickSub = from.subs.find((x) => x.startsWith('Lấy tận nơi:')), dropSub = to.subs.find((x) => x.startsWith('Giao tận nơi:'));
+  const viaBank = btn.dataset.bank === '1';
+  const wantsInvoice = btn.dataset.invoice === '1';
+  const m = pk.main.match(/(\d+) kiện · ([\d,]+) kg/);
+  const count = m ? +m[1] : 1, kg = m ? parseFloat(m[2].replace(',', '.')) : 2;
+  const feeN = NUM(fee.main) || 35000;
+  const payer = /Người nhận/.test(fee.subs[0] || '') ? PAYERS[1] : PAYERS[0];
+  const goods = pk.subs[0] || 'Hàng thường';
+  return { code: btn.textContent.trim(), status: btn.dataset.step || '', fromName: from.main || 'Khách mẫu', fromPhone: from.subs[0] || '0900 000 100', toName: to.main || 'Người nhận mẫu', toPhone: to.subs[0] || '0900 000 200', vpFrom: vp.main || '31A Nguyễn Quốc Trị - Hà Nội', vpTo: (vp.subs[0] || '→ 104 Song Hào - Nam Định').replace(/^→\s*/, ''), cmnd: '', pick: !!pickSub, pickAddr: pickSub ? pickSub.replace('Lấy tận nơi:', '').trim() : '', drop: /Giao tận nơi/.test(tr.textContent), dropAddr: dropSub ? dropSub.replace('Giao tận nơi:', '').trim() : (/Giao tận nơi/.test(tr.textContent) ? 'Địa chỉ giao tận nơi mẫu' : ''), bank: viaBank, bankName: viaBank ? 'BIDV' : '', bankNo: viaBank ? '0123 456 789' : '', bankOwner: viaBank ? (from.main || 'Khách mẫu').toUpperCase() : '', invoice: wantsInvoice, mst: wantsInvoice ? '0100000000' : '', coName: wantsInvoice ? 'Công ty TNHH Mẫu' : '', coAddr: wantsInvoice ? 'Số 1 đường Mẫu, Hà Nội' : '', coEmail: wantsInvoice ? 'ketoan@example.com' : '', invName: wantsInvoice ? (from.main || 'Khách mẫu') : '', payer, cod: String(NUM(cod.main) || ''), note: '', packs: Array.from({ length: count }, () => ({ group: goods, kg: fmtKg(kg / count), qty: '1', val: '', l: '10', w: '10', h: '10', fee: Math.round(feeN / count) })) };
+};
+const plainText = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase();
+const mk = (code, status, time, total, goods, kiện, kg, fromName, fromPhone, toName, toPhone, vpFrom, vpTo, payer, extra) => ({ code, status, time, total, goods, kiện, kg, fromName, fromPhone, toName, toPhone, vpFrom, vpTo, payer, ...(extra || {}) });
+const SEARCH = [
+  mk('LD0311MBU9', 'Nhập kho gửi', '16:50 03/11', 115000, 'Linh kiện', 2, 10, 'Khách mẫu K', '0900 000 109', 'Người nhận K', '0900 000 209', '263 Nguyễn Thái Học - Yên Bái', '31A Nguyễn Quốc Trị - Hà Nội', PAYERS[0], { cod: '1500000', pickAddr: 'Số 12 đường Mẫu, TP Yên Bái', dropAddr: 'Số 34 phố Mẫu, Cầu Giấy, Hà Nội', bank: true, invoice: true }),
+  mk('PV0311MAU1', 'Chờ nhận hàng', '16:42 03/11', 35000, 'Giấy tờ', 1, 1.5, 'Khách mẫu A', '0900 000 101', 'Người nhận A', '0900 000 201', '104 Song Hào - Nam Định', '31A Nguyễn Quốc Trị - Hà Nội', PAYERS[1]),
+  mk('PV0311MBU2', 'Nhập kho gửi', '16:30 03/11', 70000, 'Thực phẩm', 2, 8, 'Khách mẫu B', '0900 000 102', 'Người nhận B', '0900 000 202', '263 Nguyễn Thái Học - Yên Bái', '31A Nguyễn Quốc Trị - Hà Nội', PAYERS[0]),
+  mk('BC0311MCU3', 'Thành công', '14:21 03/11', 40000, 'Quần áo', 1, 3, 'Khách mẫu C', '0900 000 103', 'Người nhận C', '0900 000 203', '31A Nguyễn Quốc Trị - Hà Nội', '104 Song Hào - Nam Định', PAYERS[1], { dropAddr: 'Số 8 phố Mẫu, TP Nam Định' }),
+  mk('LD0311MBU4', 'Hàng trên xe', '11:57 03/11', 95000, 'Linh kiện', 3, 12, 'Khách mẫu D', '0900 000 104', 'Người nhận D', '0900 000 204', '34 Trần Phú - Thái Bình', '31A Nguyễn Quốc Trị - Hà Nội', PAYERS[0]),
+  mk('PV0311MBU5', 'Nhập kho giao', '10:41 03/11', 30000, 'Giấy tờ', 1, 0.5, 'Khách mẫu E', '0900 000 105', 'Người nhận E', '0900 000 205', '31A Nguyễn Quốc Trị - Hà Nội', '263 Nguyễn Thái Học - Yên Bái', PAYERS[1]),
+  mk('BC0311MCU6', 'Thành công', '09:15 03/11', 45000, 'Mỹ phẩm', 1, 5, 'Khách mẫu F', '0900 000 106', 'Người nhận F', '0900 000 206', '251 Lương Văn Thăng - Ninh Bình', '31A Nguyễn Quốc Trị - Hà Nội', PAYERS[0]),
+  mk('PV0311MDU7', 'Đơn huỷ', '08:44 03/11', 60000, 'Quần áo', 2, 6, 'Khách mẫu G', '0900 000 107', 'Người nhận G', '0900 000 207', '104 Song Hào - Nam Định', '31A Nguyễn Quốc Trị - Hà Nội', PAYERS[1]),
+];
+const splitHit = (text, q) => { const s = String(text || ''); if (!q) return { a: s, b: '', c: '', m: 'off' }; const map = []; let hay = ''; [...s].forEach((ch, i) => { if (ch === ' ' && /^\d+$/.test(q)) return; const p = plainText(ch); for (let j = 0; j < p.length; j++) { hay += p[j]; map.push(i); } }); const at = hay.indexOf(q); if (at < 0) return { a: s, b: '', c: '', m: 'off' }; const from = map[at], to = map[at + q.length - 1] + 1, cs = [...s]; return { a: cs.slice(0, from).join(''), b: cs.slice(from, to).join(''), c: cs.slice(to).join(''), m: 'on' }; };
+const orderOf = (r) => ({ code: r.code, status: r.status, fromName: r.fromName, fromPhone: r.fromPhone, toName: r.toName, toPhone: r.toPhone, vpFrom: r.vpFrom, vpTo: r.vpTo, cmnd: '', pick: !!r.pickAddr, pickAddr: r.pickAddr || '', drop: !!r.dropAddr, dropAddr: r.dropAddr || '', bank: !!r.bank, bankName: r.bank ? 'BIDV' : '', bankNo: r.bank ? '0123 456 789' : '', bankOwner: r.bank ? r.fromName.toUpperCase() : '', invoice: !!r.invoice, mst: r.invoice ? '0100000000' : '', coName: r.invoice ? 'Công ty TNHH Mẫu' : '', coAddr: r.invoice ? 'Số 1 đường Mẫu, Hà Nội' : '', coEmail: r.invoice ? 'ketoan@example.com' : '', invName: r.invoice ? r.fromName : '', payer: r.payer, cod: r.cod || '', note: '', packs: Array.from({ length: r.kiện }, () => ({ group: r.goods, kg: fmtKg(r.kg / r.kiện), qty: '1', val: '', l: '10', w: '10', h: '10', fee: Math.round((r.total - codFeeOf(NUM(r.cod))) / r.kiện) })) });
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { order: null, draft: null, tem: null, ask: false, saved: false, q: '', srFocus: false, srIdx: 0 }; }
+  componentDidMount() {
+    this.onDocClick = (e) => { const btn = e.target.closest && e.target.closest('button.code'); if (!btn) return; const order = readRow(btn); if (order) this.setState({ order, draft: null, tem: null, ask: false, saved: false }); };
+    this.onKey = (e) => { if (e.key !== 'Escape' || !this.state.order) return; if (this.state.tem) this.setState({ tem: null }); else if (!this.state.draft) this.setState({ order: null }); };
+    document.addEventListener('click', this.onDocClick);
+    document.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { document.removeEventListener('click', this.onDocClick); document.removeEventListener('keydown', this.onKey); }
+  renderVals() {
+    const active = this.props.active ?? '';
+    const s = this.state, editing = !!s.draft, d = s.draft || s.order;
+    const q = plainText(s.q).trim(), qDigits = q.replace(/[^\d]/g, '');
+    const srHits = !q ? [] : SEARCH.filter((r) => plainText([r.code, r.toName, r.fromName, r.goods].join(' ')).includes(q) || (qDigits.length >= 3 && qDigits.length === q.replace(/\s/g, '').length && (r.toPhone + ' ' + r.fromPhone).replace(/\s/g, '').includes(qDigits)));
+    const srPick = (r) => this.setState({ order: orderOf(r), draft: null, tem: null, ask: false, saved: false, srFocus: false });
+    const srVals = {
+      srQ: s.q, srOpen: s.srFocus && !!q, srNone: srHits.length === 0, srCount: srHits.length ? srHits.length + ' đơn phù hợp' : '',
+      srChange: (e) => this.setState({ q: e.target.value, srIdx: 0, srFocus: true }), srFocus: () => this.setState({ srFocus: true }), srBlur: () => this.setState({ srFocus: false }),
+      srKey: (e) => { if (e.key === 'Escape') { this.setState({ srFocus: false }); return; } if (!srHits.length) return; if (e.key === 'ArrowDown') { e.preventDefault(); this.setState({ srIdx: (s.srIdx + 1) % srHits.length }); } else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState({ srIdx: (s.srIdx - 1 + srHits.length) % srHits.length }); } else if (e.key === 'Enter') { e.preventDefault(); srPick(srHits[s.srIdx] || srHits[0]); } },
+      srItems: srHits.map((r, i) => { const paid = r.status === 'Thành công'; const hq = /^[\d\s]+$/.test(q) ? qDigits : q; return { code: splitHit(r.code, hq), status: r.status, statusCls: stepClsOf(r.status), time: r.time, amount: FMT(r.total) + ' VNĐ', pay: paid ? 'Đã thu' : 'Chưa thu', payCls: 'sr-money ' + (paid ? 'paid' : 'unpaid'), toName: splitHit(r.toName, hq), toPhone: splitHit(r.toPhone, hq), goods: splitHit(r.goods, hq), vpFrom: r.vpFrom, vpTo: r.vpTo, fromPhone: splitHit(r.fromPhone, hq), on: i === s.srIdx, cls: 'sr-item' + (i === s.srIdx ? ' on' : ''), pick: (e) => { e.preventDefault(); srPick(r); } }; }),
+    };
+    const orderVals = !d ? { hasOrder: false, o: {} } : (() => {
+      const patch = (p) => this.setState({ draft: { ...this.state.draft, ...p } });
+      const cls = (w) => 'field cfg-field' + (w ? ' pack-wide' : '');
+      const R = (l, v, w) => ({ l, v: v || '-', raw: '', cls: cls(w) + (editing ? '' : ' view-field'), isText: !editing, isRo: editing, isIn: false, isSel: false, opts: [] });
+      const I = (l, k, v, set, w) => editing ? { l, v: '', raw: v, set: set || ((e) => patch({ [k]: e.target.value })), cls: cls(w), isText: false, isRo: false, isIn: true, isSel: false, opts: [] } : R(l, v, w);
+      const S = (l, k, v, opts, set, w) => editing ? { l, v: '', raw: v, set: set || ((e) => patch({ [k]: e.target.value })), opts, cls: cls(w), isText: false, isRo: false, isIn: false, isSel: true } : R(l, v, w);
+      const N = (x) => ({ ...x, cls: x.cls + ' view-nest' });
+      const setPack = (i, p) => patch({ packs: this.state.draft.packs.map((x, j) => j === i ? { ...x, ...p } : x) });
+      const fee = d.packs.reduce((a, p) => a + p.fee, 0), cod = NUM(d.cod), cf = codFeeOf(cod), total = fee + cf;
+      const lines = [['Cước hàng', fee], ['Phí thu hộ COD', cf]].filter((x) => x[1] > 0).map((x) => ({ name: x[0], text: FMT(x[1]) }));
+      const canEdit = !LOCKED.includes(d.status);
+      const dirty = editing && JSON.stringify(s.draft) !== JSON.stringify(s.order);
+      const time = s.tem ? s.tem.time : '';
+      return {
+        hasOrder: true, isEditing: editing, isViewing: !editing,
+        o: { code: d.code, title: (editing ? 'Sửa đơn ' : 'Đơn ') + d.code, status: d.status, statusCls: stepClsOf(d.status), hasStatus: !!d.status, packCount: d.packs.length, total: FMT(total) },
+        oFrom: [I('SĐT người gửi', 'fromPhone', d.fromPhone), I('Tên người gửi', 'fromName', d.fromName), R('VP gửi', d.vpFrom), R('Lấy tận nơi', d.pick ? 'Có' : 'Không'), ...(d.pick ? [N(I('Địa chỉ lấy hàng', 'pickAddr', d.pickAddr))] : [])],
+        oTo: [I('SĐT người nhận', 'toPhone', d.toPhone), I('Tên người nhận', 'toName', d.toName), S('VP nhận', 'vpTo', d.vpTo, VPS), I('CMND/Passport', 'cmnd', d.cmnd), R('Giao tận nơi', d.drop ? 'Có' : 'Không'), ...(d.drop ? [N(I('Địa chỉ giao hàng', 'dropAddr', d.dropAddr))] : [])],
+        oPacks: d.packs.map((p, i) => ({ name: 'Kiện ' + (i + 1), fields: [
+          S('Nhóm hàng', '', p.group, GROUPS.includes(p.group) ? GROUPS : [p.group, ...GROUPS], (e) => setPack(i, { group: e.target.value }), true),
+          I('Cân nặng (kg)', '', p.kg, (e) => { const k = kgOf(e.target.value); setPack(i, { kg: e.target.value, fee: priceOf(k) }); }),
+          I('Số lượng món', '', p.qty, (e) => setPack(i, { qty: e.target.value })),
+          I('Giá trị hàng (VNĐ)', '', p.val, (e) => setPack(i, { val: e.target.value })),
+          R('Cước hàng (VNĐ)', p.fee ? FMT(p.fee) : ''),
+          I('Dài (cm)', '', p.l, (e) => setPack(i, { l: e.target.value })), I('Rộng (cm)', '', p.w, (e) => setPack(i, { w: e.target.value })), I('Cao (cm)', '', p.h, (e) => setPack(i, { h: e.target.value })),
+        ] })),
+        oPayTop: [S('Hình thức thanh toán', 'payer', d.payer, PAYERS), I('Thu hộ (COD)', 'cod', editing ? d.cod : (cod ? FMT(cod) + ' VNĐ' : '')), R('Phí thu hộ COD', cf ? FMT(cf) + ' VNĐ' : '')],
+        oPayNote: [I('Ghi chú đơn hàng', 'note', d.note)],
+        sumCls: 'opt-sum' + (editing ? '' : ' plain'),
+        ...Object.fromEntries(['bk', 'iv'].flatMap((k) => { const on = k === 'bk' ? d.bank : d.invoice; const open = !editing && !!(s.open || {})[k]; return [[k + 'On', on], [k + 'Off', !on], [k + 'LabelCls', 'field cfg-field view-field' + (on ? ' only-label' : '')], [k + 'Open', open], [k + 'ActText', editing ? 'Sửa' : open ? 'Thu gọn' : 'Chi tiết'], [k + 'Act', () => editing ? this.setState({ sub: k }) : this.setState({ open: { ...(this.state.open || {}), [k]: !open } })], [k + 'Dlg', editing && s.sub === k]]; })),
+        bkA: d.bankName + ' · ' + d.bankNo, bkB: d.bankOwner,
+        ivA: d.coName || '-', ivB: 'MST ' + (d.mst || '-'),
+        bkFields: [S('Ngân hàng', 'bankName', d.bankName, ['Vietcombank', 'BIDV', 'VietinBank', 'Techcombank']), I('Số tài khoản', 'bankNo', d.bankNo), I('Tên tài khoản', 'bankOwner', d.bankOwner)],
+        ivFields: [I('Mã số thuế', 'mst', d.mst), I('Tên công ty', 'coName', d.coName), I('Địa chỉ công ty', 'coAddr', d.coAddr), I('Email nhận hoá đơn', 'coEmail', d.coEmail), I('Tên người trên hoá đơn', 'invName', d.invName)],
+        subClose: () => this.setState({ sub: null }),
+        oLines: lines,
+        noEdit: !canEdit, editTitle: canEdit ? 'Sửa đơn' : 'Đơn ở trạng thái này không sửa được',
+        editBad: editing && (!d.fromPhone.trim() || !d.toPhone.trim() || (d.pick && !d.pickAddr.trim()) || (d.drop && !d.dropAddr.trim()) || (d.bank && !(d.bankNo.trim() && d.bankOwner.trim())) || (d.invoice && !(d.mst.trim() && d.coName.trim() && d.coAddr.trim() && d.coEmail.trim() && d.invName.trim())) || d.packs.some((p) => !p.group || kgOf(p.kg) <= 0)),
+        startEdit: () => this.setState({ draft: JSON.parse(JSON.stringify(s.order)), saved: false }),
+        saveEdit: () => { this.setState({ order: this.state.draft, draft: null, saved: true }); setTimeout(() => this.setState({ saved: false }), 2400); },
+        cancelEdit: () => dirty ? this.setState({ ask: true }) : this.setState({ draft: null }),
+        tryClose: () => dirty ? this.setState({ ask: true }) : this.setState({ order: null, draft: null, saved: false }),
+        askDiscard: s.ask, keepEdit: () => this.setState({ ask: false }), discardEdit: () => this.setState({ ask: false, draft: null }),
+        hasSaved: s.saved,
+        openTem: () => { const n = new Date(), p = (x) => String(x).padStart(2, '0'); this.setState({ tem: { time: p(n.getHours()) + ':' + p(n.getMinutes()) + ':' + p(n.getSeconds()) + ' ' + p(n.getDate()) + '/' + p(n.getMonth() + 1) + '/' + n.getFullYear(), zoom: Math.min(1, (window.innerWidth - 96) / 800) } }); },
+        closeTem: () => this.setState({ tem: null }),
+        hasTem: !!s.tem, temCount: d.packs.length, temSub: d.packs.length + ' tem, mỗi kiện một tem. Mã QR trên bản thiết kế là hình minh hoạ.', temZoom: { zoom: s.tem ? s.tem.zoom : 1 }, temQr: QR,
+        tems: d.packs.map((p, i) => ({ code: d.code + '_' + (i + 1), hub: HUB[d.vpTo] || 'XEV', time, route: d.vpFrom + ' → ' + d.vpTo, state: d.status === 'Thành công' ? 'ĐÃ THU' : 'CHƯA THU', lines, total: FMT(total), name: d.toName.toUpperCase(), phone: d.toPhone.replace(/\s/g, ''), hasAddr: d.drop, addr: d.dropAddr, goods: p.group, kg: fmtKg(kgOf(p.kg)) })),
+        printTem: () => { const src = document.querySelector('.tem-list'); if (!src) return; const old = document.getElementById('tem-print-root'); if (old) old.remove(); const root = document.createElement('div'); root.id = 'tem-print-root'; const c = src.cloneNode(true); c.style.zoom = 1; root.appendChild(c); document.body.appendChild(root); const done = () => { root.remove(); window.removeEventListener('afterprint', done); }; window.addEventListener('afterprint', done); window.print(); },
+      };
+    })();
+    return {
+      ...srVals,
+      ...orderVals,
+      cls: 'hero-bar ' + (this.props.dark ? 'theme-dark' : 'theme-light'),
+      links: [['Chờ bàn giao','ChoBanGiao.dc.html',12],['Nhập kho - Luân chuyển','NhapKho.dc.html'],['Thành công','ThanhCong.dc.html'],['Ngoại lệ - Huỷ','NgoaiLe.dc.html']].map(([label, href, count]) => ({ label, href, count, hasCount: !!count, cls: 'pill' + (label === active ? ' on' : '') })),
+    };
+  }
+}
+</script>
+</body>
+</html>

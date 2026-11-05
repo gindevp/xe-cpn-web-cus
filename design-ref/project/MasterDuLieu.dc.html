@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Master dữ liệu X.E</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cpn.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,300..400,0..1,0&amp;display=block">
+<style>body{margin:0}</style>
+</helmet>
+<div class="{{theme}} shell">
+  <dc-import name="AppNav" active="Master dữ liệu" dark="{{dark}}" hint-size="216px,100%"></dc-import>
+  <main class="pad page">
+    <dc-import name="AppHero" dark="{{dark}}" hint-size="100%,44px"></dc-import>
+    <h1 class="page-title">Master dữ liệu</h1>
+    <div class="seg" role="tablist" aria-label="Danh mục" style="align-self: flex-start">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+        <button role="tab" class="{{t.cls}}" aria-selected="{{t.on}}" onClick="{{t.pick}}"><span class="ms" aria-hidden="true">{{t.icon}}</span>{{t.label}}<span class="count num">{{t.count}}</span></button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{isVp}}" hint-placeholder-val="{{true}}">
+      <div class="stack">
+        <section class="card stack">
+          <div>
+            <h2 class="group-title sec-title"><span class="sec-ic" aria-hidden="true"><span class="ms">sync_alt</span></span>Trung chuyển tỉnh đi tỉnh</h2>
+            <div class="lab muted">Hai VP tỉnh giao cho nhau trong nhóm bên dưới thì qua VP nhóm. Các cặp tỉnh còn lại qua VP mặc định.</div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <sc-for list="{{provinces}}" as="p" hint-placeholder-count="7">
+              <label class="{{p.cls}}"><input class="check" type="checkbox" checked="{{p.on}}" onChange="{{p.toggle}}">{{p.code}}</label>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px">
+            <label class="field" style="flex: 1 1 240px; min-width: 0"><span class="l">VP trung chuyển của nhóm</span><span class="box input-box"><input placeholder="Nhập địa chỉ VP"></span></label>
+            <label class="field" style="flex: 1 1 240px; min-width: 0"><span class="l">VP trung chuyển các tuyến tỉnh còn lại</span><span class="box input-box"><input placeholder="Nhập địa chỉ VP"></span></label>
+            <button class="btn tonal">Lưu cấu hình</button>
+          </div>
+        </section>
+        <section class="card stack">
+          <div class="title-row" style="align-items: center"><h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">store</span></span>Văn phòng (16)</h2><button class="btn"><span class="ms" aria-hidden="true">add</span>Thêm VP</button></div>
+          <div class="scroller">
+            <table class="tbl" style="--tbl-min: 960px">
+              <thead><tr><th>ID</th><th>Mã VP</th><th>Tên VP</th><th>Địa chỉ</th><th>Điểm lộ trình</th><th>Toạ độ</th><th class="r">Tác vụ</th></tr></thead>
+              <tbody>
+                <sc-for list="{{vps}}" as="o" hint-placeholder-count="5">
+                  <tr><td class="muted">{{o.id}}</td><td class="main">{{o.code}}</td><td style="font-weight: 500; white-space: nowrap">{{o.name}}</td><td>{{o.addr}}</td><td class="muted">{{o.stop}}</td><td class="muted num" style="white-space: nowrap">{{o.geo}}</td>
+                    <td><div class="act"><button class="text-act">Wifi</button><button class="text-act" style="white-space: nowrap">Lộ trình áp dụng</button><button class="no" aria-label="Sửa VP" title="Sửa"><span class="ms" aria-hidden="true">edit</span></button><button class="no" aria-label="Xoá VP" title="Xoá" onClick="{{askXoa}}"><span class="ms" aria-hidden="true">delete</span></button></div></td></tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{isRoute}}" hint-placeholder-val="{{false}}">
+      <section class="card stack">
+        <div class="title-row" style="align-items: center"><h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">route</span></span>Tuyến (6)</h2><button class="btn"><span class="ms" aria-hidden="true">add</span>Thêm tuyến</button></div>
+        <table class="tbl" style="--tbl-min: 0"><thead><tr><th>Tuyến</th><th class="r">Tác vụ</th></tr></thead><tbody>
+          <sc-for list="{{routes}}" as="r" hint-placeholder-count="6"><tr><td style="font-weight: 500">{{r}}</td><td><div class="act"><button class="no" aria-label="Sửa tuyến" title="Sửa"><span class="ms" aria-hidden="true">edit</span></button><button class="no" aria-label="Xoá tuyến" title="Xoá" onClick="{{askXoa}}"><span class="ms" aria-hidden="true">delete</span></button></div></td></tr></sc-for>
+        </tbody></table>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isTruck}}" hint-placeholder-val="{{false}}">
+      <section class="card stack">
+        <div class="title-row" style="align-items: center">
+          <div><h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">local_shipping</span></span>Xe tải (8)</h2><div class="lab muted">Cùng danh sách xe tải với màn gán xe. Xe đã chạy chuyến được ẩn, giữ lịch sử.</div></div>
+          <div style="display: flex; gap: 8px"><button class="btn ghost"><span class="ms" aria-hidden="true">refresh</span>Tải lại từ máy chủ</button><button class="btn"><span class="ms" aria-hidden="true">add</span>Thêm xe tải</button></div>
+        </div>
+        <div class="scroller"><table class="tbl" style="--tbl-min: 720px"><thead><tr><th>BKS</th><th>Loại / tải trọng</th><th class="r">Định mức (kg)</th><th>Tài xế</th><th>Trạng thái</th><th class="r">Tác vụ</th></tr></thead><tbody>
+          <sc-for list="{{trucks}}" as="o" hint-placeholder-count="5"><tr><td class="main">{{o.plate}}</td><td>{{o.type}}</td><td class="r">{{o.cap}}</td><td>{{o.driver}}</td><td><span class="{{o.tag}}">{{o.status}}</span></td><td><div class="act"><button class="no" aria-label="Sửa xe" title="Sửa"><span class="ms" aria-hidden="true">edit</span></button><button class="no" aria-label="Xoá xe" title="Xoá" onClick="{{askXoa}}"><span class="ms" aria-hidden="true">delete</span></button></div></td></tr></sc-for>
+        </tbody></table></div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isDriver}}" hint-placeholder-val="{{false}}">
+      <section class="card stack">
+        <div class="title-row" style="align-items: center"><h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">badge</span></span>Tài xế (182)</h2><button class="btn"><span class="ms" aria-hidden="true">add</span>Thêm tài xế</button></div>
+        <table class="tbl" style="--tbl-min: 0"><thead><tr><th>Tài xế</th><th class="r">Tác vụ</th></tr></thead><tbody>
+          <sc-for list="{{drivers}}" as="r" hint-placeholder-count="6"><tr><td style="font-weight: 500">{{r}}</td><td><div class="act"><button class="no" aria-label="Sửa tài xế" title="Sửa"><span class="ms" aria-hidden="true">edit</span></button><button class="no" aria-label="Xoá tài xế" title="Xoá" onClick="{{askXoa}}"><span class="ms" aria-hidden="true">delete</span></button></div></td></tr></sc-for>
+        </tbody></table>
+        <div class="pager"><div class="pager-left"><span class="muted num lab">1-6 trên 182</span><button class="pill sm">10 dòng/trang<span class="ms" aria-hidden="true">expand_more</span></button></div><div class="pager-btns"><button class="pg" aria-label="Trang trước" disabled="{{yes}}"><span class="ms" aria-hidden="true">chevron_left</span></button><button class="pg on num" aria-label="Trang 1">1</button><button class="pg num" aria-label="Trang 2">2</button><button class="pg" aria-label="Trang sau"><span class="ms" aria-hidden="true">chevron_right</span></button></div></div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isShipper}}" hint-placeholder-val="{{false}}">
+      <section class="card stack">
+        <div class="title-row" style="align-items: center">
+          <h2 class="group-title sec-title num"><span class="sec-ic" aria-hidden="true"><span class="ms">two_wheeler</span></span>Shipper (18)</h2>
+          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+            <label class="lab" style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer"><input class="check" type="checkbox" checked="{{showStopped}}" onChange="{{toggleStopped}}">Hiện shipper đã ngừng</label>
+            <button class="pill sm">Tất cả VP<span class="ms" aria-hidden="true">expand_more</span></button>
+            <button class="btn"><span class="ms" aria-hidden="true">add</span>Thêm shipper</button>
+          </div>
+        </div>
+        <div class="scroller"><table class="tbl" style="--tbl-min: 720px"><thead><tr><th>Shipper</th><th>SĐT</th><th>VP</th><th class="r">Đang giao</th><th>Ghi chú</th><th class="r">Tác vụ</th></tr></thead><tbody>
+          <sc-for list="{{shippers}}" as="o" hint-placeholder-count="5"><tr><td style="font-weight: 500">{{o.name}}<span class="sub">{{o.state}}</span></td><td>{{o.phone}}</td><td>{{o.vp}}</td><td class="r main">{{o.n}}</td><td class="muted">—</td><td><div class="act"><button class="no" aria-label="Sửa shipper" title="Sửa"><span class="ms" aria-hidden="true">edit</span></button><button class="text-act danger" onClick="{{askNgung}}">{{o.stop}}</button></div></td></tr></sc-for>
+        </tbody></table></div>
+      </section>
+    </sc-if>
+  </main>
+  <sc-if value="{{hasAsk}}" hint-placeholder-val="{{false}}">
+    <div class="scrim"><div class="sheet confirm" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <h2 id="ask-title" class="confirm-title">{{askView.title}}</h2>
+      <p class="lab muted" style="margin: 0">{{askView.body}}</p>
+      <div class="confirm-acts"><button class="btn ghost" onClick="{{askClose}}">Đóng</button><button class="btn danger" onClick="{{askClose}}">{{askView.ok}}</button></div>
+    </div></div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1080}}'>
+const TABS = [['vp','VP',16],['route','Tuyến',6],['truck','Xe tải',8],['driver','Tài xế',182],['shipper','Shipper',18]];
+const PROV = ['NĐ','TB','YB','PT','TC','NB','VT'];
+const VPS = [['1', 'NBH1', '251 Lương Văn Thăng - Ninh Bình', 'Địa chỉ mẫu 1, Ninh Bình', 'Điểm mẫu 1', '20.25, 105.97'], ['2', 'NDH1', '104 Song Hào - Nam Định', 'Địa chỉ mẫu 2, Nam Định', 'Điểm mẫu 2', '20.42, 106.17'], ['3', 'NDH2', '77 Trần Anh Tông - Nam Định', 'Địa chỉ mẫu 3, Nam Định', 'Điểm mẫu 3', '20.42, 106.17'], ['4', 'TBH1', '34 Trần Phú - Thái Bình', 'Địa chỉ mẫu 4, Thái Bình', 'Điểm mẫu 4', '20.45, 106.34'], ['5', 'PTO1', '46 Vũ Tuân - Việt Trì', 'Địa chỉ mẫu 5, Việt Trì', 'Điểm mẫu 5', '21.32, 105.40'], ['6', 'PTO2', 'Vincom - TX.Phú Thọ', 'Địa chỉ mẫu 6, TX.Phú Thọ', 'Điểm mẫu 6', '21.40, 105.23'], ['7', 'PTO3', 'IC8 Phú Ninh - Phú Thọ', 'Địa chỉ mẫu 7, Phú Thọ', 'Điểm mẫu 7', '21.40, 105.23'], ['8', 'YBI1', '263 Nguyễn Thái Học - Yên Bái', 'Địa chỉ mẫu 8, Yên Bái', 'Điểm mẫu 8', '21.72, 104.90'], ['9', 'YBI2', 'Văn Phú - Yên Bái', 'Địa chỉ mẫu 9, Yên Bái', 'Điểm mẫu 9', '21.72, 104.90'], ['10', 'HNI1', '31A Nguyễn Quốc Trị - Hà Nội', 'Địa chỉ mẫu 10, Hà Nội', 'Điểm mẫu 10', '21.02, 105.84'], ['11', 'HNI2', '74 Phố Vọng - Hà Nội', 'Địa chỉ mẫu 11, Hà Nội', 'Điểm mẫu 11', '21.02, 105.84'], ['12', 'HNI3', '72 Trần Nhân Tông - Hà Nội', 'Địa chỉ mẫu 12, Hà Nội', 'Điểm mẫu 12', '21.02, 105.84'], ['13', 'HNI4', '55 Trần Đại Nghĩa - Hà Nội', 'Địa chỉ mẫu 13, Hà Nội', 'Điểm mẫu 13', '21.02, 105.84'], ['14', 'HNI5', '10 Ngõ 15 Ngọc Hồi - Hà Nội', 'Địa chỉ mẫu 14, Hà Nội', 'Điểm mẫu 14', '21.02, 105.84'], ['15', 'HNI6', '56 Nguyễn Quyền - Hà Nội', 'Địa chỉ mẫu 15, Hà Nội', 'Điểm mẫu 15', '21.02, 105.84'], ['16', 'HNI7', '88 Trương Công Giai - Hà Nội', 'Địa chỉ mẫu 16, Hà Nội', 'Điểm mẫu 16', '21.02, 105.84']];
+const ROUTES = ['Hà Nội - Nam Định','Hà Nội - Yên Bái','Hà Nội - Thái Bình','Hà Nội - Ninh Bình','Hà Nội - Phú Thọ','Hà Nội - Vĩnh Tường'];
+const TRUCKS = [['29X-000.01','Xe tải 1,5 tấn','1.500','Tài xế mẫu A',1],['29X-000.02','Xe tải 2,5 tấn','2.500','Tài xế mẫu B',1],['29X-000.03','Xe tải 5 tấn','5.000','Tài xế mẫu C',0],['29X-000.04','Xe tải 1,5 tấn','1.500','Tài xế mẫu D',1],['29X-000.05','Xe tải 2,5 tấn','2.500','Tài xế mẫu E',1]];
+const SHIP = [['A','31A Nguyễn Quốc Trị - Hà Nội',12,0],['B','74 Phố Vọng - Hà Nội',8,0],['C','104 Song Hào - Nam Định',5,0],['D','263 Nguyễn Thái Học - Yên Bái',3,0],['E','251 Lương Văn Thăng - Ninh Bình',0,1]];
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'vp', prov: { 'NĐ': true, TB: true }, stopped: false }; }
+  renderVals() {
+    const ASKS = {"askXoa": {"title": "Xoá mục này?", "body": "Dữ liệu đã dùng trong đơn cũ vẫn được giữ, nhưng mục này sẽ không chọn được nữa.", "ok": "Xoá"}, "askNgung": {"title": "Đổi trạng thái shipper?", "body": "Shipper đã ngừng sẽ không nhận được đơn mới.", "ok": "Xác nhận"}};
+    const askKey = this.state && this.state.ask;
+    const askTo = (k) => () => this.setState({ ask: k });
+    const s = this.state, t = s.tab;
+    const ships = SHIP.filter((r) => s.stopped || !r[3]);
+    return {
+      hasAsk: !!askKey, askView: ASKS[askKey] || {}, askClose: () => this.setState({ ask: null }), askXoa: askTo("askXoa"), askNgung: askTo("askNgung"),
+      dark: !!this.props.dark, theme: this.props.dark ? 'theme-dark' : 'theme-light', yes: true,
+      tabs: TABS.map(([id, label, count]) => ({ label, count, on: id === t, cls: id === t ? 'on' : '', pick: () => this.setState({ tab: id }) })),
+      isVp: t === 'vp', isRoute: t === 'route', isTruck: t === 'truck', isDriver: t === 'driver', isShipper: t === 'shipper',
+      provinces: PROV.map((code) => ({ code, on: !!s.prov[code], cls: 'choice' + (s.prov[code] ? ' on' : ''), toggle: () => this.setState({ prov: { ...this.state.prov, [code]: !this.state.prov[code] } }) })),
+      vps: VPS.map((r) => ({ id: r[0], code: r[1], name: r[2], addr: r[3], stop: r[4], geo: r[5] })),
+      routes: ROUTES,
+      trucks: TRUCKS.map((r) => ({ plate: r[0], type: r[1], cap: r[2], driver: r[3], status: r[4] ? 'Đang hoạt động' : 'Dừng hoạt động', tag: r[4] ? 'tag ok' : 'tag warn' })),
+      drivers: ['A','B','C','D','E','F'].map((x) => 'Tài xế mẫu ' + x),
+      showStopped: s.stopped, toggleStopped: () => this.setState({ stopped: !s.stopped }),
+      shippers: ships.map((r, i) => ({ name: 'Shipper mẫu ' + r[0], state: r[3] ? 'Đã ngừng' : '', phone: '0900 000 4' + i + '0', vp: r[1], n: r[2], stop: r[3] ? 'Kích hoạt' : 'Ngừng' })),
+    };
+  }
+}
+const iconBase = Component.prototype.renderVals;
+Component.prototype.renderVals = function () { const v = iconBase.call(this);
+const TI = {'VP':'store','Tuyến':'route','Xe tải':'local_shipping','Tài xế':'badge','Shipper':'two_wheeler'};
+if (v.tabs) v.tabs = v.tabs.map((t) => ({ ...t, icon: TI[t.label || t.short] || 'label' }));
+return v; };
+</script>
+</body>
+</html>
