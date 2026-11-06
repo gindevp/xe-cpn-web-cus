@@ -8,7 +8,6 @@ import { formatVND } from "@/lib/mock-data";
 import {
   getOrder,
   staffOrderCollect,
-  staffOrderCollectClose,
   staffOrderCollectRefresh,
   type GuestCollect,
 } from "@/lib/api/domain-api";
@@ -28,7 +27,7 @@ type Props = {
 
 /**
  * Popup QR chuyển khoản OnePay cho điều phối (tạo đơn / tác vụ đơn người gửi trả).
- * Đóng popup khi chưa nhận tiền → đóng VA. Đã nhận tiền → giữ, báo OK.
+ * Tắt popup không đóng VA — giữ đến hết hạn; mở lại hiện lại cùng mã; hết hạn mới tạo mới.
  */
 export function OrderTransferQrDialog({ open, orderCode, initial, onOpenChange, onPaid }: Props) {
   const [collect, setCollect] = useState<GuestCollect | null>(initial ?? null);
@@ -39,7 +38,6 @@ export function OrderTransferQrDialog({ open, orderCode, initial, onOpenChange, 
   const [paid, setPaid] = useState(false);
   const watchedUnpaid = useRef(false);
   const paidNotified = useRef(false);
-  const closingVa = useRef(false);
 
   const apply = useCallback((c: GuestCollect) => {
     setCollect(c);
@@ -69,7 +67,6 @@ export function OrderTransferQrDialog({ open, orderCode, initial, onOpenChange, 
     paidNotified.current = false;
     setPaid(false);
     setError("");
-    closingVa.current = false;
     if (initial?.qrData || initial?.accountNumber) {
       apply(initial);
       watchedUnpaid.current = Number(initial.amountDue ?? 0) > 0;
@@ -191,16 +188,7 @@ export function OrderTransferQrDialog({ open, orderCode, initial, onOpenChange, 
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (next) {
-      onOpenChange(true);
-      return;
-    }
-    // Đóng khi chưa nhận tiền → đóng VA; đã nhận thì chỉ tắt popup.
-    if (!paid && orderCode && !closingVa.current) {
-      closingVa.current = true;
-      void staffOrderCollectClose(orderCode).catch(() => undefined);
-    }
-    onOpenChange(false);
+    onOpenChange(next);
   };
 
   const paidAmountLabel = formatVND(Number(collect?.lastPaidAmount ?? collect?.paidAmount ?? 0));
@@ -281,7 +269,8 @@ export function OrderTransferQrDialog({ open, orderCode, initial, onOpenChange, 
                   ) : null}
                 </div>
                 <p className="text-center text-xs text-muted-foreground">
-                  Đưa khách quét QR. Popup tự cập nhật khi nhận tiền. Đóng popup sẽ tắt mã VA.
+                  Đưa khách quét QR. Popup tự cập nhật khi nhận tiền. Tắt popup vẫn giữ VA đến hết hạn —
+                  mở lại hiện cùng mã.
                 </p>
               </>
             ) : null}
