@@ -56,24 +56,17 @@ import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { useAdminIssueMenu } from "@/components/AdminIssueMenuItems";
 import { canAdminMarkIssue, orderEditableFields } from "@/lib/order-edit-policy";
 import {
-  Warehouse,
-  CheckCircle2,
   XCircle,
-  RotateCcw,
   Undo2,
   Ban,
   Unlink,
   ChevronDown,
   Printer,
   Pencil,
-  Eye,
   MoreHorizontal,
   QrCode,
   Truck,
-  PhoneCall,
-  Bike,
 } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import { canWrite } from "@/lib/rbac";
 import { ahamovePodBlocked } from "@/lib/ahamove";
 import {
@@ -940,19 +933,18 @@ function Page() {
     setReturnStartOpen(true);
   };
 
-  /** Admin: huỷ hoàn tại nhập kho gửi (RETURNING + stage WH_IN) → về tab trước khi bấm hoàn. */
-  const canCancelReturn = tab === "WH_IN" && session?.role === "AD";
+  /** Admin: huỷ hoàn khi còn ở kho đầu (WH_IN / DEST_WH_IN) — hoàn nhầm tại kho gửi hay nằm tab Nhập kho. */
+  const canCancelReturn = (tab === "WH_IN" || tab === "DEST_WH_IN") && session?.role === "AD";
+  const isCancelableReturn = (o: Order | undefined) =>
+    !!o && o.status === "RETURNING" && (stageOf(o) === "WH_IN" || stageOf(o) === "DEST_WH_IN");
   /** Admin: gỡ đơn đã lên xe (tab Hàng trên xe) về nhập kho gửi. */
   const canUnassignTransferring = tab === "TRANSFERRING" && session?.role === "AD";
   const canUnassignTrip = tab === "TRANSFER_PENDING" || canUnassignTransferring;
   const cancelReturn = async (codes: string[]) => {
     if (!canCancelReturn || !codes.length) return;
-    const pending = codes.filter((code) => {
-      const o = useStore.getState().orders.find((x) => x.code === code);
-      return o && o.status === "RETURNING" && stageOf(o) === "WH_IN";
-    });
+    const pending = codes.filter((code) => isCancelableReturn(useStore.getState().orders.find((x) => x.code === code)));
     if (!pending.length) {
-      toast.error("Chỉ huỷ được đơn đang hoàn tại nhập kho gửi");
+      toast.error("Chỉ huỷ được đơn đang hoàn còn ở nhập kho gửi / nhập kho (chưa lên xe)");
       return;
     }
     if (!confirm(`Huỷ hoàn ${pending.length} đơn? Đơn sẽ về tab trước khi bấm hoàn.`)) return;
@@ -1537,53 +1529,50 @@ function Page() {
             : `${activeTab.label} (${rows.length})${loadingMore}`
         }
         right={
-          <div className="flex flex-wrap gap-2">
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
             {tab === "TRANSFERRING" && scopedOffice ? (
-              <Button variant="outline" className="gap-2" onClick={() => setInboundPlatesOpen(true)}>
-                <Eye className="h-4 w-4" />
-                Xe đang tới ({inboundTotals.vehicles} BKS · {inboundTotals.orders} đơn ·{" "}
-                {inboundTotals.packages} kiện)
-              </Button>
+              <button type="button" className="btn tonal" onClick={() => setInboundPlatesOpen(true)}>
+                Xe đang tới ({inboundTotals.vehicles} BKS · {inboundTotals.orders} đơn · {inboundTotals.packages} kiện)
+              </button>
             ) : null}
             {canReassign && (
-              <Button
-                variant="outline"
-                className="gap-2"
+              <button
+                type="button"
+                className="btn ghost"
                 disabled={selected.size === 0}
                 onClick={() => openReassign([...selected])}
               >
-                <Truck className="h-4 w-4" />
                 Chuyển xe ({selected.size})
-              </Button>
+              </button>
             )}
             {canUnassignTrip && (
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive"
+              <button
+                type="button"
+                className="btn text"
                 disabled={selected.size === 0 || unassigning}
                 onClick={() => void unassignFromTrip([...selected])}
               >
-                <Unlink className="h-4 w-4" />
                 {unassigning ? "Đang gỡ…" : `Gỡ khỏi xe (${selected.size})`}
-              </Button>
+              </button>
             )}
             {tab !== "TRANSFERRING" && tab === "DELIVERING" && (
-              <Button
-                variant="outline"
-                className="gap-2"
+              <button
+                type="button"
+                className="btn ghost"
                 disabled={selected.size === 0}
                 onClick={() => fail([...selected])}
               >
-                <XCircle className="h-4 w-4" />
                 Giao thất bại ({selected.size})
-              </Button>
+              </button>
             )}
             {tab === "DEST_WH_IN" && (
-              <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm">
-                <Switch
+              <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input
+                  className="check"
+                  type="checkbox"
                   checked={homeOnly}
-                  onCheckedChange={(v) => {
-                    setHomeOnly(v);
+                  onChange={(e) => {
+                    setHomeOnly(e.target.checked);
                     setSelected(new Set());
                   }}
                 />
@@ -1591,9 +1580,9 @@ function Page() {
               </label>
             )}
             {tab !== "TRANSFERRING" && canPressReturn && (
-              <Button
-                variant="outline"
-                className="gap-2"
+              <button
+                type="button"
+                className="btn ghost"
                 disabled={
                   selected.size === 0 ||
                   ![...selected].some((c) => {
@@ -1603,130 +1592,110 @@ function Page() {
                 }
                 onClick={() => askStartReturn([...selected])}
               >
-                <Undo2 className="h-4 w-4" />
                 Hoàn người gửi ({selected.size})
-              </Button>
+              </button>
             )}
             {tab !== "TRANSFERRING" && canCancelReturn && (
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive"
-                disabled={
-                  selected.size === 0 ||
-                  ![...selected].some((c) => {
-                    const o = orders.find((x) => x.code === c);
-                    return o && o.status === "RETURNING" && stageOf(o) === "WH_IN";
-                  })
-                }
+              <button
+                type="button"
+                className="btn text"
+                disabled={selected.size === 0 || ![...selected].some((c) => isCancelableReturn(orders.find((x) => x.code === c)))}
                 onClick={() => void cancelReturn([...selected])}
               >
-                <Ban className="h-4 w-4" />
                 Huỷ hoàn ({selected.size})
-              </Button>
+              </button>
             )}
             {canCancelOrder && (
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive"
+              <button
+                type="button"
+                className="btn text"
                 disabled={
                   selected.size === 0 ||
                   ![...selected].some((c) => isCancellable(orders.find((x) => x.code === c)))
                 }
                 onClick={() => askCancelOrders([...selected])}
               >
-                <Ban className="h-4 w-4" />
                 Huỷ đơn ({selected.size})
-              </Button>
+              </button>
             )}
             {canRequestCancel && (
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive"
+              <button
+                type="button"
+                className="btn text"
                 disabled={
                   selected.size === 0 ||
                   ![...selected].some((c) => isCancelRequestable(orders.find((x) => x.code === c)))
                 }
                 onClick={() => askCancelRequest([...selected])}
               >
-                <Ban className="h-4 w-4" />
                 Yêu cầu huỷ ({selected.size})
-              </Button>
+              </button>
             )}
             {canCatchUpCall && (
-              <Button
-                variant="outline"
-                className="gap-2"
+              <button
+                type="button"
+                className="btn tonal"
                 disabled={catchUpBusy || rows.length === 0}
                 title="Gọi Auto Call cho đơn chưa được gọi (vd. nhập kho lúc Auto Call tắt / lỗi). Không chọn đơn = kiểm tra cả danh sách đang lọc."
                 onClick={() => void previewCatchUp()}
               >
-                <PhoneCall className="h-4 w-4" />
                 {catchUpBusy && !catchUpOpen
                   ? "Đang kiểm tra…"
                   : selected.size > 0
                     ? `Gọi Auto Call bù (${selected.size})`
                     : "Gọi Auto Call bù"}
-              </Button>
+              </button>
             )}
             {canAhamove &&
               (tab === "DEST_WH_IN" || tab === "DELIVERING" || tab === "FAILED") &&
               ahamoveCancellable && (
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive"
+              <button
+                type="button"
+                className="btn text"
                 disabled={ahamoveCancelling}
                 onClick={() => selectedOne && void cancelAhamove(selectedOne)}
               >
-                <Bike className="h-4 w-4" />
                 {ahamoveCancelling ? "Đang hủy…" : "Hủy Ahamove"}
-              </Button>
+              </button>
             )}
             {tab !== "TRANSFERRING" &&
               !HANDOVER_TABS.has(tab) &&
               activeTab.action &&
               !(tab === "WH_IN" && !canAssignOnWeb) && (
-              <Button
-                className="gap-2"
+              <button
+                type="button"
+                className="btn"
                 disabled={selected.size === 0}
                 onClick={() => runAction([...selected])}
               >
-                {tab === "DELIVERING" ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : tab === "FAILED" ? (
-                  <RotateCcw className="h-4 w-4" />
-                ) : (
-                  <Warehouse className="h-4 w-4" />
-                )}
                 {activeTab.action} ({selected.size})
-              </Button>
+              </button>
             )}
             {canDeliverFromFailed && (
-              <Button
-                variant="outline"
-                className="gap-2"
+              <button
+                type="button"
+                className="btn tonal"
                 disabled={selected.size === 0}
                 onClick={() => deliver([...selected])}
               >
-                <CheckCircle2 className="h-4 w-4" />
                 Giao thành công ({selected.size})
-              </Button>
+              </button>
             )}
             {canCatchUpDeliver && (
-              <Button
-                variant="outline"
-                className="gap-2"
+              <button
+                type="button"
+                className="btn tonal"
                 disabled={selected.size === 0}
                 title="Đơn đã giao khách nhưng quên quét, hoặc Ahamove giao xong mà không báo về"
                 onClick={() => deliver([...selected])}
               >
-                <CheckCircle2 className="h-4 w-4" />
                 Giao thành công bù ({selected.size})
-              </Button>
+              </button>
             )}
             {tab === "WH_IN" && !canAssignOnWeb ? (
-              <p className="text-xs text-muted-foreground self-center">
-                Gán lên xe: dùng app <span className="font-medium">Lên hàng</span>
-              </p>
+              <span className="muted" style={{ fontSize: 12, alignSelf: "center" }}>
+                Gán lên xe: dùng app Lên hàng
+              </span>
             ) : null}
           </div>
         }
@@ -2099,9 +2068,7 @@ function Page() {
                                   <Undo2 className="mr-2 h-4 w-4" /> Hoàn người gửi
                                 </DropdownMenuItem>
                               ) : null}
-                              {canCancelReturn &&
-                              r.status === "RETURNING" &&
-                              stageOf(r) === "WH_IN" ? (
+                              {canCancelReturn && isCancelableReturn(r) ? (
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
                                   onClick={() => void cancelReturn([r.code])}
