@@ -1,48 +1,77 @@
 import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
+/** Khối nội dung bảng/form — khớp design `.card` + toolbar tiêu đề. */
 export function Section({
   title,
   right,
   children,
   className,
 }: {
-  title?: string;
+  title?: ReactNode;
   right?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
-  const showHeader = Boolean(title) || right != null;
+  const showHeader = title != null || right != null;
   return (
-    <Card className={className}>
+    <section
+      className={cn("card", className)}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       {showHeader ? (
-        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
-          {title ? <CardTitle className="text-base">{title}</CardTitle> : <span />}
-          {right}
-        </CardHeader>
+        <div
+          className="th-row"
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "8px 16px",
+            minHeight: 40,
+          }}
+        >
+          {title != null ? (
+            <div style={{ fontSize: 15, lineHeight: "22px", fontWeight: 600 }}>{title}</div>
+          ) : (
+            <span />
+          )}
+          {right ? (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
+              {right}
+            </div>
+          ) : null}
+        </div>
       ) : null}
-      <CardContent>{children}</CardContent>
-    </Card>
+      {children}
+    </section>
   );
 }
 
 export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 py-1.5 sm:flex-row sm:gap-3">
-      <div className="w-40 shrink-0 text-xs uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="text-sm font-medium">{value}</div>
+    <div className="field view-field">
+      <span className="l">{label}</span>
+      <div className="view-val">{value}</div>
     </div>
   );
 }
 
 export function EmptyState({ children = "Chưa có dữ liệu" }: { children?: ReactNode }) {
   return (
-    <div className="flex min-h-[160px] items-center justify-center rounded-md border border-dashed bg-muted/30 text-sm text-muted-foreground">
-      {children}
+    <div className="empty">
+      <span
+        className="ms"
+        aria-hidden="true"
+        style={{ fontSize: 40, color: "var(--on-surface-variant)" }}
+      >
+        inbox
+      </span>
+      <h2 className="group-title" style={{ margin: "12px 0 4px" }}>
+        Không có dữ liệu
+      </h2>
+      <div className="muted lab">{children}</div>
     </div>
   );
 }
@@ -52,10 +81,17 @@ export function OfflineBadge() {
   const queued = useStore((s) => s.offlineQueue.length);
   if (online && queued === 0) return null;
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/15 px-2 py-1 text-xs font-medium text-warning-foreground">
-      <span className="h-2 w-2 rounded-full bg-warning" />
+    <div className="tag warn" style={{ gap: 6 }}>
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 9999,
+          background: "currentColor",
+          flex: "none",
+        }}
+      />
       {online ? `Đồng bộ ${queued} thao tác…` : `Chế độ offline${queued ? ` · ${queued} chờ` : ""}`}
     </div>
   );
 }
-

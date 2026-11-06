@@ -3,7 +3,7 @@ import { usePagedRows } from "@/lib/use-paged-rows";
 import { resolveTripRouteCode } from "@/lib/api/trip-route";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -124,10 +124,12 @@ export const Route = createFileRoute("/nhap-kho-luan-chuyen")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Nhập kho - Luân chuyển - Đang giao" screen="nhap-kho-luan-chuyen">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage
+      title="Nhập kho - Luân chuyển"
+      screen="nhap-kho-luan-chuyen"
+      hidePageTitle
+    >
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -1477,8 +1479,20 @@ function Page() {
     </div>
   );
 
+  const tabIcons: Partial<Record<Stage, string>> = {
+    PICKED: "handshake",
+    WH_IN: "warehouse",
+    TRANSFER_PENDING: "pending",
+    TRANSFERRING: "local_shipping",
+    DEST_WH: "store",
+    DELIVERING: "directions_bike",
+    DELIVERY_FAILED: "report",
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader title={activeTab.label} description={activeTab.hint} />
+
       <StageTabRow>
         {TABS.map((t) => (
           <StageTabButton
@@ -1490,30 +1504,35 @@ function Page() {
               setExpandedPlates(new Set());
             }}
           >
-            {t.label} ({counts[t.key] ?? 0})
+            <span className="ms" aria-hidden="true">
+              {tabIcons[t.key] ?? "inventory_2"}
+            </span>
+            {t.label}
+            <span className="count num">{counts[t.key] ?? 0}</span>
           </StageTabButton>
         ))}
-        <div className="ml-auto flex items-center gap-2">
-          {showCounterOffice && isDestPipelineTab(tab) ? counterOfficeSelect : null}
-          {showCounterOffice && session?.role === "DH" ? null : (
-            <div className="w-56" title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}>
+      </StageTabRow>
+
+      <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+        {showCounterOffice && isDestPipelineTab(tab) ? counterOfficeSelect : null}
+        {showCounterOffice && session?.role === "DH" ? null : (
+          <div className="field" style={{ flex: "0 0 200px" }} title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}>
+            <span className="l">{isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}</span>
             <SearchableSelect
-                value={viewOffice}
-                onValueChange={setViewOffice}
-                disabled={!admin}
-                placeholder="Chọn văn phòng"
-                options={
-                  admin
-                    ? adminOfficeSelectOptions(offices)
-                    : offices.map((o) => ({ value: o.code, label: o.name }))
-                }
+              value={viewOffice}
+              onValueChange={setViewOffice}
+              disabled={!admin}
+              placeholder="Chọn văn phòng"
+              options={
+                admin
+                  ? adminOfficeSelectOptions(offices)
+                  : offices.map((o) => ({ value: o.code, label: o.name }))
+              }
             />
           </div>
-          )}
-          {showCounterOffice && !isDestPipelineTab(tab) ? counterOfficeSelect : null}
-            </div>
-      </StageTabRow>
-      <p className="text-xs text-muted-foreground">{activeTab.hint}</p>
+        )}
+        {showCounterOffice && !isDestPipelineTab(tab) ? counterOfficeSelect : null}
+      </div>
 
       <Section
         title={

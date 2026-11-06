@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,19 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  ChevronDown,
-  Coins,
-  Download,
-  Info,
-  Package,
-  PackageCheck,
-  ReceiptText,
-  Wallet,
-  Warehouse,
-} from "lucide-react";
+import { ChevronDown, Download, Info } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { isAdminRole } from "@/lib/office-scope";
@@ -49,7 +37,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useStore, type OrderX } from "@/lib/store";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
 import { downloadExcel, type ExportFormat } from "@/lib/csv";
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isApiEnabled } from "@/lib/api/client";
 import {
   fetchBusinessReport,
@@ -62,7 +50,6 @@ import { orderTabStatusLabel } from "@/lib/customer-track-status";
 import { goodsTypeLabel, orderGoodsKinds, packageRows, parseOrderNoteMeta } from "@/lib/package-label";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { RouteRevenueTable } from "@/components/RouteRevenueTable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
@@ -895,75 +882,109 @@ function DashboardPage() {
     }
   };
 
+  const cur = report?.current;
+  const prev = report?.previous;
+  const pctOf = (a?: number | null, b?: number | null) =>
+    a != null && b != null && b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null;
+  const fmtPct = (p: number | null) =>
+    p == null ? "—" : `${Math.abs(p).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`;
+  const fmtNum = (n?: number | null) =>
+    n == null ? "—" : n.toLocaleString("vi-VN");
+  const revCollectedPct =
+    cur && cur.totalRevenue > 0 ? (cur.receiptRevenue / cur.totalRevenue) * 100 : null;
+  const deliveredPct =
+    cur && cur.totalOrders > 0 ? (cur.deliveredCount / cur.totalOrders) * 100 : null;
+
   return (
-    <ProtectedPage title="Dashboard" screen="dashboard">
-      <M3Page>
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
-              Tổng quan hoạt động
+    <ProtectedPage title="Tổng quan" screen="dashboard" hidePageTitle>
+      <div className="m3-page stack" style={{ gap: 16 }}>
+        <M3PageHeader
+          title="Tổng quan"
+          description="Hoạt động kinh doanh"
+          actions={
+            <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+              <label className="field" style={{ flex: "0 0 160px" }}>
+                <span className="l">Từ ngày</span>
+                <span className="box input-box">
+                  <input
+                    type="date"
+                    className="num"
+                    value={from}
+                    max={to}
+                    onChange={(e) => setFrom(e.target.value)}
+                  />
+                  <span className="ms" aria-hidden="true">
+                    calendar_today
+                  </span>
+                </span>
+              </label>
+              <label className="field" style={{ flex: "0 0 160px" }}>
+                <span className="l">Đến ngày</span>
+                <span className="box input-box">
+                  <input
+                    type="date"
+                    className="num"
+                    value={to}
+                    min={from}
+                    onChange={(e) => setTo(e.target.value)}
+                  />
+                  <span className="ms" aria-hidden="true">
+                    calendar_today
+                  </span>
+                </span>
+              </label>
+              <div className="field" style={{ flex: "0 0 180px" }}>
+                <span className="l">Văn phòng gửi</span>
+                <SearchableSelect
+                  value={office}
+                  onValueChange={setOffice}
+                  options={[
+                    { value: ALL_OFFICES, label: ALL_OFFICES },
+                    ...offices.map((o) => ({ value: o.name, label: o.name })),
+                  ]}
+                />
+              </div>
+              {canExportOrders && mainTab === "business" ? (
+                <button type="button" className="btn tonal" onClick={openExportDialog}>
+                  <span className="ms" aria-hidden="true">
+                    download
+                  </span>
+                  Xuất CSV
+                </button>
+              ) : null}
             </div>
-            <h1 className="mt-0.5 text-2xl font-bold">Dashboard</h1>
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Từ ngày</Label>
-              <Input
-                type="date"
-                value={from}
-                max={to}
-                onChange={(e) => setFrom(e.target.value)}
-                className="h-9 w-[150px]"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Đến ngày</Label>
-              <Input
-                type="date"
-                value={to}
-                min={from}
-                onChange={(e) => setTo(e.target.value)}
-                className="h-9 w-[150px]"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[11px] text-muted-foreground">Văn phòng gửi</Label>
-              <SearchableSelect
-                value={office}
-                onValueChange={setOffice}
-                className="h-9 w-[200px]"
-                options={[
-                  { value: ALL_OFFICES, label: ALL_OFFICES },
-                  ...offices.map((o) => ({ value: o.name, label: o.name })),
-                ]}
-              />
-            </div>
-            {canExportOrders && mainTab === "business" ? (
-              <Button variant="outline" className="h-9 gap-2" onClick={openExportDialog}>
-                <Download className="h-4 w-4" /> Xuất file
-              </Button>
-            ) : null}
-          </div>
-        </div>
+          }
+        />
 
         {from > to ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <div className="login-alert" role="alert">
             Từ ngày không được sau Đến ngày.
           </div>
         ) : null}
 
-        <Tabs
-          value={mainTab}
-          onValueChange={(v) => setMainTab(v === "route" ? "route" : "business")}
-          className="space-y-4"
-        >
-          <TabsList>
-            <TabsTrigger value="business">Báo cáo kinh doanh</TabsTrigger>
-            <TabsTrigger value="route">Doanh thu theo tuyến</TabsTrigger>
-          </TabsList>
+        <div className="seg" role="tablist" aria-label="Loại báo cáo" style={{ alignSelf: "flex-start" }}>
+          <button
+            type="button"
+            role="tab"
+            className={cn(mainTab === "business" && "on")}
+            aria-selected={mainTab === "business"}
+            onClick={() => setMainTab("business")}
+          >
+            Báo cáo kinh doanh
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={cn(mainTab === "route" && "on")}
+            aria-selected={mainTab === "route"}
+            onClick={() => setMainTab("route")}
+          >
+            Doanh thu theo tuyến
+          </button>
+        </div>
 
-          <TabsContent value="route" className="mt-0 space-y-4">
+        {mainTab === "route" ? (
+          <section className="card">
             <RouteRevenueTable
               from={from}
               to={to}
@@ -973,55 +994,177 @@ function DashboardPage() {
                   : (offices.find((o) => o.name === office)?.code ?? resolveOfficeCode(office))
               }
             />
-          </TabsContent>
+          </section>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "stretch", gap: 16 }}>
+            <div
+              style={{
+                flex: "999 1 640px",
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+                opacity: reportLoading ? 0.6 : 1,
+              }}
+            >
+              <div className="kpi-groups">
+                <section className="card kg">
+                  <div className="kg-head">
+                    <h2 className="group-title sec-title">
+                      <span className="sec-ic" aria-hidden="true">
+                        <span className="ms">payments</span>
+                      </span>
+                      Doanh thu
+                    </h2>
+                    <span className="kg-note small muted">% so với tháng trước</span>
+                  </div>
+                  <div className="kg-grid">
+                    <KgCell
+                      lead
+                      label="Tổng doanh thu"
+                      value={fmtNum(cur?.totalRevenue)}
+                      unit="VND"
+                      pct={pctOf(cur?.totalRevenue, prev?.totalRevenue)}
+                      fmtPct={fmtPct}
+                    />
+                    <KgCell
+                      label="Đã thu"
+                      value={fmtNum(cur?.receiptRevenue)}
+                      unit="VND"
+                      pct={pctOf(cur?.receiptRevenue, prev?.receiptRevenue)}
+                      fmtPct={fmtPct}
+                    />
+                    <KgCell
+                      label="Còn phải thu"
+                      value={fmtNum(cur?.backlogRevenue)}
+                      unit="VND"
+                      pct={pctOf(cur?.backlogRevenue, prev?.backlogRevenue)}
+                      fmtPct={fmtPct}
+                      downIsGood
+                    />
+                  </div>
+                  <div className="kg-bar">
+                    <div
+                      className="meter"
+                      role="img"
+                      aria-label={
+                        revCollectedPct == null
+                          ? "Chưa có tỷ lệ đã thu"
+                          : `Đã thu ${revCollectedPct.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`
+                      }
+                    >
+                      <i
+                        style={{
+                          width: `${Math.min(100, Math.max(0, revCollectedPct ?? 0))}%`,
+                          background: "var(--primary)",
+                        }}
+                      />
+                      <i style={{ flex: 1, background: "var(--low)" }} />
+                    </div>
+                    <span className="small muted num">
+                      Đã thu{" "}
+                      {revCollectedPct == null
+                        ? "—"
+                        : `${revCollectedPct.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`}
+                    </span>
+                  </div>
+                </section>
 
-          <TabsContent value="business" className="mt-0 space-y-4">
-        <div
-          className={`grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 ${reportLoading ? "opacity-60" : ""}`}
-        >
-          {KPI_CARDS.map((k) => (
-            <KpiCard
-              key={k.key}
-              spec={k}
-              value={report?.current[k.key] ?? null}
-              previous={report?.previous[k.key] ?? null}
-            />
-          ))}
-        </div>
+                <section className="card kg">
+                  <div className="kg-head">
+                    <h2 className="group-title sec-title">
+                      <span className="sec-ic" aria-hidden="true">
+                        <span className="ms">inventory_2</span>
+                      </span>
+                      Đơn hàng
+                    </h2>
+                    <span className="kg-note small muted">% so với tháng trước</span>
+                  </div>
+                  <div className="kg-grid">
+                    <KgCell
+                      lead
+                      label="Tổng số đơn"
+                      value={fmtNum(cur?.totalOrders)}
+                      unit="đơn"
+                      pct={pctOf(cur?.totalOrders, prev?.totalOrders)}
+                      fmtPct={fmtPct}
+                    />
+                    <KgCell
+                      label="Giao thành công"
+                      value={fmtNum(cur?.deliveredCount)}
+                      unit="đơn"
+                      pct={pctOf(cur?.deliveredCount, prev?.deliveredCount)}
+                      fmtPct={fmtPct}
+                    />
+                    <KgCell
+                      label="Đơn tồn"
+                      value={fmtNum(cur?.backlogCount)}
+                      unit="đơn"
+                      pct={pctOf(cur?.backlogCount, prev?.backlogCount)}
+                      fmtPct={fmtPct}
+                      badWhenUp
+                    />
+                  </div>
+                  <div className="kg-bar">
+                    <div
+                      className="meter"
+                      role="img"
+                      aria-label={
+                        deliveredPct == null
+                          ? "Chưa có tỷ lệ giao thành công"
+                          : `Giao thành công ${deliveredPct.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`
+                      }
+                    >
+                      <i
+                        style={{
+                          width: `${Math.min(100, Math.max(0, deliveredPct ?? 0))}%`,
+                          background: "var(--primary)",
+                        }}
+                      />
+                      <i style={{ flex: 1, background: "var(--low)" }} />
+                    </div>
+                    <span className="small muted num">
+                      Giao thành công{" "}
+                      {deliveredPct == null
+                        ? "—"
+                        : `${deliveredPct.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`}
+                    </span>
+                  </div>
+                </section>
+              </div>
 
-        <OfficeOrdersChart report={report} loading={reportLoading} />
+              <OfficeOrdersChart report={report} loading={reportLoading} />
+            </div>
 
-        {/* Biểu đồ khung giờ — 1 ngày; đếm = nhập kho gửi + nhập kho giao. */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <div className="text-sm font-semibold">Số lượng đơn hàng theo khung giờ</div>
-                <div className="text-xs text-muted-foreground">
-                  Gồm <b>đơn gửi</b> (nhập kho gửi) và <b>đơn nhận</b> (nhập kho giao) trong ngày chọn, xếp theo
-                  giờ sự kiện (giờ VN) — <b>không</b> đếm theo giờ tạo đơn.{" "}
-                  {hourLoading ? (
-                    "Đang tải…"
-                  ) : (
-                    <>
-                      Trong ngày:{" "}
-                      <span className="font-semibold tabular-nums text-foreground">{stat.daySent}</span> gửi +{" "}
-                      <span className="font-semibold tabular-nums text-foreground">{stat.dayReceived}</span> nhận
-                      ={" "}
-                      <span className="font-semibold tabular-nums text-foreground">{stat.totalOrders}</span>
-                    </>
-                  )}
-                  . Bấm số để xem danh sách.
+            <section className="card stack" style={{ flex: "1 1 100%", minWidth: 0, gap: 16 }}>
+            <div className="hr-head" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ minWidth: 0 }}>
+                <h2 className="card-title sec-title">
+                  <span className="sec-ic" aria-hidden="true">
+                    <span className="ms">schedule</span>
+                  </span>
+                  Số lượng đơn hàng theo khung giờ
+                </h2>
+                <div className="lab muted" style={{ marginTop: 4 }}>
+                  Đơn gửi (nhập kho gửi) và đơn nhận (nhập kho giao) trong ngày chọn theo giờ sự kiện VN.
+                  {hourLoading
+                    ? " Đang tải…"
+                    : ` Trong ngày: ${stat.daySent} gửi + ${stat.dayReceived} nhận = ${stat.totalOrders}.`}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-xs text-muted-foreground">Ngày</Label>
-                <Input
-                  type="date"
-                  value={hourDate}
-                  onChange={(e) => setHourDate(e.target.value)}
-                  className="h-8 w-[150px]"
-                />
+              <div className="field" style={{ flex: "0 0 150px", minWidth: 0 }}>
+                <span className="l">Ngày</span>
+                <span className="box input-box">
+                  <input
+                    type="date"
+                    className="num"
+                    value={hourDate}
+                    onChange={(e) => setHourDate(e.target.value)}
+                  />
+                  <span className="ms" aria-hidden="true">
+                    calendar_today
+                  </span>
+                </span>
               </div>
             </div>
 
@@ -1146,27 +1289,24 @@ function DashboardPage() {
                 );
               })()
             )}
-          </CardContent>
-        </Card>
+            </section>
 
-        <Card>
-          <CardContent className="py-4">
-            <div className="mb-3 text-sm font-semibold">Số đơn theo văn phòng / khung giờ</div>
-            <div className="mb-2 text-xs text-muted-foreground">
-              Cùng ngày với biểu đồ khung giờ (nhập kho gửi + nhập kho giao). Tổng theo VP = tổng các khung giờ —
-              khác số đơn <i>tạo</i> trong ngày.
+            <section className="card stack" style={{ flex: "1 1 100%", minWidth: 0, gap: 12 }}>
+            <h2 className="card-title">Số đơn theo văn phòng / khung giờ</h2>
+            <div className="lab muted">
+              Cùng ngày với biểu đồ khung giờ (nhập kho gửi + nhập kho giao). Tổng theo VP = tổng các khung giờ.
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-xs">
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "900px" }}>
                 <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    <th className="sticky left-0 bg-background py-1.5 pr-2">Văn phòng</th>
+                  <tr>
+                    <th>Văn phòng</th>
                     {stat.buckets.map((b) => (
-                      <th key={b.label} className="px-1.5 py-1.5 text-right font-normal">
+                      <th key={b.label} className="r">
                         {b.label}
                       </th>
                     ))}
-                    <th className="px-2 py-1.5 text-right">Tổng</th>
+                    <th className="r">Tổng</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1225,17 +1365,13 @@ function DashboardPage() {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+            </section>
 
-        {readOnly && (
-          <div className="rounded-md border border-info/30 bg-info/10 px-3 py-2 text-xs text-info">
-            Chế độ chỉ xem (Ban lãnh đạo) — mọi nút ghi đã ẩn.
+            {readOnly ? (
+              <div className="lab muted">Chế độ chỉ xem (Ban lãnh đạo) — mọi nút ghi đã ẩn.</div>
+            ) : null}
           </div>
         )}
-          </TabsContent>
-        </Tabs>
-      </div>
 
       <Dialog open={!!hourDrill} onOpenChange={(open) => !open && setHourDrill(null)}>
         <DialogContent className="flex max-h-[85vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
@@ -1492,124 +1628,58 @@ function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </M3Page>
+      </div>
     </ProtectedPage>
   );
 }
 
-type KpiSpec = {
-  key: keyof BusinessTotals;
-  label: string;
-  unit: string;
-  hint: string;
-  icon: ComponentType<{ className?: string }>;
-  tone: string;
-};
-
-const KPI_CARDS: KpiSpec[] = [
-  {
-    key: "totalRevenue",
-    label: "Tổng doanh thu",
-    unit: "VNĐ",
-    hint: "Tổng cước các đơn tạo trong khoảng ngày (trừ đơn huỷ, đơn chờ nhận / chờ lấy / đang lấy hàng), theo VP gửi, đã trừ phí Ahamove",
-    icon: Wallet,
-    tone: "bg-primary/10 text-primary",
-  },
-  {
-    key: "receiptRevenue",
-    label: "Doanh thu đã thu",
-    unit: "VNĐ",
-    hint: "Phần tổng doanh thu đã thu tiền. Không gồm tiền thu hộ COD",
-    icon: ReceiptText,
-    tone: "bg-emerald-500/10 text-emerald-600",
-  },
-  {
-    key: "backlogRevenue",
-    label: "Doanh thu còn phải thu",
-    unit: "VNĐ",
-    hint: "Phần tổng doanh thu chưa thu tiền",
-    icon: Coins,
-    tone: "bg-amber-500/10 text-amber-600",
-  },
-  {
-    key: "totalOrders",
-    label: "Tổng số đơn",
-    unit: "đơn",
-    hint: "Đơn giao thành công + đơn tồn",
-    icon: Package,
-    tone: "bg-primary/10 text-primary",
-  },
-  {
-    key: "deliveredCount",
-    label: "Đơn giao thành công",
-    unit: "đơn",
-    hint: "Đơn đã giao (POD) trong khoảng ngày, theo VP giao",
-    icon: PackageCheck,
-    tone: "bg-emerald-500/10 text-emerald-600",
-  },
-  {
-    key: "backlogCount",
-    label: "Đơn tồn",
-    unit: "đơn",
-    hint: "Đơn tạo trong khoảng ngày, chưa giao / huỷ / hoàn xong tại cuối khoảng, theo VP gửi",
-    icon: Warehouse,
-    tone: "bg-amber-500/10 text-amber-600",
-  },
-];
-
-function KpiCard({
-  spec,
+function KgCell({
+  lead,
+  label,
   value,
-  previous,
+  unit,
+  pct,
+  fmtPct,
+  badWhenUp,
+  downIsGood,
 }: {
-  spec: KpiSpec;
-  value: number | null;
-  previous: number | null;
+  lead?: boolean;
+  label: string;
+  value: string;
+  unit: string;
+  pct: number | null;
+  fmtPct: (p: number | null) => string;
+  /** Tăng là xấu (vd đơn tồn). */
+  badWhenUp?: boolean;
+  /** Giảm vẫn hiện up-style (vd còn phải thu giảm). */
+  downIsGood?: boolean;
 }) {
-  const Icon = spec.icon;
-  const cur = value == null ? null : Number(value);
-  const prev = previous == null ? null : Number(previous);
-  const pct =
-    cur != null && prev != null && prev !== 0 ? ((cur - prev) / Math.abs(prev)) * 100 : null;
   const up = pct != null && pct >= 0;
+  const bad = pct == null ? false : badWhenUp ? up : downIsGood ? false : !up;
+  const icon = up ? "north_east" : "south_east";
   return (
-    <Card title={spec.hint}>
-      <CardContent className="px-4 py-4">
-        <div className="flex items-center gap-2.5">
-          <div
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${spec.tone}`}
-          >
-            <Icon className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 text-sm font-medium text-muted-foreground">{spec.label}</div>
-        </div>
-        <div className="mt-3 flex items-baseline gap-1.5">
-          <span className="truncate text-2xl font-bold tabular-nums">
-            {cur == null ? "—" : cur.toLocaleString("vi-VN")}
-          </span>
-          <span className="text-xs font-medium text-muted-foreground">{spec.unit}</span>
-        </div>
-        <div className="mt-2 flex items-center gap-1 text-xs">
-          {pct == null ? (
-            <span className="text-muted-foreground">— so với tháng trước</span>
-          ) : (
-            <>
-              <span
-                className={`inline-flex items-center gap-0.5 font-semibold ${up ? "text-emerald-600" : "text-destructive"}`}
-              >
-                {up ? (
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5" />
-                )}
-                {Math.abs(pct).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%
+    <div className={cn("kg-cell", lead && "lead")}>
+      <div className="lab muted">{label}</div>
+      <div className="num">
+        <span className={lead ? "hero kg-main" : "val"}>{value}</span>{" "}
+        <span className="small muted">{unit}</span>
+      </div>
+      <div className="kg-delta">
+        {pct == null ? (
+          <span className="small muted">— so với tháng trước</span>
+        ) : (
+          <>
+            <span className={cn("delta num", bad ? "bad" : "up")}>
+              <span className="ms" aria-hidden="true" style={{ fontSize: 16 }}>
+                {icon}
               </span>
-              <span className="text-muted-foreground">so với tháng trước</span>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              {fmtPct(pct)}
+            </span>
+            <span className="small muted">so với tháng trước</span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

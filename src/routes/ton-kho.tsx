@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";

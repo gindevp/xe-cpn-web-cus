@@ -3,9 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +23,7 @@ import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { formatVND, officeName, canonicalOfficeCode, type Order } from "@/lib/mock-data";
 import { useStore, type OrderX } from "@/lib/store";
 import { toast } from "sonner";
-import { Users2, ClipboardList, Banknote, Receipt, Search, Ban, History } from "lucide-react";
+import { Receipt, Ban, History } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { isApiEnabled } from "@/lib/api/client";
 import {
@@ -71,10 +70,8 @@ export const Route = createFileRoute("/phieu-thu")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Phiếu thu" screen="phieu-thu">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage title="Phiếu thu" screen="phieu-thu" hidePageTitle>
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -455,30 +452,78 @@ function Page() {
   );
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Tiền đơn chưa nộp, gom theo <b>người chịu trách nhiệm</b> (thu phía gửi + thu khi giao).{" "}
-        {!seeAllOwners
-          ? `Bạn chỉ thấy đơn cần nộp của chính mình (${selfOwner || "—"}).`
-          : officeScope
-            ? `AD/KT đang xem VP ${officeName(officeScope) || officeScope} — chỉ hiện NV thuộc VP này.`
-            : "AD/KT đang xem toàn hệ thống — hiện mọi người tác động."}
-      </p>
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader
+        title="Phiếu thu"
+        description={
+          !seeAllOwners
+            ? `Tiền đơn chưa nộp theo người chịu trách nhiệm. Bạn chỉ thấy đơn của mình (${selfOwner || "—"}).`
+            : officeScope
+              ? `Tiền đơn chưa nộp theo người chịu trách nhiệm · VP ${officeName(officeScope) || officeScope}.`
+              : "Tiền đơn chưa nộp, gom theo người chịu trách nhiệm (thu phía gửi và thu khi giao)."
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Kpi icon={Users2} label="Người tác động" value={String(totals.staff)} />
-        <Kpi icon={ClipboardList} label="Đơn cần nộp" value={String(totals.orders)} />
-        <Kpi icon={Banknote} label="Tiền còn thu" value={formatVND(totals.amount)} />
-      </div>
-
-      <Section>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Ngày nhận tiền</Label>
-            <Input type="date" value={filterDay} onChange={(e) => setFilterDay(e.target.value)} />
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">
+                payments
+              </span>
+              Tiền còn thu
+            </div>
+            <div className="sum-hero">
+              {formatVND(totals.amount)} <span className="sum-unit">VNĐ</span>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Người tác động</Label>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">inventory_2</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Đơn cần nộp</div>
+            <div className="sum-val">
+              {totals.orders} <span className="sum-unit">đơn</span>
+            </div>
+          </div>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">group</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Người tác động</div>
+            <div className="sum-val">
+              {totals.staff} <span className="sum-unit">người</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Section
+        title={
+          <span className="group-title sec-title num">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">assignment_ind</span>
+            </span>
+            Đơn cần nộp theo người và ngày ({rows.length})
+          </span>
+        }
+      >
+        <div className="filter-grid">
+          <label className="field">
+            <span className="l">Ngày nhận tiền</span>
+            <span className="box input-box">
+              <input type="date" className="num" value={filterDay} onChange={(e) => setFilterDay(e.target.value)} />
+              <span className="ms" aria-hidden="true">
+                calendar_today
+              </span>
+            </span>
+          </label>
+          <div className="field">
+            <span className="l">Người tác động</span>
             <SearchableSelect
               value={staffFilter || "all"}
               onValueChange={(v) => setStaffFilter(v === "all" ? "" : v)}
@@ -492,69 +537,64 @@ function Page() {
               ]}
             />
           </div>
-          <div className="space-y-1.5 md:col-span-2">
-            <Label className="text-xs">Tìm kiếm</Label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-8"
+          <label className="field">
+            <span className="l">Tìm kiếm</span>
+            <span className="box input-box">
+              <span className="ms muted" aria-hidden="true">
+                search
+              </span>
+              <input
+                type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Tên / tài khoản người tác động"
+                placeholder="Tên, tài khoản"
               />
-            </div>
-          </div>
+            </span>
+          </label>
         </div>
-      </Section>
-
-      <Section title={`Đơn cần nộp theo người · ngày (${rows.length})`}>
         {rows.length === 0 ? (
           <EmptyState>Không có đơn cần lập phiếu thu</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+          <div className="scroller">
+            <table className="tbl" style={{ ["--tbl-min" as string]: "760px" }}>
               <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-2 py-2">Người tác động</th>
-                  <th className="px-2 py-2">Tên nhân viên</th>
-                  <th className="px-2 py-2 text-right">Số đơn</th>
-                  <th className="px-2 py-2 text-right">Tiền còn thu</th>
-                  <th className="px-2 py-2 text-right">Ngày</th>
-                  <th className="px-2 py-2 text-right">Tác vụ</th>
+                <tr>
+                  <th>Người tác động</th>
+                  <th>Tên nhân viên</th>
+                  <th className="r">Số đơn</th>
+                  <th className="r">Tiền còn thu</th>
+                  <th>Ngày</th>
+                  <th className="r">Tác vụ</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((r) => (
-                  <tr key={r.key} className="border-b hover:bg-muted/40">
-                    <td className="px-2 py-2 font-medium">
+                  <tr key={r.key}>
+                    <td className="main">
                       {r.owner === UNKNOWN_DEBT_OWNER ? (
                         r.label
                       ) : (
                         <StaffInfoPopover staffKey={r.owner}>{r.label}</StaffInfoPopover>
                       )}
                     </td>
-                    <td className="px-2 py-2">{r.name || "—"}</td>
-                    <td className="px-2 py-2 text-right">{r.count}</td>
-                    <td className="px-2 py-2 text-right font-semibold">{formatVND(r.amount)}</td>
-                    <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
-                      {r.day ? fmtDayVn(r.day) : "—"}
-                    </td>
-                    <td className="px-2 py-2 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          className="gap-2"
+                    <td>{r.name || "—"}</td>
+                    <td className="r">{r.count}</td>
+                    <td className="r main">{formatVND(r.amount)}</td>
+                    <td>{r.day ? fmtDayVn(r.day) : "—"}</td>
+                    <td>
+                      <div className="act">
+                        <button
+                          type="button"
+                          className="ok"
                           disabled={r.count === 0}
                           onClick={() => setOpenKey(r.key)}
                         >
-                          <Receipt className="h-4 w-4" />
                           Tạo phiếu thu
-                        </Button>
+                        </button>
                         {canWaive ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-2 text-destructive hover:text-destructive"
+                          <button
+                            type="button"
+                            className="text-act danger"
                             disabled={r.count === 0}
                             onClick={() =>
                               setWaiveTarget({
@@ -563,9 +603,8 @@ function Page() {
                               })
                             }
                           >
-                            <Ban className="h-4 w-4" />
-                            Hủy nộp
-                          </Button>
+                            Huỷ nộp
+                          </button>
                         ) : null}
                       </div>
                     </td>
@@ -1134,18 +1173,3 @@ function ReceiptDialog({
   );
 }
 
-function Kpi({ icon: Icon, label, value }: { icon: typeof Users2; label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="rounded-md bg-muted p-2">
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-xs text-muted-foreground">{label}</div>
-          <div className="truncate text-base font-semibold">{value}</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

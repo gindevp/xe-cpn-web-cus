@@ -3,7 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -68,10 +68,8 @@ export const Route = createFileRoute("/ngoai-le")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Ngoại lệ - Thất lạc - Hư hỏng - Đơn huỷ" screen="ngoai-le">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage title="Ngoại lệ" screen="ngoai-le" hidePageTitle>
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -283,9 +281,38 @@ function Page() {
     return stages.size === 1 ? [...stages][0]! : null;
   }, [selected, rows]);
 
+  const tabIcons: Partial<Record<Tab, string>> = {
+    EXCEPTION: "warning",
+    LOST: "search_off",
+    DAMAGED: "broken_image",
+    CANCEL_REQUEST: "hourglass_top",
+    CANCELLED: "cancel",
+  };
+
   return (
-    <div className="space-y-4">
-      <StageTabRow className="gap-2.5 md:gap-3">
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader
+        title="Ngoại lệ"
+        description={activeTab.hint}
+        actions={
+          tab !== "CANCELLED" && tab !== "CANCEL_REQUEST" ? (
+            <div className="field" style={{ flex: "0 0 200px" }}>
+              <span className="l">Văn phòng</span>
+              <SearchableSelect
+                value={office || "all"}
+                onValueChange={(v) => setOffice(v === "all" ? "" : v)}
+                placeholder="Tất cả văn phòng"
+                options={[
+                  { value: "all", label: "Tất cả văn phòng" },
+                  ...offices.map((o) => ({ value: o.code, label: o.name })),
+                ]}
+              />
+            </div>
+          ) : undefined
+        }
+      />
+
+      <StageTabRow>
         {TABS.map((t) => (
           <StageTabButton
             key={t.key}
@@ -295,31 +322,14 @@ function Page() {
               setSelected(new Set());
             }}
           >
-            {t.key === "CANCELLED" || t.key === "CANCEL_REQUEST" ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Ban className="h-3.5 w-3.5 shrink-0" />
-                {t.label} ({counts[t.key] ?? 0})
-              </span>
-            ) : (
-              `${t.label} (${counts[t.key] ?? 0})`
-            )}
+            <span className="ms" aria-hidden="true">
+              {tabIcons[t.key] ?? "report"}
+            </span>
+            {t.label}
+            <span className="count num">{counts[t.key] ?? 0}</span>
           </StageTabButton>
         ))}
-        {tab !== "CANCELLED" && tab !== "CANCEL_REQUEST" ? (
-          <div className="ml-auto w-56" title="Văn phòng">
-            <SearchableSelect
-              value={office || "all"}
-              onValueChange={(v) => setOffice(v === "all" ? "" : v)}
-              placeholder="VP: tất cả"
-              options={[
-                { value: "all", label: "VP: tất cả" },
-                ...offices.map((o) => ({ value: o.code, label: o.name })),
-              ]}
-            />
-          </div>
-        ) : null}
       </StageTabRow>
-      <p className="text-xs text-muted-foreground">{activeTab.hint}</p>
 
       {tab === "CANCELLED" ? (
         <DonHuyPanel />

@@ -4,10 +4,9 @@ import { usePagedRows, type Pager } from "@/lib/use-paged-rows";
 import { useServerPagedRows } from "@/lib/use-server-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
@@ -67,10 +66,8 @@ export const Route = createFileRoute("/giao-thanh-cong")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Thành công" screen="giao-thanh-cong">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage title="Thành công" screen="giao-thanh-cong" hidePageTitle>
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -224,54 +221,57 @@ function Page() {
   }, [source, q, from, to, office, mode, kind, scopeAll, officeCode]);
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Danh sách chung giao thành công và hoàn thành công.
-        {loading ? " Đang tải danh sách…" : null}
-      </p>
-
-      <Section>
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs">VP</Label>
-            <SearchableSelect
-              value={office || "all"}
-              onValueChange={(v) => setOffice(v === "all" ? "" : v)}
-              placeholder="Tất cả"
-              options={[
-                { value: "all", label: "Tất cả" },
-                ...offices.map((o) => ({ value: o.code, label: o.name })),
-              ]}
-            />
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader
+        title="Thành công"
+        description={
+          loading
+            ? "Danh sách chung giao thành công và hoàn thành công. Đang tải…"
+            : "Danh sách chung giao thành công và hoàn thành công."
+        }
+        actions={
+          <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div className="field" style={{ flex: "0 0 150px" }}>
+              <span className="l">VP</span>
+              <SearchableSelect
+                value={office || "all"}
+                onValueChange={(v) => setOffice(v === "all" ? "" : v)}
+                placeholder="Tất cả"
+                options={[
+                  { value: "all", label: "Tất cả" },
+                  ...offices.map((o) => ({ value: o.code, label: o.name })),
+                ]}
+              />
+            </div>
+            <div className="field" style={{ flex: "0 0 150px" }}>
+              <span className="l">Loại</span>
+              <SearchableSelect
+                value={kind || "all"}
+                onValueChange={(v) => setKind(v === "all" ? "" : v)}
+                placeholder="Tất cả"
+                options={[
+                  { value: "all", label: "Tất cả" },
+                  { value: "GIAO", label: "Giao thành công" },
+                  { value: "HOAN", label: "Hoàn thành công" },
+                ]}
+              />
+            </div>
+            <div className="field" style={{ flex: "0 0 150px" }}>
+              <span className="l">Hình thức</span>
+              <SearchableSelect
+                value={mode || "all"}
+                onValueChange={(v) => setMode(v === "all" ? "" : v)}
+                placeholder="Tất cả"
+                options={[
+                  { value: "all", label: "Tất cả" },
+                  { value: "SHIPPER", label: "Shipper" },
+                  { value: "OFFICE", label: "Tại bưu cục" },
+                ]}
+              />
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Loại</Label>
-            <SearchableSelect
-              value={kind || "all"}
-              onValueChange={(v) => setKind(v === "all" ? "" : v)}
-              placeholder="Tất cả"
-              options={[
-                { value: "all", label: "Tất cả" },
-                { value: "GIAO", label: "Giao thành công" },
-                { value: "HOAN", label: "Hoàn thành công" },
-              ]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Hình thức</Label>
-            <SearchableSelect
-              value={mode || "all"}
-              onValueChange={(v) => setMode(v === "all" ? "" : v)}
-              placeholder="Tất cả"
-              options={[
-                { value: "all", label: "Tất cả" },
-                { value: "SHIPPER", label: "Shipper" },
-                { value: "OFFICE", label: "Tại bưu cục" },
-              ]}
-            />
-          </div>
-        </div>
-      </Section>
+        }
+      />
 
       <SuccessOrderTable
         rows={rows}
@@ -358,25 +358,34 @@ function SuccessOrderTable({
   const pager = server ? server.pager : local.pager;
   return (
     <>
-      <Section title={sectionTitle}>
+      <Section
+        title={
+          <span className="group-title sec-title num">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">task_alt</span>
+            </span>
+            {sectionTitle}
+          </span>
+        }
+      >
         {pager.total === 0 ? (
           <EmptyState>{loading ? "Đang tải…" : emptyText}</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] text-sm">
+          <div className="scroller">
+            <table className="tbl" style={{ ["--tbl-min" as string]: "1120px" }}>
               <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-2 py-2">Mã đơn</th>
-                  <th className="px-2 py-2">Ảnh</th>
-                  <th className="px-2 py-2">Thời gian</th>
-                  <th className="px-2 py-2">Hình thức</th>
-                  <th className="px-2 py-2">Người gửi</th>
-                  <th className="px-2 py-2">Người nhận</th>
-                  <th className="px-2 py-2">VP gửi → VP nhận</th>
-                  <OrderCargoHeader className="font-normal text-muted-foreground" />
-                  <OrderFeeHeader className="text-muted-foreground" />
-                  <th className="px-2 py-2 text-right">Đã thu</th>
-                  <th className="px-2 py-2">Hoá đơn</th>
+                <tr>
+                  <th>Mã đơn</th>
+                  <th>Ảnh</th>
+                  <th>Thời gian</th>
+                  <th>Hình thức</th>
+                  <th>Người gửi</th>
+                  <th>Người nhận</th>
+                  <th>VP gửi → VP nhận</th>
+                  <OrderCargoHeader />
+                  <OrderFeeHeader />
+                  <th className="r">Đã thu</th>
+                  <th>Hoá đơn</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,22 +1,15 @@
 import { useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-/** Tab giai đoạn trong màn — pill nhẹ (đổi với topbar đậm). */
+/** Tab giai đoạn — khớp design `.seg button` / `.seg button.on`. */
 export function stageTabClass(active: boolean) {
-  return cn(
-    "inline-flex h-9 max-w-full items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:h-10 sm:px-3.5 sm:text-sm md:h-11 md:px-5 md:text-[15px]",
-    active
-      ? "bg-[#E8EEF8] text-[#274EA1] shadow-sm ring-1 ring-[#274EA1]/15"
-      : "bg-slate-100/80 text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-  );
+  return cn(active && "on");
 }
 
-/** Hàng tab luôn wrap đủ trên màn — không cuộn ngang ẩn tab. */
+/** Hàng tab = `.seg` Material 3. */
 export function StageTabRow({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={cn("flex w-full min-w-0 flex-wrap items-center gap-2 md:gap-2.5", className)}>
+    <div className={cn("seg", className)} role="tablist" style={{ alignSelf: "flex-start" }}>
       {children}
     </div>
   );
@@ -29,13 +22,13 @@ export function StageTabButton({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { active: boolean; children: ReactNode }) {
   return (
-    <button type="button" className={cn(stageTabClass(active), className)} {...props}>
-      <span className="min-w-0 text-left leading-snug">{children}</span>
+    <button type="button" role="tab" aria-selected={active} className={cn(stageTabClass(active), className)} {...props}>
+      {children}
     </button>
   );
 }
 
-/** Bộ lọc ngày + tìm kiếm (bên phải hàng chứa nó) — lọc chung cho mọi tab. */
+/** Bộ lọc ngày + tìm kiếm — design `.filters` + `.field` + `.box`. */
 export function StageTabFilters({
   from,
   to,
@@ -54,28 +47,52 @@ export function StageTabFilters({
   placeholder: string;
 }) {
   return (
-    <div className="ml-auto flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto">
-      <Input
-        type="date"
-        className="h-9 w-[calc(50%-0.75rem)] min-w-0 md:w-[140px]"
-        title="Từ ngày"
-        aria-label="Từ ngày"
-        value={from}
-        onChange={(e) => onFrom(e.target.value)}
-      />
-      <span className="text-muted-foreground">–</span>
-      <Input
-        type="date"
-        className="h-9 w-[calc(50%-0.75rem)] min-w-0 md:w-[140px]"
-        title="Đến ngày"
-        aria-label="Đến ngày"
-        value={to}
-        onChange={(e) => onTo(e.target.value)}
-      />
-      <div className="relative w-full min-w-0 md:w-56">
-        <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input className="h-9 pl-8" value={q} onChange={(e) => onQ(e.target.value)} placeholder={placeholder} />
-      </div>
+    <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap", marginLeft: "auto" }}>
+      <label className="field" style={{ flex: "0 0 160px" }}>
+        <span className="l">Từ ngày</span>
+        <span className="box input-box">
+          <input
+            type="date"
+            className="num"
+            aria-label="Từ ngày"
+            value={from}
+            onChange={(e) => onFrom(e.target.value)}
+          />
+          <span className="ms" aria-hidden="true">
+            calendar_today
+          </span>
+        </span>
+      </label>
+      <label className="field" style={{ flex: "0 0 160px" }}>
+        <span className="l">Đến ngày</span>
+        <span className="box input-box">
+          <input
+            type="date"
+            className="num"
+            aria-label="Đến ngày"
+            value={to}
+            onChange={(e) => onTo(e.target.value)}
+          />
+          <span className="ms" aria-hidden="true">
+            calendar_today
+          </span>
+        </span>
+      </label>
+      <label className="field" style={{ flex: "1 1 220px", minWidth: 180 }}>
+        <span className="l">Tìm kiếm</span>
+        <span className="box input-box">
+          <span className="ms" aria-hidden="true">
+            search
+          </span>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => onQ(e.target.value)}
+            placeholder={placeholder}
+            aria-label={placeholder}
+          />
+        </span>
+      </label>
     </div>
   );
 }

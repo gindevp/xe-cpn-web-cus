@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { Section } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -41,10 +40,8 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/bang-gia")({
   head: () => ({ meta: [{ title: "Bảng giá — X.E" }] }),
   component: () => (
-    <ProtectedPage title="Quản lý bảng giá" screen="bang-gia">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage title="Bảng giá" screen="bang-gia" hidePageTitle>
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -53,22 +50,40 @@ function Page() {
   const { session } = useAuth();
   const products = useStore((s) => s.productPricing);
   const writable = canWrite(session?.role, "bang-gia");
+  const [tab, setTab] = useState<"rules" | "product">("rules");
 
   return (
-    <Section title="Bảng giá">
-      <Tabs defaultValue="rules">
-        <TabsList>
-          <TabsTrigger value="rules">Phí vận chuyển</TabsTrigger>
-          <TabsTrigger value="product">Giá theo sản phẩm ({products.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="rules" className="mt-4">
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader title="Bảng giá" description="Phí vận chuyển và giá theo sản phẩm." />
+      <div className="seg" role="tablist" aria-label="Loại bảng giá" style={{ alignSelf: "flex-start" }}>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "rules" ? "on" : undefined}
+          aria-selected={tab === "rules"}
+          onClick={() => setTab("rules")}
+        >
+          Phí vận chuyển
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "product" ? "on" : undefined}
+          aria-selected={tab === "product"}
+          onClick={() => setTab("product")}
+        >
+          Giá theo sản phẩm
+          <span className="count num">{products.length}</span>
+        </button>
+      </div>
+      <Section>
+        {tab === "rules" ? (
           <FreightPricing writable={writable} />
-        </TabsContent>
-        <TabsContent value="product" className="mt-4">
+        ) : (
           <ProductPricing writable={writable} />
-        </TabsContent>
-      </Tabs>
-    </Section>
+        )}
+      </Section>
+    </div>
   );
 }
 

@@ -3,11 +3,7 @@ import { Fragment, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
-import { Section, EmptyState } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+import { M3PageHeader } from "@/components/M3Page";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
@@ -19,7 +15,7 @@ import { TransferPaidBadge, transferPaidNotice } from "@/components/TransferPaid
 import { StaffSenderTransferQrAction } from "@/components/StaffSenderTransferQrAction";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
-import { formatVND, formatDateTime, officeName } from "@/lib/mock-data";
+import { formatDateTime, officeName } from "@/lib/mock-data";
 import {
   FEE_COL_COUNT,
   OrderFeeCell,
@@ -39,14 +35,6 @@ import { usePackageActions } from "@/components/PackageActions";
 import { useRefreshOrdersOnMount, refreshOrdersNow } from "@/lib/use-orders-poll";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import {
-  Bike,
-  Warehouse,
-  ChevronDown,
-  XCircle,
-} from "lucide-react";
-
-const TH_MUTED = "px-2 py-2 font-semibold text-slate-500";
 export const Route = createFileRoute("/cho-ban-giao")({
   head: () => ({
     meta: [
@@ -67,10 +55,8 @@ export const Route = createFileRoute("/cho-ban-giao")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Chờ bàn giao" screen="cho-ban-giao">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage title="Chờ bàn giao" screen="cho-ban-giao" hidePageTitle>
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -290,10 +276,34 @@ function Page() {
   };
 
   const activeTab = TABS.find((t) => t.key === tab)!;
+  const tabIcons: Record<TabKey, string> = {
+    "cho-nhan": "storefront",
+    "cho-lay": "local_shipping",
+    "dang-lay": "directions_bike",
+  };
 
   return (
-    <div className="space-y-4">
-      <StageTabRow className="gap-2.5 md:gap-3">
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader
+        title="Chờ bàn giao"
+        description={activeTab.hint}
+        actions={
+          <div className="field" style={{ flex: "0 0 200px", minWidth: 160 }}>
+            <span className="l">Văn phòng gửi</span>
+            <SearchableSelect
+              value={senderOffice || "all"}
+              onValueChange={(v) => setSenderOffice(v === "all" ? "" : v)}
+              placeholder="Tất cả văn phòng"
+              options={[
+                { value: "all", label: "Tất cả văn phòng" },
+                ...offices.map((o) => ({ value: o.code, label: o.name })),
+              ]}
+            />
+          </div>
+        }
+      />
+
+      <StageTabRow>
         {TABS.map((t) => (
           <StageTabButton
             key={t.key}
@@ -303,186 +313,200 @@ function Page() {
               setSelected(new Set());
             }}
           >
-            {t.label} ({counts[t.key] ?? 0})
+            <span className="ms" aria-hidden="true">
+              {tabIcons[t.key]}
+            </span>
+            {t.label}
+            <span className="count num">{counts[t.key] ?? 0}</span>
           </StageTabButton>
         ))}
-        <div className="ml-auto w-56" title="Văn phòng gửi">
-          <SearchableSelect
-            value={senderOffice || "all"}
-            onValueChange={(v) => setSenderOffice(v === "all" ? "" : v)}
-            placeholder="VP gửi: tất cả"
-            options={[
-              { value: "all", label: "VP gửi: tất cả" },
-              ...offices.map((o) => ({ value: o.code, label: o.name })),
-            ]}
-          />
-        </div>
       </StageTabRow>
-      <p className="text-xs text-muted-foreground">{activeTab.hint}</p>
 
-      <Section
-        title={`${activeTab.label} (${rows.length})`}
-        right={
-          <div className="flex gap-2">
-            {tab === "cho-lay" && (
-              <Button
-                variant="outline"
-                className="gap-2"
-                disabled={selected.size !== 1}
-                title="Bàn giao từng đơn cho shipper nội bộ hoặc Ahamove"
-                onClick={() => setShipperCode([...selected][0])}
-              >
-                <Bike className="h-4 w-4" />
-                Bàn giao shipper
-              </Button>
-            )}
-            {canCancelTab && (
-              <Button
-                variant="outline"
-                className="gap-2 text-destructive hover:text-destructive"
-                disabled={selected.size === 0}
-                onClick={() => setCancelCodes([...selected])}
-              >
-                <XCircle className="h-4 w-4" />
-                Huỷ đơn ({selected.size})
-              </Button>
-            )}
-            {canWarehouseIn && (
-              <Button
-                className="gap-2"
-                disabled={selected.size === 0}
-                title={tab === "dang-lay" ? "Nhập bù khi Ahamove không báo về" : undefined}
-                onClick={() => receiveToWarehouse([...selected])}
-              >
-                <Warehouse className="h-4 w-4" />
-                {tab === "cho-nhan" ? "Xác nhận nhập kho" : "Nhập kho"} ({selected.size})
-              </Button>
-            )}
-          </div>
-        }
-      >
+      <section className="card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {rows.length === 0 ? (
-          <EmptyState>Không có đơn trong mục này</EmptyState>
+          <div className="empty">
+            <span className="ms" aria-hidden="true" style={{ fontSize: 40, color: "var(--on-surface-variant)" }}>
+              inbox
+            </span>
+            <h2 className="group-title" style={{ margin: "12px 0 4px" }}>
+              Không có đơn nào
+            </h2>
+            <div className="muted lab">Tab này hiện chưa có đơn cần xử lý.</div>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1280px] text-sm">
+          <>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "8px 16px",
+                minHeight: 40,
+              }}
+            >
+              <div style={{ fontSize: 15, lineHeight: "22px", fontWeight: 600 }}>
+                {selected.size > 0 ? `Đã chọn ${selected.size} đơn` : `${activeTab.label} (${rows.length})`}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
+                {tab === "cho-lay" ? (
+                  <button
+                    type="button"
+                    className="btn tonal"
+                    disabled={selected.size !== 1}
+                    title="Bàn giao từng đơn cho shipper nội bộ hoặc Ahamove"
+                    onClick={() => setShipperCode([...selected][0])}
+                  >
+                    <span className="ms" aria-hidden="true">
+                      directions_bike
+                    </span>
+                    Bàn giao shipper
+                  </button>
+                ) : null}
+                {canCancelTab ? (
+                  <button
+                    type="button"
+                    className="btn text"
+                    disabled={selected.size === 0}
+                    onClick={() => setCancelCodes([...selected])}
+                  >
+                    Huỷ đơn ({selected.size})
+                  </button>
+                ) : null}
+                {canWarehouseIn ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={selected.size === 0}
+                    title={tab === "dang-lay" ? "Nhập bù khi Ahamove không báo về" : undefined}
+                    onClick={() => receiveToWarehouse([...selected])}
+                  >
+                    {tab === "cho-nhan" ? "Xác nhận nhập kho" : "Nhập kho"} ({selected.size})
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="scroller">
+            <table className="tbl" style={{ ["--tbl-min" as string]: "1280px" }}>
               <thead>
-                <tr className="border-b bg-slate-50/80 text-left text-xs uppercase tracking-wide">
-                  <th className="w-10 px-2 py-2">
-                    <Checkbox
+                <tr>
+                  <th style={{ width: 18 }}>
+                    <input
+                      className="check"
+                      type="checkbox"
                       checked={allChecked}
-                      onCheckedChange={(v) => toggleAll(Boolean(v))}
+                      onChange={(e) => toggleAll(e.target.checked)}
                       aria-label="Chọn tất cả"
                     />
                   </th>
-                  <th className={`${TH_MUTED} pl-6`}>Mã đơn</th>
-                  <th className={TH_MUTED}>Người gửi</th>
-                  <th className={TH_MUTED}>Người nhận</th>
-                  <th className={TH_MUTED}>VP gửi → VP nhận</th>
-                  <OrderCargoHeader className={TH_MUTED} />
-                  <th className={TH_MUTED}>Ảnh</th>
+                  <th>Mã đơn</th>
+                  <th>Người gửi</th>
+                  <th>Người nhận</th>
+                  <th>VP gửi → VP nhận</th>
+                  <OrderCargoHeader />
+                  <th>Ảnh</th>
                   <OrderFeeHeader />
-                  <th className={`${TH_MUTED} text-right`}>Tác vụ</th>
+                  <th className="r">Tác vụ</th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((r) => (
                   <Fragment key={r.code}>
-                    <tr className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2">
-                        <Checkbox
+                    <tr className={cn(selected.has(r.code) && "sel")}>
+                      <td>
+                        <input
+                          className="check"
+                          type="checkbox"
                           checked={selected.has(r.code)}
-                          onCheckedChange={(v) => toggle(r.code, Boolean(v))}
+                          onChange={(e) => toggle(r.code, e.target.checked)}
                           aria-label={`Chọn ${r.code}`}
                         />
                       </td>
-                      <td className="px-2 py-2 pl-6 font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            className="inline-flex items-center text-left"
-                            title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                            onClick={() => toggleOrderPkgs(r.code)}
-                          >
-                            <ChevronDown
-                              className={cn(
-                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                expandedOrders.has(r.code) && "rotate-180",
-                              )}
-                            />
-                          </button>
-                          <OrderCodeLink code={r.code} />
-                        </span>
-                        <Badge variant="secondary" className="ml-2 font-normal">
+                      <td>
+                        <OrderCodeLink code={r.code} className="code" />
+                        <button
+                          type="button"
+                          className="link"
+                          style={{ display: "block", marginTop: 2 }}
+                          title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                          onClick={() => toggleOrderPkgs(r.code)}
+                        >
+                          {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                        </button>
+                        <span className="sub">
                           {r.qrDropOff
                             ? "Quét QR tại bưu cục"
                             : r.homePickup
                               ? "Lấy tận nơi"
                               : "Khách mang đến"}
-                        </Badge>
+                        </span>
+                        <span className="sub">{formatDateTime(r.createdAt)}</span>
                         <TransferPaidBadge order={r} />
-                        <div className="pl-6 text-xs font-normal text-muted-foreground">
-                          {formatDateTime(r.createdAt)}
-                        </div>
-                        {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? <AhamoveInfo order={r} /> : null}
-                      </td>
-                      <td className="px-2 py-2">
-                        <div>{r.senderName ?? "-"}</div>
-                        <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
-                        {!r.qrDropOff && (r.pickupAddress || r.address) ? (
-                          <div className="mt-0.5 max-w-[220px] text-xs text-muted-foreground">
-                            {r.pickupAddress ?? r.address}
-                          </div>
+                        {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? (
+                          <AhamoveInfo order={r} />
                         ) : null}
                       </td>
-                      <td className="px-2 py-2">
-                        <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
+                      <td>
+                        <span className="main" style={{ fontWeight: 500 }}>
+                          {r.senderName ?? "-"}
+                        </span>
+                        <span className="sub">{r.senderPhone}</span>
+                        {!r.qrDropOff && (r.pickupAddress || r.address) ? (
+                          <span className="sub">{r.pickupAddress ?? r.address}</span>
+                        ) : null}
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
+                      <td>
+                        <span className="main" style={{ fontWeight: 500 }}>
+                          {r.receiverName}
+                        </span>
+                        <span className="sub">{r.receiverPhone}</span>
+                      </td>
+                      <td>
                         <OfficeRouteCell order={r} />
                       </td>
                       <OrderCargoCell order={r} />
-                      <td className="px-2 py-2">
+                      <td>
                         {r.hasGoodsPhoto ? (
                           <GoodsPhotoButton orderCode={r.code} />
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="thumb" role="img" aria-label="Chưa có ảnh">
+                            <span className="ms" aria-hidden="true">
+                              image
+                            </span>
+                          </span>
                         )}
                       </td>
                       <OrderFeeCell order={r} />
-                      <td className="px-2 py-2 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <td>
+                        <div className="act">
                           <StaffSenderTransferQrAction order={r} variant="button" />
-                          {tab === "cho-lay" && (
-                            <Button size="sm" variant="ghost" onClick={() => setShipperCode(r.code)}>
-                              Bàn giao shipper
-                            </Button>
-                          )}
-                          {canCancelTab && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
+                          {tab === "cho-lay" ? (
+                            <button type="button" className="ok" onClick={() => setShipperCode(r.code)}>
+                              Bàn giao
+                            </button>
+                          ) : null}
+                          {canWarehouseIn ? (
+                            <button type="button" className="ok" onClick={() => receiveToWarehouse([r.code])}>
+                              {tab === "cho-nhan" ? "Nhập kho" : "Nhập kho"}
+                            </button>
+                          ) : null}
+                          {canCancelTab ? (
+                            <button
+                              type="button"
+                              className="no"
+                              aria-label="Huỷ đơn"
+                              title="Huỷ đơn"
                               onClick={() => setCancelCodes([r.code])}
                             >
-                              Huỷ
-                            </Button>
-                          )}
-                          {canWarehouseIn && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => receiveToWarehouse([r.code])}
-                            >
-                              {tab === "cho-nhan" ? "Xác nhận nhập kho" : "Nhập kho"}
-                            </Button>
-                          )}
+                              <span className="ms" aria-hidden="true">
+                                delete
+                              </span>
+                            </button>
+                          ) : null}
                         </div>
                         {tab !== "cho-nhan" && !r.qrDropOff ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            NV: {r.pickupStaff ?? "Chưa phân công"}
-                          </div>
+                          <span className="sub">NV: {r.pickupStaff ?? "Chưa phân công"}</span>
                         ) : null}
                       </td>
                     </tr>
@@ -500,10 +524,11 @@ function Page() {
                 ))}
               </tbody>
             </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
-      </Section>
+      </section>
 
       <AssignShipperDialog
         purpose="pickup"

@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { FileText, Search, Loader2, MapPin, Package, Phone, User } from "lucide-react";
 import { useOrderHistoryOptional } from "@/components/OrderHistoryDialog";
 import { realVehiclePlate } from "@/components/AssignVehiclePicker";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useStore, type OrderX } from "@/lib/store";
 import { formatVND, officeName, orderReceiverOffice } from "@/lib/mock-data";
@@ -194,62 +192,77 @@ export function GlobalHeaderSearch() {
   };
 
   return (
-    <div className="relative w-full min-w-0 md:w-[32rem]" ref={wrapRef}>
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onFocus={() => {
-          if (q.trim().length >= 2 && results.length) setOpen(true);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setOpen(true);
-            setActiveIdx((i) => Math.min(i + 1, Math.max(0, results.length - 1)));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActiveIdx((i) => Math.max(0, i - 1));
-          } else if (e.key === "Escape") {
-            setOpen(false);
-          } else if (e.key === "Enter") {
-            e.preventDefault();
-            if (open && results.length > 1) {
-              const pick = results[activeIdx] ?? results[0];
-              if (pick) void openOrder(pick.code);
-            } else {
-              void onSearch();
+    <div className="search-wrap" ref={wrapRef} style={{ maxWidth: "100%", flex: "1 1 100%" }}>
+      <label className="pill search">
+        <span className="ms" aria-hidden="true">
+          search
+        </span>
+        <input
+          type="search"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="sr-list"
+          autoComplete="off"
+          placeholder="Tìm mã đơn, SĐT…"
+          aria-label="Tìm mã đơn, SĐT"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onFocus={() => {
+            if (q.trim().length >= 2 && results.length) setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setOpen(true);
+              setActiveIdx((i) => Math.min(i + 1, Math.max(0, results.length - 1)));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setActiveIdx((i) => Math.max(0, i - 1));
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              if (open && results.length > 1) {
+                const pick = results[activeIdx] ?? results[0];
+                if (pick) void openOrder(pick.code);
+              } else {
+                void onSearch();
+              }
             }
-          }
-        }}
-        placeholder="Tìm mã đơn, SĐT…"
-        className="h-10 rounded-full border-0 bg-[var(--lowest,#fff)] pl-9 pr-8 shadow-none ring-1 ring-[var(--outline-variant,#c5c6d0)]/50 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[var(--secondary,#585e71)]"
-        aria-autocomplete="list"
-        aria-expanded={open}
-      />
-      {loading ? (
-        <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-      ) : null}
+          }}
+        />
+        {loading ? (
+          <span className="ms" aria-hidden="true" style={{ opacity: 0.5 }}>
+            progress_activity
+          </span>
+        ) : null}
+      </label>
 
       {open && q.trim().length >= 2 ? (
-        <div className="absolute left-1/2 top-[calc(100%+6px)] z-50 w-[min(96vw,40rem)] max-h-[32rem] -translate-x-1/2 overflow-y-auto rounded-xl border bg-popover text-popover-foreground shadow-lg">
-          {loading && results.length === 0 ? (
-            <div className="px-3 py-3 text-sm text-muted-foreground">Đang tìm…</div>
-          ) : results.length === 0 ? (
-            <div className="px-3 py-3 text-sm text-muted-foreground">Không có kết quả</div>
+        <div className="sr-pop" id="sr-list" role="listbox" aria-label="Kết quả tìm kiếm">
+          <div className="sr-count lab muted num">
+            {loading && results.length === 0
+              ? "Đang tìm…"
+              : `${results.length} kết quả`}
+          </div>
+          {results.length === 0 && !loading ? (
+            <div className="sr-none">
+              <span className="ms" aria-hidden="true">
+                search_off
+              </span>
+              <div>Không tìm thấy đơn phù hợp. Thử mã đơn hoặc SĐT khác.</div>
+            </div>
           ) : (
-            <ul className="divide-y divide-slate-200 px-2 py-1">
-              {results.map((o, i) => (
-                <SearchResultItem
-                  key={o.code}
-                  order={o}
-                  query={q.trim()}
-                  active={i === activeIdx}
-                  onHover={() => setActiveIdx(i)}
-                  onOpen={() => void openOrder(o.code)}
-                />
-              ))}
-            </ul>
+            results.map((o, i) => (
+              <SearchResultItem
+                key={o.code}
+                order={o}
+                query={q.trim()}
+                active={i === activeIdx}
+                onHover={() => setActiveIdx(i)}
+                onOpen={() => void openOrder(o.code)}
+              />
+            ))
           )}
         </div>
       ) : null}
@@ -266,9 +279,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark className="rounded-sm bg-amber-400 px-0.5 text-foreground">
-        {text.slice(idx, idx + q.length)}
-      </mark>
+      <mark>{text.slice(idx, idx + q.length)}</mark>
       {text.slice(idx + q.length)}
     </>
   );
@@ -293,11 +304,10 @@ const SEARCH_STATUS_AMBER = new Set([
 ]);
 
 function searchStatusTone(label: string): string {
-  if (SEARCH_STATUS_RED.has(label)) return "border-red-200 bg-red-50 text-red-700";
-  if (SEARCH_STATUS_AMBER.has(label) || label.startsWith("Hoàn ·"))
-    return "border-amber-300 bg-amber-50 text-amber-700";
-  if (label === "Giao thành công") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  return "border-blue-200 bg-blue-50 text-blue-700";
+  if (SEARCH_STATUS_RED.has(label)) return "tag err";
+  if (SEARCH_STATUS_AMBER.has(label) || label.startsWith("Hoàn ·")) return "tag warn";
+  if (label === "Giao thành công") return "tag ok";
+  return "tag info";
 }
 
 function SearchResultItem({
@@ -329,101 +339,80 @@ function SearchResultItem({
   const plate = realVehiclePlate(o.vehiclePlate);
   const statusLabel = orderTabStatusLabel(o);
   return (
-    <li>
-      <button
-        type="button"
-        className={cn(
-          "flex w-full flex-col gap-1.5 rounded-lg px-2 py-2.5 text-left text-sm transition-colors hover:bg-slate-50",
-          active && "bg-slate-50",
-        )}
-        onMouseEnter={onHover}
-        onClick={onOpen}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="font-semibold">
-              <Highlight text={o.code} query={query} />
-            </span>
-            {o.invoiceStatus === "ISSUED" || o.invoiceStatus === "DUPLICATE" ? (
-              <span title="Đã xuất hoá đơn" className="shrink-0">
-                <FileText className="h-4 w-4 text-emerald-600" aria-label="Đã xuất hoá đơn" />
-              </span>
-            ) : null}
-            <span
-              className={cn(
-                "truncate rounded-md border px-2 py-0.5 text-xs font-medium",
-                searchStatusTone(statusLabel),
-              )}
-            >
-              {statusLabel}
-            </span>
-            {createdAt ? (
-              <span className="shrink-0 text-xs text-muted-foreground" title="Thời điểm tạo đơn">
-                Tạo {createdAt}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 flex-col items-end">
-            {due > 0 ? (
-              <span className="text-sm font-medium text-orange-600">
-                Chưa thu: {formatVND(due)}
-              </span>
-            ) : (
-              <span className="text-sm font-medium text-emerald-600">
-                Đã thu: {formatVND(paid || fare)}
-              </span>
-            )}
-            {plate ? (
-              <span
-                className="text-xs font-semibold tracking-wide text-slate-600"
-                title="Biển kiểm soát"
-              >
-                BKS {plate}
-              </span>
-            ) : null}
-            {plate && loadedAt ? (
-              <span className="text-xs text-muted-foreground" title="Thời điểm hàng lên xe">
-                Lên xe {loadedAt}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <User className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="truncate font-semibold">
-            <Highlight text={o.receiverName || "—"} query={query} />
-            {o.receiverPhone ? (
-              <>
-                {" • "}
-                <Highlight text={o.receiverPhone} query={query} />
-              </>
-            ) : null}
+    <button
+      type="button"
+      className={cn("sr-item", active && "on")}
+      role="option"
+      aria-selected={active}
+      onMouseEnter={onHover}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onOpen();
+      }}
+    >
+      <span className="sr-top">
+        <span className="sr-code num">
+          <Highlight text={o.code} query={query} />
+        </span>
+        {o.invoiceStatus === "ISSUED" || o.invoiceStatus === "DUPLICATE" ? (
+          <span className="ms" title="Đã xuất hoá đơn" aria-label="Đã xuất hoá đơn">
+            description
           </span>
-        </div>
-        <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
-          <Package className="h-4 w-4 shrink-0" />
-          <span className="truncate">{orderGoodsLabel(o)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-muted-foreground">
-          <div className="flex min-w-0 items-center gap-2">
-            <MapPin className="h-4 w-4 shrink-0" />
-            <span className="truncate">
-              {officeName(o.fromOffice)} <span className="mx-1">⟶</span>{" "}
-              {officeName(orderReceiverOffice(o))}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <Phone className="h-4 w-4" />
-            <span>
-              Gửi:{" "}
-              <span className="text-foreground">
-                <Highlight text={o.senderPhone || "—"} query={query} />
-              </span>
-            </span>
-          </div>
-        </div>
-      </button>
-    </li>
+        ) : null}
+        <span className={searchStatusTone(statusLabel)}>{statusLabel}</span>
+        {createdAt ? <span className="sr-time num">Tạo {createdAt}</span> : null}
+        <span className={cn("sr-money", due > 0 ? "unpaid" : "paid")}>
+          {due > 0 ? `Chưa thu: ${formatVND(due)}` : `Đã thu: ${formatVND(paid || fare)}`}
+        </span>
+        {plate ? (
+          <span className="sr-time num" title="Biển kiểm soát">
+            BKS {plate}
+            {loadedAt ? ` · Lên xe ${loadedAt}` : ""}
+          </span>
+        ) : null}
+      </span>
+      <span className="sr-line sr-strong">
+        <span className="ms" aria-hidden="true">
+          person
+        </span>
+        <span className="num">
+          <Highlight text={o.receiverName || "—"} query={query} />
+          {o.receiverPhone ? (
+            <>
+              {" • "}
+              <Highlight text={o.receiverPhone} query={query} />
+            </>
+          ) : null}
+        </span>
+      </span>
+      <span className="sr-line">
+        <span className="ms" aria-hidden="true">
+          inventory_2
+        </span>
+        <span>{orderGoodsLabel(o)}</span>
+      </span>
+      <span className="sr-line">
+        <span className="ms" aria-hidden="true">
+          location_on
+        </span>
+        <span className="sr-route">
+          {officeName(o.fromOffice)}
+          <span className="ms sr-arrow" aria-hidden="true">
+            arrow_right_alt
+          </span>
+          {officeName(orderReceiverOffice(o))}
+        </span>
+        <span className="sr-from num">
+          <span className="ms" aria-hidden="true">
+            call
+          </span>
+          Gửi:{" "}
+          <b>
+            <Highlight text={o.senderPhone || "—"} query={query} />
+          </b>
+        </span>
+      </span>
+    </button>
   );
 }
 

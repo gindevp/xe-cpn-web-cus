@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Search } from "lucide-react";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3Page } from "@/components/M3Page";
+import { M3PageHeader } from "@/components/M3Page";
 import { EmptyState, Section } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { StaffInfoPopover } from "@/components/StaffInfoPopover";
@@ -32,10 +31,8 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/tai-khoan")({
   head: () => ({ meta: [{ title: "Tài khoản — X.E" }] }),
   component: () => (
-    <ProtectedPage title="Quản lý tài khoản" screen="tai-khoan">
-      <M3Page>
-        <Page />
-      </M3Page>
+    <ProtectedPage title="Tài khoản" screen="tai-khoan" hidePageTitle>
+      <Page />
     </ProtectedPage>
   ),
 });
@@ -109,41 +106,53 @@ function Page() {
   }, [q, roleFilter]);
 
   return (
-    <Section
-      title={`Người dùng (${filtered.length}${filtered.length !== users.length ? ` / ${users.length}` : ""})`}
-      right={
-        <Button
-          onClick={() => {
-            setIsNew(true);
-            setEditing({
-              username: "",
-              role: "DH",
-              office: offices[0]?.code ?? "",
-              officeId: offices[0]?.id,
-              active: true,
-              allowedOfficeIds: [],
-            });
-          }}
-        >
-          Tạo
-        </Button>
-      }
-    >
-      <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
-          <Label className="text-xs">Tìm kiếm</Label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-8"
+    <div className="m3-page stack" style={{ gap: 16 }}>
+      <M3PageHeader
+        title="Tài khoản"
+        description="Quản lý người dùng và phân quyền."
+        actions={
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setIsNew(true);
+              setEditing({
+                username: "",
+                role: "DH",
+                office: offices[0]?.code ?? "",
+                officeId: offices[0]?.id,
+                active: true,
+                allowedOfficeIds: [],
+              });
+            }}
+          >
+            <span className="ms" aria-hidden="true">
+              person_add
+            </span>
+            Tạo tài khoản
+          </button>
+        }
+      />
+      <Section
+        title={`Người dùng (${filtered.length}${filtered.length !== users.length ? ` / ${users.length}` : ""})`}
+      >
+      <div className="filter-grid">
+        <label className="field" style={{ gridColumn: "span 2" }}>
+          <span className="l">Tìm kiếm</span>
+          <span className="box input-box">
+            <span className="ms" aria-hidden="true">
+              search
+            </span>
+            <input
+              type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tài khoản, mã NV, tên nhân viên…"
             />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs">Vai trò</Label>
+          </span>
+        </label>
+        <div className="field">
+          <span className="l">Vai trò</span>
           <SearchableSelect
             value={roleFilter || "all"}
             onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}
@@ -157,17 +166,17 @@ function Page() {
       {filtered.length === 0 ? (
         <EmptyState>Không có tài khoản khớp bộ lọc</EmptyState>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-muted-foreground">
-              <tr className="border-b">
-                <th className="py-2 pr-4">Tài khoản</th>
-                <th className="py-2 pr-4">Mã NV</th>
-                <th className="py-2 pr-4">Tên nhân viên</th>
-                <th className="py-2 pr-4">Nhóm quyền</th>
-                <th className="py-2 pr-4">VP</th>
-                <th className="py-2 pr-4">Trạng thái</th>
-                <th className="py-2 pr-4">Thao tác</th>
+        <div className="scroller">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Tài khoản</th>
+                <th>Mã NV</th>
+                <th>Tên nhân viên</th>
+                <th>Nhóm quyền</th>
+                <th>VP</th>
+                <th>Trạng thái</th>
+                <th className="r">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -285,6 +294,7 @@ function Page() {
         />
       )}
     </Section>
+    </div>
   );
 }
 

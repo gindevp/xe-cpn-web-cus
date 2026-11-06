@@ -405,6 +405,9 @@ body>*:not(#tem-print-root){display:none!important}
 .brand img{display:block;height:30px;width:auto;max-width:none}
 .brand:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
 @media (min-width:761px){.brand{width:48px;padding:0;text-align:left}.side:hover .brand,.side:focus-within .brand{width:228px}}
+.delta{display:inline-flex;align-items:center;gap:2px;font-size:12px;line-height:16px;font-weight:600}
+.delta.up{color:var(--success,#376934)}.delta.bad{color:var(--error)}
+.meter{display:flex;gap:3px;height:6px}.meter i{display:block;height:100%;border-radius:3px}
 .kpi-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .kg{display:flex;flex-direction:column;gap:12px;min-width:0}
 .kg-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr);gap:12px}

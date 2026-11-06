@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { useServerPagedRows } from "@/lib/use-server-paged-rows";
