@@ -4,6 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 /** Trễ khi rời chuột để còn kịp di từ nút sang menu. */
 const CLOSE_DELAY_MS = 160;
@@ -79,7 +80,10 @@ export function RowActionsMenu({
         side={side}
         align={align}
         sideOffset={6}
-        className={contentClassName}
+        className={cn(
+          "theme-light border-0 bg-[var(--lowest,#ffffff)] text-[var(--on-surface,#1a1b21)] shadow-[0_1px_3px_rgba(0,0,0,.3),0_4px_8px_3px_rgba(0,0,0,.15)]",
+          contentClassName,
+        )}
         onMouseEnter={clearCloseTimer}
         onMouseLeave={closeSoon}
         onPointerDownOutside={(e) => {

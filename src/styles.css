@@ -47,7 +47,32 @@
 }
 
 :root {
-  /* Material 3 CPN (design-ref/cpn.css) — light shell */
+  /* Material 3 CPN tokens — trên :root để portal (sheet/combo) không mất --lowest */
+  --primary: #274ea1;
+  --on-primary: #ffffff;
+  --primary-container: #dae2ff;
+  --on-primary-container: #174295;
+  --secondary: #585e71;
+  --secondary-container: #dce2f9;
+  --on-secondary-container: #404659;
+  --inverse-surface: #2f3036;
+  --inverse-on-surface: #f1f0f7;
+  --inverse-primary: #b2c5ff;
+  --warning-container: #ffdf92;
+  --on-warning-container: #594400;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+  --error: #ba1a1a;
+  --success-container: #b8f1ad;
+  --on-success-container: #1e511e;
+  --on-surface: #1a1b21;
+  --on-surface-variant: #45464f;
+  --lowest: #ffffff;
+  --low: #f4f3fa;
+  --high: #e8e7ef;
+  --outline: #757780;
+  --outline-variant: #c5c6d0;
+  /* shadcn bridge */
   --radius: 1rem;
   --background: #f4f3fa;
   --foreground: #1a1b21;
@@ -405,12 +430,17 @@ html.xe-scan-immersive main {
   align-items: flex-start;
   overflow-y: auto;
 }
-/* Sheet ổn định: không tràn viewport; order-sheet cuộn theo scrim */
+/* Sheet ổn định: nền đặc (không trong suốt), không tràn viewport */
 .scrim > .sheet {
+  background: var(--lowest, #ffffff);
+  color: var(--on-surface, #1a1b21);
   max-height: calc(100dvh - 48px);
   overflow-x: hidden;
   overflow-y: auto;
   box-sizing: border-box;
+}
+.scrim {
+  background: rgb(0 0 0 / 0.32);
 }
 .scrim.m3-scrim-top > .sheet.order-sheet,
 .scrim > .sheet.order-sheet {

@@ -173,7 +173,11 @@ export function SearchableSelect({
           onMouseDown={(e) => e.preventDefault()}
           onWheel={(e) => e.stopPropagation()}
         >
-          <div className="combo-list m3-combo-portal" role="listbox" style={{ position: "relative", top: 0, left: 0, right: 0 }}>
+          <div
+            className="combo-list m3-combo-portal theme-light"
+            role="listbox"
+            style={{ position: "relative", top: 0, left: 0, right: 0, background: "var(--lowest, #ffffff)" }}
+          >
             <CommandList ref={listRef} className="max-h-[220px] overflow-y-auto overscroll-contain">
               <CommandEmpty>
                 <div className="combo-none">{emptyText}</div>

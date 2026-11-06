@@ -24,7 +24,11 @@ export function M3Sheet({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <div
-          className={cn("scrim", alignTop && "m3-scrim-top")}
+          className={cn(
+            /* Portal gắn body — phải mang theme-light nếu không --lowest/--on-surface bị undefined → sheet trong suốt */
+            "scrim theme-light",
+            alignTop && "m3-scrim-top",
+          )}
           style={alignTop ? { alignItems: "flex-start", overflowY: "auto" } : undefined}
         >
           <DialogPrimitive.Overlay className="absolute inset-0" style={{ background: "transparent" }} />

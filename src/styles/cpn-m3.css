@@ -192,7 +192,10 @@ dc-import{display:contents}
 .veh-btn{width:100%;border:0;color:inherit;text-align:left;font:inherit}
 .veh-btn:hover{background:var(--high)}
 .scrim{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:rgb(0 0 0 / .32)}
-.sheet{display:flex;flex-direction:column;gap:16px;width:min(100%,880px);max-height:100%;padding:24px;box-sizing:border-box;border-radius:28px;background:var(--lowest);box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15)}
+/* Fallback #fff: portal body không inherit .theme-light → --lowest undefined → sheet trong suốt */
+.sheet{display:flex;flex-direction:column;gap:16px;width:min(100%,880px);max-height:100%;padding:24px;box-sizing:border-box;border-radius:28px;background:var(--lowest,#ffffff);color:var(--on-surface,#1a1b21);box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15)}
+.row-menu{background:var(--lowest,#ffffff)!important}
+.combo-list,.sr-pop,.nav-fly{background:var(--lowest,#ffffff)}
 .no-btn{display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:9999px;background:none;flex:none}
 .no-btn:hover{background:var(--low)}
 .snack{display:flex;align-items:center;gap:8px;min-height:48px;padding:4px 8px 4px 16px;border-radius:8px;background:var(--inverse-surface);color:var(--inverse-on-surface);font-size:13px}
@@ -245,7 +248,7 @@ dc-import{display:contents}
 .side-foot{position:sticky;bottom:-16px;z-index:1;gap:12px;margin:0 -16px -16px;padding:12px 16px 16px;border-radius:0 0 16px 16px;background:var(--low)}
 @media (min-width:1101px){.order-side{box-sizing:border-box;max-height:calc(100vh - 48px);overflow-y:auto}}
 .menu-back{position:fixed;inset:0;z-index:25}
-.row-menu{position:fixed;z-index:26;display:flex;flex-direction:column;min-width:200px;padding:4px;box-sizing:border-box;border-radius:16px;background:var(--lowest);box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15)}
+.row-menu{position:fixed;z-index:26;display:flex;flex-direction:column;min-width:200px;padding:4px;box-sizing:border-box;border-radius:16px;background:var(--lowest,#ffffff);box-shadow:0 1px 3px rgba(0,0,0,.3),0 4px 8px 3px rgba(0,0,0,.15)}
 .row-menu button{height:40px;padding:0 12px;border:0;border-radius:12px;background:none;text-align:left;font-size:13px;line-height:20px;white-space:nowrap}
 .row-menu button:hover{background:var(--low)}
 .row-menu button:focus-visible{outline:3px solid var(--secondary);outline-offset:-3px}
