@@ -2,12 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { EmptyState } from "@/components/PageBits";
 import { TablePagination } from "@/components/TablePagination";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
@@ -38,7 +34,7 @@ export const Route = createFileRoute("/bao-cao-doanh-thu")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Báo cáo doanh thu" screen="bao-cao-doanh-thu">
+    <ProtectedPage title="Báo cáo doanh thu" screen="bao-cao-doanh-thu" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -52,7 +48,6 @@ const KIND_OPTIONS: { value: RevenueKind; label: string }[] = [
   { value: "BACKLOG", label: "Đơn tồn" },
 ];
 
-/** Phí giao đã trừ khỏi tổng doanh thu: Ahamove/Grab hoặc giao ngoài hoặc ship nội bộ. */
 const COST_COLS: { key: "shippingFee"; label: string }[] = [{ key: "shippingFee", label: "Phí giao" }];
 
 function uniqueShippingFee(rows: RevenueRow[]) {
@@ -68,13 +63,23 @@ function uniqueShippingFee(rows: RevenueRow[]) {
 
 const MONEY_COLS: { key: keyof RevenueReport["totals"]; label: string }[] = [
   { key: "goodsFare", label: "Cước giao hàng" },
-  { key: "deliveryFee", label: "Cước giao hàng tận nơi" },
+  { key: "deliveryFee", label: "Giao tận nơi" },
   { key: "pickupFee", label: "Phí lấy hàng" },
-  { key: "codFee", label: "Phí thu hộ COD" },
+  { key: "codFee", label: "Thu hộ COD" },
   { key: "declaredFee", label: "Phí KBGT" },
-  { key: "storageFee", label: "Phí lưu kho" },
+  { key: "storageFee", label: "Lưu kho" },
   { key: "returnFee", label: "Phí hoàn" },
   { key: "total", label: "Tổng doanh thu" },
+];
+
+const MIX_META: { key: keyof RevenueReport["totals"] | "shippingFee"; name: string; icon: string; minus?: boolean }[] = [
+  { key: "goodsFare", name: "Cước giao hàng", icon: "local_shipping" },
+  { key: "deliveryFee", name: "Giao tận nơi", icon: "home" },
+  { key: "pickupFee", name: "Phí lấy hàng", icon: "move_to_inbox" },
+  { key: "declaredFee", name: "Phí KBGT", icon: "verified_user" },
+  { key: "storageFee", name: "Lưu kho", icon: "warehouse" },
+  { key: "returnFee", name: "Phí hoàn", icon: "undo" },
+  { key: "shippingFee", name: "Trừ phí giao", icon: "do_not_disturb_on", minus: true },
 ];
 
 function isoDay(d: Date) {
@@ -93,117 +98,95 @@ function money(n?: number) {
 }
 
 function fmtRev(n: number) {
-  if (n >= 1_000_000) {
-    return `${(n / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}tr`;
+  const a = Math.abs(n);
+  if (a >= 1_000_000) {
+    return `${(a / 1_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}tr`;
   }
-  if (n >= 1_000) return `${Math.round(n / 1000)}k`;
-  return Math.round(n).toLocaleString("vi-VN");
+  if (a >= 1_000) return `${Math.round(a / 1000)}k`;
+  return Math.round(a).toLocaleString("vi-VN");
 }
 
-function OfficeRevenueChart({
-  offices,
-  rows,
-  loading,
-}: {
-  offices: { code: string; name: string }[];
-  rows: RevenueRow[];
-  loading: boolean;
-}) {
-  const cols = useMemo(() => {
-    const byCode = new Map<string, number>();
-    for (const r of rows) {
-      const code = (r.officeCode || "").toUpperCase();
-      byCode.set(code, (byCode.get(code) ?? 0) + Number(r.total ?? 0));
-    }
-    const list = offices
-      .map((o) => ({
-        code: o.code,
-        name: o.name,
-        total: byCode.get(o.code.toUpperCase()) ?? 0,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "vi"));
-    for (const [code, total] of byCode) {
-      if (!list.some((c) => c.code.toUpperCase() === code)) {
-        list.push({ code, name: rows.find((r) => (r.officeCode || "").toUpperCase() === code)?.officeName || code || "Chưa rõ VP", total });
-      }
-    }
-    return list;
-  }, [offices, rows]);
+function pctText(x: number) {
+  return `${(x * 100).toFixed(1).replace(".", ",")}%`;
+}
 
-  const max = Math.max(1, ...cols.map((c) => c.total));
-  const pow = Math.pow(10, Math.floor(Math.log10(max)));
-  const n = max / pow;
-  const step = (n <= 2 ? 0.5 : n <= 5 ? 1 : 2) * pow;
-  const yMax = Math.max(step * 4, Math.ceil(max / step) * step);
-  const ticks = Array.from({ length: 5 }, (_, i) => (yMax * (4 - i)) / 4);
-
+function OfficeIll() {
   return (
-    <div className="rounded-lg border bg-background p-4">
-      <div className="mb-3">
-        <div className="text-sm font-semibold">Doanh thu theo văn phòng</div>
-        <div className="text-xs text-muted-foreground">
-          Tổng doanh thu từng văn phòng trong khoảng ngày và loại đơn đang lọc.
-        </div>
-      </div>
-      {loading || cols.length === 0 ? (
-        <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-          {loading ? "Đang tải…" : "Chưa có văn phòng"}
-        </div>
-      ) : (
-        <div className="flex gap-2">
-          <div className="flex h-64 flex-col justify-between pr-1 text-[10px] text-muted-foreground">
-            {ticks.map((t) => (
-              <div key={t} className="tabular-nums">
-                {fmtRev(t)}
-              </div>
-            ))}
-          </div>
-          <div className="min-w-0 flex-1 overflow-x-auto">
-            <div className="relative h-64 min-w-[640px]">
-              <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                {ticks.map((t, i) => (
-                  <div
-                    key={i}
-                    className={`h-px w-full ${i === ticks.length - 1 ? "bg-border" : "bg-border/40"}`}
-                  />
-                ))}
-              </div>
-              <div className="relative flex h-full items-end gap-2">
-                {cols.map((c) => (
-                  <div
-                    key={c.code || c.name}
-                    className="flex h-full min-w-0 flex-1 flex-col items-center justify-end"
-                    title={`${c.name}\n${money(c.total)}`}
-                  >
-                    <div className="mb-1 max-w-full truncate text-[10px] font-bold tabular-nums">
-                      {c.total > 0 ? fmtRev(c.total) : ""}
-                    </div>
-                    <div
-                      className="w-full max-w-[48px] rounded-t bg-primary"
-                      style={{ height: c.total > 0 ? `${(c.total / yMax) * 100}%` : "0%" }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mt-2 flex min-w-[640px] gap-2">
-              {cols.map((c) => (
-                <div
-                  key={c.code || c.name}
-                  className="flex-1 text-center text-[10px] leading-tight text-muted-foreground"
-                >
-                  {c.name}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+      <ellipse className="ill-soft" cx="78" cy="97" rx="70" ry="6" />
+      <rect className="ill-mid" x="26" y="26" width="84" height="70" rx="4" />
+      <rect className="ill-main" x="20" y="12" width="96" height="18" rx="4" />
+      <rect className="ill-paper" x="50" y="17" width="36" height="8" rx="4" />
+      <path className="ill-main" d="M26 30h14v7a7 7 0 0 1-14 0zM54 30h14v7a7 7 0 0 1-14 0zM82 30h14v7a7 7 0 0 1-14 0z" />
+      <path className="ill-paper" d="M40 30h14v7a7 7 0 0 1-14 0zM68 30h14v7a7 7 0 0 1-14 0zM96 30h14v7a7 7 0 0 1-14 0z" />
+      <rect className="ill-paper" x="36" y="54" width="28" height="22" rx="3" />
+      <rect className="ill-main" x="74" y="54" width="24" height="42" rx="3" />
+      <circle className="ill-paper" cx="93" cy="76" r="1.8" />
+      <rect className="ill-box" x="116" y="72" width="24" height="24" rx="2" />
+      <rect className="ill-box2" x="122" y="54" width="18" height="18" rx="2" />
+      <path className="ill-paper" d="M126 72h4v8h-4zM129.5 54h3v6h-3z" />
+    </svg>
   );
 }
 
+type OfficeBar = { code: string; name: string; total: number; orders: number };
+
+function buildOfficeBars(offices: { code: string; name: string }[], rows: RevenueRow[]): OfficeBar[] {
+  const byCode = new Map<string, { total: number; orders: Set<string> }>();
+  for (const r of rows) {
+    const code = (r.officeCode || "").toUpperCase();
+    const cur = byCode.get(code) ?? { total: 0, orders: new Set<string>() };
+    cur.total += Number(r.total ?? 0);
+    cur.orders.add(r.orderCode);
+    byCode.set(code, cur);
+  }
+  const list: OfficeBar[] = offices.map((o) => {
+    const hit = byCode.get(o.code.toUpperCase());
+    return { code: o.code, name: o.name, total: hit?.total ?? 0, orders: hit?.orders.size ?? 0 };
+  });
+  for (const [code, hit] of byCode) {
+    if (!list.some((c) => c.code.toUpperCase() === code)) {
+      list.push({
+        code,
+        name: rows.find((r) => (r.officeCode || "").toUpperCase() === code)?.officeName || code || "Chưa rõ VP",
+        total: hit.total,
+        orders: hit.orders.size,
+      });
+    }
+  }
+  return list.filter((b) => b.total > 0).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "vi"));
+}
+
 const sourceLabel = (r: RevenueRow) => (r.source === "RECEIPT" ? "Đã thu" : "Đơn tồn · còn phải thu");
+
+function VpRevenueIntro() {
+  const [show, setShow] = useState(false);
+  return (
+    <>
+      <div>
+        <h2 className="group-title sec-title">
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">store</span>
+          </span>
+          Doanh thu theo văn phòng
+        </h2>
+        <button type="button" className="link-plain" onClick={() => setShow((v) => !v)}>
+          <span className="ms" aria-hidden="true" style={{ fontSize: 16 }}>
+            info
+          </span>
+          Cách tính
+        </button>
+      </div>
+      {show ? (
+        <div className="note">
+          Cùng cách tính với Báo cáo kinh doanh. Doanh thu = tổng cước các đơn tạo trong khoảng ngày (trừ đơn huỷ và đơn
+          còn chờ nhận, chờ lấy, đang lấy hàng), tính cho VP gửi. Không gồm tiền thu hộ COD. Cột Phí giao hiện một trong
+          ba: phí Ahamove/Grab, phí giao ngoài hoặc phí ship nội bộ, đã trừ khỏi tổng doanh thu.
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 function Page() {
   const { session } = useAuth();
@@ -220,6 +203,7 @@ function Page() {
   const [chartReport, setChartReport] = useState<RevenueReport | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [focusOffice, setFocusOffice] = useState("");
 
   useEffect(() => {
     if (!isApiEnabled() || !from || !to) return;
@@ -239,7 +223,7 @@ function Page() {
   }, [from, to, office, kind]);
 
   useEffect(() => {
-    if (!isApiEnabled() || !allScope || !office || !from || !to) {
+    if (!isApiEnabled() || !allScope || !from || !to) {
       setChartReport(null);
       setChartLoading(false);
       return;
@@ -253,11 +237,30 @@ function Page() {
     return () => {
       alive = false;
     };
-  }, [allScope, from, to, office, kind]);
+  }, [allScope, from, to, kind]);
 
   const rows = report?.rows ?? [];
   const { pageRows, pager } = usePagedRows(rows, "bao-cao-doanh-thu");
-  const firstIndex = rows.indexOf(pageRows[0]);
+
+  const chartRows = (allScope ? chartReport : report)?.rows ?? [];
+  const bars = useMemo(() => buildOfficeBars(offices, chartRows), [offices, chartRows]);
+  const allTotal = bars.reduce((a, b) => a + b.total, 0);
+
+  const focusBar = focusOffice ? bars.find((b) => b.code === focusOffice) : null;
+  const focusRows = focusBar
+    ? chartRows.filter((r) => (r.officeCode || "").toUpperCase() === focusBar.code.toUpperCase())
+    : [];
+  const focusTotals = useMemo(() => {
+    if (!focusBar) return null;
+    const t: Record<string, number> = {};
+    for (const c of MONEY_COLS) t[c.key] = 0;
+    t.shippingFee = 0;
+    for (const r of focusRows) {
+      for (const c of MONEY_COLS) t[c.key] += Number(r[c.key] ?? 0);
+    }
+    t.shippingFee = uniqueShippingFee(focusRows);
+    return t;
+  }, [focusBar, focusRows]);
 
   const exportExcel = (format: ExportFormat = "csv") => {
     if (!report || !rows.length) {
@@ -295,53 +298,56 @@ function Page() {
   };
 
   const officeOptions = allScope
-    ? [
-        { value: "all", label: "Tất cả VP" },
-        ...offices.map((o) => ({ value: o.code, label: o.name })),
-      ]
+    ? [{ value: "all", label: "Tất cả VP" }, ...offices.map((o) => ({ value: o.code, label: o.name }))]
     : offices.filter((o) => o.code === ownOffice).map((o) => ({ value: o.code, label: o.name }));
 
+  const pickOffice = (code: string) => {
+    setFocusOffice(code);
+    if (allScope && code) setOffice(code);
+    if (allScope && !code) setOffice("");
+  };
+
+  const goodsBase = focusTotals ? Math.max(1, Number(focusTotals.goodsFare ?? 0)) : 1;
+
   return (
-    <div className="rounded-xl border bg-card shadow-sm">
-      <div className="flex items-start justify-between gap-3 p-4 pb-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Báo cáo doanh thu</h1>
-          <p className="text-xs text-muted-foreground">Doanh thu theo đơn</p>
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row">
+        <div style={{ minWidth: 0 }}>
+          <h1 className="page-title">Báo cáo doanh thu</h1>
+          <div className="lab muted">Doanh thu theo đơn</div>
         </div>
-        <ExportFormatButton variant="outline" disabled={!rows.length} onExport={exportExcel} />
+        <ExportFormatButton className="btn tonal" variant="ghost" disabled={!rows.length} onExport={exportExcel} />
       </div>
 
-      <div className="grid gap-3 px-4 pb-3 sm:grid-cols-2 lg:grid-cols-[160px_160px_220px_220px]">
-        <div className="space-y-1">
-          <Label className="text-xs">Từ ngày</Label>
-          <Input
-            type="date"
-            value={from}
-            max={to || undefined}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Đến ngày</Label>
-          <Input
-            type="date"
-            value={to}
-            min={from || undefined}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Văn phòng</Label>
+      <div className="filter-grid">
+        <label className="field">
+          <span className="l">Từ ngày</span>
+          <span className="box input-box">
+            <input type="date" className="num" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Đến ngày</span>
+          <span className="box input-box">
+            <input type="date" className="num" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+          </span>
+        </label>
+        <div className="field vp-field">
+          <span className="l">Văn phòng</span>
           <SearchableSelect
             value={office || "all"}
-            onValueChange={(v) => setOffice(v === "all" ? "" : v)}
+            onValueChange={(v) => {
+              const next = v === "all" ? "" : v;
+              setOffice(next);
+              setFocusOffice(next);
+            }}
             disabled={!allScope}
             placeholder="Tất cả VP"
             options={officeOptions}
           />
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Loại đơn</Label>
+        <div className="field">
+          <span className="l">Loại đơn</span>
           <SearchableSelect
             value={kind}
             onValueChange={(v) => setKind(v as RevenueKind)}
@@ -350,103 +356,219 @@ function Page() {
           />
         </div>
       </div>
-      <p className="px-4 pb-3 text-[11px] text-muted-foreground">
-        Cùng cách tính với Báo cáo kinh doanh. Doanh thu = tổng cước các đơn tạo trong khoảng ngày
-        (trừ đơn huỷ và đơn còn chờ nhận / chờ lấy / đang lấy hàng), tính cho VP gửi. Không gồm tiền thu hộ COD. Cột
-        Phí giao hiện một trong ba: phí Ahamove/Grab, phí giao ngoài, hoặc phí ship nội bộ — đã trừ khỏi tổng doanh thu.
-      </p>
 
-      <div className="px-4 pb-4">
-        <OfficeRevenueChart
-          offices={offices}
-          rows={(allScope && office ? chartReport : report)?.rows ?? []}
-          loading={allScope && office ? chartLoading : loading && !report}
-        />
-      </div>
+      <section className="card stack">
+        <VpRevenueIntro />
 
-      {!rows.length ? (
-        <div className="px-4 pb-4">
-          <EmptyState>{loading ? "Đang tải…" : "Không có doanh thu trong khoảng lọc."}</EmptyState>
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto border-t">
-            <table className="w-full min-w-[1400px] text-sm">
-              <thead className="bg-muted/40 text-[11px] uppercase text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2.5 text-left font-medium">STT</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Mã đơn</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Ngày tạo</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Văn phòng</th>
-                  {MONEY_COLS.map((c) => (
-                    <th key={c.key} className="px-3 py-2.5 text-right font-medium">
-                      {c.label}
-                    </th>
-                  ))}
-                  {COST_COLS.map((c) => (
-                    <th key={c.key} className="px-3 py-2.5 text-right font-medium last:pr-4">
-                      {c.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r, i) => (
-                  <tr
-                    key={`${r.orderCode}-${r.source}-${r.receiptCode ?? ""}`}
-                    className="border-t hover:bg-muted/30"
-                  >
-                    <td className="px-4 py-2.5 text-muted-foreground">{firstIndex + i + 1}</td>
-                    <td className="px-3 py-2.5 font-semibold">
-                      <OrderCodeLink code={r.orderCode} />
-                    </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{vnDate(r.createdAt)}</td>
-                    <td className="px-3 py-2.5">
-                      <div>{r.officeName}</div>
-                      <div className="text-[11px] text-muted-foreground">{sourceLabel(r)}</div>
-                    </td>
-                    {MONEY_COLS.map((c) => (
-                      <td
-                        key={c.key}
-                        className={`px-3 py-2.5 text-right tabular-nums ${c.key === "total" ? "font-semibold" : ""}`}
-                      >
-                        {money(r[c.key])}
-                      </td>
+        {(allScope ? chartLoading : loading) && !bars.length ? (
+          <div className="empty">
+            <h3 className="group-title">Đang tải…</h3>
+          </div>
+        ) : !bars.length ? (
+          <div className="empty">
+            <h3 className="group-title">Chưa có doanh thu theo văn phòng</h3>
+          </div>
+        ) : !focusBar ? (
+          <>
+            <div className="rev-total num">
+              <span className="hero">{fmtRev(allTotal)}</span>
+              <span className="lab muted">tổng {bars.length} văn phòng</span>
+            </div>
+            <div className="rev-list num">
+              {bars.map((b, i) => (
+                <button
+                  key={b.code || b.name}
+                  type="button"
+                  className="rev-row"
+                  aria-label={`Xem ${b.name}: ${fmtRev(b.total)}`}
+                  onClick={() => pickOffice(b.code)}
+                >
+                  <span className="rev-rank">{i + 1}</span>
+                  <span className="rev-name">{b.name}</span>
+                  <span className="rev-val">
+                    <b>{fmtRev(b.total)}</b>
+                    <span className="muted">{pctText(b.total / allTotal)}</span>
+                  </span>
+                  <span className="rev-track" aria-hidden="true">
+                    <i style={{ width: `${((b.total / bars[0].total) * 100).toFixed(1)}%` }} />
+                  </span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="rev-one num">
+            <div className="rev-sum">
+              <div className="rev-hero">
+                <div style={{ minWidth: 0 }}>
+                  <div className="rev-vp lab">
+                    <span className="ms fill" aria-hidden="true">
+                      location_on
+                    </span>
+                    {focusBar.name}
+                  </div>
+                  <div className="hero">{fmtRev(focusBar.total)}</div>
+                  <div className="small muted">doanh thu trong kỳ</div>
+                </div>
+                <OfficeIll />
+              </div>
+              <div className="rev-donut-row">
+                <svg
+                  className="rev-donut"
+                  viewBox="0 0 36 36"
+                  role="img"
+                  aria-label={`Chiếm ${pctText(focusBar.total / allTotal)} doanh thu toàn hệ thống`}
+                >
+                  <circle className="donut-bg" cx="18" cy="18" r="15.5" pathLength={100} />
+                  <circle
+                    className="donut-val"
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    pathLength={100}
+                    strokeDasharray={`${((focusBar.total / allTotal) * 100).toFixed(1)} 100`}
+                  />
+                </svg>
+                <div>
+                  <div className="rev-stat">{pctText(focusBar.total / allTotal)}</div>
+                  <div className="small muted">doanh thu toàn hệ thống</div>
+                </div>
+              </div>
+              <div className="rev-tiles">
+                <div className="rev-tile">
+                  <span className="rev-ic" aria-hidden="true">
+                    <span className="ms fill">emoji_events</span>
+                  </span>
+                  <div>
+                    <div className="small muted">Xếp hạng</div>
+                    <div className="rev-stat">
+                      {bars.findIndex((b) => b.code === focusBar.code) + 1}
+                      <span className="muted">/{bars.length}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="rev-tile">
+                  <span className="rev-ic" aria-hidden="true">
+                    <span className="ms fill">inventory_2</span>
+                  </span>
+                  <div>
+                    <div className="small muted">Số đơn</div>
+                    <div className="rev-stat">{focusBar.orders.toLocaleString("vi-VN")}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="rev-mix">
+              <div className="rev-mix-head">
+                <h3 className="lab" style={{ margin: 0, fontWeight: 600 }}>
+                  Cơ cấu doanh thu
+                </h3>
+                <button type="button" className="link-plain" onClick={() => pickOffice("")}>
+                  <span className="ms" aria-hidden="true" style={{ fontSize: 16 }}>
+                    arrow_back
+                  </span>
+                  Xem tất cả VP
+                </button>
+              </div>
+              {focusTotals
+                ? MIX_META.map((m) => {
+                    const raw = Number(focusTotals[m.key] ?? 0);
+                    const val = m.minus ? -Math.abs(raw) : raw;
+                    const share = Math.abs(val) / goodsBase;
+                    return (
+                      <div key={m.key} className={`rev-row static${m.minus ? " minus" : ""}`}>
+                        <span className="rev-ic sm" aria-hidden="true">
+                          <span className="ms">{m.icon}</span>
+                        </span>
+                        <span className="rev-name">{m.name}</span>
+                        <span className="rev-val">
+                          <b>
+                            {val < 0 ? "−" : ""}
+                            {fmtRev(val)}
+                          </b>
+                          <span className="muted">{pctText(share)}</span>
+                        </span>
+                        <span className="rev-track" aria-hidden="true">
+                          <i style={{ width: `${Math.min(100, share * 100).toFixed(1)}%` }} />
+                        </span>
+                      </div>
+                    );
+                  })
+                : null}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="card stack">
+        <h2 className="group-title sec-title">
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">receipt_long</span>
+          </span>
+          Doanh thu theo đơn
+        </h2>
+
+        {!rows.length ? (
+          <div className="empty">
+            <h3 className="group-title">{loading ? "Đang tải…" : "Không có doanh thu trong khoảng lọc."}</h3>
+          </div>
+        ) : (
+          <>
+            <div className="scroller">
+              <table className="tbl sticky-1 sticky-last" style={{ ["--tbl-min" as string]: "1360px" }}>
+                <thead>
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Ngày tạo</th>
+                    <th>Văn phòng</th>
+                    {MONEY_COLS.filter((c) => c.key !== "total").map((c) => (
+                      <th key={c.key} className="r">
+                        {c.label}
+                      </th>
                     ))}
                     {COST_COLS.map((c) => (
-                      <td key={c.key} className="px-3 py-2.5 text-right tabular-nums last:pr-4">
-                        {money(r[c.key])}
-                      </td>
+                      <th key={c.key} className="r">
+                        {c.label}
+                      </th>
                     ))}
+                    <th className="r">Tổng doanh thu</th>
                   </tr>
-                ))}
-              </tbody>
-              {report ? (
-                <tfoot>
-                  <tr className="border-t-2 bg-muted/30 font-semibold">
-                    <td className="px-4 py-2.5" colSpan={4}>
-                      Tổng · {rows.length} dòng
-                    </td>
-                    {MONEY_COLS.map((c) => (
-                      <td key={c.key} className="px-3 py-2.5 text-right tabular-nums">
-                        {money(report.totals[c.key])}
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => (
+                    <tr key={`${r.orderCode}-${r.source}-${r.receiptCode ?? ""}`}>
+                      <td>
+                        <OrderCodeLink code={r.orderCode} className="code" />
                       </td>
-                    ))}
-                    {COST_COLS.map((c) => (
-                      <td key={c.key} className="px-3 py-2.5 text-right tabular-nums last:pr-4">
-                        {money(uniqueShippingFee(rows))}
+                      <td style={{ whiteSpace: "nowrap" }}>{vnDate(r.createdAt)}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <div>{r.officeName}</div>
+                        <div className="muted" style={{ fontSize: 11 }}>
+                          {sourceLabel(r)}
+                        </div>
                       </td>
-                    ))}
-                  </tr>
-                </tfoot>
-              ) : null}
-            </table>
-          </div>
-          <div className="px-4 pb-3">
-            <TablePagination pager={pager} />
-          </div>
-        </>
-      )}
+                      {MONEY_COLS.filter((c) => c.key !== "total").map((c) => (
+                        <td key={c.key} className={`r${Number(r[c.key] ?? 0) ? "" : " muted"}`}>
+                          {Number(r[c.key] ?? 0) ? money(r[c.key]) : "—"}
+                        </td>
+                      ))}
+                      {COST_COLS.map((c) => (
+                        <td key={c.key} className={`r${Number(r[c.key] ?? 0) ? "" : " muted"}`}>
+                          {Number(r[c.key] ?? 0) ? money(r[c.key]) : "—"}
+                        </td>
+                      ))}
+                      <td className="r main">{money(r.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="pager">
+              <TablePagination pager={pager} />
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }

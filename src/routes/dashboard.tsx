@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3PageHeader } from "@/components/M3Page";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,22 +110,6 @@ function exportTabOf(o: OrderX): string {
   if (o.status === "RETURNING" && !openIssueType(o.issue)) return "Đang hoàn";
   return EXPORT_TAB_SET.has(label) ? label : EXPORT_TAB_OTHER;
 }
-
-const OFFICE_COLORS = [
-  "#274EA1",
-  "#3B6FD1",
-  "#059669",
-  "#D97706",
-  "#DC2626",
-  "#7C3AED",
-  "#0EA5E9",
-  "#DB2777",
-  "#65A30D",
-  "#EA580C",
-  "#0891B2",
-  "#9333EA",
-  "#CA8A04",
-];
 
 function isCustomerCreated(o: Order) {
   return (o.createdBy ?? "").trim().toLowerCase() === "customer";
@@ -1137,234 +1120,147 @@ function DashboardPage() {
             </div>
 
             <section className="card stack" style={{ flex: "1 1 100%", minWidth: 0, gap: 16 }}>
-            <div className="hr-head" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ minWidth: 0 }}>
-                <h2 className="card-title sec-title">
-                  <span className="sec-ic" aria-hidden="true">
-                    <span className="ms">schedule</span>
-                  </span>
-                  Số lượng đơn hàng theo khung giờ
-                </h2>
-                <div className="lab muted" style={{ marginTop: 4 }}>
-                  Đơn gửi (nhập kho gửi) và đơn nhận (nhập kho giao) trong ngày chọn theo giờ sự kiện VN.
-                  {hourLoading
-                    ? " Đang tải…"
-                    : ` Trong ngày: ${stat.daySent} gửi + ${stat.dayReceived} nhận = ${stat.totalOrders}.`}
+              <div className="hr-head">
+                <div style={{ minWidth: 0 }}>
+                  <h2 className="card-title sec-title">
+                    <span className="sec-ic" aria-hidden="true">
+                      <span className="ms">schedule</span>
+                    </span>
+                    Số lượng đơn hàng theo khung giờ
+                  </h2>
+                  <div className="lab muted" style={{ marginTop: 4 }}>
+                    {hourLoading
+                      ? "Đang tải…"
+                      : `Trong ngày: ${stat.daySent} gửi + ${stat.dayReceived} nhận · biểu đồ khung giờ = tổng sự kiện nhập kho (API chưa tách gửi/nhận theo slot).`}
+                  </div>
+                </div>
+                <div className="hr-tools">
+                  <div className="field" style={{ flex: "0 0 150px", minWidth: 0 }}>
+                    <span className="l">Ngày</span>
+                    <span className="box input-box">
+                      <input
+                        type="date"
+                        className="num"
+                        value={hourDate}
+                        onChange={(e) => setHourDate(e.target.value)}
+                      />
+                      <span className="ms" aria-hidden="true">
+                        calendar_today
+                      </span>
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div className="field" style={{ flex: "0 0 150px", minWidth: 0 }}>
-                <span className="l">Ngày</span>
-                <span className="box input-box">
-                  <input
-                    type="date"
-                    className="num"
-                    value={hourDate}
-                    onChange={(e) => setHourDate(e.target.value)}
-                  />
-                  <span className="ms" aria-hidden="true">
-                    calendar_today
-                  </span>
-                </span>
-              </div>
-            </div>
 
-            {hourLoading && !hourReport?.hours?.length ? (
-              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                Đang tải…
-              </div>
-            ) : (
-              (() => {
-                const niceStep = (m: number) => {
-                  const pow = Math.pow(10, Math.floor(Math.log10(Math.max(1, m))));
-                  const n = m / pow;
-                  const step = n <= 2 ? 0.5 : n <= 5 ? 1 : 2;
-                  return step * pow;
-                };
-                const step = niceStep(maxBucket);
-                const yMax = Math.max(step * 4, Math.ceil(maxBucket / step) * step);
-                const ticks = Array.from({ length: 5 }, (_, i) => Math.round((yMax * (4 - i)) / 4));
-                const peak = Math.max(...stat.buckets.map((b) => b.count));
-
-                return (
-                  <div className={`flex gap-2 ${hourLoading ? "opacity-60" : ""}`}>
-                    <div className="flex h-72 flex-col justify-between pr-1 text-[10px] text-muted-foreground">
-                      {ticks.map((t) => (
-                        <div key={t} className="tabular-nums">
-                          {t}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="relative h-72">
-                        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                          {ticks.map((t, i) => (
-                            <div
-                              key={i}
-                              className={`h-px w-full ${
-                                i === ticks.length - 1 ? "bg-border" : "bg-border/40"
-                              }`}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="relative flex h-full items-end gap-2">
-                          {stat.buckets.map((b) => {
-                            const isPeak = b.count === peak && peak > 0;
-                            const h = (b.count / yMax) * 100;
-                            return (
-                              <div
-                                key={b.label}
-                                className="group relative flex h-full flex-1 flex-col items-center justify-end"
+              {hourLoading && !hourReport?.hours?.length ? (
+                <div className="empty">
+                  <h3 className="group-title">Đang tải…</h3>
+                </div>
+              ) : (
+                <div className="scroller" style={{ opacity: hourLoading ? 0.6 : 1 }}>
+                  <div className="hr-plot">
+                    {stat.buckets.map((b) => {
+                      const h = b.count ? Math.max(4, Math.round((b.count / maxBucket) * 170)) : 0;
+                      return (
+                        <div key={b.label} className="hr-col">
+                          <div className="hr-bars">
+                            <div className="hr-bar">
+                              <button
+                                type="button"
+                                className="hr-num num"
+                                disabled={!b.count || hourDrillLoading}
+                                aria-label={`${b.label}: ${b.count} đơn, xem danh sách`}
+                                onClick={() =>
+                                  void openHourDrill(`Tất cả văn phòng · ${b.label}`, { slot: b.slot })
+                                }
                               >
-                                <div
-                                  className={`w-full max-w-[52px] rounded-t transition-all ${
-                                    isPeak
-                                      ? "bg-primary shadow-md ring-2 ring-primary/30"
-                                      : "bg-primary/70 group-hover:bg-primary"
-                                  }`}
-                                  style={{ height: `${h}%`, minHeight: b.count > 0 ? 4 : 0 }}
-                                >
-                                  <div
-                                    className={`-mt-5 text-center text-xs font-bold tabular-nums ${
-                                      isPeak ? "text-primary" : "text-foreground"
-                                    }`}
-                                  >
-                                    {b.count}
-                                  </div>
-                                </div>
-
-                                <div className="pointer-events-none absolute bottom-full z-20 mb-2 hidden w-56 rounded-md border bg-popover p-2 text-xs shadow-lg group-hover:block">
-                                  <div className="mb-1 flex items-center justify-between border-b pb-1 font-semibold">
-                                    <span>{b.label}</span>
-                                    <span className="tabular-nums">{b.count} đơn</span>
-                                  </div>
-                                  <div className="max-h-40 space-y-0.5 overflow-auto">
-                                    {stat.officesShown
-                                      .map((name, idx) => ({
-                                        name,
-                                        v: b.perOffice[name] || 0,
-                                        c: OFFICE_COLORS[idx % OFFICE_COLORS.length],
-                                      }))
-                                      .filter((x) => x.v > 0)
-                                      .sort((a, b) => b.v - a.v)
-                                      .map((x) => (
-                                        <div
-                                          key={x.name}
-                                          className="flex items-center justify-between gap-2"
-                                        >
-                                          <div className="flex min-w-0 items-center gap-1.5">
-                                            <span
-                                              className="h-2 w-2 shrink-0 rounded-sm"
-                                              style={{ backgroundColor: x.c }}
-                                            />
-                                            <span className="truncate">{x.name}</span>
-                                          </div>
-                                          <span className="tabular-nums">{x.v}</span>
-                                        </div>
-                                      ))}
-                                    {Object.values(b.perOffice).every((v) => !v) && (
-                                      <div className="text-muted-foreground">Không có đơn</div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="mt-2 flex gap-2">
-                        {stat.buckets.map((b) => (
-                          <div
-                            key={b.label}
-                            className="flex-1 text-center text-[10px] text-muted-foreground"
-                          >
-                            {b.label}
+                                {b.count ? b.count.toLocaleString("vi-VN") : "—"}
+                              </button>
+                              <i className="recv" style={{ height: h }} />
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          <span className="hr-tick num">{b.label}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })()
-            )}
+                </div>
+              )}
             </section>
 
-            <section className="card stack" style={{ flex: "1 1 100%", minWidth: 0, gap: 12 }}>
-            <h2 className="card-title">Số đơn theo văn phòng / khung giờ</h2>
-            <div className="lab muted">
-              Cùng ngày với biểu đồ khung giờ (nhập kho gửi + nhập kho giao). Tổng theo VP = tổng các khung giờ.
-            </div>
-            <div className="scroller">
-              <table className="tbl" style={{ ["--tbl-min" as string]: "900px" }}>
-                <thead>
-                  <tr>
-                    <th>Văn phòng</th>
-                    {stat.buckets.map((b) => (
-                      <th key={b.label} className="r">
-                        {b.label}
-                      </th>
-                    ))}
-                    <th className="r">Tổng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stat.officesShown.map((name) => (
-                    <tr key={name} className="border-b hover:bg-muted/30">
-                      <td className="sticky left-0 bg-background py-1.5 pr-2 font-medium">
-                        {name}
-                      </td>
+            <section className="card stack" style={{ flex: "1 1 100%", minWidth: 0, gap: 16 }}>
+              <div>
+                <h2 className="card-title sec-title">
+                  <span className="sec-ic" aria-hidden="true">
+                    <span className="ms">store</span>
+                  </span>
+                  Số đơn theo văn phòng / khung giờ
+                </h2>
+              </div>
+              <div className="scroller">
+                <table className="tbl compact vp-hours" style={{ ["--tbl-min" as string]: "1000px" }}>
+                  <thead>
+                    <tr>
+                      <th>Văn phòng</th>
                       {stat.buckets.map((b) => (
-                        <td key={b.label} className="px-1.5 py-1.5 text-right tabular-nums">
-                          <HourCount
-                            n={b.perOffice[name] || 0}
-                            blankZero
-                            disabled={hourDrillLoading}
-                            onOpen={() =>
-                              void openHourDrill(`${name} · ${b.label}`, {
-                                slot: b.slot,
-                                officeName: name,
-                              })
-                            }
-                          />
+                        <th key={b.label} className="r">
+                          {b.label}
+                        </th>
+                      ))}
+                      <th className="r">Tổng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stat.officesShown.map((name) => (
+                      <tr key={name}>
+                        <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{name}</td>
+                        {stat.buckets.map((b) => {
+                          const n = b.perOffice[name] || 0;
+                          return (
+                            <td key={b.label} className="r">
+                              <button
+                                type="button"
+                                className="vp-num num"
+                                disabled={!n || hourDrillLoading}
+                                aria-label={`${name}, ${b.label}: ${n} đơn`}
+                                onClick={() =>
+                                  void openHourDrill(`${name} · ${b.label}`, {
+                                    slot: b.slot,
+                                    officeName: name,
+                                  })
+                                }
+                              >
+                                {n ? n.toLocaleString("vi-VN") : "—"}
+                              </button>
+                            </td>
+                          );
+                        })}
+                        <td className="r main">
+                          <button
+                            type="button"
+                            className="vp-num num"
+                            disabled={!(stat.perOfficeTotals[name] || 0) || hourDrillLoading}
+                            onClick={() => void openHourDrill(`${name} · cả khoảng`, { officeName: name })}
+                          >
+                            {(stat.perOfficeTotals[name] || 0).toLocaleString("vi-VN")}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Tổng</td>
+                      {stat.buckets.map((b) => (
+                        <td key={b.label} className="r">
+                          {b.count ? b.count.toLocaleString("vi-VN") : "—"}
                         </td>
                       ))}
-                      <td className="px-2 py-1.5 text-right font-semibold tabular-nums">
-                        <HourCount
-                          n={stat.perOfficeTotals[name] || 0}
-                          disabled={hourDrillLoading}
-                          onOpen={() =>
-                            void openHourDrill(`${name} · cả khoảng`, { officeName: name })
-                          }
-                        />
-                      </td>
+                      <td className="r">{stat.totalOrders.toLocaleString("vi-VN")}</td>
                     </tr>
-                  ))}
-                  <tr className="bg-muted/40 font-semibold">
-                    <td className="sticky left-0 bg-muted/40 py-1.5 pr-2">Tổng</td>
-                    {stat.buckets.map((b) => (
-                      <td key={b.label} className="px-1.5 py-1.5 text-right tabular-nums">
-                        <HourCount
-                          n={b.count}
-                          disabled={hourDrillLoading}
-                          onOpen={() =>
-                            void openHourDrill(`Tất cả văn phòng · ${b.label}`, { slot: b.slot })
-                          }
-                        />
-                      </td>
-                    ))}
-                    <td className="px-2 py-1.5 text-right tabular-nums">
-                      <HourCount
-                        n={stat.totalOrders}
-                        disabled={hourDrillLoading}
-                        onOpen={() => void openHourDrill("Cả khoảng", { all: true })}
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                  </tfoot>
+                </table>
+              </div>
             </section>
 
             {readOnly ? (
@@ -1691,6 +1587,25 @@ function fmtDayRevenue(n: number) {
   return n.toLocaleString("vi-VN");
 }
 
+function buildDayCurve(
+  values: number[],
+  max: number,
+  base = 256,
+  plot = 190,
+) {
+  const P = values.map((v, i) => [(i + 0.5) * 10, base - (v / max) * plot] as const);
+  if (!P.length) return { line: "", area: "" };
+  let line = `M${P[0][0]} ${P[0][1].toFixed(1)}`;
+  for (let i = 0; i < P.length - 1; i++) {
+    const [x1, y1] = P[i];
+    const [x2, y2] = P[i + 1];
+    const mx = (x1 + x2) / 2;
+    line += ` C${mx} ${y1.toFixed(1)} ${mx} ${y2.toFixed(1)} ${x2} ${y2.toFixed(1)}`;
+  }
+  const area = `${line} L${P[P.length - 1][0]} ${base} L${P[0][0]} ${base} Z`;
+  return { line, area };
+}
+
 function OfficeOrdersChart({
   report,
   loading,
@@ -1699,138 +1614,178 @@ function OfficeOrdersChart({
   loading: boolean;
 }) {
   const rows = report?.days ?? [];
-  const maxTotal = Math.max(1, ...rows.map((r) => r.sent + r.received));
-  const pow = Math.pow(10, Math.floor(Math.log10(maxTotal)));
-  const n = maxTotal / pow;
-  const step = (n <= 2 ? 0.5 : n <= 5 ? 1 : 2) * pow;
-  const yMax = Math.max(step * 4, Math.ceil(maxTotal / step) * step);
-  const ticks = Array.from({ length: 5 }, (_, i) => Math.round((yMax * (4 - i)) / 4));
+  const [showSent, setShowSent] = useState(true);
+  const [showRecv, setShowRecv] = useState(true);
+  const [view, setView] = useState<"chart" | "table">("chart");
+  const [sel, setSel] = useState<number | null>(null);
+
+  const MAX = Math.max(1, ...rows.map((r) => Math.max(r.sent, r.received)), 10);
+  const BASE = 256;
+  const PLOT = 190;
+  const sentCurve = buildDayCurve(
+    rows.map((r) => r.sent),
+    MAX,
+    BASE,
+    PLOT,
+  );
+  const recvCurve = buildDayCurve(
+    rows.map((r) => r.received),
+    MAX,
+    BASE,
+    PLOT,
+  );
+  const tickVals = [MAX, Math.round(MAX / 2), 0];
   const fmt = (d?: string) => (d ? d.split("-").reverse().join("/") : "");
+  const fmtN = (n: number) => n.toLocaleString("vi-VN");
 
   return (
-    <Card>
-      <CardContent className="py-4">
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold">Số lượng đơn hàng</div>
-            <div className="text-xs text-muted-foreground max-w-2xl">
-              <b>Đơn gửi</b>: bấm <b>Nhập kho gửi</b> trong ngày → +1 cho VP gửi.{" "}
-              <b>Đơn nhận</b>: bấm <b>Nhập kho giao</b> trong ngày → +1 cho VP nhận. Hai mốc độc lập. Số tiền
-              trên cột = cước đơn <b>tạo</b> trong ngày theo VP gửi (đã trừ phí giao đối tác) — không gắn
-              theo số gửi/nhận trên cột.
+    <section className="card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h2 className="card-title sec-title">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">calendar_month</span>
+            </span>
+            Số lượng đơn hàng theo ngày
+          </h2>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+          <button
+            type="button"
+            className={`legend${showSent ? "" : " off"}`}
+            aria-pressed={showSent}
+            onClick={() => setShowSent((v) => !v)}
+          >
+            <span className="dot sent" aria-hidden="true" />
+            Đơn gửi
+          </button>
+          <button
+            type="button"
+            className={`legend${showRecv ? "" : " off"}`}
+            aria-pressed={showRecv}
+            onClick={() => setShowRecv((v) => !v)}
+          >
+            <span className="dot recv" aria-hidden="true" />
+            Đơn nhận
+          </button>
+          <button type="button" className="pill sm" onClick={() => setView((v) => (v === "chart" ? "table" : "chart"))}>
+            <span className="ms" aria-hidden="true">
+              {view === "chart" ? "table_rows" : "bar_chart"}
+            </span>
+            {view === "chart" ? "Bảng" : "Biểu đồ"}
+          </button>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="empty">
+          <h3 className="group-title">{loading ? "Đang tải…" : "Không có đơn trong khoảng ngày này"}</h3>
+        </div>
+      ) : view === "table" ? (
+        <div className="scroller" style={{ maxHeight: 280, overflowY: "auto" }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Đơn gửi</th>
+                <th>Đơn nhận</th>
+                <th>Cước</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.date}>
+                  <td>{fmt(r.date)}</td>
+                  <td>{fmtN(r.sent)}</td>
+                  <td>{fmtN(r.received)}</td>
+                  <td>{Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="scroller">
+          <div className="plot" style={{ minWidth: Math.max(640, rows.length * 36) }}>
+            {tickVals.map((v) => (
+              <div key={v} className="gl" style={{ top: BASE - Math.round((v / MAX) * PLOT) }}>
+                <span className="small muted num">{fmtN(v)}</span>
+              </div>
+            ))}
+            <div className="fee-band" aria-hidden="true">
+              <span className="ms">payments</span>Cước
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5" title="Nhập kho gửi trong ngày · VP gửi">
-              <span className="h-2.5 w-2.5 rounded-sm bg-primary/25" /> Đơn gửi (nhập kho gửi)
-            </span>
-            <span className="flex items-center gap-1.5" title="Nhập kho giao trong ngày · VP nhận">
-              <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> Đơn nhận (nhập kho giao)
-            </span>
-            {report ? (
-              <span className="text-muted-foreground">
-                {fmt(report.from)} – {fmt(report.to)}
-              </span>
-            ) : null}
+            <svg className="area-svg" viewBox="0 0 310 256" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="grad-recv" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="var(--chart-recv)" stopOpacity=".32" />
+                  <stop offset="1" stopColor="var(--chart-recv)" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id="grad-sent" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="var(--chart-sent)" stopOpacity=".32" />
+                  <stop offset="1" stopColor="var(--chart-sent)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {showRecv ? (
+                <g className="reveal">
+                  <path d={recvCurve.area} fill="url(#grad-recv)" />
+                  <path className="area-line recv-line" d={recvCurve.line} />
+                </g>
+              ) : null}
+              {showSent ? (
+                <g className="reveal d2">
+                  <path d={sentCurve.area} fill="url(#grad-sent)" />
+                  <path className="area-line sent-line" d={sentCurve.line} />
+                </g>
+              ) : null}
+            </svg>
+            <div className="days" onMouseLeave={() => setSel(null)}>
+              {rows.map((r, i) => {
+                const day = Number(r.date.slice(8, 10));
+                const on = sel === i;
+                return (
+                  <button
+                    key={r.date}
+                    type="button"
+                    className={`day${on ? " on" : ""}`}
+                    aria-label={`Ngày ${fmt(r.date)}: gửi ${fmtN(r.sent)}, nhận ${fmtN(r.received)}, cước ${fmtDayRevenue(Number(r.revenue) || 0)}`}
+                    onMouseEnter={() => setSel(i)}
+                    onFocus={() => setSel(i)}
+                    onClick={() => setSel(i)}
+                  >
+                    {on ? (
+                      <>
+                        <span className="xhair" aria-hidden="true" />
+                        {showRecv ? (
+                          <i className="pt recv" style={{ bottom: 24 + (r.received / MAX) * PLOT - 5 }} />
+                        ) : null}
+                        {showSent ? (
+                          <i className="pt sent" style={{ bottom: 24 + (r.sent / MAX) * PLOT - 5 }} />
+                        ) : null}
+                      </>
+                    ) : null}
+                    <span className="pl-fee num" aria-hidden="true">
+                      {Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : ""}
+                    </span>
+                    {showRecv ? (
+                      <span className="pl pl-r num" style={{ bottom: 24 + (r.received / MAX) * PLOT + 7 }} aria-hidden="true">
+                        {fmtN(r.received)}
+                      </span>
+                    ) : null}
+                    {showSent ? (
+                      <span className="pl pl-s num" style={{ bottom: 24 + (r.sent / MAX) * PLOT + 7 }} aria-hidden="true">
+                        {fmtN(r.sent)}
+                      </span>
+                    ) : null}
+                    <span className="d num">{day}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-
-        {rows.length === 0 ? (
-          <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-            {loading ? "Đang tải…" : "Không có đơn trong khoảng ngày này"}
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <div className="flex h-72 flex-col justify-between pr-1 text-[10px] text-muted-foreground">
-              {ticks.map((t) => (
-                <div key={t} className="tabular-nums">
-                  {t}
-                </div>
-              ))}
-            </div>
-            <div className="min-w-0 flex-1 overflow-x-auto">
-              <div className="relative h-72 min-w-[720px]">
-                <div className="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                  {ticks.map((t, i) => (
-                    <div
-                      key={i}
-                      className={`h-px w-full ${i === ticks.length - 1 ? "bg-border" : "bg-border/40"}`}
-                    />
-                  ))}
-                </div>
-                <div className="relative flex h-full items-end gap-1">
-                  {rows.map((r) => {
-                    const total = r.sent + r.received;
-                    const revenue = Number(r.revenue) || 0;
-                    return (
-                      <div
-                        key={r.date}
-                        className="flex h-full min-w-0 flex-1 flex-col items-center justify-end"
-                        title={`${fmt(r.date)}\nĐơn gửi: ${r.sent}\nĐơn nhận: ${r.received}\nDoanh thu: ${revenue.toLocaleString("vi-VN")} đ`}
-                      >
-                        <div className="mb-1 max-w-full truncate text-[10px] font-bold tabular-nums">
-                          {revenue > 0 ? fmtDayRevenue(revenue) : ""}
-                        </div>
-                        <div
-                          className="flex w-full max-w-[28px] flex-col overflow-hidden rounded-t"
-                          style={{ height: total > 0 ? `${(total / yMax) * 100}%` : "0%" }}
-                        >
-                          <div
-                            className="flex items-center justify-center bg-primary text-[10px] font-semibold text-primary-foreground"
-                            style={{ height: total > 0 ? `${(r.received / total) * 100}%` : "0%" }}
-                          >
-                            {r.received > 0 && r.received / yMax > 0.08 ? r.received : ""}
-                          </div>
-                          <div
-                            className="flex items-center justify-center bg-primary/25 text-[10px] font-semibold text-primary"
-                            style={{ height: total > 0 ? `${(r.sent / total) * 100}%` : "0%" }}
-                          >
-                            {r.sent > 0 && r.sent / yMax > 0.08 ? r.sent : ""}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="mt-2 flex min-w-[720px] gap-1">
-                {rows.map((r) => (
-                  <div
-                    key={r.date}
-                    className="flex-1 text-center text-[10px] leading-tight text-muted-foreground"
-                  >
-                    {Number(r.date.slice(8, 10))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }
 
-function HourCount({
-  n,
-  onOpen,
-  blankZero,
-  disabled,
-}: {
-  n: number;
-  onOpen: () => void;
-  blankZero?: boolean;
-  disabled?: boolean;
-}) {
-  if (!n) return <>{blankZero ? "" : 0}</>;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      className="text-primary underline-offset-2 hover:underline disabled:opacity-50"
-      onClick={onOpen}
-    >
-      {n}
-    </button>
-  );
-}

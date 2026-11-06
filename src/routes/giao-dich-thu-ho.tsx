@@ -2,10 +2,6 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { EmptyState, Section } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { TablePagination } from "@/components/TablePagination";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
@@ -18,7 +14,6 @@ import {
   type CollectionTransactionRow,
 } from "@/lib/api/finance-config-api";
 import { useServerPagedRows } from "@/lib/use-server-paged-rows";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/giao-dich-thu-ho")({
@@ -33,7 +28,7 @@ export const Route = createFileRoute("/giao-dich-thu-ho")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Giao dịch thu hộ" screen="giao-dich-thu-ho">
+    <ProtectedPage title="Giao dịch thu hộ" screen="giao-dich-thu-ho" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -63,7 +58,6 @@ function fmtDateTime(iso?: string | null) {
 function fmtTransDate(raw?: string | null) {
   if (!raw?.trim()) return "—";
   const s = raw.trim();
-  // OnePay/BIDV thường yyyyMMddHHmmss
   if (/^\d{14}$/.test(s)) {
     const y = s.slice(0, 4);
     const m = s.slice(4, 6);
@@ -77,22 +71,43 @@ function fmtTransDate(raw?: string | null) {
 }
 
 const PROVIDER_OPTIONS = [
-  { value: "all", label: "Tất cả thu hộ" },
+  { value: "all", label: "Tất cả" },
   { value: "ONEPAY", label: "OnePay" },
   { value: "BIDV", label: "BIDV" },
 ];
 
 const TARGET_OPTIONS = [
-  { value: "all", label: "Tất cả loại" },
-  { value: "ORDER", label: "Thu cước đơn" },
-  { value: "RECEIPT", label: "Thu phiếu thu" },
+  { value: "all", label: "Tất cả" },
+  { value: "ORDER", label: "Thu tiền đơn" },
+  { value: "RECEIPT", label: "Nộp tiền phiếu" },
   { value: "TEST", label: "Test" },
 ];
 
-function providerBadgeClass(provider: string) {
-  if (provider === "ONEPAY") return "bg-sky-100 text-sky-800 border-sky-200";
-  if (provider === "BIDV") return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  return "bg-muted text-muted-foreground border-border";
+function providerTagClass(provider: string) {
+  if (provider === "ONEPAY") return "tag info";
+  if (provider === "BIDV") return "tag ok";
+  return "tag";
+}
+
+/** Minh họa ví tiền — design GiaoDichThuHo `.rev-ill`. */
+function WalletIll() {
+  return (
+    <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+      <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+      <rect className="ill-main" x="50" y="4" width="50" height="92" rx="8" />
+      <rect className="ill-paper" x="55" y="13" width="40" height="72" rx="3" />
+      <rect className="ill-main" x="60" y="24" width="11" height="11" rx="2" />
+      <rect className="ill-main" x="79" y="24" width="11" height="11" rx="2" />
+      <rect className="ill-main" x="60" y="43" width="11" height="11" rx="2" />
+      <path className="ill-main" d="M79 43h4v4h-4zM86 43h4v8h-4zM79 50h4v4h-4zM84 54h6v-1h-6z" />
+      <rect className="ill-mid" x="60" y="64" width="30" height="5" rx="2.5" />
+      <rect className="ill-mid" x="60" y="73" width="20" height="5" rx="2.5" />
+      <circle className="ill-box" cx="124" cy="68" r="15" />
+      <circle className="ill-box2" cx="124" cy="68" r="9" />
+      <path className="ill-handle thin" d="M18 44c6-12 16-16 26-14M38 22l7 8-9 5" />
+      <path className="ill-handle thin" d="M108 42c6-3 12-3 18 2" />
+    </svg>
+  );
 }
 
 function Page() {
@@ -204,12 +219,7 @@ function Page() {
         "",
         "",
       ]);
-      downloadExcel(
-        `giao-dich-thu-ho-${from || "all"}_${to || "all"}`,
-        headers,
-        data,
-        format,
-      );
+      downloadExcel(`giao-dich-thu-ho-${from || "all"}_${to || "all"}`, headers, data, format);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Xuất Excel thất bại");
     }
@@ -217,176 +227,184 @@ function Page() {
 
   const totalAmount = server.meta?.totalAmount ?? 0;
   const rows = server.pageRows;
+  const sumText = formatVND(totalAmount).replace(/\s*₫?$/, "").trim();
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card p-4 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">Giao dịch thu hộ</h1>
-            <p className="text-xs text-muted-foreground">
-              Tiền về từ OnePay / BIDV — ghi rõ bên thu hộ để đối soát.
-            </p>
-          </div>
-          <ExportFormatButton
-            variant="outline"
-            disabled={!apiOn || server.total === 0}
-            onExport={exportExcel}
-          />
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row">
+        <div>
+          <h1 className="page-title">Giao dịch thu hộ</h1>
+          <div className="lab muted">Tiền về từ OnePay / BIDV, ghi rõ bên thu hộ để đối soát.</div>
         </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <div className="space-y-1">
-            <Label className="text-xs">Từ ngày</Label>
-            <Input
-              type="date"
-              value={from}
-              max={to || undefined}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input
-              type="date"
-              value={to}
-              min={from || undefined}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Thu hộ</Label>
-            <SearchableSelect
-              value={provider}
-              onValueChange={setProvider}
-              options={PROVIDER_OPTIONS}
-              placeholder="Tất cả thu hộ"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Loại</Label>
-            <SearchableSelect
-              value={targetType}
-              onValueChange={setTargetType}
-              options={TARGET_OPTIONS}
-              placeholder="Tất cả loại"
-            />
-          </div>
-          <div className="space-y-1 lg:col-span-2">
-            <Label className="text-xs">Tìm mã GD / đơn / phiếu / nội dung CK</Label>
-            <div className="flex gap-2">
-              <Input
-                value={q}
-                placeholder="VD: mã GD, CPN…, PT…"
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") applySearch();
-                }}
-              />
-              <Button type="button" variant="secondary" onClick={applySearch}>
-                Tìm
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-muted-foreground">
-            {server.loading ? "Đang tải…" : `${server.total} giao dịch`}
-          </span>
-          <span className="font-medium">
-            Tổng tiền: <span className="text-emerald-700">{formatVND(totalAmount)} đ</span>
-          </span>
-          {server.error ? <span className="text-destructive">{server.error}</span> : null}
-        </div>
+        <ExportFormatButton
+          className="btn tonal"
+          variant="ghost"
+          disabled={!apiOn || server.total === 0}
+          onExport={exportExcel}
+        />
       </div>
 
-      <Section title="Danh sách giao dịch">
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">
+                account_balance_wallet
+              </span>
+              Tổng tiền thu hộ
+            </div>
+            <div className="sum-hero">
+              {server.loading && !rows.length ? "…" : sumText} <span className="sum-unit">VNĐ</span>
+            </div>
+          </div>
+          <WalletIll />
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">swap_horiz</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Số giao dịch</div>
+            <div className="sum-val">{server.loading ? "…" : server.total.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="filter-grid">
+        <label className="field">
+          <span className="l">Từ ngày</span>
+          <span className="box input-box">
+            <input type="date" className="num" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Đến ngày</span>
+          <span className="box input-box">
+            <input type="date" className="num" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+          </span>
+        </label>
+        <div className="field">
+          <span className="l">Thu hộ</span>
+          <SearchableSelect value={provider} onValueChange={setProvider} options={PROVIDER_OPTIONS} placeholder="Tất cả" />
+        </div>
+        <div className="field">
+          <span className="l">Loại</span>
+          <SearchableSelect
+            value={targetType}
+            onValueChange={setTargetType}
+            options={TARGET_OPTIONS}
+            placeholder="Tất cả"
+          />
+        </div>
+        <label className="field gd-q">
+          <span className="l">Tìm mã GD / đơn / phiếu / nội dung</span>
+          <span className="box input-box">
+            <input
+              type="search"
+              placeholder="Nhập từ khoá"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              onBlur={applySearch}
+            />
+          </span>
+        </label>
+      </div>
+
+      {server.error ? (
+        <div className="note" role="alert" style={{ color: "var(--error)" }}>
+          {server.error}
+        </div>
+      ) : null}
+
+      <section className="card stack">
+        <h2 className="group-title sec-title num">
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">receipt_long</span>
+          </span>
+          <span>Danh sách giao dịch ({server.total.toLocaleString("vi-VN")})</span>
+        </h2>
+
         {!apiOn ? (
-          <EmptyState>Bật API để xem giao dịch thu hộ.</EmptyState>
+          <div className="empty">
+            <h3 className="group-title">Bật API để xem giao dịch thu hộ</h3>
+          </div>
         ) : server.loading && !rows.length ? (
-          <EmptyState>Đang tải…</EmptyState>
+          <div className="empty">
+            <h3 className="group-title">Đang tải…</h3>
+          </div>
         ) : !rows.length ? (
-          <EmptyState>Không có giao dịch trong bộ lọc.</EmptyState>
+          <div className="empty">
+            <h3 className="group-title">Không có giao dịch phù hợp</h3>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
-                  <th className="px-2 py-2 font-medium">Thu hộ</th>
-                  <th className="px-2 py-2 font-medium">Loại</th>
-                  <th className="px-2 py-2 font-medium">Mã đơn / phiếu</th>
-                  <th className="px-2 py-2 font-medium">Kênh nộp tiền</th>
-                  <th className="px-2 py-2 font-medium">Nội dung CK</th>
-                  <th className="px-2 py-2 font-medium">Mã GD</th>
-                  <th className="px-2 py-2 font-medium text-right">Số tiền</th>
-                  <th className="px-2 py-2 font-medium">Thời gian GD</th>
-                  <th className="px-2 py-2 font-medium">TK ảo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id} className="border-b align-top hover:bg-muted/20">
-                    <td className="px-2 py-2">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold",
-                          providerBadgeClass(r.provider),
-                        )}
-                      >
-                        {r.providerLabel || r.provider}
-                      </span>
-                    </td>
-                    <td className="px-2 py-2 text-xs">{r.targetTypeLabel || r.targetType}</td>
-                    <td className="px-2 py-2 font-mono text-xs">
-                      {r.refCode ? (
-                        r.targetType === "RECEIPT" ? (
-                          <Link
-                            to="/danh-sach-phieu-thu"
-                            search={{ code: r.refCode }}
-                            className="text-sky-700 underline-offset-2 hover:underline"
-                          >
-                            {r.refCode}
-                          </Link>
-                        ) : (
-                          <OrderCodeLink code={r.refCode} />
-                        )
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="px-2 py-2 font-mono text-xs whitespace-nowrap">
-                      {r.payChannel?.trim() || "—"}
-                    </td>
-                    <td className="px-2 py-2 text-xs max-w-[160px] break-words">
-                      {r.description?.trim() || "—"}
-                    </td>
-                    <td className="px-2 py-2 font-mono text-xs break-all">{r.transId}</td>
-                    <td className="px-2 py-2 text-right font-medium tabular-nums">
-                      {formatVND(Number(r.amount ?? 0))}
-                    </td>
-                    <td className="px-2 py-2 text-xs whitespace-nowrap">
-                      <div>{fmtTransDate(r.transDate)}</div>
-                      <div className="text-muted-foreground">{fmtDateTime(r.createdAt)}</div>
-                    </td>
-                    <td className="px-2 py-2 font-mono text-xs">
-                      <div>{r.accountNumber || "—"}</div>
-                      {r.bankName ? (
-                        <div className="text-muted-foreground">{r.bankName}</div>
-                      ) : null}
-                    </td>
+          <div className="stack">
+            <div className="scroller">
+              <table className="tbl compact sticky-1" style={{ ["--tbl-min" as string]: "1100px" }}>
+                <thead>
+                  <tr>
+                    <th>Thu hộ</th>
+                    <th>Loại</th>
+                    <th>Mã đơn / phiếu</th>
+                    <th>Kênh nộp tiền</th>
+                    <th>Nội dung CK</th>
+                    <th>Mã GD</th>
+                    <th className="r">Số tiền</th>
+                    <th>Thời gian GD</th>
+                    <th>TK ảo</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <span className={providerTagClass(r.provider)}>{r.providerLabel || r.provider}</span>
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>{r.targetTypeLabel || r.targetType}</td>
+                      <td>
+                        {r.refCode ? (
+                          r.targetType === "RECEIPT" ? (
+                            <Link to="/danh-sach-phieu-thu" search={{ code: r.refCode }} className="code">
+                              {r.refCode}
+                            </Link>
+                          ) : (
+                            <OrderCodeLink code={r.refCode} className="code" />
+                          )
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>{r.payChannel?.trim() || "—"}</td>
+                      <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                        {r.description?.trim() || "—"}
+                      </td>
+                      <td className="num" style={{ whiteSpace: "nowrap" }}>
+                        {r.transId}
+                      </td>
+                      <td className="r main">{formatVND(Number(r.amount ?? 0))}</td>
+                      <td className="num" style={{ whiteSpace: "nowrap" }}>
+                        <div>{fmtTransDate(r.transDate)}</div>
+                        <div className="muted" style={{ fontSize: 11 }}>
+                          {fmtDateTime(r.createdAt)}
+                        </div>
+                      </td>
+                      <td className="num" style={{ whiteSpace: "nowrap" }}>
+                        <div>{r.accountNumber || "—"}</div>
+                        {r.bankName ? <div className="muted">{r.bankName}</div> : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="pager">
+              <TablePagination pager={server.pager} />
+            </div>
           </div>
         )}
-        {apiOn && server.total > 0 ? (
-          <div className="mt-3">
-            <TablePagination pager={server.pager} />
-          </div>
-        ) : null}
-      </Section>
+      </section>
     </div>
   );
 }
