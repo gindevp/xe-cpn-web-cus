@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3PageHeader } from "@/components/M3Page";
-import { Section } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +24,6 @@ import { canWrite } from "@/lib/rbac";
 import { hasOverageConfig } from "@/lib/pricing";
 import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/bang-gia")({
@@ -67,13 +65,13 @@ function Page() {
           <span className="count num">{products.length}</span>
         </button>
       </div>
-      <Section>
+      <section className="card stack" style={{ gap: 16 }}>
         {tab === "rules" ? (
           <FreightPricing writable={writable} />
         ) : (
           <ProductPricing writable={writable} />
         )}
-      </Section>
+      </section>
     </div>
   );
 }
@@ -198,24 +196,26 @@ function FreightPricing({ writable }: { writable: boolean }) {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-muted-foreground">Tuyến</span>
-        <SearchableSelect
-          value={tuyen}
-          onValueChange={setTuyen}
-          className="h-9 w-56"
-          placeholder="Chọn tuyến"
-          options={tuyenOptions.map((r) => ({ value: r, label: r }))}
-        />
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row" style={{ alignItems: "flex-end", gap: 12 }}>
+        <label className="field" style={{ flex: "0 1 280px", minWidth: 0, margin: 0 }}>
+          <span className="l">Tuyến</span>
+          <SearchableSelect
+            value={tuyen}
+            onValueChange={setTuyen}
+            placeholder="Chọn tuyến"
+            options={tuyenOptions.map((r) => ({ value: r, label: r }))}
+          />
+        </label>
         {writable && (
-          <Button size="sm" variant="outline" className="gap-1" onClick={openCopy} disabled={!kgRows.length}>
-            <Copy className="h-4 w-4" /> Copy sang tuyến khác
-          </Button>
+          <button type="button" className="btn tonal" onClick={openCopy} disabled={!kgRows.length}>
+            <span className="ms" aria-hidden="true">
+              content_copy
+            </span>
+            Copy sang tuyến khác
+          </button>
         )}
-        {!writable && (
-          <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Chế độ chỉ xem</span>
-        )}
+        {!writable && <span className="muted" style={{ fontSize: 12 }}>Chế độ chỉ xem</span>}
       </div>
 
       <BandTable basis="KG" tuyen={tuyen} rows={kgRows} writable={writable}>
@@ -407,68 +407,97 @@ function BandTable({
   };
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{ui.title}</h3>
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="title-row" style={{ alignItems: "center" }}>
+        <h2 className="group-title sec-title" style={{ margin: 0 }}>
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">hourglass_empty</span>
+          </span>
+          {ui.title}
+        </h2>
         {writable && (
-          <Button size="sm" variant="outline" className="gap-1" onClick={openAdd}>
-            <Plus className="h-4 w-4" /> Thêm mức
-          </Button>
+          <button type="button" className="btn" onClick={openAdd}>
+            <span className="ms" aria-hidden="true">
+              add
+            </span>
+            Thêm mức
+          </button>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+      <div className="scroller">
+        <table className="tbl">
+          <thead>
             <tr>
-              <th className="px-3 py-2 w-14 text-center">TT</th>
-              <th className="px-3 py-2 text-right">{ui.minLabel}</th>
-              <th className="px-3 py-2 text-right">{ui.maxLabel}</th>
-              <th className="px-3 py-2 text-right">Phí TC (VNĐ)</th>
-              <th className="px-3 py-2 text-right">{ui.stepLabel}</th>
-              <th className="px-3 py-2 text-right">Cộng thêm (VNĐ)</th>
-              <th className="px-3 py-2 w-20"></th>
+              <th style={{ width: 48, textAlign: "center" }}>TT</th>
+              <th style={{ textAlign: "right" }}>{ui.minLabel}</th>
+              <th style={{ textAlign: "right" }}>{ui.maxLabel}</th>
+              <th style={{ textAlign: "right" }}>Phí TC (VNĐ)</th>
+              <th style={{ textAlign: "right" }}>{ui.stepLabel}</th>
+              <th style={{ textAlign: "right" }}>Cộng thêm (VNĐ)</th>
+              <th style={{ width: 88 }}>Tác vụ</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
-                  Chưa có mức cước cho tuyến này
+                <td colSpan={7}>
+                  <div className="empty" style={{ padding: 24 }}>
+                    <div className="muted" style={{ fontSize: 13 }}>
+                      Chưa có mức cước cho tuyến này
+                    </div>
+                  </div>
                 </td>
               </tr>
             )}
             {rows.map((r, i) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2 text-center text-muted-foreground">{i + 1}</td>
-                <td className="px-3 py-2 text-right">{ui.fmt(r.minKg)}</td>
-                <td className="px-3 py-2 text-right">{ui.fmt(r.maxKg)}</td>
-                <td className="px-3 py-2 text-right">{formatVND(r.unit)}</td>
-                <td className="px-3 py-2 text-right">{ui.fmt(ui.fromStep(r.stepG ?? 0))}</td>
-                <td className="px-3 py-2 text-right">{formatVND(r.addFee ?? 0)}</td>
-                <td className="px-3 py-2 text-right">
-                  {writable && (
-                    <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(r)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              <tr key={r.id}>
+                <td className="num" style={{ textAlign: "center" }}>
+                  {i + 1}
+                </td>
+                <td className="num" style={{ textAlign: "right" }}>
+                  {ui.fmt(r.minKg)}
+                </td>
+                <td className="num" style={{ textAlign: "right" }}>
+                  {ui.fmt(r.maxKg)}
+                </td>
+                <td className="num" style={{ textAlign: "right" }}>
+                  {formatVND(r.unit)}
+                </td>
+                <td className="num" style={{ textAlign: "right" }}>
+                  {ui.fmt(ui.fromStep(r.stepG ?? 0))}
+                </td>
+                <td className="num" style={{ textAlign: "right" }}>
+                  {formatVND(r.addFee ?? 0)}
+                </td>
+                <td>
+                  {writable ? (
+                    <div className="act">
+                      <button type="button" className="no" title="Sửa mức" aria-label="Sửa mức" onClick={() => openEdit(r)}>
+                        <span className="ms" aria-hidden="true">
+                          edit
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="no"
+                        title="Xoá mức"
+                        aria-label="Xoá mức"
                         onClick={() => setDeleteTarget(r)}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <span className="ms" aria-hidden="true">
+                          delete
+                        </span>
+                      </button>
                     </div>
-                  )}
+                  ) : null}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">{children}</p>
+      <div className="note">{children}</div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
@@ -629,26 +658,34 @@ function ProductPricing({ writable }: { writable: boolean }) {
   };
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Input className="h-9 w-64" placeholder="Tìm nhóm hàng / tên hàng hóa" value={q} onChange={(e) => setQ(e.target.value)} />
+    <div className="stack" style={{ gap: 12 }}>
+      <div className="title-row" style={{ alignItems: "center", gap: 12 }}>
+        <label className="field" style={{ flex: "1 1 240px", minWidth: 0, margin: 0 }}>
+          <span className="box input-box">
+            <input
+              placeholder="Tìm nhóm hàng / tên hàng hóa"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </span>
+        </label>
         {writable && (
-          <Button size="sm" className="ml-auto" onClick={openAdd}>
+          <button type="button" className="btn" onClick={openAdd}>
             Thêm dòng
-          </Button>
+          </button>
         )}
       </div>
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+      <div className="scroller">
+        <table className="tbl">
+          <thead>
             <tr>
-              <th className="px-3 py-2 w-12">STT</th>
-              <th className="px-3 py-2 w-48">Nhóm hàng</th>
-              <th className="px-3 py-2">Tên hàng hóa</th>
-              <th className="px-3 py-2 text-right w-36">Giá hiện tại</th>
-              <th className="px-3 py-2 text-right w-40">Giá áp dụng</th>
-              <th className="px-3 py-2 text-right w-24">% giảm</th>
-              <th className="px-3 py-2 w-24"></th>
+              <th style={{ width: 48 }}>STT</th>
+              <th style={{ width: 160 }}>Nhóm hàng</th>
+              <th>Tên hàng hóa</th>
+              <th style={{ textAlign: "right" }}>Giá hiện tại</th>
+              <th style={{ textAlign: "right" }}>Giá áp dụng</th>
+              <th style={{ textAlign: "right" }}>% giảm</th>
+              <th style={{ width: 88 }}>Tác vụ</th>
             </tr>
           </thead>
           <tbody>
@@ -657,34 +694,48 @@ function ProductPricing({ writable }: { writable: boolean }) {
               return rows.map((p, i) => {
                 const pct = p.currentPrice ? ((p.price - p.currentPrice) / p.currentPrice) * 100 : 0;
                 return (
-                  <tr key={p.id} className="border-t align-middle">
+                  <tr key={p.id}>
                     {i === 0 && (
-                      <td className="px-3 py-2 text-muted-foreground" rowSpan={rows.length}>
+                      <td className="num muted" rowSpan={rows.length}>
                         {gi + 1}
                       </td>
                     )}
                     {i === 0 && (
-                      <td className="px-3 py-2 font-medium align-top" rowSpan={rows.length}>
-                        {g}
+                      <td rowSpan={rows.length}>
+                        <span className="main">{g}</span>
                       </td>
                     )}
-                    <td className="px-3 py-2">{p.name}</td>
-                    <td className="px-3 py-2 text-right text-muted-foreground">{formatVND(p.currentPrice)}</td>
-                    <td className="px-3 py-2 text-right">{formatVND(p.price)}</td>
-                    <td className={`px-3 py-2 text-right ${pct < 0 ? "text-emerald-600" : pct > 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                    <td>{p.name}</td>
+                    <td className="num muted" style={{ textAlign: "right" }}>
+                      {formatVND(p.currentPrice)}
+                    </td>
+                    <td className="num" style={{ textAlign: "right" }}>
+                      {formatVND(p.price)}
+                    </td>
+                    <td
+                      className="num"
+                      style={{
+                        textAlign: "right",
+                        color: pct < 0 ? "var(--on-success-container)" : pct > 0 ? "var(--error)" : undefined,
+                      }}
+                    >
                       {pct.toFixed(2)}%
                     </td>
-                    <td className="px-3 py-2 text-right">
-                      {writable && (
-                        <div className="flex justify-end gap-1">
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(p)}>
-                            Xóa
-                          </Button>
+                    <td>
+                      {writable ? (
+                        <div className="act">
+                          <button type="button" className="no" title="Sửa" aria-label="Sửa" onClick={() => openEdit(p)}>
+                            <span className="ms" aria-hidden="true">
+                              edit
+                            </span>
+                          </button>
+                          <button type="button" className="no" title="Xóa" aria-label="Xóa" onClick={() => setDeleteTarget(p)}>
+                            <span className="ms" aria-hidden="true">
+                              delete
+                            </span>
+                          </button>
                         </div>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 );
@@ -693,9 +744,9 @@ function ProductPricing({ writable }: { writable: boolean }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <div className="note">
         Tab này chưa áp vào giá lúc tạo đơn hàng. Cước đơn đang lấy từ tab Phí vận chuyển theo tuyến.
-      </p>
+      </div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>

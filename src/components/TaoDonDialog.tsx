@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { M3ConfirmActions, M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
+import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { M3Confirm } from "@/components/m3/M3Confirm";
 import { User, PackagePlus, Truck, Receipt } from "lucide-react";
 import { AddressPicker } from "@/components/AddressPicker";
@@ -1928,22 +1926,27 @@ export function TaoDonDialog({
                           <MoneyInput value={prepaid} onChange={setPrepaid} />
                         </F>
                       )}
-                      <F label="Thu Hộ (COD)">
+                      <F label="Thu hộ (COD)">
                         <MoneyInput value={codAmount} onChange={setCodAmount} />
                       </F>
-                      <F label="Phí thu hộ COD">
-                        <MoneyInput
-                          value={surchargeExtra}
-                          onChange={setSurchargeExtra}
-                          disabled={!codAmount}
-                          placeholder={!codAmount ? "Nhập Thu hộ COD trước" : ""}
-                        />
-                      </F>
-                      <F label="Giảm giá (hệ thống)" boxed={false}>
-                        <div className="box input-box ro-box">
-                          <span className="muted">{formatVND(discountVND)}</span>
-                        </div>
-                      </F>
+                      <div className="side-two">
+                        <F label="Phí thu hộ COD">
+                          <MoneyInput
+                            value={surchargeExtra}
+                            onChange={setSurchargeExtra}
+                            disabled={!codAmount}
+                            placeholder={!codAmount ? "Nhập Thu hộ COD trước" : ""}
+                          />
+                        </F>
+                        <F label="Giảm giá (hệ thống)" boxed={false}>
+                          <div
+                            className="box input-box"
+                            style={{ background: "var(--low)", borderColor: "transparent", paddingLeft: 0 }}
+                          >
+                            <span className="muted">{discountVND ? formatVND(discountVND) : "-"}</span>
+                          </div>
+                        </F>
+                      </div>
                     </div>
 
                     <div className="opt-item">
@@ -2096,100 +2099,86 @@ export function TaoDonDialog({
                       )}
                     </div>
 
-                    <F label="Ghi chú đơn hàng">
-                      <Textarea
-                        rows={3}
-                        placeholder="Nhập ghi chú"
-                        value={orderNote}
-                        onChange={(e) => setOrderNote(e.target.value)}
-                      />
+                    <F label="Ghi chú đơn hàng" boxed={false}>
+                      <span className="box input-box">
+                        <input
+                          placeholder="Nhập ghi chú"
+                          value={orderNote}
+                          onChange={(e) => setOrderNote(e.target.value)}
+                        />
+                      </span>
                     </F>
                   </div>
 
-                  {/* RIGHT: Summary */}
-                  <div>
-                    <div className="rounded-md border bg-muted/30 p-3 space-y-1.5 text-sm">
-                      <div className="mb-1 text-xs font-medium text-muted-foreground">
-                        Thông tin thanh toán
+                  {/* design: .side-foot > .total-box + actions (không dùng Tailwind summary) */}
+                  <div className="side-foot stack">
+                    <div className="total-box num">
+                      <div className="fee-lines lab" style={{ marginBottom: 8 }}>
+                        <FeeLine label="Cước hàng" value={goodsFare} always />
+                        <FeeLine label="Cước lấy hàng tận nơi" value={pickupFeeVal} />
+                        <FeeLine label="Cước giao hàng tận nơi" value={deliverFeeVal} />
+                        <FeeLine label="Phí thu hộ COD" value={codFee} />
+                        <FeeLine label="Phí khai báo giá trị" value={declaredFee} />
+                        {discountVND ? <FeeLine label="Giảm giá" value={-discountVND} always /> : null}
+                        <FeeLine label="Đã thu" value={paidNow} />
                       </div>
-                      <Row label="Cước hàng" value={goodsFare} always />
-                      <Row label="Cước lấy hàng tận nơi" value={pickupFeeVal} />
-                      {homePickup && pickupKm != null && pickupKm > 0 ? (
-                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
-                          Theo bảng phí · {pickupKm.toFixed(2)} km
-                        </p>
-                      ) : homePickup && pickupAddr.trim() ? (
-                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
-                          Chưa ra km — tạm {VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ
-                        </p>
-                      ) : null}
-                      <Row label="Cước giao hàng tận nơi" value={deliverFeeVal} />
-                      {homeDeliver && deliverKm != null && deliverKm > 0 ? (
-                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
-                          Theo bảng phí · {deliverKm.toFixed(2)} km
-                        </p>
-                      ) : homeDeliver && deliverAddr.trim() ? (
-                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
-                          Chưa ra km — tạm {VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ
-                        </p>
-                      ) : null}
-                      <Row label="Phí thu hộ COD" value={codFee} />
-                      <Row label="Phí khai báo giá trị" value={declaredFee} />
-                      <Row label="Giảm giá" value={-discountVND} />
-                      <Row label="Đã thu" value={paidNow} />
-
-                      <div className="border-t pt-1.5 flex items-center justify-between font-semibold">
-                        <span>Tổng phải thu</span>
-                        <span className="text-primary">
-                          {totalFare.toLocaleString("vi-VN")} VND
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                        <span className="lab">Tổng phải thu</span>
+                        <span className="kpi-val" style={{ fontSize: 24 }}>
+                          {totalFare.toLocaleString("vi-VN")}{" "}
+                          <span style={{ fontSize: 12, fontWeight: 400 }}>VNĐ</span>
                         </span>
                       </div>
-                      {unpaid > 0 && (
-                        <div className="flex items-center justify-between text-xs text-destructive">
+                      {unpaid > 0 ? (
+                        <div
+                          className="lab"
+                          style={{ display: "flex", justifyContent: "space-between", marginTop: 6, opacity: 0.92 }}
+                        >
                           <span>Còn phải thu</span>
-                          <span>{unpaid.toLocaleString("vi-VN")} VND</span>
+                          <span>{unpaid.toLocaleString("vi-VN")} VNĐ</span>
                         </div>
-                      )}
-                      {mode !== "edit" && payMethod === "Người gửi thanh toán" ? (
-                        <label className="flex items-center gap-2 border-t pt-2 text-sm">
-                          <Checkbox
-                            checked={requestSenderTransfer}
-                            onCheckedChange={(v) => setRequestSenderTransfer(Boolean(v))}
-                          />
-                          <span className="font-medium">Khách có nhu cầu chuyển khoản</span>
-                        </label>
                       ) : null}
+                    </div>
+                    {mode !== "edit" && payMethod === "Người gửi thanh toán" ? (
+                      <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                        <input
+                          className="check"
+                          type="checkbox"
+                          checked={requestSenderTransfer}
+                          onChange={(e) => setRequestSenderTransfer(e.target.checked)}
+                        />
+                        Khách có nhu cầu chuyển khoản
+                      </label>
+                    ) : null}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
+                      {mode === "edit" ? (
+                        <>
+                          <button type="button" className="btn ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+                            Hủy
+                          </button>
+                          <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
+                            {saving ? "Đang lưu…" : "Lưu thay đổi"}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button type="button" className="btn ghost" onClick={clear} disabled={saving}>
+                            Xoá
+                          </button>
+                          <button type="button" className="btn tonal" onClick={() => void submit("print")} disabled={saving}>
+                            {saving ? "Đang lưu…" : "Tạo và in"}
+                          </button>
+                          <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
+                            {saving ? "Đang lưu…" : "Tạo đơn"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
               </Section>
             </aside>
           </div>
-
-          <M3ConfirmActions>
-            {mode === "edit" ? (
-              <>
-                <button type="button" className="btn ghost" onClick={() => onOpenChange(false)} disabled={saving}>
-                  Hủy
-                </button>
-                <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
-                  {saving ? "Đang lưu…" : "Lưu thay đổi"}
-                </button>
-              </>
-            ) : (
-              <>
-                <button type="button" className="btn ghost" onClick={clear} disabled={saving}>
-                  Xoá
-                </button>
-                <button type="button" className="btn tonal" onClick={() => void submit("print")} disabled={saving}>
-                  {saving ? "Đang lưu…" : "Tạo và in"}
-                </button>
-                <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
-                  {saving ? "Đang lưu…" : "Tạo đơn"}
-                </button>
-              </>
-            )}
-          </M3ConfirmActions>
       </M3Sheet>
 
       <PrintLabelDialog
@@ -2267,12 +2256,12 @@ function Section({
 }
 
 /** Khoản phụ = 0 thì ẩn dòng; chỉ dòng `always` (cước hàng) luôn hiện. */
-function Row({ label, value, always }: { label: string; value: number; always?: boolean }) {
+function FeeLine({ label, value, always }: { label: string; value: number; always?: boolean }) {
   if (!always && !value) return null;
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span>{formatVND(value)}</span>
+    <div className="fee-line">
+      <span>{label}</span>
+      <span>{formatVND(value)} VNĐ</span>
     </div>
   );
 }
