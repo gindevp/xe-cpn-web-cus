@@ -30,13 +30,20 @@ export function M3Sheet({
           <DialogPrimitive.Overlay className="absolute inset-0" style={{ background: "transparent" }} />
           <DialogPrimitive.Content
             className={cn(
-              "sheet relative z-[1]",
+              "sheet relative z-[1] outline-none",
               variant === "confirm" && "confirm",
               variant !== "confirm" && variant !== "sheet" && variant,
               className,
             )}
             onOpenAutoFocus={(e) => {
               if (variant === "confirm") e.preventDefault();
+            }}
+            onPointerDownOutside={(e) => {
+              /* Cho phép đóng khi bấm vùng tối; chặn khi bấm combo portaled */
+              const t = e.target as HTMLElement | null;
+              if (t?.closest?.("[data-radix-popper-content-wrapper], .m3-combo-portal")) {
+                e.preventDefault();
+              }
             }}
           >
             {children}

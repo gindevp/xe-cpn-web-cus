@@ -1038,7 +1038,6 @@ export function OrderHistoryDialog({
       }}
       variant="order-sheet"
       alignTop
-      className="max-h-[92vh] overflow-hidden"
     >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
             <div className="min-w-0 flex-1">
@@ -1105,9 +1104,9 @@ export function OrderHistoryDialog({
             Không tìm thấy đơn hàng
           </div>
         ) : (
-          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="order-layout">
             {/* LEFT */}
-            <div className="min-h-0 space-y-3 overflow-y-auto p-3 sm:p-4">
+            <div className="stack" style={{ minWidth: 0 }}>
               <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#E5EAF2] bg-white p-3">
                 <FieldShell label="Tuyến">
                   <ViewValue value={routeShortLabel(o)} />
@@ -1576,7 +1575,7 @@ export function OrderHistoryDialog({
             </div>
 
             {/* RIGHT */}
-            <aside className="flex min-h-0 flex-col border-t border-[#E5EAF2] bg-white lg:border-l lg:border-t-0">
+            <aside className="order-box stack order-side">
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5 sm:p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                   <CreditCard className="h-4 w-4" />

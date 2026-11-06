@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { M3ConfirmActions, M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { M3Confirm } from "@/components/m3/M3Confirm";
-import { User, PackagePlus, MapPin, Truck, Receipt, Copy, Plus, Trash2 } from "lucide-react";
+import { User, PackagePlus, Truck, Receipt } from "lucide-react";
 import { AddressPicker } from "@/components/AddressPicker";
 import { TransitHubNotice } from "@/components/TransitHubNotice";
 import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
@@ -1564,11 +1564,11 @@ export function TaoDonDialog({
                     {canEditToOffice ? " — được sửa VP nhận khi đơn đang nhập kho gửi." : "."}
                   </p>
                 )}
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  <F label="SĐT Người Gửi *">
-                    <div className="relative">
+                <div className="stack">
+                  <F label="SĐT người gửi *">
+                    <div className="relative" style={{ width: "100%" }}>
                       <PhoneInput
-                        placeholder="VD: 0371234567 · 5 số đầu/cuối"
+                        placeholder="Nhập SĐT hoặc 5 số đầu/cuối"
                         value={senderPhone}
                         readOnly={senderLocked}
                         quietUntilComplete
@@ -1595,48 +1595,55 @@ export function TaoDonDialog({
                       onChange={setSenderName}
                     />
                   </F>
-                  <F label="VP gửi *">
-                    <SearchableSelect
-                      value={fromOffice}
-                      onValueChange={(v) => {
-                        if (lockFromOffice || partyLocked) return;
-                        setFromOffice(v);
-                      }}
-                      className={`h-auto min-h-9 py-1.5 ${lockFromOffice ? "bg-muted text-muted-foreground" : ""}`}
-                      placeholder={lockFromOffice ? "Đang gắn VP tài khoản…" : "Chọn VP gửi"}
-                      emptyText="Không có văn phòng"
-                      disabled={lockFromOffice || partyLocked}
-                      options={fromOfficeOptions}
-                    />
+                  <F label="VP gửi *" boxed={false}>
+                    {lockFromOffice || partyLocked ? (
+                      <div className="box input-box ro-box">
+                        <span className="ms" aria-hidden="true" style={{ fontSize: 18, color: "var(--on-surface-variant)" }}>
+                          lock
+                        </span>
+                        <span>
+                          {fromOfficeOptions.find((o) => o.value === fromOffice)?.label || fromOffice || "—"}
+                        </span>
+                      </div>
+                    ) : (
+                      <SearchableSelect
+                        value={fromOffice}
+                        onValueChange={(v) => {
+                          if (lockFromOffice || partyLocked) return;
+                          setFromOffice(v);
+                        }}
+                        placeholder="Chọn VP gửi"
+                        emptyText="Không có văn phòng"
+                        disabled={lockFromOffice || partyLocked}
+                        options={fromOfficeOptions}
+                      />
+                    )}
                   </F>
                 </div>
-                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
-                  <label className="flex items-center gap-2 whitespace-nowrap pb-2.5 text-sm">
-                    <Checkbox
-                      checked={homePickup}
-                      disabled={partyLocked}
-                      onCheckedChange={(v) => {
-                        setHomePickup(Boolean(v));
-                      }}
-                    />
-                    <MapPin className="h-3.5 w-3.5 text-success" />
-                    Lấy tận nơi
-                  </label>
-                  {SHOW_ORDER_ADDRESSES && homePickup ? (
-                    <AddressPicker
-                      label="Địa chỉ lấy hàng"
-                      required
-                      value={pickupAddr}
-                      onChange={setPickupAddr}
-                      onPinChange={setPickupPin}
-                      allowMapLink
-                      preferredProvince={pickupProvinceHint}
-                      disabled={senderLocked}
-                    />
-                  ) : null}
-                </div>
+                <label className="toggle">
+                  <input
+                    className="switch"
+                    type="checkbox"
+                    checked={homePickup}
+                    disabled={partyLocked}
+                    onChange={(e) => setHomePickup(e.target.checked)}
+                  />
+                  <span>Lấy tận nơi</span>
+                </label>
                 {homePickup ? (
-                  <div className="mt-3 w-full min-w-0">
+                  <div className="stack door-box">
+                    {SHOW_ORDER_ADDRESSES ? (
+                      <AddressPicker
+                        label="Địa chỉ lấy hàng"
+                        required
+                        value={pickupAddr}
+                        onChange={setPickupAddr}
+                        onPinChange={setPickupPin}
+                        allowMapLink
+                        preferredProvince={pickupProvinceHint}
+                        disabled={senderLocked}
+                      />
+                    ) : null}
                     <HomeDeliveryMap
                       enabled
                       address={pickupAddr}
@@ -1653,11 +1660,11 @@ export function TaoDonDialog({
 
               {/* Receiver section */}
               <Section icon={<Truck className="h-4 w-4" />} title="Người nhận" msIcon="person_pin_circle">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                  <F label="SĐT Người Nhận *">
-                    <div className="relative">
+                <div className="stack">
+                  <F label="SĐT người nhận *">
+                    <div className="relative" style={{ width: "100%" }}>
                       <PhoneInput
-                        placeholder="VD: 0377654321 · 5 số đầu/cuối"
+                        placeholder="Nhập SĐT"
                         value={receiverPhone}
                         readOnly={partyLocked}
                         quietUntilComplete
@@ -1684,20 +1691,19 @@ export function TaoDonDialog({
                       onChange={setReceiverName}
                     />
                   </F>
-                  <F label="VP Nhận *">
+                  <F label="VP nhận *" boxed={false}>
                     <SearchableSelect
                       value={toOffice}
                       onValueChange={setToOffice}
-                      className="h-auto min-h-9 py-1.5"
-                      placeholder="Chọn VP nhận"
-                      emptyText="Không có văn phòng"
+                      placeholder="Gõ để tìm VP nhận"
+                      emptyText="Không tìm thấy VP"
                       disabled={toOfficeLocked}
                       options={toOfficeOptions}
                     />
                   </F>
                   <F label="CMND/Passport">
                     <Input
-                      placeholder="VD: 191943210"
+                      placeholder="Nhập số giấy tờ"
                       value={idNumber}
                       readOnly={partyLocked}
                       className={lockedInputClass}
@@ -1705,9 +1711,9 @@ export function TaoDonDialog({
                     />
                   </F>
                 </div>
-                {!partyLocked && recentReceivers.length > 0 && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">Người nhận gần đây của SĐT gửi:</span>
+                {!partyLocked && recentReceivers.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                    <span className="lab muted">Người nhận gần đây:</span>
                     {recentReceivers.map((o) => {
                       const active = onlyDigits(o.receiverPhone) === onlyDigits(receiverPhone);
                       const toName = findOfficeByToken(o.finalToOffice || o.toOffice, offices)?.name;
@@ -1717,45 +1723,38 @@ export function TaoDonDialog({
                           type="button"
                           onClick={() => pickRecentReceiver(o)}
                           title={[o.address, toName].filter(Boolean).join(" · ") || undefined}
-                          className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                            active
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "hover:border-primary hover:bg-primary/5"
-                          }`}
+                          className={cn("pill sm", active && "on")}
                         >
-                          <span className="font-medium">{toUpperName(o.receiverName ?? "") || "Không tên"}</span>
-                          <span className="text-muted-foreground"> · {o.receiverPhone}</span>
-                          {toName ? <span className="text-muted-foreground"> · {toName}</span> : null}
+                          {toUpperName(o.receiverName ?? "") || "Không tên"} · {o.receiverPhone}
                         </button>
                       );
                     })}
                   </div>
-                )}
-                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
-                  <label className="flex items-center gap-2 whitespace-nowrap pb-2.5 text-sm">
-                    <Checkbox
-                      checked={homeDeliver}
-                      disabled={partyLocked}
-                      onCheckedChange={(v) => setHomeDeliver(Boolean(v))}
-                    />
-                    <MapPin className="h-3.5 w-3.5 text-success" />
-                    Giao tận nơi
-                  </label>
-                  {SHOW_ORDER_ADDRESSES && homeDeliver ? (
-                    <AddressPicker
-                      label="Địa chỉ giao hàng"
-                      required
-                      value={deliverAddr}
-                      onChange={setDeliverAddr}
-                      onPinChange={setDeliverPin}
-                      allowMapLink
-                      preferredProvince={deliverProvinceHint}
-                      disabled={partyLocked}
-                    />
-                  ) : null}
-                </div>
+                ) : null}
+                <label className="toggle">
+                  <input
+                    className="switch"
+                    type="checkbox"
+                    checked={homeDeliver}
+                    disabled={partyLocked}
+                    onChange={(e) => setHomeDeliver(e.target.checked)}
+                  />
+                  <span>Giao tận nơi</span>
+                </label>
                 {homeDeliver ? (
-                  <div className="mt-3 w-full min-w-0">
+                  <div className="stack door-box">
+                    {SHOW_ORDER_ADDRESSES ? (
+                      <AddressPicker
+                        label="Địa chỉ giao hàng"
+                        required
+                        value={deliverAddr}
+                        onChange={setDeliverAddr}
+                        onPinChange={setDeliverPin}
+                        allowMapLink
+                        preferredProvince={deliverProvinceHint}
+                        disabled={partyLocked}
+                      />
+                    ) : null}
                     <HomeDeliveryMap
                       enabled
                       address={deliverAddr}
@@ -1772,39 +1771,52 @@ export function TaoDonDialog({
               </Section>
               </div>
 
-              {/* Items table */}
-              <Section icon={<PackagePlus className="h-4 w-4" />} title="Danh sách hàng hoá" msIcon="inventory_2">
-                <div className="space-y-3">
+              {/* Items — design `.pack` / `.pack-grid` */}
+              <Section icon={<PackagePlus className="h-4 w-4" />} title={`Danh sách hàng hoá (${items.length} kiện)`} msIcon="inventory_2">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: -8 }}>
+                  <button
+                    type="button"
+                    className="btn tonal"
+                    style={{ height: 36 }}
+                    onClick={() => setItems((p) => [...p, newItem()])}
+                  >
+                    <span className="ms" aria-hidden="true">
+                      add
+                    </span>
+                    Thêm kiện
+                  </button>
+                </div>
+                <div className="stack">
                   {items.map((it, idx) => {
                     const group = resolveGroup(it);
                     const isOther = isOtherGoodsGroup(group);
                     const showProduct = Boolean(group) && !isOther;
-                    const cols = isOther
-                      ? "1fr 1fr 68px 68px 68px"
-                      : showProduct
-                        ? "1fr 1fr 68px 68px 68px"
-                        : "1fr 68px 68px 68px";
-                    const row2 = "72px 90px 1fr 1fr 2fr";
                     return (
-                      <div key={it.id} className="rounded-lg border bg-background px-4 pb-3 pt-2.5">
-                        {/* Header row */}
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div key={it.id} className="pack">
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <div className="title-small" style={{ fontWeight: 600 }}>
                             Kiện {idx + 1}
-                          </span>
-                          {items.length > 1 && (
+                          </div>
+                          <div className="act">
+                            <button type="button" className="text-act" onClick={() => duplicateItem(it.id)}>
+                              Nhân bản
+                            </button>
                             <button
                               type="button"
+                              className="no"
+                              aria-label={`Xoá kiện ${idx + 1}`}
+                              title="Xoá kiện"
+                              disabled={items.length <= 1}
                               onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
-                              className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <span className="ms" aria-hidden="true">
+                                delete
+                              </span>
                             </button>
-                          )}
+                          </div>
                         </div>
-                        {/* Row 1: nhóm hàng · [tên hàng] · dài · rộng · cao */}
-                        <div className="grid gap-3" style={{ gridTemplateColumns: cols }}>
-                          <F label="Nhóm hàng">
+                        <div className="pack-grid">
+                          <F label="Nhóm hàng *" boxed={false} labelClassName="pack-wide">
                             <SearchableSelect
                               value={group}
                               onValueChange={(v) =>
@@ -1814,26 +1826,23 @@ export function TaoDonDialog({
                                   name: "",
                                 })
                               }
-                              className="h-9"
                               placeholder="Chọn nhóm hàng"
                               options={goodsGroupOptions}
                             />
                           </F>
-                          {showProduct && (
-                            <F label="Tên hàng hóa">
+                          {showProduct ? (
+                            <F label="Tên hàng hoá" boxed={false} labelClassName="pack-wide">
                               <SearchableSelect
                                 value={it.kind}
                                 onValueChange={(v) => updateItem(it.id, { kind: v, name: "" })}
-                                className="h-9"
                                 placeholder="Chọn tên hàng hóa"
                                 options={productNameOptions(group)}
                               />
                             </F>
-                          )}
-                          {isOther && (
-                            <F label="Nhập tên hàng hoá *">
+                          ) : null}
+                          {isOther ? (
+                            <F label="Nhập tên hàng hoá *" labelClassName="pack-wide">
                               <Input
-                                className="h-9"
                                 placeholder="Nhập tên hàng hóa"
                                 value={it.name}
                                 onChange={(e) =>
@@ -1842,91 +1851,54 @@ export function TaoDonDialog({
                                 required
                               />
                             </F>
-                          )}
+                          ) : null}
+                          <F label="Cân nặng (kg) *">
+                            <NumberInput
+                              decimal
+                              min={1}
+                              placeholder="0"
+                              value={it.weight}
+                              onChange={(weight) => updateItem(it.id, { weight })}
+                            />
+                          </F>
+                          <F label="Số lượng món">
+                            <NumberInput value={it.sl} onChange={(sl) => updateItem(it.id, { sl })} />
+                          </F>
+                          <F label="Giá trị hàng (VNĐ)">
+                            <MoneyInput value={it.value} onChange={(value) => updateItem(it.id, { value })} />
+                          </F>
+                          <F label="Cước hàng (VNĐ)" boxed={false}>
+                            <div className="box input-box ro-box">
+                              <span className={it.fare ? undefined : "muted"}>
+                                {it.fare ? formatVND(it.fare) : "—"}
+                              </span>
+                            </div>
+                          </F>
                           <F label="Dài (cm)">
                             <NumberInput
-                              className="h-9 w-full"
-                              placeholder="0"
+                              placeholder="10"
                               value={it.dai}
                               onChange={(dai) => updateItem(it.id, { dai })}
                             />
                           </F>
                           <F label="Rộng (cm)">
                             <NumberInput
-                              className="h-9 w-full"
-                              placeholder="0"
+                              placeholder="10"
                               value={it.rong}
                               onChange={(rong) => updateItem(it.id, { rong })}
                             />
                           </F>
                           <F label="Cao (cm)">
                             <NumberInput
-                              className="h-9 w-full"
-                              placeholder="0"
+                              placeholder="10"
                               value={it.cao}
                               onChange={(cao) => updateItem(it.id, { cao })}
-                            />
-                          </F>
-                        </div>
-                        {/* Row 2: số lượng · cân nặng · giá trị · cước · ghi chú */}
-                        <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: row2 }}>
-                          <F label="Số lượng">
-                            <NumberInput
-                              className="h-9 w-full"
-                              value={it.sl}
-                              onChange={(sl) => updateItem(it.id, { sl })}
-                            />
-                          </F>
-                          <F label="Cân nặng (KG)">
-                            <NumberInput
-                              className="h-9 w-full"
-                              decimal
-                              min={1}
-                              value={it.weight}
-                              onChange={(weight) => updateItem(it.id, { weight })}
-                            />
-                          </F>
-                          <F label="Giá trị hàng">
-                            <MoneyInput
-                              value={it.value}
-                              onChange={(value) => updateItem(it.id, { value })}
-                            />
-                          </F>
-                          <F label="Cước hàng">
-                            <MoneyInput
-                              value={it.fare}
-                              onChange={() => undefined}
-                              readOnly
-                              tabIndex={-1}
                             />
                           </F>
                         </div>
                       </div>
                     );
                   })}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setItems((p) => [...p, newItem()])}
-                      className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Thêm kiện
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const last = items[items.length - 1];
-                        if (last) duplicateItem(last.id);
-                      }}
-                      className="flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
-                      aria-label="Nhân bản kiện cuối"
-                      title="Nhân bản kiện cuối"
-                    >
-                      <Copy className="h-4 w-4 shrink-0" />
-                      Nhân bản
-                    </button>
-                  </div>
                 </div>
               </Section>
             </div>
@@ -1937,15 +1909,14 @@ export function TaoDonDialog({
                 <div className="stack">
                   {/* LEFT: Payment details */}
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <F label="Hình thức thanh toán">
+                    <div className="stack">
+                      <F label="Hình thức thanh toán" boxed={false}>
                         <SearchableSelect
                           value={payMethod}
                           onValueChange={(v) => {
                             setPayMethod(v);
                             if (v !== "Người gửi thanh toán") setRequestSenderTransfer(false);
                           }}
-                          className="h-9"
                           options={PAY_METHODS.map((m) => ({
                             value: m,
                             label: m,
@@ -1968,26 +1939,32 @@ export function TaoDonDialog({
                           placeholder={!codAmount ? "Nhập Thu hộ COD trước" : ""}
                         />
                       </F>
-                      <F label="Giảm giá (hệ thống)">
-                        <Input value={formatVND(discountVND)} readOnly disabled />
+                      <F label="Giảm giá (hệ thống)" boxed={false}>
+                        <div className="box input-box ro-box">
+                          <span className="muted">{formatVND(discountVND)}</span>
+                        </div>
                       </F>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <Checkbox
+                    <div className="opt-item">
+                      <label className="lab opt-check">
+                        <input
+                          className="check"
+                          type="checkbox"
                           checked={ckSender}
-                          onCheckedChange={(v) => setCkSender(Boolean(v))}
+                          onChange={(e) => setCkSender(e.target.checked)}
                         />
-                        Tài khoản nhận thu hộ
+                        <span className="ms opt-ic" aria-hidden="true">
+                          account_balance
+                        </span>
+                        Nhận tiền COD qua tài khoản
                       </label>
-                      {ckSender && (
-                        <div className="grid grid-cols-1 gap-2 rounded-md border bg-background p-2.5 sm:grid-cols-3">
-                          <F label="Ngân hàng">
+                      {ckSender ? (
+                        <div className="stack" style={{ marginTop: 8 }}>
+                          <F label="Ngân hàng *" boxed={false}>
                             <SearchableSelect
                               value={bankName}
                               onValueChange={setBankName}
-                              className="h-9"
                               placeholder="Chọn ngân hàng"
                               options={[
                                 "Vietcombank",
@@ -2023,15 +2000,20 @@ export function TaoDonDialog({
                             />
                           </F>
                         </div>
-                      )}
+                      ) : null}
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <Checkbox
+                    <div className="opt-item">
+                      <label className="lab opt-check">
+                        <input
+                          className="check"
+                          type="checkbox"
                           checked={invoiceRequested}
-                          onCheckedChange={(v) => setInvoiceRequested(Boolean(v))}
+                          onChange={(e) => setInvoiceRequested(e.target.checked)}
                         />
+                        <span className="ms opt-ic" aria-hidden="true">
+                          receipt_long
+                        </span>
                         Xuất hoá đơn
                       </label>
                       {invoiceRequested && (
@@ -2299,15 +2281,18 @@ function F({
   label,
   children,
   labelClassName,
+  /** false khi child đã tự mang `.box` (SearchableSelect). */
+  boxed = true,
 }: {
   label: React.ReactNode;
   children: React.ReactNode;
   labelClassName?: string;
+  boxed?: boolean;
 }) {
   return (
     <label className={cn("field cfg-field", labelClassName)}>
       <span className="l">{label}</span>
-      {children}
+      {boxed ? <span className="box input-box">{children}</span> : children}
     </label>
   );
 }

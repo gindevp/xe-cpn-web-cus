@@ -405,11 +405,58 @@ html.xe-scan-immersive main {
   align-items: flex-start;
   overflow-y: auto;
 }
+/* Sheet ổn định: không tràn viewport; order-sheet cuộn theo scrim */
+.scrim > .sheet {
+  max-height: calc(100dvh - 48px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.scrim.m3-scrim-top > .sheet.order-sheet,
+.scrim > .sheet.order-sheet {
+  max-height: none;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+}
+/* Field trong sheet/order: full width, không bị flex 240px cắt */
+.sheet .field,
+.order-box .field,
+.sheet .field.cfg-field {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+/* Input shadcn nằm trong .box.input-box — bỏ viền kép / height lệch */
+.box.input-box :is(input, textarea),
+.box.input-box [data-slot="input"] {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+}
+.box.input-box:has(textarea) {
+  height: auto;
+  min-height: 40px;
+  align-items: flex-start;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
 /* SearchableSelect → design combo */
 .m3-combo-trigger {
   width: 100%;
-  min-height: 40px;
-  height: 40px;
+  min-height: 40px !important;
+  height: 40px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
   cursor: text;
 }
 .m3-combo-trigger input {

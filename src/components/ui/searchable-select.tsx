@@ -110,7 +110,11 @@ export function SearchableSelect({
             className={cn(
               "box input-box m3-combo-trigger",
               disabled && "opacity-50",
-              className,
+              /* Bỏ class height/padding Tailwind từ caller — tránh đè .box 40px */
+              className
+                ?.split(/\s+/)
+                .filter((c) => c && !/^(h-|min-h-|max-h-|py-|pt-|pb-)/.test(c))
+                .join(" "),
             )}
             onMouseDown={(e) => {
               if (disabled || e.target === inputRef.current) return;
