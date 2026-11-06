@@ -385,15 +385,16 @@ const ORDER_EXPORT_FIELDS: ExportField[] = [
   {
     key: "internalDeliveryFee",
     label: "Phí giao nội bộ",
-    hint: "Phí giao tận nơi khi giao nội bộ. Đơn book Ahamove/Grab để trống.",
-    get: (o) => (o.partnerCode === "AHAMOVE" || o.partnerCode === "GRAB" ? "" : money(o.deliveryFee)),
+    hint: "Chi phí ship nội bộ (70% cước giao) khi đã gán NV giao nội bộ. Ahamove/Grab/ship ngoài / chưa gán → trống.",
+    get: (o) =>
+      String(o.partnerCode ?? "").toUpperCase() === "INTERNAL" ? money(o.partnerFee) : "",
   },
   {
     key: "internalShipperName",
     label: "Tên NV giao lấy nội bộ",
-    hint: "Shipper nội bộ được gán giao/lấy hàng. Đơn book Ahamove/Grab để trống.",
+    hint: "Shipper nội bộ đã gán giao tận nơi (cùng lúc với phí giao nội bộ). Ahamove/Grab/ship ngoài / chưa gán → trống.",
     get: (o) =>
-      o.partnerCode === "AHAMOVE" || o.partnerCode === "GRAB" ? "" : (o.shipperName ?? "").trim(),
+      String(o.partnerCode ?? "").toUpperCase() === "INTERNAL" ? (o.shipperName ?? "").trim() : "",
   },
   {
     key: "vehiclePlate",
@@ -492,6 +493,8 @@ function DashboardPage() {
   const [hourDrillCache, setHourDrillCache] = useState<HourDrillRow[] | null>(null);
   const [hourDrillCacheKey, setHourDrillCacheKey] = useState("");
   const [hourDrillLoading, setHourDrillLoading] = useState(false);
+  const [hrShowSent, setHrShowSent] = useState(true);
+  const [hrShowRecv, setHrShowRecv] = useState(true);
   const readOnly = isReadOnlyRole(session?.role);
   const isAdmin = isAdminRole(session?.role);
   /** AD + KT được xuất file đơn hàng từ dashboard. */
@@ -591,7 +594,11 @@ function DashboardPage() {
         const name = officeNameByCode.get(code.toUpperCase()) ?? (code || "—");
         perOffice[name] = (perOffice[name] || 0) + Number(n || 0);
       }
-      return { label, slot: i, count: Number(h?.count ?? 0), perOffice };
+      const hasSplit = h?.sent != null || h?.received != null;
+      const sent = hasSplit ? Number(h?.sent ?? 0) : Number(h?.count ?? 0);
+      const received = hasSplit ? Number(h?.received ?? 0) : 0;
+      const count = Number(h?.count ?? sent + received);
+      return { label, slot: i, count, sent, received, perOffice };
     });
     const perOfficeTotals: Record<string, number> = {};
     for (const b of buckets) {
@@ -600,20 +607,27 @@ function DashboardPage() {
       }
     }
     const totalOrders = buckets.reduce((s, b) => s + b.count, 0);
+    const hourSent = buckets.reduce((s, b) => s + b.sent, 0);
+    const hourReceived = buckets.reduce((s, b) => s + b.received, 0);
     const day0 = hourReport?.days?.[0];
-    const daySent = Number(day0?.sent ?? 0);
-    const dayReceived = Number(day0?.received ?? 0);
+    const daySent = Number(day0?.sent ?? hourSent);
+    const dayReceived = Number(day0?.received ?? hourReceived);
     return {
       totalOrders,
       daySent,
       dayReceived,
+      hourSent,
+      hourReceived,
       buckets,
       perOfficeTotals,
       officesShown: OFFICES_ONLY.filter((o) => office === ALL_OFFICES || o === office),
     };
   }, [hourReport, office, offices, officeNameByCode]);
 
-  const maxBucket = Math.max(1, ...stat.buckets.map((b) => b.count));
+  const maxBucket = Math.max(
+    1,
+    ...stat.buckets.flatMap((b) => [hrShowSent ? b.sent : 0, hrShowRecv ? b.received : 0]),
+  );
   const [hourDrill, setHourDrill] = useState<{ title: string; rows: HourDrillRow[] } | null>(null);
 
   const fetchOrdersWindow = async (officeFilter: {
@@ -692,13 +706,14 @@ function DashboardPage() {
 
   const openHourDrill = async (
     title: string,
-    opts: { slot?: number; officeName?: string; all?: boolean },
+    opts: { slot?: number; officeName?: string; kind?: HourDrillKind; all?: boolean },
   ) => {
     const list = await ensureHourOrders();
     let rows = list;
     if (opts.slot != null) {
       rows = rows.filter((r) => r.at && vnHourSlot(r.at) === opts.slot);
     }
+    if (opts.kind) rows = rows.filter((r) => r.kind === opts.kind);
     if (opts.officeName) rows = rows.filter((r) => drillOfficeOf(r) === opts.officeName);
     if (!rows.length) {
       toast.message("Không có đơn trong khung này");
@@ -1131,10 +1146,28 @@ function DashboardPage() {
                   <div className="lab muted" style={{ marginTop: 4 }}>
                     {hourLoading
                       ? "Đang tải…"
-                      : `Trong ngày: ${stat.daySent} gửi + ${stat.dayReceived} nhận · biểu đồ khung giờ = tổng sự kiện nhập kho (API chưa tách gửi/nhận theo slot).`}
+                      : `Trong ngày: ${stat.hourSent.toLocaleString("vi-VN")} gửi + ${stat.hourReceived.toLocaleString("vi-VN")} nhận`}
                   </div>
                 </div>
-                <div className="hr-tools">
+                <div className="hr-tools" style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 8 }}>
+                  <button
+                    type="button"
+                    className={`legend${hrShowSent ? "" : " off"}`}
+                    aria-pressed={hrShowSent}
+                    onClick={() => setHrShowSent((v) => !v)}
+                  >
+                    <span className="dot sent" aria-hidden="true" />
+                    Đơn gửi
+                  </button>
+                  <button
+                    type="button"
+                    className={`legend${hrShowRecv ? "" : " off"}`}
+                    aria-pressed={hrShowRecv}
+                    onClick={() => setHrShowRecv((v) => !v)}
+                  >
+                    <span className="dot recv" aria-hidden="true" />
+                    Đơn nhận
+                  </button>
                   <div className="field" style={{ flex: "0 0 150px", minWidth: 0 }}>
                     <span className="l">Ngày</span>
                     <span className="box input-box">
@@ -1160,24 +1193,49 @@ function DashboardPage() {
                 <div className="scroller" style={{ opacity: hourLoading ? 0.6 : 1 }}>
                   <div className="hr-plot">
                     {stat.buckets.map((b) => {
-                      const h = b.count ? Math.max(4, Math.round((b.count / maxBucket) * 170)) : 0;
+                      const sH = b.sent ? Math.max(4, Math.round((b.sent / maxBucket) * 170)) : 0;
+                      const rH = b.received ? Math.max(4, Math.round((b.received / maxBucket) * 170)) : 0;
                       return (
                         <div key={b.label} className="hr-col">
                           <div className="hr-bars">
-                            <div className="hr-bar">
-                              <button
-                                type="button"
-                                className="hr-num num"
-                                disabled={!b.count || hourDrillLoading}
-                                aria-label={`${b.label}: ${b.count} đơn, xem danh sách`}
-                                onClick={() =>
-                                  void openHourDrill(`Tất cả văn phòng · ${b.label}`, { slot: b.slot })
-                                }
-                              >
-                                {b.count ? b.count.toLocaleString("vi-VN") : "—"}
-                              </button>
-                              <i className="recv" style={{ height: h }} />
-                            </div>
+                            {hrShowSent ? (
+                              <div className="hr-bar">
+                                <button
+                                  type="button"
+                                  className="hr-num num"
+                                  disabled={!b.sent || hourDrillLoading}
+                                  aria-label={`${b.label}: ${b.sent} đơn gửi, xem danh sách`}
+                                  onClick={() =>
+                                    void openHourDrill(`Đơn gửi · ${b.label}`, {
+                                      slot: b.slot,
+                                      kind: "gui",
+                                    })
+                                  }
+                                >
+                                  {b.sent ? b.sent.toLocaleString("vi-VN") : "—"}
+                                </button>
+                                <i className="sent" style={{ height: sH }} />
+                              </div>
+                            ) : null}
+                            {hrShowRecv ? (
+                              <div className="hr-bar">
+                                <button
+                                  type="button"
+                                  className="hr-num num"
+                                  disabled={!b.received || hourDrillLoading}
+                                  aria-label={`${b.label}: ${b.received} đơn nhận, xem danh sách`}
+                                  onClick={() =>
+                                    void openHourDrill(`Đơn nhận · ${b.label}`, {
+                                      slot: b.slot,
+                                      kind: "nhan",
+                                    })
+                                  }
+                                >
+                                  {b.received ? b.received.toLocaleString("vi-VN") : "—"}
+                                </button>
+                                <i className="recv" style={{ height: rH }} />
+                              </div>
+                            ) : null}
                           </div>
                           <span className="hr-tick num">{b.label}</span>
                         </div>
