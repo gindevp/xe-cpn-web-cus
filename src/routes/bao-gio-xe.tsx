@@ -4,11 +4,8 @@ import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { EmptyState, Section } from "@/components/PageBits";
-import { StageTabButton, StageTabRow } from "@/components/StageTabs";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/PageBits";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
@@ -31,10 +28,8 @@ import { canWrite } from "@/lib/rbac";
 import { useStore } from "@/lib/store";
 import { assignedOfficeCode, hasAllOfficeScope, resolveViewOffice } from "@/lib/office-scope";
 import { officeName } from "@/lib/mock-data";
-import { Switch } from "@/components/ui/switch";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { cn } from "@/lib/utils";
-import { Camera } from "lucide-react";
 
 export const Route = createFileRoute("/bao-gio-xe")({
   head: () => ({
@@ -44,7 +39,7 @@ export const Route = createFileRoute("/bao-gio-xe")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Báo giờ xe đến/đi" screen="bao-gio-xe">
+    <ProtectedPage title="Báo giờ xe đến/đi" screen="bao-gio-xe" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -184,39 +179,18 @@ function matches(e: Ev, q: string, route = "", branchRoutes: Set<string> | null 
 }
 
 function TypeBadge({ type }: { type: Ev["eventType"] }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        type === "DEPART"
-          ? "border-sky-200 bg-sky-50 text-sky-800"
-          : "border-emerald-200 bg-emerald-50 text-emerald-800",
-      )}
-    >
-      {type === "DEPART" ? "Rời VP" : "Đến VP"}
-    </span>
-  );
+  return <span className={type === "DEPART" ? "tag info" : "tag ok"}>{type === "DEPART" ? "Rời VP" : "Đến VP"}</span>;
 }
 
 function DelayCell({ e }: { e?: Ev | null }) {
   const d = deviationOf(e);
   const p = punctualityOf(d);
-  if (d == null || !p) return <span className="text-muted-foreground">—</span>;
+  if (d == null || !p) return <span className="muted">—</span>;
+  const tag = p === "MUON" ? "tag err" : p === "SOM" ? "tag info" : "tag ok";
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-      <span
-        className={cn(
-          "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-          p === "MUON" && "border-red-200 bg-red-50 text-red-700",
-          p === "SOM" && "border-sky-200 bg-sky-50 text-sky-800",
-          p === "DUNG" && "border-emerald-200 bg-emerald-50 text-emerald-800",
-        )}
-      >
-        {PUNCTUALITY_LABEL[p]}
-      </span>
-      <span className={cn("tabular-nums", p === "MUON" ? "font-medium text-destructive" : "text-muted-foreground")}>
-        {fmtMinutes(d)}
-      </span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+      <span className={tag}>{PUNCTUALITY_LABEL[p]}</span>
+      <span className={cn("num", p === "MUON" ? "main" : "muted")}>{fmtMinutes(d)}</span>
     </span>
   );
 }
@@ -226,14 +200,34 @@ function PhotoButton({ e, onOpen }: { e?: Ev | null; onOpen: (e: Ev) => void }) 
   return (
     <button
       type="button"
+      className="icon-btn"
+      aria-label="Xem ảnh xe rời"
       title="Xem ảnh xe rời VP"
-      className="ml-1.5 inline-flex h-6 w-6 items-center justify-center rounded border border-sky-200 bg-sky-50 align-middle text-sky-700 hover:bg-sky-100"
       onClick={() => onOpen(e)}
     >
-      <Camera className="h-3.5 w-3.5" />
+      <span className="ms" aria-hidden="true" style={{ fontSize: 18 }}>
+        photo_camera
+      </span>
     </button>
   );
 }
+
+const CHAM_ILL = (
+  <svg className="rev-ill cham-ill" viewBox="0 0 150 104" aria-hidden="true">
+    <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+    <rect className="ill-main" x="10" y="22" width="84" height="58" rx="5" />
+    <rect className="ill-paper" x="20" y="34" width="44" height="6" rx="3" />
+    <rect className="ill-mid" x="20" y="46" width="28" height="6" rx="3" />
+    <path className="ill-mid" d="M96 40h24l18 20v20H96z" />
+    <path className="ill-paper" d="M104 47h13l11 13h-24z" />
+    <circle className="ill-dark" cx="36" cy="84" r="11" />
+    <circle className="ill-paper" cx="36" cy="84" r="4.5" />
+    <circle className="ill-dark" cx="114" cy="84" r="11" />
+    <circle className="ill-paper" cx="114" cy="84" r="4.5" />
+    <rect className="ill-box" x="72" y="8" width="20" height="14" rx="2" />
+    <rect className="ill-box2" x="52" y="8" width="18" height="14" rx="2" />
+  </svg>
+);
 
 function Page() {
   const { session } = useAuth();
@@ -267,6 +261,7 @@ function Page() {
   const [status, setStatus] = useState<"" | Punctuality>("");
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<Tab>("CHUYEN");
+  const [showRule, setShowRule] = useState(false);
   const [route, setRoute] = useState("");
   const [events, setEvents] = useState<Ev[] | null>(null);
   const [loaded, setLoaded] = useState<{ from: string; to: string } | null>(null);
@@ -913,348 +908,432 @@ function Page() {
   const lateCount = logRows.filter((e) => punctualityOf(deviationOf(e)) === "MUON").length;
 
   return (
-    <div className="space-y-4">
-      <StageTabRow className="gap-2.5 md:gap-3">
-        <StageTabButton active={tab === "CHAM"} onClick={() => setTab("CHAM")}>
-          Chấm xe đến/đi
-        </StageTabButton>
-        <StageTabButton active={tab === "TONG_QUAN"} onClick={() => setTab("TONG_QUAN")}>
-          Tổng quan
-        </StageTabButton>
-        <StageTabButton active={tab === "CHUYEN"} onClick={() => setTab("CHUYEN")}>
-          Theo xe tại VP
-        </StageTabButton>
-        <StageTabButton active={tab === "NHAT_KY"} onClick={() => setTab("NHAT_KY")}>
-          Nhật ký báo
-        </StageTabButton>
-      </StageTabRow>
-
-      {tab === "CHAM" ? (
-        <Section title="Chấm xe đến/đi">
-          <p className="mb-3 text-xs text-muted-foreground">
-            Cùng danh sách và quy tắc với app: bấm tab lộ trình, báo xe đến rồi mới báo xe rời. Rời muộn từ {LATE_MINUTES} phút so
-            với giờ đón phải nhập lý do. Web không chụp ảnh — ảnh văn phòng sẽ lấy từ camera sau.
-          </p>
-          {canConfigure ? (
-            <div className="mb-3 flex items-center gap-2">
-              <Switch checked={photoRequired} disabled={savingPolicy} onCheckedChange={(v) => void togglePhoto(v)} />
-              <span className="text-sm">App bắt buộc chụp ảnh khi báo xe rời</span>
-            </div>
-          ) : null}
-          <VehicleTimesMark readOnly={!canMark} />
-        </Section>
-      ) : null}
-
-      {tab !== "CHAM" ? (
-      <>
-      <Section>
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Từ ngày</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Tuyến</Label>
-            <SearchableSelect
-              value={branch}
-              onValueChange={setBranch}
-              options={[{ value: ALL, label: "Tất cả tuyến" }, ...branchOptions]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Lộ trình</Label>
-            <SearchableSelect
-              value={route}
-              onValueChange={setRoute}
-              options={[{ value: "", label: "Tất cả lộ trình" }, ...routeOptions]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Trạng thái</Label>
-            <SearchableSelect
-              value={status}
-              onValueChange={(v) => setStatus(v as "" | Punctuality)}
-              options={[
-                { value: "", label: "Tất cả trạng thái" },
-                { value: "SOM", label: "Sớm" },
-                { value: "DUNG", label: "Đúng giờ" },
-                { value: "MUON", label: "Muộn" },
-              ]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Tìm</Label>
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Biển số, chuyến, tài xế, tuyến" />
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row">
+        <div>
+          <h1 className="page-title">Báo giờ xe đến/đi</h1>
+          <div className="lab muted">
+            Giờ do nhân viên báo trên app.{" "}
+            <button type="button" className="link-plain" style={{ fontSize: 13, textDecoration: "underline" }} onClick={() => setShowRule((v) => !v)}>
+              Cách tính
+            </button>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm text-muted-foreground">
-            {loaded
-              ? `${tripRows.length} lượt xe · ${arriveCount} lượt đến · ${departCount} lượt rời${lateCount ? ` · ${lateCount} lượt rời muộn` : ""}`
-              : loading
-                ? "Đang tải…"
-                : "Chưa có dữ liệu"}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => quick(today(), today())} disabled={loading}>
+        {tab !== "CHAM" ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <button type="button" className="pill" onClick={() => quick(today(), today())} disabled={loading}>
               Hôm nay
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => quick(monthStart(today()), today())} disabled={loading}>
+            </button>
+            <button type="button" className="pill" onClick={() => quick(monthStart(today()), today())} disabled={loading}>
               Tháng này
-            </Button>
+            </button>
             <ExportFormatButton
+              className="btn tonal"
+              variant="ghost"
               disabled={!loaded || !canExportTab}
               onExport={(format) => exportExcel(format)}
             />
           </div>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Giờ do nhân viên báo trên app (Báo cáo giờ xe đến/đi). Xuất bến KH là giờ đón tại VP = giờ xuất bến của xe ± phút
-          lệch cài ở Lộ trình áp dụng của VP. Thời gian dừng = chênh giữa giờ rời VP thực tế và Xuất bến KH: rời trước là SỚM, trễ 0–
-          {LATE_MINUTES - 1} phút là ĐÚNG GIỜ, từ {LATE_MINUTES} phút là MUỘN (bắt buộc nhập lý do khi báo rời). Báo xe rời trên app bắt buộc chụp ảnh xe —
-          bấm icon máy ảnh cạnh giờ rời để xem.
-        </p>
-      </Section>
+        ) : null}
+      </div>
 
-      {tab === "TONG_QUAN" ? (
-        <>
-        <Section title={`Tổng quan theo biển số (${plateRows.length})`}>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Lượt đến / lượt đi = số lần NV báo xe đến / rời trong khoảng ngày, cộng mọi văn phòng. Lượt chạy theo bảng
-            tài hôm nay lấy trực tiếp từ CRM; các ngày đã qua lấy ảnh lưu lúc 23:50 (portal không xem lại quá khứ). Đi
-            muộn = lượt rời VP trễ từ {LATE_MINUTES} phút so với giờ đón. Bộ lọc Trạng thái chỉ giữ biển số có ít nhất
-            một lượt rời sớm, đúng giờ hoặc muộn.
-          </p>
-          {plan?.warning ? <p className="mb-3 text-xs text-amber-700">{plan.warning}</p> : null}
-          {plateRows.length === 0 ? (
-            <EmptyState>{loading || planLoading || overviewLoading ? "Đang tải…" : "Chưa có xe nào"}</EmptyState>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">STT</th>
-                    <th className="px-2 py-2">Biển số</th>
-                    <th className="px-2 py-2">Tài xế</th>
-                    <th className="px-2 py-2 text-right">Lượt đến</th>
-                    <th className="px-2 py-2 text-right">Lượt đi</th>
-                    <th className="px-2 py-2 text-right">Lượt chạy theo bảng tài</th>
-                    <th className="px-2 py-2 text-right">Số lần đi muộn</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {platePage.pageRows.map((r) => (
-                    <tr key={r.key || "-"} className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2 tabular-nums text-muted-foreground">{plateRows.indexOf(r) + 1}</td>
-                      <td className="px-2 py-2 font-medium">{r.plate || "Không rõ BKS"}</td>
-                      <td className="px-2 py-2 text-muted-foreground">{r.drivers.join(", ") || "—"}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{r.arrive}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{r.depart}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{planLoading ? "…" : r.planned}</td>
-                      <td className={cn("px-2 py-2 text-right tabular-nums", r.late && "font-semibold text-destructive")}>{r.late}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t font-semibold">
-                    <td className="px-2 py-2" colSpan={3}>
-                      Tổng
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{plateTotals.arrive}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{plateTotals.depart}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{planLoading ? "…" : plateTotals.planned}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{plateTotals.late}</td>
-                  </tr>
-                </tfoot>
-              </table>
-              <TablePagination pager={platePage.pager} />
-            </div>
-          )}
-        </Section>
-        <Section title={`Tổng quan theo văn phòng (${officeRows.length})`}>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Mỗi văn phòng một dòng. Lượt chạy theo bảng tài = chuyến CRM của lộ trình VP báo giờ. Đi muộn gom theo lý do
-            nhân viên nhập khi báo xe rời trễ từ {LATE_MINUTES} phút.
-          </p>
-          {officeRows.length === 0 ? (
-            <EmptyState>{loading || overviewLoading || planLoading ? "Đang tải…" : "Chưa có văn phòng nào"}</EmptyState>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">STT</th>
-                    <th className="px-2 py-2">Văn phòng</th>
-                    <th className="px-2 py-2 text-right">Lượt đến</th>
-                    <th className="px-2 py-2 text-right">Lượt đi</th>
-                    <th className="px-2 py-2 text-right">Lượt chạy theo bảng tài</th>
-                    <th className="px-2 py-2">Đi muộn theo lý do</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {officePage.pageRows.map((r) => (
-                    <tr key={r.key} className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2 tabular-nums text-muted-foreground">{officeRows.indexOf(r) + 1}</td>
-                      <td className="px-2 py-2 font-medium">{r.name}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{r.arrive}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{r.depart}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{planLoading ? "…" : r.planned}</td>
-                      <td className="px-2 py-2 text-muted-foreground">
-                        {r.lateByReason.length === 0
-                          ? "—"
-                          : r.lateByReason.map((x) => (
-                              <span key={x.reason} className="mr-2 inline-block whitespace-nowrap">
-                                {x.reason} <span className="font-semibold tabular-nums text-destructive">({x.count})</span>
-                              </span>
-                            ))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t font-semibold">
-                    <td className="px-2 py-2" colSpan={2}>
-                      Tổng
-                    </td>
-                    <td className="px-2 py-2 text-right tabular-nums">{officeTotals.arrive}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{officeTotals.depart}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{planLoading ? "…" : officeTotals.planned}</td>
-                    <td className="px-2 py-2 tabular-nums">{officeTotals.late}</td>
-                  </tr>
-                </tfoot>
-              </table>
-              <TablePagination pager={officePage.pager} />
-            </div>
-          )}
-        </Section>
-        </>
-      ) : tab === "CHUYEN" ? (
-        <Section title={`Theo xe tại VP (${tripRows.length})`}>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Gồm xe đã báo đến hoặc rời, và xe có trong bảng tài nhưng chưa báo lần nào. Xe chưa chấm hiện cả hai cột là chưa báo.
-          </p>
-          {tripPlan?.warning ? <p className="mb-3 text-xs text-amber-700">{tripPlan.warning}</p> : null}
-          {tripRows.length === 0 ? (
-            <EmptyState>{loading || tripPlanLoading ? "Đang tải…" : "Chưa có xe trong bảng tài hoặc báo giờ"}</EmptyState>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">Văn phòng</th>
-                    <th className="px-2 py-2">Xe / tài xế</th>
-                    <th className="px-2 py-2">Tuyến</th>
-                    <th className="px-2 py-2">Xuất bến KH</th>
-                    <th className="px-2 py-2">Giờ đến VP</th>
-                    <th className="px-2 py-2">Giờ rời VP</th>
-                    <th className="px-2 py-2 text-right">Thời gian dừng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tripPage.pageRows.map((t) => (
-                    <tr key={t.key} className="border-b align-top hover:bg-muted/40">
-                      <td className="px-2 py-2 text-muted-foreground">{t.head.officeName}</td>
-                      <td className="px-2 py-2">
-                        <div className="font-medium">{t.head.vehiclePlate || "—"}</div>
-                        <div className="text-[11px] text-muted-foreground">{t.head.driverName || ""}</div>
-                      </td>
-                      <td className="px-2 py-2 text-muted-foreground">{t.head.routeLabel || "—"}</td>
-                      <td className="px-2 py-2 whitespace-nowrap tabular-nums">{dayTime(t.pickup) || "—"}</td>
-                      <td className="px-2 py-2">
-                        {t.arrive ? (
-                          <div className="whitespace-nowrap">
-                            <span className="tabular-nums font-medium">{dayTime(t.arrive.eventAt)}</span>
-                            <div className="text-[11px] text-muted-foreground">{reporter(t.arrive)}</div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Chưa báo đến</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2">
-                        {t.depart ? (
-                          <div className="whitespace-nowrap">
-                            <span className="tabular-nums font-medium">{dayTime(t.depart.eventAt)}</span>
-                            <PhotoButton e={t.depart} onOpen={(e) => void openPhoto(e)} />
-                            <div className="text-[11px] text-muted-foreground">{reporter(t.depart)}</div>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Chưa báo rời</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <DelayCell e={t.depart} />
-                        {t.depart?.reason ? (
-                          <div className="ml-auto max-w-[16rem] text-[11px] text-amber-800">Lý do: {t.depart.reason}</div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <TablePagination pager={tripPage.pager} />
-            </div>
-          )}
-        </Section>
-      ) : (
-        <Section title={`Nhật ký báo (${logRows.length})`}>
-          {logRows.length === 0 ? (
-            <EmptyState>{loading ? "Đang tải…" : "Chưa có lượt báo nào"}</EmptyState>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">Giờ báo</th>
-                    <th className="px-2 py-2">Văn phòng</th>
-                    <th className="px-2 py-2">Loại</th>
-                    <th className="px-2 py-2">Chuyến</th>
-                    <th className="px-2 py-2">Xe / tài xế</th>
-                    <th className="px-2 py-2">Tuyến</th>
-                    <th className="px-2 py-2">Xuất bến KH</th>
-                    <th className="px-2 py-2">Chênh giờ</th>
-                    <th className="px-2 py-2">Người báo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logPage.pageRows.map((e) => (
-                    <tr key={e.id} className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2 whitespace-nowrap tabular-nums font-medium">
-                        {dayTime(e.eventAt)}
-                        <PhotoButton e={e} onOpen={(x) => void openPhoto(x)} />
-                      </td>
-                      <td className="px-2 py-2 text-muted-foreground">{e.officeName}</td>
-                      <td className="px-2 py-2">
-                        <TypeBadge type={e.eventType} />
-                      </td>
-                      <td className="px-2 py-2">{tripLabel(e)}</td>
-                      <td className="px-2 py-2">
-                        <div className="font-medium">{e.vehiclePlate || "—"}</div>
-                        <div className="text-[11px] text-muted-foreground">{e.driverName || ""}</div>
-                      </td>
-                      <td className="px-2 py-2 text-muted-foreground">{e.routeLabel || "—"}</td>
-                      <td className="px-2 py-2 whitespace-nowrap tabular-nums">{dayTime(pickupOf(e)) || "—"}</td>
-                      <td className="px-2 py-2 text-xs">
-                        <div className="whitespace-nowrap">
-                          <DelayCell e={e} />
-                        </div>
-                        {e.reason ? <div className="max-w-[16rem] text-[11px] text-amber-800">Lý do: {e.reason}</div> : null}
-                      </td>
-                      <td className="px-2 py-2 text-xs">{reporter(e) || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <TablePagination pager={logPage.pager} />
-            </div>
-          )}
-        </Section>
-      )}
-      </>
+      {showRule ? (
+        <div className="note" style={{ background: "var(--lowest)" }}>
+          Xuất bến KH là giờ đón tại VP, bằng giờ xuất bến của xe cộng trừ phút lệch cài ở lộ trình áp dụng của VP. Thời gian
+          dừng là chênh giữa giờ rời VP thực tế và Xuất bến KH: rời trước là Sớm, trễ 0–{LATE_MINUTES - 1} phút là Đúng giờ,
+          từ {LATE_MINUTES} phút là Muộn (bắt buộc nhập lý do khi báo rời). Báo xe rời trên app bắt buộc chụp ảnh xe.
+        </div>
       ) : null}
+
+      <div className="seg" role="tablist" aria-label="Kiểu xem" style={{ alignSelf: "flex-start" }}>
+        {(
+          [
+            ["CHAM", "departure_board", "Chấm xe đến/đi"],
+            ["TONG_QUAN", "insights", "Tổng quan"],
+            ["CHUYEN", "local_shipping", "Theo xe tại VP"],
+            ["NHAT_KY", "history", "Nhật ký báo"],
+          ] as const
+        ).map(([id, icon, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            className={tab === id ? "on" : undefined}
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+          >
+            <span className="ms" aria-hidden="true">
+              {icon}
+            </span>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "CHAM" ? (
+        <section className="card stack" style={{ gap: 16 }}>
+          <div className="hr-head">
+            <div style={{ minWidth: 0 }}>
+              <h2 className="group-title sec-title">
+                <span className="sec-ic" aria-hidden="true">
+                  <span className="ms">departure_board</span>
+                </span>
+                Chấm xe đến/đi
+              </h2>
+              <p className="lab muted" style={{ margin: "4px 0 0" }}>
+                Cùng danh sách và quy tắc với app: bấm tab lộ trình, báo xe đến rồi mới báo xe rời. Rời muộn từ {LATE_MINUTES}{" "}
+                phút so với giờ đón phải nhập lý do. Web không chụp ảnh — ảnh văn phòng sẽ lấy từ camera sau.
+              </p>
+            </div>
+            <div className="cham-side">{CHAM_ILL}</div>
+          </div>
+          {canConfigure ? (
+            <label className="toggle">
+              <input
+                className="switch"
+                type="checkbox"
+                checked={photoRequired}
+                disabled={savingPolicy}
+                onChange={(e) => void togglePhoto(e.target.checked)}
+              />
+              <span>App bắt buộc chụp ảnh khi báo xe rời</span>
+            </label>
+          ) : null}
+          <VehicleTimesMark readOnly={!canMark} />
+        </section>
+      ) : null}
+
+      {tab !== "CHAM" ? (
+        <div className="stack" style={{ gap: 16 }}>
+          <div className="kpis num">
+            <section className="card" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>
+              <div className="lab">Lượt xe</div>
+              <div className="kpi-val">{loaded ? tripRows.length : "—"}</div>
+            </section>
+            <section className="card">
+              <div className="lab muted">Lượt đến</div>
+              <div className="kpi-val">{loaded ? arriveCount : "—"}</div>
+            </section>
+            <section className="card">
+              <div className="lab muted">Lượt rời</div>
+              <div className="kpi-val">{loaded ? departCount : "—"}</div>
+            </section>
+            <section className="card">
+              <div className="lab muted">Lượt rời muộn</div>
+              <div className="kpi-val" style={{ color: lateCount ? "var(--error)" : undefined }}>
+                {loaded ? lateCount : "—"}
+              </div>
+            </section>
+          </div>
+
+          <div className="filter-grid">
+            <label className="field">
+              <span className="l">Từ ngày</span>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </label>
+            <label className="field">
+              <span className="l">Đến ngày</span>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            </label>
+            <label className="field">
+              <span className="l">Tuyến</span>
+              <SearchableSelect
+                value={branch}
+                onValueChange={setBranch}
+                options={[{ value: ALL, label: "Tất cả tuyến" }, ...branchOptions]}
+              />
+            </label>
+            <label className="field">
+              <span className="l">Lộ trình</span>
+              <SearchableSelect
+                value={route}
+                onValueChange={setRoute}
+                options={[{ value: "", label: "Tất cả lộ trình" }, ...routeOptions]}
+              />
+            </label>
+            <label className="field">
+              <span className="l">Trạng thái</span>
+              <SearchableSelect
+                value={status}
+                onValueChange={(v) => setStatus(v as "" | Punctuality)}
+                options={[
+                  { value: "", label: "Tất cả trạng thái" },
+                  { value: "SOM", label: "Sớm" },
+                  { value: "DUNG", label: "Đúng giờ" },
+                  { value: "MUON", label: "Muộn" },
+                ]}
+              />
+            </label>
+            <label className="field">
+              <span className="l">Tìm</span>
+              <span className="box input-box">
+                <input
+                  type="search"
+                  placeholder="Biển số, chuyến, tài xế, tuyến"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </span>
+            </label>
+          </div>
+
+          {tab === "TONG_QUAN" ? (
+            <div className="stack" style={{ gap: 16 }}>
+              <section className="card stack">
+                <div>
+                  <h2 className="group-title sec-title num">
+                    <span className="sec-ic" aria-hidden="true">
+                      <span className="ms">local_shipping</span>
+                    </span>
+                    Tổng quan theo biển số ({plateRows.length})
+                  </h2>
+                  <div className="lab muted" style={{ maxWidth: 860 }}>
+                    Lượt đến / lượt đi = số lần NV báo xe đến / rời trong khoảng ngày. Đi muộn = lượt rời VP trễ từ{" "}
+                    {LATE_MINUTES} phút so với giờ đón.
+                  </div>
+                </div>
+                {plan?.warning ? <p className="lab" style={{ color: "var(--warning)" }}>{plan.warning}</p> : null}
+                {plateRows.length === 0 ? (
+                  <EmptyState>{loading || planLoading || overviewLoading ? "Đang tải…" : "Chưa có xe nào"}</EmptyState>
+                ) : (
+                  <>
+                    <div className="scroller">
+                      <table className="tbl" style={{ ["--tbl-min" as string]: "760px" }}>
+                        <thead>
+                          <tr>
+                            <th>Biển số</th>
+                            <th>Tài xế</th>
+                            <th className="r">Lượt đến</th>
+                            <th className="r">Lượt đi</th>
+                            <th className="r">Lượt chạy theo bảng tài</th>
+                            <th className="r">Số lần đi muộn</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {platePage.pageRows.map((r) => (
+                            <tr key={r.key || "-"}>
+                              <td className="main">{r.plate || "Không rõ BKS"}</td>
+                              <td>{r.drivers.join(", ") || "—"}</td>
+                              <td className="r">{r.arrive}</td>
+                              <td className="r">{r.depart}</td>
+                              <td className="r">{planLoading ? "…" : r.planned}</td>
+                              <td className={r.late ? "r main" : "r muted"}>{r.late}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td className="main" colSpan={2}>
+                              Tổng
+                            </td>
+                            <td className="r">{plateTotals.arrive}</td>
+                            <td className="r">{plateTotals.depart}</td>
+                            <td className="r">{planLoading ? "…" : plateTotals.planned}</td>
+                            <td className="r">{plateTotals.late}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                    <TablePagination pager={platePage.pager} />
+                  </>
+                )}
+              </section>
+
+              <section className="card stack">
+                <h2 className="group-title sec-title">
+                  <span className="sec-ic" aria-hidden="true">
+                    <span className="ms">store</span>
+                  </span>
+                  Tổng quan theo văn phòng ({officeRows.length})
+                </h2>
+                {officeRows.length === 0 ? (
+                  <EmptyState>{loading || overviewLoading || planLoading ? "Đang tải…" : "Chưa có văn phòng nào"}</EmptyState>
+                ) : (
+                  <>
+                    <div className="scroller">
+                      <table className="tbl" style={{ ["--tbl-min" as string]: "760px" }}>
+                        <thead>
+                          <tr>
+                            <th>Văn phòng</th>
+                            <th className="r">Lượt đến</th>
+                            <th className="r">Lượt đi</th>
+                            <th className="r">Lượt chạy theo bảng tài</th>
+                            <th>Đi muộn theo lý do</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {officePage.pageRows.map((r) => (
+                            <tr key={r.key}>
+                              <td style={{ fontWeight: 500 }}>{r.name}</td>
+                              <td className="r">{r.arrive}</td>
+                              <td className="r">{r.depart}</td>
+                              <td className="r">{planLoading ? "…" : r.planned}</td>
+                              <td className="muted">
+                                {r.lateByReason.length === 0
+                                  ? "—"
+                                  : r.lateByReason.map((x) => (
+                                      <span key={x.reason} style={{ marginRight: 8, whiteSpace: "nowrap" }}>
+                                        {x.reason} <span className="main num">({x.count})</span>
+                                      </span>
+                                    ))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td className="main">Tổng</td>
+                            <td className="r">{officeTotals.arrive}</td>
+                            <td className="r">{officeTotals.depart}</td>
+                            <td className="r">{planLoading ? "…" : officeTotals.planned}</td>
+                            <td className="num">{officeTotals.late}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                    <TablePagination pager={officePage.pager} />
+                  </>
+                )}
+              </section>
+            </div>
+          ) : tab === "CHUYEN" ? (
+            <section className="card stack">
+              <div>
+                <h2 className="group-title sec-title num">
+                  <span className="sec-ic" aria-hidden="true">
+                    <span className="ms">local_shipping</span>
+                  </span>
+                  Theo xe tại VP ({tripRows.length})
+                </h2>
+                <div className="lab muted">
+                  Gồm xe đã báo đến hoặc rời, và xe có trong bảng tài nhưng chưa báo lần nào.
+                </div>
+              </div>
+              {tripPlan?.warning ? <p className="lab" style={{ color: "var(--warning)" }}>{tripPlan.warning}</p> : null}
+              {tripRows.length === 0 ? (
+                <EmptyState>{loading || tripPlanLoading ? "Đang tải…" : "Chưa có xe trong bảng tài hoặc báo giờ"}</EmptyState>
+              ) : (
+                <>
+                  <div className="scroller">
+                    <table className="tbl" style={{ ["--tbl-min" as string]: "900px" }}>
+                      <thead>
+                        <tr>
+                          <th>Văn phòng</th>
+                          <th>Xe / Tài xế</th>
+                          <th>Tuyến</th>
+                          <th className="r">Xuất bến KH</th>
+                          <th className="r">Giờ đến VP</th>
+                          <th className="r">Giờ rời VP</th>
+                          <th className="r">Thời gian dừng</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tripPage.pageRows.map((t) => (
+                          <tr key={t.key}>
+                            <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{t.head.officeName}</td>
+                            <td>
+                              <span className="main">{t.head.vehiclePlate || "—"}</span>
+                              {t.head.driverName ? <span className="sub">{t.head.driverName}</span> : null}
+                            </td>
+                            <td>{t.head.routeLabel || "—"}</td>
+                            <td className="r num">{dayTime(t.pickup) || "—"}</td>
+                            <td className="r">
+                              {t.arrive ? (
+                                <>
+                                  <span className="num main">{dayTime(t.arrive.eventAt)}</span>
+                                  <span className="sub">{reporter(t.arrive)}</span>
+                                </>
+                              ) : (
+                                <span className="muted">Chưa báo đến</span>
+                              )}
+                            </td>
+                            <td className="r">
+                              {t.depart ? (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                                  <span className="num main">{dayTime(t.depart.eventAt)}</span>
+                                  <PhotoButton e={t.depart} onOpen={(e) => void openPhoto(e)} />
+                                  <span className="sub">{reporter(t.depart)}</span>
+                                </span>
+                              ) : (
+                                <span className="muted">Chưa báo rời</span>
+                              )}
+                            </td>
+                            <td className="r" style={{ whiteSpace: "nowrap" }}>
+                              <DelayCell e={t.depart} />
+                              {t.depart?.reason ? <span className="sub">Lý do: {t.depart.reason}</span> : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <TablePagination pager={tripPage.pager} />
+                </>
+              )}
+            </section>
+          ) : (
+            <section className="card stack">
+              <h2 className="group-title sec-title num">
+                <span className="sec-ic" aria-hidden="true">
+                  <span className="ms">history</span>
+                </span>
+                Nhật ký báo ({logRows.length})
+              </h2>
+              {logRows.length === 0 ? (
+                <EmptyState>{loading ? "Đang tải…" : "Chưa có lượt báo nào"}</EmptyState>
+              ) : (
+                <>
+                  <div className="scroller">
+                    <table className="tbl" style={{ ["--tbl-min" as string]: "1040px" }}>
+                      <thead>
+                        <tr>
+                          <th>Giờ báo</th>
+                          <th>Văn phòng</th>
+                          <th>Loại</th>
+                          <th>Chuyến</th>
+                          <th>Xe / Tài xế</th>
+                          <th>Tuyến</th>
+                          <th className="r">Xuất bến KH</th>
+                          <th className="r">Chênh giờ</th>
+                          <th>Người báo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {logPage.pageRows.map((e) => (
+                          <tr key={e.id}>
+                            <td className="num" style={{ whiteSpace: "nowrap" }}>
+                              {dayTime(e.eventAt)}
+                              <PhotoButton e={e} onOpen={(x) => void openPhoto(x)} />
+                            </td>
+                            <td style={{ whiteSpace: "nowrap" }}>{e.officeName}</td>
+                            <td>
+                              <TypeBadge type={e.eventType} />
+                            </td>
+                            <td className="muted">{tripLabel(e)}</td>
+                            <td>
+                              <span className="main">{e.vehiclePlate || "—"}</span>
+                              {e.driverName ? <span className="sub">{e.driverName}</span> : null}
+                            </td>
+                            <td>{e.routeLabel || "—"}</td>
+                            <td className="r num">{dayTime(pickupOf(e)) || "—"}</td>
+                            <td className="r main">
+                              <DelayCell e={e} />
+                              {e.reason ? <span className="sub">Lý do: {e.reason}</span> : null}
+                            </td>
+                            <td>{reporter(e) || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <TablePagination pager={logPage.pager} />
+                </>
+              )}
+            </section>
+          )}
+        </div>
+      ) : null}
+
       <ImageLightbox
         open={!!photoView}
         onOpenChange={(v) => !v && setPhotoView(null)}

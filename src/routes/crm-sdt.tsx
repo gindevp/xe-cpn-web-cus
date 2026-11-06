@@ -2,22 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { EmptyState, Section } from "@/components/PageBits";
+import { EmptyState } from "@/components/PageBits";
 import { TablePagination } from "@/components/TablePagination";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { PhoneInput } from "@/components/PhoneInput";
 import { TaxCodeInput } from "@/components/TaxCodeInput";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { M3Confirm } from "@/components/m3/M3Confirm";
+import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   createPhoneTax,
   deletePhoneTax,
@@ -33,8 +25,6 @@ import { useAuth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/mock-data";
 import { canWrite } from "@/lib/rbac";
 import { usePagedRows } from "@/lib/use-paged-rows";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/crm-sdt")({
@@ -48,7 +38,7 @@ export const Route = createFileRoute("/crm-sdt")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="CRM SĐT — MST" screen="crm-sdt">
+    <ProtectedPage title="CRM SĐT — MST" screen="crm-sdt" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -90,6 +80,7 @@ function Page() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [askDelete, setAskDelete] = useState<InvoiceBuyerProfile | null>(null);
   const { pageRows, pager } = usePagedRows(rows, "crm-sdt");
 
   const load = useCallback(async (query: string) => {
@@ -167,10 +158,10 @@ function Page() {
 
   const remove = async (profile: InvoiceBuyerProfile) => {
     if (!profile.id) return;
-    if (!window.confirm(`Gỡ MST ${profile.taxCode} khỏi số này?`)) return;
     try {
       await deletePhoneTax(profile.id);
       toast.success("Đã gỡ MST");
+      setAskDelete(null);
       await load(applied);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Không gỡ được MST");
@@ -221,11 +212,40 @@ function Page() {
     }
   };
 
+  const addFromToolbar = () => {
+    const asPhone = looksLikePhone(applied);
+    const hit = asPhone ? rows.find((r) => digits(r.phone) === digits(applied)) : undefined;
+    if (hit && (hit.profiles?.length ?? 0) >= 5) {
+      toast.error("Số này đã đủ 5 MST. Xóa bớt rồi thêm.");
+      return;
+    }
+    openCreate(asPhone ? applied : "", hit?.name ?? "", asPhone);
+  };
+
   return (
-    <div className="space-y-4">
-      <Section title="Tìm số điện thoại hoặc tên công ty">
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row">
+        <div style={{ flex: "1 1 480px", minWidth: 0 }}>
+          <h1 className="page-title">CRM SĐT - MST</h1>
+          <div className="lab muted" style={{ maxWidth: 760 }}>
+            Mỗi số tối đa 5 MST. Tick Auto HĐ để MST được gợi ý khi tạo đơn và tự xuất HĐ công ty. Bỏ hết tick của một SĐT
+            thì xuất cá nhân.
+            {applied ? ` Đang lọc ${applied}.` : " Đang xem các số vừa cập nhật."}
+          </div>
+        </div>
+        {writable ? (
+          <button type="button" className="btn" onClick={addFromToolbar}>
+            <span className="ms" aria-hidden="true">
+              add
+            </span>
+            Thêm MST
+          </button>
+        ) : null}
+      </div>
+
+      <section className="card stack">
         <form
-          className="flex flex-wrap items-end gap-2"
+          style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 8 }}
           onSubmit={(e) => {
             e.preventDefault();
             const next = q.trim();
@@ -233,44 +253,158 @@ function Page() {
             void load(next);
           }}
         >
-          <div className="space-y-1">
-            <Label className="text-xs">SĐT hoặc tên công ty</Label>
-            <Input
-              value={q}
-              placeholder="SĐT, tên công ty, hoặc để trống"
-              className="w-80"
-              onChange={(e) => setQ(e.target.value)}
-            />
-          </div>
-          <Button type="submit" disabled={loading}>
-            <Search className="mr-1 h-4 w-4" />
+          <label className="field" style={{ flex: "1 1 280px", maxWidth: 480 }}>
+            <span className="l">SĐT hoặc tên công ty</span>
+            <span className="box input-box">
+              <span className="ms muted" aria-hidden="true">
+                search
+              </span>
+              <input
+                type="search"
+                placeholder="SĐT, tên công ty, hoặc để trống"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </span>
+          </label>
+          <button type="submit" className="btn tonal" disabled={loading}>
             {loading ? "Đang tải…" : "Tìm"}
-          </Button>
-          {writable ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const asPhone = looksLikePhone(applied);
-                const hit = asPhone ? rows.find((r) => digits(r.phone) === digits(applied)) : undefined;
-                if (hit && (hit.profiles?.length ?? 0) >= 5) {
-                  toast.error("Số này đã đủ 5 MST. Xóa bớt rồi thêm.");
-                  return;
-                }
-                openCreate(asPhone ? applied : "", hit?.name ?? "", asPhone);
-              }}
-            >
-              Thêm MST
-            </Button>
-          ) : null}
+          </button>
         </form>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Mỗi số tối đa 5 MST. Tick «Auto HĐ» để MST đó được gợi ý khi tạo đơn và auto xuất HĐ công ty (mặc định
-          đã tick). Bỏ hết tick của một SĐT thì không còn liên kết MST — xuất cá nhân. Còn tick MST nào thì các
-          MST đó là option.
-          {applied ? ` Đang lọc ${applied}.` : " Đang xem các số vừa cập nhật."}
-        </p>
-      </Section>
+
+        <h2 className="group-title sec-title num">
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">contact_phone</span>
+          </span>
+          SĐT và MST ({rows.length})
+        </h2>
+
+        {pager.total === 0 ? (
+          <EmptyState>
+            {loading ? (
+              "Đang tải…"
+            ) : applied && looksLikePhone(applied) ? (
+              <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <span>Số {applied} chưa gắn MST</span>
+                {writable ? (
+                  <button type="button" className="btn" onClick={() => openCreate(applied, "", true)}>
+                    Gắn MST cho số này
+                  </button>
+                ) : null}
+              </span>
+            ) : applied ? (
+              <span>Không thấy công ty khớp «{applied}»</span>
+            ) : (
+              "Chưa có số nào gắn MST"
+            )}
+          </EmptyState>
+        ) : (
+          <>
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "780px" }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 140 }}>Số điện thoại</th>
+                    <th style={{ width: 180 }}>Tên</th>
+                    <th>MST đang gắn · Auto HĐ công ty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((row) => {
+                    const profiles = row.profiles ?? [];
+                    return (
+                      <tr key={row.phone}>
+                        <td className="main" style={{ whiteSpace: "nowrap" }}>
+                          {row.phone}
+                        </td>
+                        <td>
+                          <span className="who">
+                            <span className="rev-ic sm" aria-hidden="true">
+                              <span className="ms fill">person</span>
+                            </span>
+                            {row.name || "—"}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {profiles.map((p, i) => {
+                              const autoOn = isPhoneTaxAutoIssue(p);
+                              return (
+                                <div key={p.id ?? p.taxCode} className="mst" style={autoOn ? undefined : { opacity: 0.6 }}>
+                                  <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+                                    <span style={{ fontWeight: 500 }}>{p.companyName || "—"}</span>
+                                    <span className="sub">
+                                      {i === 0 ? "Gần nhất · " : ""}
+                                      MST {p.taxCode}
+                                      {p.fromOrderCode ? (
+                                        <>
+                                          {" · "}
+                                          <OrderCodeLink code={p.fromOrderCode} />
+                                        </>
+                                      ) : (
+                                        " · Gắn tay"
+                                      )}
+                                      {p.issuedAt ? ` · ${formatDateTime(p.issuedAt)}` : ""}
+                                      {!autoOn ? " · không auto / không gợi ý tạo đơn" : ""}
+                                    </span>
+                                  </div>
+                                  <label
+                                    className="lab"
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+                                  >
+                                    <input
+                                      className="check"
+                                      type="checkbox"
+                                      checked={autoOn}
+                                      disabled={!writable || !p.id}
+                                      onChange={(e) => {
+                                        if (!p.id) return;
+                                        void toggleAutoIssue(row.phone, p, e.target.checked);
+                                      }}
+                                    />
+                                    Auto HĐ
+                                  </label>
+                                  {writable ? (
+                                    <div className="act">
+                                      <button
+                                        type="button"
+                                        className="text-act"
+                                        onClick={() => openEdit(row.phone, row.name ?? "", p)}
+                                      >
+                                        Sửa
+                                      </button>
+                                      <button type="button" className="text-act danger" onClick={() => setAskDelete(p)}>
+                                        Xoá
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                            {writable && profiles.length < 5 ? (
+                              <button
+                                type="button"
+                                className="text-act"
+                                style={{ alignSelf: "flex-start" }}
+                                onClick={() => openCreate(row.phone, row.name ?? "", true)}
+                              >
+                                + Thêm MST ({profiles.length}/5)
+                              </button>
+                            ) : profiles.length >= 5 ? (
+                              <p className="lab muted">Đã đủ 5 MST</p>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination pager={pager} />
+          </>
+        )}
+      </section>
 
       <PhoneTaxDialog
         draft={draft}
@@ -283,119 +417,20 @@ function Page() {
         onSave={() => void save()}
       />
 
-      <Section title={`SĐT và MST (${rows.length})`}>
-        {pager.total === 0 ? (
-          <EmptyState>
-            {loading ? (
-              "Đang tải…"
-            ) : applied && looksLikePhone(applied) ? (
-              <span className="inline-flex flex-col items-center gap-2">
-                <span>Số {applied} chưa gắn MST</span>
-                {writable ? (
-                  <Button type="button" size="sm" onClick={() => openCreate(applied, "", true)}>
-                    Gắn MST cho số này
-                  </Button>
-                ) : null}
-              </span>
-            ) : applied ? (
-              <span>Không thấy công ty khớp «{applied}»</span>
-            ) : (
-              "Chưa có số nào gắn MST"
-            )}
-          </EmptyState>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-2 py-2">Số điện thoại</th>
-                  <th className="px-2 py-2">Tên</th>
-                  <th className="px-2 py-2">MST đang gắn · Auto HĐ công ty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row) => {
-                  const profiles = row.profiles ?? [];
-                  return (
-                    <tr key={row.phone} className="border-b align-top">
-                      <td className="px-2 py-2 font-mono font-medium">{row.phone}</td>
-                      <td className="px-2 py-2">{row.name || "—"}</td>
-                      <td className="px-2 py-2">
-                        <div className="space-y-2">
-                          {profiles.map((p, i) => {
-                            const autoOn = isPhoneTaxAutoIssue(p);
-                            return (
-                              <div
-                                key={p.id ?? p.taxCode}
-                                className={`leading-tight ${autoOn ? "" : "opacity-60"}`}
-                              >
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs">
-                                    <Checkbox
-                                      checked={autoOn}
-                                      disabled={!writable || !p.id}
-                                      onCheckedChange={(v) => {
-                                        if (!p.id) return;
-                                        void toggleAutoIssue(row.phone, p, v === true);
-                                      }}
-                                    />
-                                    <span className="text-muted-foreground">Auto HĐ</span>
-                                  </label>
-                                  <span className="font-mono font-semibold">
-                                    {i === 0 ? "Gần nhất · " : ""}
-                                    {p.taxCode}
-                                  </span>
-                                  {writable ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="text-xs text-sky-700 hover:underline"
-                                        onClick={() => openEdit(row.phone, row.name ?? "", p)}
-                                      >
-                                        Sửa
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="text-xs text-red-600 hover:underline"
-                                        onClick={() => void remove(p)}
-                                      >
-                                        Xóa
-                                      </button>
-                                    </>
-                                  ) : null}
-                                </div>
-                                <div>{p.companyName || "—"}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {p.fromOrderCode ? <OrderCodeLink code={p.fromOrderCode} /> : "Gắn tay"}
-                                  {p.issuedAt ? ` · ${formatDateTime(p.issuedAt)}` : ""}
-                                  {!autoOn ? " · không auto / không gợi ý tạo đơn" : ""}
-                                </div>
-                              </div>
-                            );
-                          })}
-                          {writable && profiles.length < 5 ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openCreate(row.phone, row.name ?? "", true)}
-                            >
-                              Thêm MST ({profiles.length}/5)
-                            </Button>
-                          ) : profiles.length >= 5 ? (
-                            <p className="text-xs text-muted-foreground">Đã đủ 5 MST</p>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <TablePagination pager={pager} />
-          </div>
-        )}
-      </Section>
+      <M3Confirm
+        open={askDelete != null}
+        onOpenChange={(v) => {
+          if (!v) setAskDelete(null);
+        }}
+        title="Xoá MST này khỏi số điện thoại?"
+        body="MST sẽ không còn được gợi ý khi tạo đơn."
+        cancelLabel="Đóng"
+        confirmLabel="Xoá"
+        confirmDanger
+        onConfirm={() => {
+          if (askDelete) void remove(askDelete);
+        }}
+      />
     </div>
   );
 }
@@ -439,90 +474,85 @@ function PhoneTaxDialog({
   const slots = known?.profiles?.length ?? 0;
 
   return (
-    <Dialog open={draft != null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-md">
-        {draft ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>{draft.id ? "Sửa MST" : "Gắn MST"}</DialogTitle>
-              <DialogDescription>
-                {draft.phoneLocked
-                  ? `Số ${draft.phone} đang có ${slots}/5 MST. Nhập MST, hệ thống tự điền tên công ty.`
-                  : "Nhập số điện thoại trước, rồi nhập MST để tra tên công ty. Mỗi số tối đa 5 MST."}
-              </DialogDescription>
-            </DialogHeader>
+    <M3Sheet open={draft != null} onOpenChange={(open) => { if (!open) onClose(); }} variant="form-sheet">
+      {draft ? (
+        <>
+          <M3SheetTitle>{draft.id ? "Sửa MST" : "Gắn MST"}</M3SheetTitle>
+          <p className="lab muted" style={{ margin: 0 }}>
+            {draft.phoneLocked
+              ? `Số ${draft.phone} đang có ${slots}/5 MST. Nhập MST, hệ thống tự điền tên công ty.`
+              : "Nhập số điện thoại trước, rồi nhập MST để tra tên công ty. Mỗi số tối đa 5 MST."}
+          </p>
 
-            <div className="space-y-3">
-              {draft.phoneLocked ? (
-                <div className="rounded-md border bg-muted/40 px-3 py-2">
-                  <div className="text-[11px] uppercase text-muted-foreground">Số điện thoại</div>
-                  <div className="font-mono text-base font-semibold">{draft.phone}</div>
-                  {draft.contactName ? <div className="text-xs text-muted-foreground">{draft.contactName}</div> : null}
+          <div className="stack" style={{ gap: 12 }}>
+            {draft.phoneLocked ? (
+              <div className="field view-field">
+                <span className="l">Số điện thoại</span>
+                <div className="view-val" style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600 }}>
+                  {draft.phone}
                 </div>
-              ) : (
-                <div className="space-y-1">
-                  <Label className="text-xs">Số điện thoại</Label>
-                  <PhoneInput
-                    value={draft.phone}
-                    autoFocus
-                    onChange={(phone) => onChange((d) => (d ? { ...d, phone } : d))}
-                  />
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <Label className="text-xs">MST</Label>
-                <TaxCodeInput
-                  value={draft.taxCode}
-                  onChange={(taxCode) =>
-                    onChange((d) => (d ? { ...d, taxCode, companyName: "", address: "" } : d))
-                  }
-                  onFound={(info) =>
-                    onChange((d) => (d ? { ...d, companyName: info.companyName, address: info.address } : d))
-                  }
+                {draft.contactName ? <div className="sub">{draft.contactName}</div> : null}
+              </div>
+            ) : (
+              <label className="field cfg-field">
+                <span className="l">Số điện thoại</span>
+                <PhoneInput
+                  value={draft.phone}
+                  autoFocus
+                  onChange={(phone) => onChange((d) => (d ? { ...d, phone } : d))}
                 />
-                {duplicate ? (
-                  <p className="text-xs text-red-600">Số này đã gắn MST {draft.taxCode}.</p>
-                ) : null}
-                {taken.length > 0 ? (
-                  <p className="text-xs text-muted-foreground">Đã gắn: {taken.join(", ")}</p>
-                ) : null}
-              </div>
+              </label>
+            )}
 
-              <div className="space-y-1">
-                <Label className="text-xs">Tên công ty</Label>
-                <Input value={draft.companyName} readOnly placeholder="Hiện sau khi tra được MST" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Địa chỉ</Label>
-                <Input value={draft.address} readOnly placeholder="Hiện sau khi tra được MST" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Email nhận hóa đơn</Label>
-                <Input
-                  value={draft.email}
-                  inputMode="email"
-                  placeholder="Không bắt buộc"
-                  onChange={(e) => onChange((d) => (d ? { ...d, email: e.target.value } : d))}
-                />
-              </div>
-            </div>
+            <label className="field cfg-field">
+              <span className="l">MST</span>
+              <TaxCodeInput
+                value={draft.taxCode}
+                onChange={(taxCode) =>
+                  onChange((d) => (d ? { ...d, taxCode, companyName: "", address: "" } : d))
+                }
+                onFound={(info) =>
+                  onChange((d) => (d ? { ...d, companyName: info.companyName, address: info.address } : d))
+                }
+              />
+              {duplicate ? <p className="lab" style={{ color: "var(--error)" }}>Số này đã gắn MST {draft.taxCode}.</p> : null}
+              {taken.length > 0 ? <p className="lab muted">Đã gắn: {taken.join(", ")}</p> : null}
+            </label>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
-                Huỷ
-              </Button>
-              <Button
-                type="button"
-                disabled={saving || duplicate || !draft.phone.trim() || !draft.companyName.trim()}
-                onClick={onSave}
-              >
-                {saving ? "Đang lưu…" : "Lưu"}
-              </Button>
-            </DialogFooter>
-          </>
-        ) : null}
-      </DialogContent>
-    </Dialog>
+            <label className="field cfg-field">
+              <span className="l">Tên công ty</span>
+              <Input value={draft.companyName} readOnly placeholder="Hiện sau khi tra được MST" />
+            </label>
+            <label className="field cfg-field">
+              <span className="l">Địa chỉ</span>
+              <Input value={draft.address} readOnly placeholder="Hiện sau khi tra được MST" />
+            </label>
+            <label className="field cfg-field">
+              <span className="l">Email nhận hóa đơn</span>
+              <Input
+                value={draft.email}
+                inputMode="email"
+                placeholder="Không bắt buộc"
+                onChange={(e) => onChange((d) => (d ? { ...d, email: e.target.value } : d))}
+              />
+            </label>
+          </div>
+
+          <M3ConfirmActions>
+            <button type="button" className="btn ghost" disabled={saving} onClick={onClose}>
+              Huỷ
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={saving || duplicate || !draft.phone.trim() || !draft.companyName.trim()}
+              onClick={onSave}
+            >
+              {saving ? "Đang lưu…" : "Lưu"}
+            </button>
+          </M3ConfirmActions>
+        </>
+      ) : null}
+    </M3Sheet>
   );
 }

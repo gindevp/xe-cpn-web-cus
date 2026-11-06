@@ -1,16 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StageTabButton, StageTabRow } from "@/components/StageTabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
 import {
   getVehicleDayTrips,
   getVehicleItineraries,
@@ -203,126 +193,179 @@ export function VehicleTimesMark({ readOnly = false }: { readOnly?: boolean }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="stack" style={{ gap: 16 }}>
       {itineraries.length > 0 ? (
-        <StageTabRow>
+        <div className="seg lo" role="tablist" aria-label="Lộ trình" style={{ alignSelf: "flex-start" }}>
           {itineraries.map((it) => (
-            <StageTabButton key={it.code} active={it.code === itinerary} onClick={() => pickItinerary(it.code)}>
+            <button
+              key={it.code}
+              type="button"
+              role="tab"
+              className={it.code === itinerary ? "on" : undefined}
+              aria-selected={it.code === itinerary}
+              onClick={() => pickItinerary(it.code)}
+            >
               {it.name}
-            </StageTabButton>
+            </button>
           ))}
-        </StageTabRow>
+        </div>
       ) : routesLoading || waitingForOffice ? null : (
-        <p className="text-sm text-muted-foreground">Không có lộ trình nào đi hoặc đến văn phòng của bạn.</p>
+        <p className="lab muted">Không có lộ trình nào đi hoặc đến văn phòng của bạn.</p>
       )}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[12rem] flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+        <label className="box input-box" style={{ flex: "1 1 240px", maxWidth: 420 }}>
+          <span className="ms muted" aria-hidden="true">
+            search
+          </span>
+          <input
+            type="search"
+            aria-label="Tìm biển số"
+            placeholder="Tìm biển số"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm biển số"
-            className="pl-8 uppercase"
+            style={{ textTransform: "uppercase" }}
           />
-        </div>
-        <Button variant="outline" onClick={() => void load()} disabled={loading || !itinerary}>
+        </label>
+        <button type="button" className="btn tonal" onClick={() => void load()} disabled={loading || !itinerary}>
+          <span className="ms" aria-hidden="true">
+            refresh
+          </span>
           Tải lại
-        </Button>
+        </button>
       </div>
-      <p className="text-sm font-medium">
-        Danh sách xe hôm nay{officeName ? ` — ${officeName}` : ""}
+
+      <h3 className="group-title num">
+        Danh sách xe hôm nay{officeName ? ` · ${officeName}` : ""}
         {shown.length ? ` (${shown.length})` : ""}
-      </p>
+      </h3>
+
       {loading ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Đang tải…</p>
-      ) : waitingForOffice ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Chọn một văn phòng ở góc trên để chấm xe của VP đó.</p>
-      ) : !itinerary ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">Chọn lộ trình để xem danh sách xe.</p>
-      ) : shown.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {query ? "Không có xe khớp biển số." : "Không có xe nào hôm nay."}
+        <p className="lab muted" style={{ padding: "32px 0", textAlign: "center" }}>
+          Đang tải…
         </p>
+      ) : waitingForOffice ? (
+        <p className="lab muted" style={{ padding: "32px 0", textAlign: "center" }}>
+          Chọn một văn phòng ở góc trên để chấm xe của VP đó.
+        </p>
+      ) : !itinerary ? (
+        <p className="lab muted" style={{ padding: "32px 0", textAlign: "center" }}>
+          Chọn lộ trình để xem danh sách xe.
+        </p>
+      ) : shown.length === 0 ? (
+        <div className="empty">
+          <h3 className="group-title">{query ? "Không tìm thấy biển số phù hợp" : "Không có xe nào hôm nay"}</h3>
+        </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="cham-grid">
           {shown.map((it) => {
-            const meta = [it.driverName, pickupOf(it) ? `Xuất bến ${hhmm(pickupOf(it))}` : ""].filter(Boolean).join("  •  ");
+            const meta = [it.driverName, pickupOf(it) ? `Xuất bến ${hhmm(pickupOf(it))}` : ""]
+              .filter(Boolean)
+              .join(" • ");
+            const depLate =
+              it.departedAt && pickupOf(it)
+                ? (lateMinutes(pickupOf(it), Date.parse(it.departedAt)) ?? 0) >= LATE_MINUTES
+                : false;
             return (
-              <div key={it.externalTripId} className="space-y-2 rounded-lg border bg-card p-4 shadow-sm">
-                <div className="text-base font-bold">{it.vehiclePlate || "Chưa có biển số"}</div>
-                {meta ? <div className="text-sm text-muted-foreground">{meta}</div> : null}
+              <article key={it.externalTripId} className="cham-card">
+                <div className="who">
+                  <span className="rev-ic sm" aria-hidden="true">
+                    <span className="ms fill">local_shipping</span>
+                  </span>
+                  <span className="cham-plate num">{it.vehiclePlate || "Chưa có biển số"}</span>
+                </div>
+                {meta ? <div className="lab muted num">{meta}</div> : null}
                 {it.arrivedAt ? (
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-                    <CheckCircle2 className="h-4 w-4" /> Đã đến lúc {hhmm(it.arrivedAt)}
+                  <div className="cham-ok num">
+                    <span className="ms" aria-hidden="true">
+                      check_circle
+                    </span>
+                    <span>Đã đến lúc {hhmm(it.arrivedAt)}</span>
                   </div>
                 ) : null}
                 {it.departedAt ? (
-                  <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600">
-                    <CheckCircle2 className="h-4 w-4" /> Đã rời lúc {hhmm(it.departedAt)}
+                  <div className={depLate ? "cham-late num" : "cham-ok num"}>
+                    <span className="ms" aria-hidden="true">
+                      {depLate ? "schedule" : "check_circle"}
+                    </span>
+                    <span>Đã rời lúc {hhmm(it.departedAt)}</span>
                   </div>
                 ) : null}
                 {readOnly ? null : !it.arrivedAt ? (
-                  <Button className="w-full" onClick={() => openConfirm(it, "ARRIVE")}>
+                  <button type="button" className="btn cham-btn" onClick={() => openConfirm(it, "ARRIVE")}>
                     Xe đến VP
-                  </Button>
+                  </button>
                 ) : !it.departedAt ? (
-                  <Button className="w-full" onClick={() => openConfirm(it, "DEPART")}>
+                  <button type="button" className="btn cham-btn" onClick={() => openConfirm(it, "DEPART")}>
                     Xe rời VP
-                  </Button>
+                  </button>
                 ) : null}
-              </div>
+              </article>
             );
           })}
         </div>
       )}
 
-      <Dialog open={!!confirm} onOpenChange={(open) => !open && !busy && setConfirm(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {confirm?.type === "ARRIVE" ? "Xác nhận xe đã đến văn phòng?" : "Xác nhận xe đã rời văn phòng?"}
-            </DialogTitle>
-          </DialogHeader>
-          {confirm?.item.vehiclePlate ? <p className="text-center text-base font-bold text-primary">{confirm.item.vehiclePlate}</p> : null}
-          {needReason ? (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-amber-700">
-                Xe rời muộn {late ?? 0} phút so với giờ đón {hhmm(pickupOf(confirm!.item))} — nhập lý do *
-              </p>
-              <div className="flex flex-wrap gap-1.5">
+      <M3Sheet
+        open={!!confirm}
+        onOpenChange={(open) => {
+          if (!open && !busy) setConfirm(null);
+        }}
+        variant="confirm"
+      >
+        <M3SheetTitle>
+          {needReason
+            ? `Xe rời muộn ${late ?? 0} phút`
+            : confirm?.type === "ARRIVE"
+              ? "Xác nhận xe đã đến văn phòng?"
+              : "Xác nhận xe đã rời văn phòng?"}
+        </M3SheetTitle>
+        {needReason ? (
+          <p className="lab muted num" style={{ margin: 0 }}>
+            {confirm?.item.vehiclePlate || "Xe"} — giờ đón {hhmm(pickupOf(confirm!.item)) || "—"}. Rời muộn từ{" "}
+            {LATE_MINUTES} phút phải nhập lý do.
+          </p>
+        ) : confirm?.item.vehiclePlate ? (
+          <p className="lab muted" style={{ margin: 0, fontWeight: 600 }}>
+            {confirm.item.vehiclePlate}
+          </p>
+        ) : null}
+        {needReason ? (
+          <>
+            <label className="field cfg-field">
+              <span className="l">Lý do *</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {DWELL_REASONS.map((r) => {
                   const on = reason.trim() === r;
                   return (
-                    <button
-                      key={r}
-                      type="button"
-                      className={`rounded-full border px-2.5 py-1 text-sm ${on ? "border-primary bg-primary/10 font-semibold text-primary" : "border-border"}`}
-                      onClick={() => setReason(r)}
-                    >
+                    <button key={r} type="button" className={on ? "pill on" : "pill sm"} onClick={() => setReason(r)}>
                       {r}
                     </button>
                   );
                 })}
               </div>
+            </label>
+            <label className="field cfg-field">
+              <span className="l">Ghi chú / lý do khác</span>
               <textarea
+                className="area"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Chọn nhanh ở trên hoặc tự nhập"
                 maxLength={500}
-                className="min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
-            </div>
-          ) : null}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirm(null)} disabled={busy}>
-              Quay lại
-            </Button>
-            <Button onClick={() => void submit()} disabled={busy || !canSubmit}>
-              {busy ? "Đang ghi…" : "Xác nhận"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </label>
+          </>
+        ) : null}
+        <M3ConfirmActions>
+          <button type="button" className="btn ghost" disabled={busy} onClick={() => setConfirm(null)}>
+            {needReason ? "Đóng" : "Quay lại"}
+          </button>
+          <button type="button" className="btn" disabled={busy || !canSubmit} onClick={() => void submit()}>
+            {busy ? "Đang ghi…" : needReason ? "Lưu giờ rời" : "Xác nhận"}
+          </button>
+        </M3ConfirmActions>
+      </M3Sheet>
     </div>
   );
 }

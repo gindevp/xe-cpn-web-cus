@@ -1,21 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { Section, EmptyState } from "@/components/PageBits";
+import { EmptyState } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VehicleFormDialog } from "@/components/VehicleFormDialog";
 import { ShipperMasterTab } from "@/components/ShipperMasterTab";
 import { useStore, type VehicleRec } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/rbac";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
 import { isApiEnabled } from "@/lib/api/client";
 import { syncMasterFromApi } from "@/lib/api/sync";
 import { geoGeocodeAddress } from "@/lib/api/geo-api";
@@ -31,13 +29,15 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 export const Route = createFileRoute("/master")({
   head: () => ({ meta: [{ title: "Master dữ liệu — X.E" }] }),
   component: () => (
-    <ProtectedPage title="Master VP / Tuyến / Xe / Tài xế" screen="master">
+    <ProtectedPage title="Master VP / Tuyến / Xe / Tài xế" screen="master" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
     </ProtectedPage>
   ),
 });
+
+type MasterTab = "vp" | "tuyen" | "xe" | "ts" | "shipper";
 
 type OfficeRec = StoreOfficeRec;
 
@@ -109,6 +109,7 @@ function Page() {
   const [editDriver, setEditDriver] = useState<string | null>(null);
   const [syncingXe, setSyncingXe] = useState(false);
   const [shipperCount, setShipperCount] = useState<number | null>(null);
+  const [tab, setTab] = useState<MasterTab>("vp");
 
   const truckVehicles = useMemo(
     () =>
@@ -136,104 +137,164 @@ function Page() {
   }, []);
 
   return (
-    <Section title="Danh mục">
-      <Tabs defaultValue="vp">
-        <TabsList>
-          <TabsTrigger value="vp">VP ({listedOffices.length})</TabsTrigger>
-          <TabsTrigger value="tuyen">Tuyến ({routes.length})</TabsTrigger>
-          <TabsTrigger value="xe">Xe tải ({truckVehicles.length})</TabsTrigger>
-          <TabsTrigger value="ts">Tài xế ({drivers.length})</TabsTrigger>
-          <TabsTrigger value="shipper">Shipper{shipperCount != null ? ` (${shipperCount})` : ""}</TabsTrigger>
-        </TabsList>
+    <div className="stack" style={{ gap: 16 }}>
+      <h1 className="page-title">Master dữ liệu</h1>
+      <div className="seg" role="tablist" aria-label="Danh mục" style={{ alignSelf: "flex-start" }}>
+        {(
+          [
+            ["vp", "store", "VP", listedOffices.length],
+            ["tuyen", "route", "Tuyến", routes.length],
+            ["xe", "local_shipping", "Xe tải", truckVehicles.length],
+            ["ts", "badge", "Tài xế", drivers.length],
+            ["shipper", "two_wheeler", "Shipper", shipperCount],
+          ] as const
+        ).map(([id, icon, label, count]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            className={tab === id ? "on" : undefined}
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+          >
+            <span className="ms" aria-hidden="true">
+              {icon}
+            </span>
+            {label}
+            <span className="count num">{count != null ? count : "…"}</span>
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="vp" className="mt-4">
-          <TransitHubSettings offices={listedOffices} writable={writable} />
-          {writable && (
-            <Button className="mb-3" onClick={() => setDlg("vp")}>
-              Thêm VP
-            </Button>
-          )}
-          <Table headers={["ID", "Địa chỉ", "Điểm lộ trình", "Tọa độ", "Mã VP", "Tên VP", ""]}>
-            {listedOffices.map((o) => (
-              <tr key={o.id ?? o.sourceId ?? `${o.code}-${o.address ?? ""}`} className="border-b last:border-0">
-                <td className="py-2 pr-4 tabular-nums text-muted-foreground">{o.sourceId ?? "—"}</td>
-                <td className="py-2 pr-4">{o.address ?? "—"}</td>
-                <td className="py-2 pr-4 font-medium">{itineraryPointLabel(o.itineraryPoint)}</td>
-                <td className="py-2 pr-4 text-xs tabular-nums text-muted-foreground">
-                  {o.latitude != null && o.longitude != null
-                    ? `${Number(o.latitude).toFixed(5)}, ${Number(o.longitude).toFixed(5)}`
-                    : "Chưa có"}
-                </td>
-                <td className="py-2 pr-4 font-medium">{o.code}</td>
-                <td className="py-2 pr-4">{o.name}</td>
-                <td className="py-2 pr-4">
-                  <div className="flex gap-1">
-                    {o.id != null && isApiEnabled() && (
-                      <Button size="sm" variant="outline" onClick={() => setWifiVp(o)}>
-                        Wifi
-                      </Button>
-                    )}
-                    {o.id != null && isApiEnabled() && (
-                      <Button size="sm" variant="outline" onClick={() => setItinVp(o)}>
-                        Lộ trình áp dụng
-                      </Button>
-                    )}
-                    {writable && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditVp(o);
-                            setDlg("vp-edit");
-                          }}
-                        >
-                          Sửa
-                        </Button>
-                        <Del
-                          onClick={() => {
-                            if (
-                              !confirm(
-                                `Xóa văn phòng "${o.name}" (${o.code})?\nVP sẽ ngừng hoạt động, đơn và lịch sử cũ vẫn giữ nguyên.`,
+      {tab === "vp" ? (
+        <div className="stack" style={{ gap: 16 }}>
+          <section className="card stack">
+            <TransitHubSettings offices={listedOffices} writable={writable} />
+          </section>
+          <section className="card stack">
+            <div className="title-row" style={{ alignItems: "center" }}>
+              <h2 className="group-title sec-title num">
+                <span className="sec-ic" aria-hidden="true">
+                  <span className="ms">store</span>
+                </span>
+                Văn phòng ({listedOffices.length})
+              </h2>
+              {writable ? (
+                <button type="button" className="btn" onClick={() => setDlg("vp")}>
+                  <span className="ms" aria-hidden="true">
+                    add
+                  </span>
+                  Thêm VP
+                </button>
+              ) : null}
+            </div>
+            <Table
+              minWidth={960}
+              headers={["ID", "Mã VP", "Tên VP", "Địa chỉ", "Điểm lộ trình", "Toạ độ", "Tác vụ"]}
+              rightLast
+            >
+              {listedOffices.map((o) => (
+                <tr key={o.id ?? o.sourceId ?? `${o.code}-${o.address ?? ""}`}>
+                  <td className="muted">{o.sourceId ?? "—"}</td>
+                  <td className="main">{o.code}</td>
+                  <td style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{o.name}</td>
+                  <td>{o.address ?? "—"}</td>
+                  <td className="muted">{itineraryPointLabel(o.itineraryPoint)}</td>
+                  <td className="muted num" style={{ whiteSpace: "nowrap" }}>
+                    {o.latitude != null && o.longitude != null
+                      ? `${Number(o.latitude).toFixed(5)}, ${Number(o.longitude).toFixed(5)}`
+                      : "Chưa có"}
+                  </td>
+                  <td>
+                    <div className="act">
+                      {o.id != null && isApiEnabled() ? (
+                        <button type="button" className="text-act" onClick={() => setWifiVp(o)}>
+                          Wifi
+                        </button>
+                      ) : null}
+                      {o.id != null && isApiEnabled() ? (
+                        <button type="button" className="text-act" style={{ whiteSpace: "nowrap" }} onClick={() => setItinVp(o)}>
+                          Lộ trình áp dụng
+                        </button>
+                      ) : null}
+                      {writable ? (
+                        <>
+                          <button
+                            type="button"
+                            className="no"
+                            aria-label="Sửa VP"
+                            title="Sửa"
+                            onClick={() => {
+                              setEditVp(o);
+                              setDlg("vp-edit");
+                            }}
+                          >
+                            <span className="ms" aria-hidden="true">
+                              edit
+                            </span>
+                          </button>
+                          <Del
+                            onClick={() => {
+                              if (
+                                !confirm(
+                                  `Xóa văn phòng "${o.name}" (${o.code})?\nVP sẽ ngừng hoạt động, đơn và lịch sử cũ vẫn giữ nguyên.`,
+                                )
                               )
-                            )
-                              return;
-                            removeOffice(o);
-                            toast.success("Đã xóa");
-                          }}
-                        />
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </Table>
-        </TabsContent>
+                                return;
+                              removeOffice(o);
+                              toast.success("Đã xóa");
+                            }}
+                          />
+                        </>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </section>
+        </div>
+      ) : null}
 
-        <TabsContent value="tuyen" className="mt-4">
-          {writable && (
-            <Button className="mb-3" onClick={() => setDlg("tuyen")}>
-              Thêm tuyến
-            </Button>
-          )}
-          <Table headers={["Tuyến", ""]}>
+      {tab === "tuyen" ? (
+        <section className="card stack">
+          <div className="title-row" style={{ alignItems: "center" }}>
+            <h2 className="group-title sec-title num">
+              <span className="sec-ic" aria-hidden="true">
+                <span className="ms">route</span>
+              </span>
+              Tuyến ({routes.length})
+            </h2>
+            {writable ? (
+              <button type="button" className="btn" onClick={() => setDlg("tuyen")}>
+                <span className="ms" aria-hidden="true">
+                  add
+                </span>
+                Thêm tuyến
+              </button>
+            ) : null}
+          </div>
+          <Table headers={["Tuyến", "Tác vụ"]} rightLast>
             {routes.map((r) => (
-              <tr key={r} className="border-b last:border-0">
-                <td className="py-2 pr-4">{r}</td>
-                <td className="py-2 pr-4">
-                  {writable && (
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
+              <tr key={r}>
+                <td style={{ fontWeight: 500 }}>{r}</td>
+                <td>
+                  {writable ? (
+                    <div className="act">
+                      <button
+                        type="button"
+                        className="no"
+                        aria-label="Sửa tuyến"
+                        title="Sửa"
                         onClick={() => {
                           setEditRoute(r);
                           setDlg("tuyen-edit");
                         }}
                       >
-                        Sửa
-                      </Button>
+                        <span className="ms" aria-hidden="true">
+                          edit
+                        </span>
+                      </button>
                       <Del
                         onClick={() => {
                           if (
@@ -247,60 +308,64 @@ function Page() {
                         }}
                       />
                     </div>
-                  )}
+                  ) : null}
                 </td>
               </tr>
             ))}
           </Table>
-        </TabsContent>
+        </section>
+      ) : null}
 
-        <TabsContent value="xe" className="mt-4">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {writable && (
-              <Button onClick={() => setDlg("xe")}>
-                Thêm xe tải
-              </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={syncingXe || !isApiEnabled()}
-              onClick={() => void reloadMaster()}
-            >
-              {syncingXe ? "Đang tải…" : "Tải lại từ máy chủ"}
-            </Button>
-            {writable && pickedXe.size > 0 && (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={deleting}
-                onClick={() =>
-                  void runDelete("xe", [...pickedXe], removeVehicles, () => setPickedXe(new Set()))
-                }
-              >
-                {deleting ? "Đang xóa…" : `Xóa ${pickedXe.size} xe đã chọn`}
-              </Button>
-            )}
-            <span className="text-xs text-muted-foreground">
-              Cùng danh sách xe tải với màn gán xe (thêm/sửa/xóa đồng bộ BE). Xe đã chạy chuyến được ẩn, giữ lịch sử.
-            </span>
+      {tab === "xe" ? (
+        <section className="card stack">
+          <div className="title-row" style={{ alignItems: "center" }}>
+            <div>
+              <h2 className="group-title sec-title num">
+                <span className="sec-ic" aria-hidden="true">
+                  <span className="ms">local_shipping</span>
+                </span>
+                Xe tải ({truckVehicles.length})
+              </h2>
+              <div className="lab muted">Cùng danh sách xe tải với màn gán xe. Xe đã chạy chuyến được ẩn, giữ lịch sử.</div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <button type="button" className="btn ghost" disabled={syncingXe || !isApiEnabled()} onClick={() => void reloadMaster()}>
+                <span className="ms" aria-hidden="true">
+                  refresh
+                </span>
+                {syncingXe ? "Đang tải…" : "Tải lại từ máy chủ"}
+              </button>
+              {writable ? (
+                <button type="button" className="btn" onClick={() => setDlg("xe")}>
+                  <span className="ms" aria-hidden="true">
+                    add
+                  </span>
+                  Thêm xe tải
+                </button>
+              ) : null}
+              {writable && pickedXe.size > 0 ? (
+                <button
+                  type="button"
+                  className="btn danger"
+                  disabled={deleting}
+                  onClick={() => void runDelete("xe", [...pickedXe], removeVehicles, () => setPickedXe(new Set()))}
+                >
+                  {deleting ? "Đang xóa…" : `Xóa ${pickedXe.size} xe đã chọn`}
+                </button>
+              ) : null}
+            </div>
           </div>
           {truckVehicles.length === 0 ? (
             <EmptyState>
-              {syncingXe
-                ? "Đang tải xe tải…"
-                : "Chưa có xe tải — thêm tại đây hoặc từ tab Xe tải khi gán đơn."}
+              {syncingXe ? "Đang tải xe tải…" : "Chưa có xe tải — thêm tại đây hoặc từ tab Xe tải khi gán đơn."}
             </EmptyState>
           ) : (
             <Table
+              minWidth={720}
+              rightLast
               headers={[
                 writable ? (
-                  <PickAll
-                    key="all"
-                    all={truckVehicles.map((v) => v.bks)}
-                    picked={pickedXe}
-                    onChange={setPickedXe}
-                  />
+                  <PickAll key="all" all={truckVehicles.map((v) => v.bks)} picked={pickedXe} onChange={setPickedXe} />
                 ) : (
                   ""
                 ),
@@ -309,34 +374,38 @@ function Page() {
                 "Định mức (kg)",
                 "Tài xế",
                 "Trạng thái",
-                "",
+                "Tác vụ",
               ]}
             >
               {truckVehicles.map((v) => (
-                <tr key={v.id ?? v.bks} className="border-b last:border-0">
-                  <td className="w-8 py-2 pr-2">
-                    {writable && <PickOne value={v.bks} picked={pickedXe} onChange={setPickedXe} />}
+                <tr key={v.id ?? v.bks}>
+                  <td>{writable ? <PickOne value={v.bks} picked={pickedXe} onChange={setPickedXe} /> : null}</td>
+                  <td className="main">{v.bks}</td>
+                  <td>{v.vehicleType ?? "Xe tải"}</td>
+                  <td className="r">{v.capacity || "—"}</td>
+                  <td>{v.driverName ?? "—"}</td>
+                  <td>
+                    <span className={v.active === false ? "tag warn" : "tag ok"}>
+                      {v.active === false ? "Ngưng" : "Hoạt động"}
+                    </span>
                   </td>
-                  <td className="py-2 pr-4 font-medium">{v.bks}</td>
-                  <td className="py-2 pr-4">{v.vehicleType ?? "Xe tải"}</td>
-                  <td className="py-2 pr-4 tabular-nums">{v.capacity || "—"}</td>
-                  <td className="py-2 pr-4">{v.driverName ?? "—"}</td>
-                  <td className="py-2 pr-4 text-xs text-muted-foreground">
-                    {v.active === false ? "Ngưng" : "Hoạt động"}
-                  </td>
-                  <td className="py-2 pr-4">
-                    {writable && (
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
+                  <td>
+                    {writable ? (
+                      <div className="act">
+                        <button
+                          type="button"
+                          className="no"
+                          aria-label="Sửa xe"
+                          title="Sửa"
                           onClick={() => {
                             setEditXe(v);
                             setDlg("xe-edit");
                           }}
                         >
-                          Sửa
-                        </Button>
+                          <span className="ms" aria-hidden="true">
+                            edit
+                          </span>
+                        </button>
                         <Del
                           onClick={() =>
                             void runDelete("xe", [v.bks], removeVehicles, () =>
@@ -349,58 +418,74 @@ function Page() {
                           }
                         />
                       </div>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))}
             </Table>
           )}
-        </TabsContent>
+        </section>
+      ) : null}
 
-        <TabsContent value="ts" className="mt-4">
-          {writable && (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Button onClick={() => setDlg("ts")}>Thêm tài xế</Button>
-              {pickedTs.size > 0 && (
-                <Button
+      {tab === "ts" ? (
+        <section className="card stack">
+          <div className="title-row" style={{ alignItems: "center" }}>
+            <h2 className="group-title sec-title num">
+              <span className="sec-ic" aria-hidden="true">
+                <span className="ms">badge</span>
+              </span>
+              Tài xế ({drivers.length})
+            </h2>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {writable ? (
+                <button type="button" className="btn" onClick={() => setDlg("ts")}>
+                  <span className="ms" aria-hidden="true">
+                    add
+                  </span>
+                  Thêm tài xế
+                </button>
+              ) : null}
+              {writable && pickedTs.size > 0 ? (
+                <button
                   type="button"
-                  variant="destructive"
+                  className="btn danger"
                   disabled={deleting}
-                  onClick={() =>
-                    void runDelete("tài xế", [...pickedTs], removeDrivers, () => setPickedTs(new Set()))
-                  }
+                  onClick={() => void runDelete("tài xế", [...pickedTs], removeDrivers, () => setPickedTs(new Set()))}
                 >
                   {deleting ? "Đang xóa…" : `Xóa ${pickedTs.size} tài xế đã chọn`}
-                </Button>
-              )}
+                </button>
+              ) : null}
             </div>
-          )}
+          </div>
           <Table
+            rightLast
             headers={[
               writable ? <PickAll key="all" all={drivers} picked={pickedTs} onChange={setPickedTs} /> : "",
               "Tài xế",
-              "",
+              "Tác vụ",
             ]}
           >
             {drivers.map((d) => (
-              <tr key={d} className="border-b last:border-0">
-                <td className="w-8 py-2 pr-2">
-                  {writable && <PickOne value={d} picked={pickedTs} onChange={setPickedTs} />}
-                </td>
-                <td className="py-2 pr-4">{d}</td>
-                <td className="py-2 pr-4">
-                  {writable && (
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
+              <tr key={d}>
+                <td>{writable ? <PickOne value={d} picked={pickedTs} onChange={setPickedTs} /> : null}</td>
+                <td style={{ fontWeight: 500 }}>{d}</td>
+                <td>
+                  {writable ? (
+                    <div className="act">
+                      <button
+                        type="button"
+                        className="no"
+                        aria-label="Sửa tài xế"
+                        title="Sửa"
                         onClick={() => {
                           setEditDriver(d);
                           setDlg("ts-edit");
                         }}
                       >
-                        Sửa
-                      </Button>
+                        <span className="ms" aria-hidden="true">
+                          edit
+                        </span>
+                      </button>
                       <Del
                         onClick={() =>
                           void runDelete("tài xế", [d], removeDrivers, () =>
@@ -413,17 +498,27 @@ function Page() {
                         }
                       />
                     </div>
-                  )}
+                  ) : null}
                 </td>
               </tr>
             ))}
           </Table>
-        </TabsContent>
+        </section>
+      ) : null}
 
-        <TabsContent value="shipper" className="mt-4">
+      {tab === "shipper" ? (
+        <section className="card stack">
+          <div className="title-row" style={{ alignItems: "center" }}>
+            <h2 className="group-title sec-title num">
+              <span className="sec-ic" aria-hidden="true">
+                <span className="ms">two_wheeler</span>
+              </span>
+              Shipper{shipperCount != null ? ` (${shipperCount})` : ""}
+            </h2>
+          </div>
           <ShipperMasterTab offices={listedOffices} writable={writable} onCount={setShipperCount} />
-        </TabsContent>
-      </Tabs>
+        </section>
+      ) : null}
 
       {wifiVp?.id != null && (
         <OfficeWifiDialog
@@ -540,15 +635,17 @@ function Page() {
           }}
         />
       )}
-    </Section>
+    </div>
   );
 }
 
 function Del({ onClick }: { onClick: () => void }) {
   return (
-    <Button size="sm" variant="ghost" className="text-destructive" onClick={onClick}>
-      <Trash2 className="h-4 w-4" />
-    </Button>
+    <button type="button" className="no" aria-label="Xoá" title="Xoá" onClick={onClick}>
+      <span className="ms" aria-hidden="true">
+        delete
+      </span>
+    </button>
   );
 }
 
@@ -564,7 +661,7 @@ function PickOne({
   return (
     <input
       type="checkbox"
-      className="h-4 w-4 cursor-pointer accent-primary"
+      className="check"
       checked={picked.has(value)}
       onChange={(e) => {
         const next = new Set(picked);
@@ -590,7 +687,7 @@ function PickAll({
     <input
       type="checkbox"
       title="Chọn tất cả"
-      className="h-4 w-4 cursor-pointer accent-primary"
+      className="check"
       checked={all.length > 0 && count === all.length}
       ref={(el) => {
         if (el) el.indeterminate = count > 0 && count < all.length;
@@ -600,14 +697,24 @@ function PickAll({
   );
 }
 
-function Table({ headers, children }: { headers: React.ReactNode[]; children: React.ReactNode }) {
+function Table({
+  headers,
+  children,
+  minWidth = 0,
+  rightLast,
+}: {
+  headers: ReactNode[];
+  children: ReactNode;
+  minWidth?: number;
+  rightLast?: boolean;
+}) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="text-left text-xs uppercase text-muted-foreground">
-          <tr className="border-b">
+    <div className="scroller">
+      <table className="tbl" style={{ ["--tbl-min" as string]: `${minWidth}px` }}>
+        <thead>
+          <tr>
             {headers.map((h, i) => (
-              <th key={i} className="py-2 pr-4">
+              <th key={i} className={rightLast && i === headers.length - 1 ? "r" : undefined}>
                 {h}
               </th>
             ))}
