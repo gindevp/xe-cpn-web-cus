@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
@@ -108,8 +108,8 @@ export function SearchableSelect({
           <div
             ref={anchorRef}
             className={cn(
-              "flex h-9 w-full cursor-text items-center rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-within:ring-1 focus-within:ring-ring",
-              disabled && "cursor-not-allowed opacity-50",
+              "box input-box m3-combo-trigger",
+              disabled && "opacity-50",
               className,
             )}
             onMouseDown={(e) => {
@@ -124,6 +124,7 @@ export function SearchableSelect({
               ref={inputRef}
               id={id}
               disabled={disabled}
+              role="combobox"
               aria-expanded={open}
               autoComplete="off"
               value={open ? search : (selected?.label ?? "")}
@@ -146,16 +147,17 @@ export function SearchableSelect({
               }}
               className={cn(
                 "min-w-0 flex-1 truncate bg-transparent outline-none disabled:cursor-not-allowed",
-                open && selected ? "placeholder:text-foreground/60" : "placeholder:text-muted-foreground",
+                open && selected ? "placeholder:text-foreground/60" : undefined,
               )}
             />
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <span className="ms" aria-hidden="true" style={{ fontSize: 18, color: "var(--on-surface-variant)" }}>
+              expand_more
+            </span>
           </div>
         </PopoverAnchor>
         <PopoverContent
           className={cn(
-            // Above Dialog (z-50) so list receives pointer/wheel cleanly
-            "z-[100] w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popper-anchor-width)] overflow-hidden p-0",
+            "z-[100] w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popper-anchor-width)] overflow-hidden border-0 bg-transparent p-0 shadow-none",
             contentClassName,
           )}
           align="start"
@@ -164,35 +166,43 @@ export function SearchableSelect({
           onInteractOutside={(e) => {
             if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
           }}
-          // Giữ focus ở ô nhập khi bấm vào danh sách / thanh cuộn.
           onMouseDown={(e) => e.preventDefault()}
           onWheel={(e) => e.stopPropagation()}
         >
-          <CommandList ref={listRef} className="max-h-60 overflow-y-auto overscroll-contain">
-            <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {allowClear && (
-                <CommandItem value="__clear__" keywords={[clearLabel]} onSelect={() => pick("")}>
-                  <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
-                  <span className="text-muted-foreground">{clearLabel}</span>
-                </CommandItem>
-              )}
-              {options.map((opt) => (
-                <CommandItem
-                  key={opt.value}
-                  value={opt.value}
-                  keywords={[opt.label, opt.keywords ?? "", opt.value]}
-                  disabled={opt.disabled}
-                  onSelect={() => pick(opt.value)}
-                >
-                  <Check
-                    className={cn("mr-2 h-4 w-4", value === opt.value ? "opacity-100" : "opacity-0")}
-                  />
-                  <span className="whitespace-normal leading-tight">{opt.label}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
+          <div className="combo-list m3-combo-portal" role="listbox" style={{ position: "relative", top: 0, left: 0, right: 0 }}>
+            <CommandList ref={listRef} className="max-h-[220px] overflow-y-auto overscroll-contain">
+              <CommandEmpty>
+                <div className="combo-none">{emptyText}</div>
+              </CommandEmpty>
+              <CommandGroup className="p-0">
+                {allowClear && (
+                  <CommandItem
+                    value="__clear__"
+                    keywords={[clearLabel]}
+                    onSelect={() => pick("")}
+                    className="m3-combo-item"
+                  >
+                    <span className="text-muted-foreground">{clearLabel}</span>
+                  </CommandItem>
+                )}
+                {options.map((opt) => (
+                  <CommandItem
+                    key={opt.value}
+                    value={opt.value}
+                    keywords={[opt.label, opt.keywords ?? "", opt.value]}
+                    disabled={opt.disabled}
+                    onSelect={() => pick(opt.value)}
+                    className="m3-combo-item"
+                  >
+                    <Check
+                      className={cn("mr-2 h-4 w-4 shrink-0", value === opt.value ? "opacity-100" : "opacity-0")}
+                    />
+                    <span className="whitespace-normal leading-tight">{opt.label}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </div>
         </PopoverContent>
       </Popover>
     </Command>

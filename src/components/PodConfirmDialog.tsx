@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
 import { Label } from "@/components/ui/label";
@@ -19,8 +18,6 @@ import {
 } from "@/lib/finance-debt";
 import { formatVND } from "@/lib/mock-data";
 import { toast } from "sonner";
-import { PackageCheck } from "lucide-react";
-
 /**
  * Bước POD trước khi chuyển DELIVERED (shipper giao tận nhà).
  * Ảnh POD bắt buộc ≥1 — action "POD" đẩy lên BE POST /api/orders/{code}/pod.
@@ -175,18 +172,19 @@ export function PodConfirmDialog({
   const storageDue = order && order.status !== "RETURNING" ? receiverStorageDue(order) : 0;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : finish(done))}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {catchUp ? "Giao thành công bù" : "Ảnh POD & xác nhận giao"}
-            {codes.length > 1 && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                Đơn {idx + 1}/{codes.length}
-              </span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
+    <M3Sheet
+      open={open}
+      onOpenChange={(v) => (v ? onOpenChange(true) : finish(done))}
+      variant="form-sheet"
+    >
+      <M3SheetTitle>
+        {catchUp ? "Giao thành công bù" : "Ảnh POD & xác nhận giao"}
+        {codes.length > 1 ? (
+          <span className="lab muted" style={{ fontWeight: 400, marginLeft: 8 }}>
+            Đơn {idx + 1}/{codes.length}
+          </span>
+        ) : null}
+      </M3SheetTitle>
 
         {!order ? (
           <p className="text-sm text-destructive">Không tìm thấy đơn {code}</p>
@@ -281,17 +279,18 @@ export function PodConfirmDialog({
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => finish(done)}>
+        <M3ConfirmActions>
+          <button type="button" className="btn ghost" onClick={() => finish(done)}>
             Hủy
-          </Button>
-          {codes.length > 1 && idx + 1 < codes.length && (
-            <Button variant="ghost" onClick={() => goNext(done)}>
+          </button>
+          {codes.length > 1 && idx + 1 < codes.length ? (
+            <button type="button" className="btn ghost" onClick={() => goNext(done)}>
               Bỏ qua đơn này
-            </Button>
-          )}
-          <Button
-            className="gap-2"
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn"
             onClick={confirm}
             disabled={
               !order ||
@@ -301,11 +300,9 @@ export function PodConfirmDialog({
               (fromFailed && !failedReason.trim())
             }
           >
-            <PackageCheck className="h-4 w-4" />
             Xác nhận giao
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </button>
+        </M3ConfirmActions>
+    </M3Sheet>
   );
 }

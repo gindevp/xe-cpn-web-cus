@@ -566,189 +566,187 @@ function Page() {
       : "Chưa xác định văn phòng.";
 
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">{scopeHint}</p>
+    <div className="stack" style={{ gap: 16 }}>
+      <p className="lab muted" style={{ margin: 0 }}>{scopeHint}</p>
 
-      <Section>
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Mã phiếu thu</Label>
-            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="PT..." />
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">account_balance_wallet</span>
+              Tổng tiền
+            </div>
+            <div className="sum-hero">
+              {formatVND(total).replace(/\s*₫?$/, "")} <span className="sum-unit">VNĐ</span>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Mã nhân viên</Label>
-            <Input
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">receipt_long</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Số phiếu thu</div>
+            <div className="sum-val">{rowCount.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="title-row" style={{ marginTop: 0 }}>
+        <div />
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => {
+              setCode("");
+              setStaffCode("");
+              setCreator("");
+              setDayFrom("");
+              setDayTo("");
+              setStatus("");
+            }}
+          >
+            Xoá lọc
+          </button>
+          <ExportFormatButton
+            busy={exporting}
+            disabled={rowCount === 0}
+            onExport={(format) => void exportExcel(format)}
+          />
+        </div>
+      </div>
+
+      <div className="filter-grid">
+        <label className="field">
+          <span className="l">Mã phiếu thu</span>
+          <span className="box input-box">
+            <input type="search" value={code} onChange={(e) => setCode(e.target.value)} placeholder="PT..." />
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Mã nhân viên</span>
+          <span className="box input-box">
+            <input
+              type="search"
               value={staffCode}
               onChange={(e) => setStaffCode(e.target.value)}
               placeholder="Mã / tên NV nộp tiền"
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">CB điều phối (người lập)</Label>
-            <Input
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">CB điều phối</span>
+          <span className="box input-box">
+            <input
+              type="search"
               value={creator}
               onChange={(e) => setCreator(e.target.value)}
               placeholder="Tài khoản lập phiếu"
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Thu tiền từ ngày</Label>
-            <Input
-              type="date"
-              value={dayFrom}
-              max={dayTo || undefined}
-              onChange={(e) => setDayFrom(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input
-              type="date"
-              value={dayTo}
-              min={dayFrom || undefined}
-              onChange={(e) => setDayTo(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Trạng thái thu</Label>
-            <SearchableSelect
-              value={status || "all"}
-              onValueChange={(v) => setStatus(v === "CONFIRMED" || v === "PENDING" ? v : "")}
-              placeholder="Tất cả"
-              options={[
-                { value: "all", label: "Tất cả" },
-                { value: "PENDING", label: "Chưa thu" },
-                { value: "CONFIRMED", label: "Đã thu" },
-              ]}
-            />
-          </div>
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Thu tiền từ ngày</span>
+          <span className="box input-box">
+            <input type="date" value={dayFrom} max={dayTo || undefined} onChange={(e) => setDayFrom(e.target.value)} />
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Đến ngày</span>
+          <span className="box input-box">
+            <input type="date" value={dayTo} min={dayFrom || undefined} onChange={(e) => setDayTo(e.target.value)} />
+          </span>
+        </label>
+        <div className="field">
+          <span className="l">Trạng thái thu</span>
+          <SearchableSelect
+            value={status || "all"}
+            onValueChange={(v) => setStatus(v === "CONFIRMED" || v === "PENDING" ? v : "")}
+            placeholder="Tất cả"
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "PENDING", label: "Chưa thu" },
+              { value: "CONFIRMED", label: "Đã thu" },
+            ]}
+          />
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm text-muted-foreground">
-            {rowCount} phiếu · Tổng tiền{" "}
-            <span className="font-semibold text-foreground">{formatVND(total)}</span>
-            {apiMode && server.loading && <Loader2 className="ml-2 inline h-3.5 w-3.5 animate-spin" />}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setCode("");
-                setStaffCode("");
-                setCreator("");
-                setDayFrom("");
-                setDayTo("");
-                setStatus("");
-              }}
-            >
-              Xoá lọc
-            </Button>
-            <ExportFormatButton
-              busy={exporting}
-              disabled={rowCount === 0}
-              onExport={(format) => void exportExcel(format)}
-            />
-          </div>
-        </div>
-      </Section>
+      </div>
 
-      <Section title={`Danh sách phiếu thu (${rowCount})`}>
+      <section className="card stack">
         {rowCount === 0 ? (
           <EmptyState>{apiMode && server.loading ? "Đang tải…" : "Chưa có phiếu thu nào"}</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="w-14 px-2 py-2">STT</th>
-                  <th className="px-2 py-2">Mã phiếu thu</th>
-                  <th className="px-2 py-2">Văn phòng</th>
-                  <th className="px-2 py-2">CB điều phối (người lập)</th>
-                  <th className="px-2 py-2">Người nộp tiền</th>
-                  <th className="px-2 py-2" title="Ngày khách trả tiền muộn nhất trong các đơn của phiếu (không phải ngày lập phiếu)">
-                    Ngày thu tiền
-                  </th>
-                  <th className="px-2 py-2">Thời gian lập phiếu</th>
-                  <th className="px-2 py-2 text-right">Tổng tiền</th>
-                  <th className="px-2 py-2 min-w-[100px]">Ảnh giao dịch</th>
-                  <th className="px-2 py-2 min-w-[240px]">Trạng thái thu</th>
-                  {isAdmin && <th className="px-2 py-2">Thao tác</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r, i) => {
-                  const proof = r.confirmProofImage?.trim();
-                  return (
-                    <tr key={r.code} className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2 text-muted-foreground">{pager.start + i + 1}</td>
-                      <td className="px-2 py-2 font-medium">
-                        <button
-                          type="button"
-                          className="text-primary underline-offset-2 hover:underline"
-                          onClick={() => setDetail(r)}
-                        >
-                          {r.code}
-                        </button>
-                        <div className="text-[11px] font-normal text-muted-foreground">
-                          {r.orderCodes.length} đơn
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                        {r.office ? officeName(r.office) : "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        <StaffNameCell staffKey={r.createdBy} name={r.createdByName} account={r.createdBy} />
-                      </td>
-                      <td className="px-2 py-2">
-                        <StaffNameCell staffKey={r.payerCode || r.payer} name={r.payerName} account={r.payer} />
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap tabular-nums">
-                        {fmtDayVn(receiptMoneyDay(r))}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                        {fmtDateTime(r.createdAt)}
-                      </td>
-                      <td className="px-2 py-2 text-right font-semibold">{formatVND(r.total)}</td>
-                      <td className="px-2 py-2">
-                        <div className="flex flex-wrap gap-1.5">
-                          {(proof && isViewableImageUrl(proof)) ||
-                          (!proof && (r.hasConfirmProof || r.hasTransferProof)) ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-1.5 px-2.5 text-xs"
-                              disabled={loadingProof === r.code}
-                              onClick={() => void openProof(r.code, proof)}
-                            >
-                              {loadingProof === r.code ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <ImageIcon className="h-3.5 w-3.5" />
-                              )}
-                              Xem ảnh
-                            </Button>
-                          ) : null}
-                          {canConfirm ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-1.5 px-2.5 text-xs"
-                              disabled={busyCode === r.code}
-                              onClick={() => setAppendProofTarget(r)}
-                            >
-                              <ImagePlus className="h-3.5 w-3.5" />
-                              Thêm ảnh
-                            </Button>
-                          ) : !proof && !r.hasConfirmProof && !r.hasTransferProof ? (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2">
-                        <div className="flex flex-col gap-1.5">
+          <>
+            <div className="scroller">
+              <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1120px" }}>
+                <thead>
+                  <tr>
+                    <th>Mã phiếu thu</th>
+                    <th>Văn phòng</th>
+                    <th>CB điều phối</th>
+                    <th>Người nộp tiền</th>
+                    <th>Ngày thu</th>
+                    <th>Lập phiếu</th>
+                    <th className="r">Tổng tiền</th>
+                    <th>Ảnh giao dịch</th>
+                    <th>Trạng thái thu</th>
+                    {isAdmin ? <th className="r">Thao tác</th> : null}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const proof = r.confirmProofImage?.trim();
+                    return (
+                      <tr key={r.code}>
+                        <td>
+                          <button type="button" className="code" onClick={() => setDetail(r)}>
+                            {r.code}
+                          </button>
+                          <span className="sub">{r.orderCodes.length} đơn</span>
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {r.office ? officeName(r.office) : "—"}
+                        </td>
+                        <td>
+                          <StaffNameCell staffKey={r.createdBy} name={r.createdByName} account={r.createdBy} />
+                        </td>
+                        <td>
+                          <StaffNameCell staffKey={r.payerCode || r.payer} name={r.payerName} account={r.payer} />
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }} className="num">
+                          {fmtDayVn(receiptMoneyDay(r))}
+                        </td>
+                        <td style={{ whiteSpace: "nowrap" }}>{fmtDateTime(r.createdAt)}</td>
+                        <td className="r main">{formatVND(r.total)}</td>
+                        <td>
+                          <div className="act" style={{ justifyContent: "flex-start" }}>
+                            {(proof && isViewableImageUrl(proof)) ||
+                            (!proof && (r.hasConfirmProof || r.hasTransferProof)) ? (
+                              <button
+                                type="button"
+                                className="text-act"
+                                disabled={loadingProof === r.code}
+                                onClick={() => void openProof(r.code, proof)}
+                              >
+                                {loadingProof === r.code ? "Đang tải…" : "Xem ảnh"}
+                              </button>
+                            ) : null}
+                            {canConfirm ? (
+                              <button
+                                type="button"
+                                className="text-act"
+                                disabled={busyCode === r.code}
+                                onClick={() => setAppendProofTarget(r)}
+                              >
+                                Thêm ảnh
+                              </button>
+                            ) : !proof && !r.hasConfirmProof && !r.hasTransferProof ? (
+                              <span className="muted">—</span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td>
                           <ConfirmCell
                             receipt={r}
                             canConfirm={canConfirm}
@@ -757,44 +755,41 @@ function Page() {
                             onUnconfirm={() => void onUnconfirm(r.code)}
                           />
                           {!r.confirmedAt && isApiEnabled() ? (
-                            <Button
+                            <button
                               type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-8 w-fit gap-1.5 px-2.5 text-xs"
+                              className="text-act"
+                              style={{ marginTop: 4 }}
                               disabled={busyCode === r.code}
                               onClick={() => setPayQrCode(r.code)}
                             >
-                              <QrCode className="h-3.5 w-3.5" />
                               QR thanh toán
-                            </Button>
+                            </button>
                           ) : null}
-                        </div>
-                      </td>
-                      {isAdmin && (
-                        <td className="px-2 py-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5 px-2.5 text-xs text-destructive hover:text-destructive"
-                            disabled={busyCode === r.code}
-                            onClick={() => setCancelTarget(r)}
-                          >
-                            <XCircle className="h-3.5 w-3.5" />
-                            Hủy phiếu
-                          </Button>
                         </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {isAdmin ? (
+                          <td>
+                            <div className="act">
+                              <button
+                                type="button"
+                                className="text-act danger"
+                                disabled={busyCode === r.code}
+                                onClick={() => setCancelTarget(r)}
+                              >
+                                Huỷ phiếu
+                              </button>
+                            </div>
+                          </td>
+                        ) : null}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
-      </Section>
+      </section>
 
       <ReceiptOrdersDialog receipt={detail} onClose={() => setDetail(null)} />
       <ConfirmReceiptDialog

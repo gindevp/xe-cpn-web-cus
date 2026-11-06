@@ -366,141 +366,132 @@ function Page() {
         {rows.length === 0 ? (
           <EmptyState>Không có đơn trong mục này</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1150px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="w-10 px-2 py-2">
-                    <Checkbox
-                      checked={allChecked}
-                      onCheckedChange={(v) => toggleAll(Boolean(v))}
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                  <th className="px-2 py-2">Mã đơn</th>
-                  <th className="px-2 py-2">Ghi nhận</th>
-                  <th className="px-2 py-2">Lý do</th>
-                  <th className="px-2 py-2">Người gửi</th>
-                  <th className="px-2 py-2">Người nhận</th>
-                  <th className="px-2 py-2">VP gửi → VP nhận</th>
-                  <th className="px-2 py-2">Trạng thái</th>
-                  <OrderCargoHeader className="font-normal text-muted-foreground" />
-                  <OrderFeeHeader className="text-muted-foreground" />
-                  <th className="px-2 py-2 text-right">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const fromStage = issueFromStageOf(r);
-                  const restoreLabel = restoreLabelOf(r, fromStage);
-                  return (
-                  <Fragment key={r.code}>
-                    <tr className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2">
-                        <Checkbox
-                          checked={selected.has(r.code)}
-                          onCheckedChange={(v) => toggle(r.code, Boolean(v))}
-                          aria-label={`Chọn ${r.code}`}
-                        />
-                      </td>
-                      <td className="px-2 py-2 font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            className="inline-flex items-center text-left"
-                            title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                            onClick={() => toggleOrderPkgs(r.code)}
-                          >
-                            <ChevronDown
-                              className={cn(
-                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                expandedOrders.has(r.code) && "rotate-180",
-                              )}
-                            />
-                          </button>
-                          <OrderCodeLink code={r.code} />
-                        </span>
-                        <Badge
-                          variant={tab === "EXCEPTION" ? "outline" : "destructive"}
-                          className="mt-1 ml-6"
-                        >
-                          {TABS.find((t) => t.key === tabOf(r))?.label}
-                        </Badge>
-                        <button
-                          type="button"
-                          className="mt-0.5 block pl-6 text-[11px] text-muted-foreground hover:text-foreground"
-                          onClick={() => toggleOrderPkgs(r.code)}
-                        >
-                          {expandedOrders.has(r.code)
-                            ? "Ẩn kiện"
-                            : `Xem ${packageCount(r)} kiện`}
-                        </button>
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                        <div>{formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}</div>
-                        <div className="text-xs">{r.issue?.by ?? "hệ thống"}</div>
-                      </td>
-                      <td className="max-w-[220px] px-2 py-2" title={reasonOf(r)}>
-                        <div className="truncate">{reasonOf(r)}</div>
-                        {r.issue?.photos?.length ? (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {r.issue.photos.slice(0, 3).map((url, i) => (
-                              <img
-                                key={i}
-                                src={url}
-                                alt={`Minh chứng ${i + 1}`}
-                                className="h-10 w-14 rounded border object-cover"
-                              />
-                            ))}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-2 py-2">
-                        <div>{r.senderName ?? "-"}</div>
-                        <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
-                      </td>
-                      <td className="px-2 py-2">
-                        <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
-                        <OfficeRouteCell order={r} />
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
-                        <OrderStatusBadge
-                          status={r.status}
-                          issue={tabOf(r) ? { type: tabOf(r)! } : r.issue}
-                        />
-                      </td>
-                      <OrderCargoCell order={r} />
-                      <OrderFeeCell order={r} />
-                      <td className="px-2 py-2 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          onClick={() => restoreToWarehouse([r.code])}
-                        >
-                          <Warehouse className="h-3.5 w-3.5" />
-                          {restoreLabel}
-                        </Button>
-                      </td>
-                    </tr>
-                    {expandedOrders.has(r.code) ? (
-                      <OrderPackageListRow
-                        order={r}
-                        layout="panel"
-                        colSpan={13}
-                        onPrintPackage={(code, seq) => setPrintTarget({ code, packageSeq: seq })}
+          <>
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "1150px" }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 18 }}>
+                      <input
+                        className="check"
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => toggleAll(e.target.checked)}
+                        aria-label="Chọn tất cả"
                       />
-                    ) : null}
-                  </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                    </th>
+                    <th>Mã đơn</th>
+                    <th>Ghi nhận</th>
+                    <th>Lý do</th>
+                    <th>Người gửi</th>
+                    <th>Người nhận</th>
+                    <th>VP gửi → VP nhận</th>
+                    <th>Trạng thái</th>
+                    <OrderCargoHeader />
+                    <OrderFeeHeader />
+                    <th className="r">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const fromStage = issueFromStageOf(r);
+                    const restoreLabel = restoreLabelOf(r, fromStage);
+                    return (
+                      <Fragment key={r.code}>
+                        <tr className={cn(selected.has(r.code) && "sel")}>
+                          <td>
+                            <input
+                              className="check"
+                              type="checkbox"
+                              checked={selected.has(r.code)}
+                              onChange={(e) => toggle(r.code, e.target.checked)}
+                              aria-label={`Chọn ${r.code}`}
+                            />
+                          </td>
+                          <td>
+                            <OrderCodeLink code={r.code} className="code" />
+                            <button
+                              type="button"
+                              className="link"
+                              style={{ display: "block", marginTop: 2 }}
+                              onClick={() => toggleOrderPkgs(r.code)}
+                            >
+                              {expandedOrders.has(r.code)
+                                ? "Ẩn kiện"
+                                : `Xem ${packageCount(r)} kiện`}
+                            </button>
+                            <span className="sub">
+                              {TABS.find((t) => t.key === tabOf(r))?.label}
+                            </span>
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span style={{ fontWeight: 500 }}>
+                              {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}
+                            </span>
+                            <span className="sub">{r.issue?.by ?? "hệ thống"}</span>
+                          </td>
+                          <td title={reasonOf(r)}>
+                            <span style={{ fontWeight: 500 }}>{reasonOf(r)}</span>
+                            {r.issue?.photos?.length ? (
+                              <span className="sub" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                                {r.issue.photos.slice(0, 3).map((url, i) => (
+                                  <img
+                                    key={i}
+                                    src={url}
+                                    alt={`Minh chứng ${i + 1}`}
+                                    style={{ height: 40, width: 56, borderRadius: 8, objectFit: "cover" }}
+                                  />
+                                ))}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                            <span className="sub">{r.senderPhone}</span>
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                            <span className="sub">{r.receiverPhone}</span>
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <OfficeRouteCell order={r} />
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <OrderStatusBadge
+                              status={r.status}
+                              issue={tabOf(r) ? { type: tabOf(r)! } : r.issue}
+                            />
+                          </td>
+                          <OrderCargoCell order={r} />
+                          <OrderFeeCell order={r} />
+                          <td>
+                            <div className="act">
+                              <button
+                                type="button"
+                                className="ok"
+                                onClick={() => restoreToWarehouse([r.code])}
+                              >
+                                {restoreLabel}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {expandedOrders.has(r.code) ? (
+                          <OrderPackageListRow
+                            order={r}
+                            layout="panel"
+                            colSpan={13}
+                            onPrintPackage={(code, seq) => setPrintTarget({ code, packageSeq: seq })}
+                          />
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

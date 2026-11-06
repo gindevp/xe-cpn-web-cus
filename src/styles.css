@@ -227,6 +227,31 @@ html.xe-scan-immersive main {
   background: var(--lowest);
   border-right: 1px solid var(--outline-variant);
 }
+@media (max-width: 760px) {
+  .m3-app-shell.shell:not(.m3-native) {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+  .m3-app-shell.shell:not(.m3-native) .m3-nav-slot {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+  .m3-app-shell.shell:not(.m3-native) .m3-nav-slot .side.rail {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+  }
+  .m3-app-shell.shell:not(.m3-native) .m3-main.page {
+    height: auto;
+    overflow: visible;
+  }
+}
 .m3-nav-slot .side.rail {
   height: 100%;
   min-height: 100%;
@@ -234,14 +259,22 @@ html.xe-scan-immersive main {
   box-sizing: border-box;
 }
 .m3-nav-slot .brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  flex: none;
+  width: 48px;
+  height: 30px;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
   text-decoration: none;
 }
 .m3-nav-slot .brand img {
-  height: 32px;
+  display: block;
+  height: 30px;
   width: auto;
+  max-width: none;
+  object-fit: contain;
+  object-position: left center;
 }
 .m3-main.page {
   flex: 1 1 auto;
@@ -250,7 +283,7 @@ html.xe-scan-immersive main {
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   padding: 16px 24px 32px;
   box-sizing: border-box;
 }
@@ -361,16 +394,56 @@ html.xe-scan-immersive main {
   flex: none;
 }
 .m3-title-row {
-  margin-top: 4px;
+  margin-top: 0;
 }
-.m3-mobile-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* Radix overlay dùng chung class .scrim — z-index trên shell/nav */
+.scrim[data-state],
+.scrim {
+  z-index: 50;
 }
-.m3-mobile-title {
-  font-size: 16px;
-  font-weight: 600;
+.m3-scrim-top {
+  align-items: flex-start;
+  overflow-y: auto;
+}
+/* SearchableSelect → design combo */
+.m3-combo-trigger {
+  width: 100%;
+  min-height: 40px;
+  height: 40px;
+  cursor: text;
+}
+.m3-combo-trigger input {
+  height: 100%;
+}
+.m3-combo-portal.combo-list {
+  width: 100%;
+  max-height: 220px;
+}
+.m3-combo-item {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.m3-combo-item[data-selected="true"],
+.m3-combo-item[aria-selected="true"] {
+  background: var(--low);
+}
+/* RowActionsMenu trigger — design `.act .no` cũng dùng ngoài `.act` */
+button.no {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: none;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+button.no:hover {
+  background: rgb(from var(--on-surface) r g b / 0.08);
 }
 .m3-nav-drawer {
   position: fixed;
@@ -396,6 +469,12 @@ html.xe-scan-immersive main {
   height: 100%;
   flex-direction: column;
   align-items: stretch;
+}
+.m3-nav-panel .side.rail .brand,
+.m3-nav-panel .side.rail:hover .brand,
+.m3-nav-panel .side.rail:focus-within .brand {
+  width: 228px;
+  margin: 8px 12px 12px;
 }
 .m3-nav-close {
   position: absolute;

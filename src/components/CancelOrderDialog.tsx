@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Ban } from "lucide-react";
+import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { toast } from "sonner";
 
 /** Độ dài tối thiểu lý do huỷ đơn khách đã chuyển khoản — khớp BE. */
 export const CANCEL_REASON_MIN_TRANSFER = 10;
 
-/** Xác nhận huỷ đơn — bắt buộc nhập lý do. */
+/** Xác nhận huỷ đơn — bắt buộc nhập lý do (design `.sheet.confirm`). */
 export function CancelOrderDialog({
   open,
   codes,
   onOpenChange,
   onConfirm,
-  title = "Xác nhận huỷ đơn",
+  title = "Huỷ đơn?",
   description,
   confirmLabel = "Huỷ đơn",
   minReasonLength = 1,
@@ -44,50 +40,50 @@ export function CancelOrderDialog({
     onOpenChange(false);
   };
 
+  const body =
+    description ??
+    "Đơn sẽ chuyển sang mục Đơn huỷ. Bạn có thể khôi phục ở màn Ngoại lệ - Huỷ.";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {codes.length === 1 ? `Đơn ${codes[0]}` : `${codes.length} đơn`}{" "}
-            {description ??
-              "sẽ chuyển sang Đơn huỷ (khôi phục được ở màn Đơn huỷ). Tiền đã thu chưa nộp của đơn sẽ tự hủy nộp khỏi phiếu thu (coi như đã hoàn khách, ghi vào lịch sử phiếu thu)."}
-          </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="cancel-order-reason">Lý do huỷ *</Label>
-            <Textarea
-              id="cancel-order-reason"
-              rows={3}
-              maxLength={200}
-              placeholder="VD: Khách không gửi nữa / tạo nhầm đơn…"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              autoFocus
-            />
-            {minReasonLength > 1 && tooShort ? (
-              <p className="text-xs text-muted-foreground">Ít nhất {minReasonLength} ký tự.</p>
-            ) : null}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Quay lại
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            className="gap-2"
-            onClick={submit}
-            disabled={tooShort}
-          >
-            <Ban className="h-4 w-4" />
-            {confirmLabel}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <M3Sheet open={open} onOpenChange={onOpenChange} variant="confirm">
+      <M3SheetTitle>{title}</M3SheetTitle>
+      <p className="lab muted" style={{ margin: 0 }}>
+        {codes.length === 1 ? `Đơn ${codes[0]}` : `${codes.length} đơn`} {body}
+      </p>
+      <label className="field" style={{ flex: "none", width: "100%", minWidth: 0 }}>
+        <span className="l">Lý do huỷ *</span>
+        <span className="box input-box" style={{ height: "auto", minHeight: 88, alignItems: "flex-start", paddingTop: 10 }}>
+          <textarea
+            rows={3}
+            maxLength={200}
+            placeholder="VD: Khách không gửi nữa / tạo nhầm đơn…"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            autoFocus
+            style={{
+              flex: 1,
+              width: "100%",
+              border: 0,
+              outline: 0,
+              resize: "vertical",
+              background: "transparent",
+              font: "inherit",
+              color: "inherit",
+            }}
+          />
+        </span>
+        {minReasonLength > 1 && tooShort ? (
+          <span className="err-msg">Ít nhất {minReasonLength} ký tự.</span>
+        ) : null}
+      </label>
+      <M3ConfirmActions>
+        <button type="button" className="btn ghost" onClick={() => onOpenChange(false)}>
+          Đóng
+        </button>
+        <button type="button" className="btn danger" onClick={submit} disabled={tooShort}>
+          {confirmLabel}
+        </button>
+      </M3ConfirmActions>
+    </M3Sheet>
   );
 }

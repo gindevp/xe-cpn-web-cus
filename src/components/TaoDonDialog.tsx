@@ -1,23 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import {
-  Trash2,
-  Plus,
-  Copy,
-  Save,
-  User,
-  PackagePlus,
-  MapPin,
-  Truck,
-  Receipt,
-  Printer,
-} from "lucide-react";
+import { M3ConfirmActions, M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
+import { M3Confirm } from "@/components/m3/M3Confirm";
+import { User, PackagePlus, MapPin, Truck, Receipt, Copy, Plus, Trash2 } from "lucide-react";
 import { AddressPicker } from "@/components/AddressPicker";
 import { TransitHubNotice } from "@/components/TransitHubNotice";
 import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
@@ -79,16 +67,6 @@ import { isApiEnabled } from "@/lib/api/client";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
 import type { GuestCollect } from "@/lib/api/domain-api";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   embedPackageDims,
   embedPackageFares,
@@ -1545,29 +1523,39 @@ export function TaoDonDialog({
       return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
     });
 
+  const sheetTitle =
+    mode === "edit"
+      ? `Sửa đơn hàng${initial?.code ? ` · ${initial.code}` : ""}`
+      : "Tạo đơn hàng";
+
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1560px] flex-col overflow-hidden p-0">
-          <DialogTitle className="sr-only">
-            {mode === "edit"
-              ? `Sửa đơn hàng${initial?.code ? ` · ${initial.code}` : ""}`
-              : "Tạo đơn hàng"}
-          </DialogTitle>
+      <M3Sheet open={open} onOpenChange={onOpenChange} variant="order-sheet" alignTop>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <M3SheetTitle
+            className="page-title"
+            id="o-title"
+            style={{ fontSize: 24, lineHeight: "32px", margin: 0 }}
+          >
+            {sheetTitle}
+          </M3SheetTitle>
+          <M3SheetClose />
+        </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-[19px] pb-[19px] pt-[32px] lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="min-w-0 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-2">
+          <div className="order-layout">
+            <div className="stack" style={{ minWidth: 0 }}>
               {(route || itinerary) && (
-                <p className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <p className="lab muted" style={{ margin: 0 }}>
                   Tuyến / lộ trình (tự suy từ VP):{" "}
-                  <span className="font-medium text-foreground">
+                  <span style={{ fontWeight: 500, color: "var(--on-surface)" }}>
                     {[route, itinerary].filter(Boolean).join(" · ") || "—"}
                   </span>
                 </p>
               )}
 
+              <div className="party-grid">
               {/* Sender section */}
-              <Section icon={<User className="h-4 w-4" />} title="Người gửi">
+              <Section icon={<User className="h-4 w-4" />} title="Người gửi" msIcon="person">
                 {partyLocked && (
                   <p className="mb-3 text-xs text-muted-foreground">
                     {senderLocked
@@ -1664,7 +1652,7 @@ export function TaoDonDialog({
               </Section>
 
               {/* Receiver section */}
-              <Section icon={<Truck className="h-4 w-4" />} title="Người nhận">
+              <Section icon={<Truck className="h-4 w-4" />} title="Người nhận" msIcon="person_pin_circle">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <F label="SĐT Người Nhận *">
                     <div className="relative">
@@ -1782,9 +1770,10 @@ export function TaoDonDialog({
                 ) : null}
                 <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
               </Section>
+              </div>
 
               {/* Items table */}
-              <Section icon={<PackagePlus className="h-4 w-4" />} title="Danh sách hàng hóa">
+              <Section icon={<PackagePlus className="h-4 w-4" />} title="Danh sách hàng hoá" msIcon="inventory_2">
                 <div className="space-y-3">
                   {items.map((it, idx) => {
                     const group = resolveGroup(it);
@@ -1942,10 +1931,10 @@ export function TaoDonDialog({
               </Section>
             </div>
 
-            <div className="min-w-0 space-y-5 lg:sticky lg:top-0 lg:h-full lg:self-start lg:overflow-y-auto lg:pl-1">
+            <aside className="order-box stack order-side">
               {/* Payment section */}
-              <Section icon={<Receipt className="h-4 w-4" />} title="Thanh toán & ghi chú">
-                <div className="space-y-4">
+              <Section icon={<Receipt className="h-4 w-4" />} title="Thanh toán và ghi chú" msIcon="payments" bare>
+                <div className="stack">
                   {/* LEFT: Payment details */}
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
@@ -2192,63 +2181,34 @@ export function TaoDonDialog({
                   </div>
                 </div>
               </Section>
-            </div>
+            </aside>
           </div>
 
-          {/* Footer actions */}
-          <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-card px-[19px] py-[13px]">
+          <M3ConfirmActions>
             {mode === "edit" ? (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  disabled={saving}
-                >
+                <button type="button" className="btn ghost" onClick={() => onOpenChange(false)} disabled={saving}>
                   Hủy
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-1.5 bg-primary"
-                  onClick={() => void submit("save")}
-                  disabled={saving}
-                >
-                  <Save className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Lưu thay đổi"}
-                </Button>
+                </button>
+                <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
+                  {saving ? "Đang lưu…" : "Lưu thay đổi"}
+                </button>
               </>
             ) : (
               <>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="gap-1.5"
-                  onClick={clear}
-                  disabled={saving}
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Xóa
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-1.5 bg-primary"
-                  onClick={() => void submit("save")}
-                  disabled={saving}
-                >
-                  <Save className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Tạo đơn"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => void submit("print")}
-                  disabled={saving}
-                >
-                  <Printer className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Tạo và in"}
-                </Button>
+                <button type="button" className="btn ghost" onClick={clear} disabled={saving}>
+                  Xoá
+                </button>
+                <button type="button" className="btn tonal" onClick={() => void submit("print")} disabled={saving}>
+                  {saving ? "Đang lưu…" : "Tạo và in"}
+                </button>
+                <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
+                  {saving ? "Đang lưu…" : "Tạo đơn"}
+                </button>
               </>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+          </M3ConfirmActions>
+      </M3Sheet>
 
       <PrintLabelDialog
         code={printCode}
@@ -2269,28 +2229,19 @@ export function TaoDonDialog({
         }}
       />
 
-      <AlertDialog open={!!overflowAsk} onOpenChange={(o) => !o && setOverflowAsk(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Vượt 1000 đơn trong ngày</AlertDialogTitle>
-            <AlertDialogDescription>
-              {overflowAsk?.message}. Vẫn tạo đơn này (đã vượt ngưỡng 1000 đơn/VP trong ngày)?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const ask = overflowAsk;
-                setOverflowAsk(null);
-                if (ask) void persist(ask.payload, ask.action, true);
-              }}
-            >
-              Vẫn tạo đơn
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <M3Confirm
+        open={!!overflowAsk}
+        onOpenChange={(o) => !o && setOverflowAsk(null)}
+        title="Vượt 1000 đơn trong ngày"
+        body={`${overflowAsk?.message ?? ""}. Vẫn tạo đơn này (đã vượt ngưỡng 1000 đơn/VP trong ngày)?`}
+        cancelLabel="Hủy"
+        confirmLabel="Vẫn tạo đơn"
+        onConfirm={() => {
+          const ask = overflowAsk;
+          setOverflowAsk(null);
+          if (ask) void persist(ask.payload, ask.action, true);
+        }}
+      />
     </>
   );
 }
@@ -2299,17 +2250,35 @@ function Section({
   icon,
   title,
   children,
+  msIcon,
+  bare,
 }: {
   icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
+  msIcon?: string;
+  /** Không bọc `.order-box` (khi parent đã là order-box). */
+  bare?: boolean;
 }) {
+  const head = (
+    <h2 className="group-title sec-title">
+      <span className="sec-ic" aria-hidden="true">
+        {msIcon ? <span className="ms">{msIcon}</span> : icon}
+      </span>
+      {title}
+    </h2>
+  );
+  if (bare) {
+    return (
+      <>
+        {head}
+        {children}
+      </>
+    );
+  }
   return (
-    <section className="rounded-lg border bg-card p-4">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
-        {icon}
-        {title}
-      </div>
+    <section className="order-box stack">
+      {head}
       {children}
     </section>
   );
@@ -2336,11 +2305,9 @@ function F({
   labelClassName?: string;
 }) {
   return (
-    <div className="space-y-1">
-      <Label className={cn("text-xs font-medium text-muted-foreground", labelClassName)}>
-        {label}
-      </Label>
+    <label className={cn("field cfg-field", labelClassName)}>
+      <span className="l">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }

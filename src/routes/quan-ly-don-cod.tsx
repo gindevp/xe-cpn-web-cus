@@ -425,108 +425,129 @@ function Page() {
   const itineraryOpts = route ? itinerariesForBranchName(route) : [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Banknote className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold tracking-tight">Quản lý đơn COD</h1>
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row" style={{ marginTop: 0 }}>
+        <div>
+          <h1 className="page-title">Quản lý đơn COD</h1>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" className="btn ghost" onClick={clearFilters}>
+            Xoá bộ lọc
+          </button>
+          <ExportFormatButton variant="outline" disabled={!shown.length} onExport={exportPlain} />
+        </div>
       </div>
 
-      <Section>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-7">
-          <div className="space-y-1.5 lg:col-span-1">
-            <Label className="text-xs">Tìm kiếm</Label>
-            <Input
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">
+                payments
+              </span>
+              Đơn COD
+            </div>
+            <div className="sum-hero">
+              {shown.length} <span className="sum-unit">đơn</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="filter-grid">
+        <label className="field">
+          <span className="l">Tìm kiếm</span>
+          <span className="box input-box">
+            <input
+              type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Mã đơn, tên KH, SĐT..."
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Tuyến</Label>
-            <SearchableSelect
-              value={route}
-              onValueChange={(v) => {
-                setRoute(v);
-                setItinerary("");
-              }}
-              placeholder="Tất cả"
-              options={[{ value: "", label: "Tất cả" }, ...branchNames.map((r) => ({ value: r, label: r }))]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Lộ trình</Label>
-            <SearchableSelect
-              value={itinerary}
-              onValueChange={setItinerary}
-              placeholder="Tất cả"
-              options={[{ value: "", label: "Tất cả" }, ...itineraryOpts.map((it) => ({ value: it, label: it }))]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Trạng thái đơn</Label>
-            <SearchableSelect
-              value={status}
-              onValueChange={(v) => {
-                setStatus(v);
-                setPage(1);
-              }}
-              placeholder="Tất cả"
-              options={[{ value: "", label: "Tất cả" }, ...statusOptions.map((s) => ({ value: s, label: s }))]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Xử lý COD</Label>
-            <SearchableSelect
-              value={codHandled}
-              onValueChange={(v) => {
-                setCodHandled(v);
-                setPage(1);
-              }}
-              placeholder="Tất cả"
-              options={[
-                { value: "", label: "Tất cả" },
-                { value: "DONE", label: "Đã xử lý" },
-                { value: "PENDING", label: "Chưa xử lý" },
-              ]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Từ ngày</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
+          </span>
+        </label>
+        <div className="field">
+          <span className="l">Tuyến</span>
+          <SearchableSelect
+            value={route}
+            onValueChange={(v) => {
+              setRoute(v);
+              setItinerary("");
+            }}
+            placeholder="Tất cả"
+            options={[{ value: "", label: "Tất cả" }, ...branchNames.map((r) => ({ value: r, label: r }))]}
+          />
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={clearFilters}>
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            Xoá bộ lọc
-          </Button>
-          <ExportFormatButton variant="outline" disabled={!shown.length} onExport={exportPlain} />
+        <div className="field">
+          <span className="l">Lộ trình</span>
+          <SearchableSelect
+            value={itinerary}
+            onValueChange={setItinerary}
+            placeholder="Tất cả"
+            options={[{ value: "", label: "Tất cả" }, ...itineraryOpts.map((it) => ({ value: it, label: it }))]}
+          />
         </div>
-      </Section>
+        <div className="field">
+          <span className="l">Trạng thái đơn</span>
+          <SearchableSelect
+            value={status}
+            onValueChange={(v) => {
+              setStatus(v);
+              setPage(1);
+            }}
+            placeholder="Tất cả"
+            options={[{ value: "", label: "Tất cả" }, ...statusOptions.map((s) => ({ value: s, label: s }))]}
+          />
+        </div>
+        <div className="field">
+          <span className="l">Xử lý COD</span>
+          <SearchableSelect
+            value={codHandled}
+            onValueChange={(v) => {
+              setCodHandled(v);
+              setPage(1);
+            }}
+            placeholder="Tất cả"
+            options={[
+              { value: "", label: "Tất cả" },
+              { value: "DONE", label: "Đã xử lý" },
+              { value: "PENDING", label: "Chưa xử lý" },
+            ]}
+          />
+        </div>
+        <label className="field">
+          <span className="l">Từ ngày</span>
+          <span className="box input-box">
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Đến ngày</span>
+          <span className="box input-box">
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </span>
+        </label>
+      </div>
 
-      <Section title={loading ? "Đang tải…" : `${shown.length} đơn COD`}>
+      <section className="card stack">
         {!shown.length ? (
           <EmptyState>Không có đơn COD trong khoảng lọc.</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full min-w-[1260px] text-left text-sm">
-              <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+          <div className="scroller">
+            <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1340px" }}>
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 font-medium">Mã đơn</th>
-                  <th className="px-3 py-2 font-medium">Người gửi</th>
-                  <th className="px-3 py-2 font-medium">Người nhận</th>
-                  <th className="px-3 py-2 font-medium">VP gửi - VP nhận</th>
-                  <th className="px-3 py-2 font-medium">Chuyến</th>
-                  <th className="px-3 py-2 font-medium text-right">Cước</th>
-                  <th className="px-3 py-2 font-medium text-right">COD</th>
-                  <th className="px-3 py-2 font-medium text-right">Phí thu hộ</th>
-                  <th className="px-3 py-2 font-medium">Thông tin tài khoản nhận COD</th>
-                  <th className="px-3 py-2 font-medium">Chứng từ</th>
-                  <th className="px-3 py-2 font-medium">Xử lý</th>
+                  <th>Mã đơn</th>
+                  <th>Người gửi</th>
+                  <th>Người nhận</th>
+                  <th>VP gửi → VP nhận</th>
+                  <th>Chuyến</th>
+                  <th className="r">Cước</th>
+                  <th className="r">COD</th>
+                  <th className="r">Phí thu hộ</th>
+                  <th>Tài khoản nhận COD</th>
+                  <th>Chứng từ</th>
+                  <th className="r">Xử lý</th>
                 </tr>
               </thead>
               <tbody>
@@ -535,127 +556,99 @@ function Page() {
                   const bank = bankBlock(o);
                   const exported = Boolean(o.codExportedAt);
                   return (
-                    <tr key={o.code} className="border-b last:border-0">
-                      <td className="px-3 py-2 align-top">
-                        <OrderCodeLink code={o.code} />
-                        {(o.codFeeRefund ?? 0) > 0 ? (
-                          <div className="mt-0.5">
-                            <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100">Hoàn phí COD</Badge>
-                          </div>
-                        ) : null}
+                    <tr key={o.code}>
+                      <td>
+                        <OrderCodeLink code={o.code} className="code" />
+                        {(o.codFeeRefund ?? 0) > 0 ? <span className="sub">Hoàn phí COD</span> : null}
                       </td>
-                      <td className="px-3 py-2 align-top">
-                        <div>{o.senderName || "—"}</div>
-                        <div className="text-xs text-muted-foreground">{o.senderPhone}</div>
+                      <td>
+                        <span style={{ fontWeight: 500 }}>{o.senderName || "—"}</span>
+                        <span className="sub">{o.senderPhone}</span>
                       </td>
-                      <td className="px-3 py-2 align-top">
-                        <div>{o.receiverName || "—"}</div>
-                        <div className="text-xs text-muted-foreground">{o.receiverPhone}</div>
+                      <td>
+                        <span style={{ fontWeight: 500 }}>{o.receiverName || "—"}</span>
+                        <span className="sub">{o.receiverPhone}</span>
                       </td>
-                      <td className="px-3 py-2 align-top">
+                      <td>
                         <OfficeRouteCell order={o} />
                       </td>
-                      <td className="px-3 py-2 align-top">
+                      <td>
                         {t.plate || t.driver ? (
                           <>
-                            <div>{t.plate || "—"}</div>
-                            <div className="text-xs text-muted-foreground">{t.driver || "—"}</div>
+                            <span style={{ fontWeight: 500 }}>{t.plate || "—"}</span>
+                            <span className="sub">{t.driver || "—"}</span>
                           </>
                         ) : (
                           "—"
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums">{moneyCell(cuocShipping(o))}</td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums">{moneyCell(o.codAmount)}</td>
-                      <td className="px-3 py-2 align-top text-right tabular-nums">
+                      <td className="r num">{moneyCell(cuocShipping(o))}</td>
+                      <td className="r num">{moneyCell(o.codAmount)}</td>
+                      <td className="r num">
                         {moneyCell((o.codFee ?? 0) > 0 ? o.codFee : o.codFeeRefund)}
                       </td>
-                      <td className="px-3 py-2 align-top text-xs leading-relaxed">
+                      <td>
                         {bank ? (
-                          bank.map((line) => <div key={line}>{line}</div>)
+                          bank.map((line) => (
+                            <span key={line} className="sub" style={{ display: "block" }}>
+                              {line}
+                            </span>
+                          ))
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="muted">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 align-top">
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 justify-start gap-1 whitespace-nowrap px-2 text-xs"
+                      <td>
+                        <div className="act" style={{ flexDirection: "column", alignItems: "flex-start" }}>
+                          <button
+                            type="button"
+                            className="text-act"
                             disabled={!!docBusy}
                             onClick={() => void printReceipt(o)}
                           >
-                            {docBusy === `bill:${o.code}` ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Printer className="h-3.5 w-3.5" />
-                            )}
-                            In biên nhận
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 justify-start gap-1 whitespace-nowrap px-2 text-xs"
+                            {docBusy === `bill:${o.code}` ? "Đang in…" : "In biên nhận"}
+                          </button>
+                          <button
+                            type="button"
+                            className="text-act"
                             disabled={!!docBusy}
                             onClick={() => void printPaymentRequest(o)}
                           >
-                            {docBusy === `dntt:${o.code}` ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Printer className="h-3.5 w-3.5" />
-                            )}
-                            In đề nghị thanh toán
-                          </Button>
+                            {docBusy === `dntt:${o.code}` ? "Đang in…" : "In đề nghị thanh toán"}
+                          </button>
                           {canMark && exported ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 justify-start gap-1 whitespace-nowrap px-2 text-xs"
-                              disabled={!!uploading}
-                              onClick={() => openUpload(o)}
-                            >
-                              <Upload className="h-3.5 w-3.5" />
+                            <button type="button" className="text-act" disabled={!!uploading} onClick={() => openUpload(o)}>
                               Upload thêm ảnh bill
-                            </Button>
+                            </button>
                           ) : null}
                           {o.hasCodBillPhoto ? (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="h-7 justify-start gap-1 whitespace-nowrap px-2 text-xs"
+                            <button
+                              type="button"
+                              className="text-act"
                               disabled={viewBusy === o.code}
                               onClick={() => void viewBillPhotos(o)}
                             >
-                              {viewBusy === o.code ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <ImageIcon className="h-3.5 w-3.5" />
-                              )}
-                              Xem ảnh bill
-                            </Button>
+                              {viewBusy === o.code ? "Đang tải…" : "Xem ảnh bill"}
+                            </button>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-3 py-2 align-top">
+                      <td>
                         {exported ? (
-                          <div className="space-y-0.5">
-                            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Đã xử lý</Badge>
+                          <>
+                            <span className="tag ok">Đã xử lý</span>
                             {o.codExportedByName || o.codExportedBy ? (
-                              <div className="text-xs">
+                              <span className="sub">
                                 bởi {o.codExportedByName || o.codExportedBy}
-                                {o.codExportedByName && o.codExportedBy ? (
-                                  <span className="text-muted-foreground"> ({o.codExportedBy})</span>
-                                ) : null}
-                              </div>
+                                {o.codExportedByName && o.codExportedBy ? ` (${o.codExportedBy})` : ""}
+                              </span>
                             ) : null}
-                            <div className="text-xs text-muted-foreground">lúc {processedAt(o.codExportedAt)}</div>
-                          </div>
+                            <span className="sub">lúc {processedAt(o.codExportedAt)}</span>
+                          </>
                         ) : o.status === "DELIVERED" && canMark ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 gap-1 whitespace-nowrap px-2 text-xs"
+                          <button
+                            type="button"
+                            className="ok"
                             disabled={markingCode === o.code}
                             onClick={() => {
                               setConfirmTarget(o);
@@ -663,15 +656,10 @@ function Page() {
                               setConfirmPhotos([]);
                             }}
                           >
-                            {markingCode === o.code ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                            )}
-                            Xác nhận đã xử lý
-                          </Button>
+                            {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
+                          </button>
                         ) : (
-                          <Badge variant="outline">{orderTabStatusLabel(o)}</Badge>
+                          <span className="tag">{orderTabStatusLabel(o)}</span>
                         )}
                       </td>
                     </tr>
@@ -682,7 +670,7 @@ function Page() {
           </div>
         )}
         <TablePagination pager={pager} />
-      </Section>
+      </section>
 
       <Dialog
         open={!!uploadTarget}

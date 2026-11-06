@@ -14,16 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { M3Confirm } from "@/components/m3/M3Confirm";
 import { formatVND, isOtherGoodsGroup } from "@/lib/mock-data";
 import { MoneyInput } from "@/components/MoneyInput";
 import { NumberInput } from "@/components/NumberInput";
@@ -552,34 +543,27 @@ function BandTable({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa mức cước?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Mức này sẽ bị xóa khỏi {ui.title.toLowerCase()} tuyến {tuyen}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async (e) => {
-                e.preventDefault();
-                if (!deleteTarget) return;
-                try {
-                  await remove(deleteTarget.id);
-                  toast.success("Đã xoá mức cước trên server");
-                  setDeleteTarget(null);
-                } catch (err: any) {
-                  toast.error(err?.message ?? "Không xóa được trên server");
-                }
-              }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <M3Confirm
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Xóa mức cước?"
+        body={`Mức này sẽ bị xóa khỏi ${ui.title.toLowerCase()} tuyến ${tuyen}.`}
+        cancelLabel="Hủy"
+        confirmLabel="Xóa"
+        confirmDanger
+        onConfirm={() => {
+          void (async () => {
+            if (!deleteTarget) return;
+            try {
+              await remove(deleteTarget.id);
+              toast.success("Đã xoá mức cước trên server");
+              setDeleteTarget(null);
+            } catch (err: any) {
+              toast.error(err?.message ?? "Không xóa được trên server");
+            }
+          })();
+        }}
+      />
     </div>
   );
 }
@@ -752,25 +736,19 @@ function ProductPricing({ writable }: { writable: boolean }) {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa giá sản phẩm?</AlertDialogTitle>
-            <AlertDialogDescription>{deleteTarget?.name}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget) remove(deleteTarget.id);
-                setDeleteTarget(null);
-              }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <M3Confirm
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Xóa giá sản phẩm?"
+        body={deleteTarget?.name}
+        cancelLabel="Hủy"
+        confirmLabel="Xóa"
+        confirmDanger
+        onConfirm={() => {
+          if (deleteTarget) remove(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
     </div>
   );
 }

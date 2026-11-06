@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AhamovePartnerPanel } from "@/components/AhamoveDispatchDialog";
 import { listShippers, type ShipperDTO } from "@/lib/api/domain-api";
@@ -136,14 +136,21 @@ export function AssignShipperDialog({
   };
 
   return (
-    <Dialog open={order != null} onOpenChange={(v) => !busy && onOpenChange(v)}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Gán Shipper</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Đơn hàng: <span className="font-medium text-foreground">{order?.code}</span>
+    <M3Sheet
+      open={order != null}
+      onOpenChange={(v) => !busy && onOpenChange(v)}
+      variant="form-sheet"
+      className="max-h-[90vh] overflow-y-auto"
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <M3SheetTitle>Gán Shipper</M3SheetTitle>
+          <p className="lab muted" style={{ margin: 0 }}>
+            Đơn hàng: <span className="num" style={{ fontWeight: 600 }}>{order?.code}</span>
           </p>
-        </DialogHeader>
+        </div>
+        <M3SheetClose />
+      </div>
         {order && ahamoveRefundDue(order) ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
             Chưa hoàn {(order.partnerCodAmount ?? 0).toLocaleString("vi-VN")}đ tiền ứng cho tài xế Ahamove lần trước —
@@ -349,8 +356,7 @@ export function AssignShipperDialog({
             </TabsContent>
           </Tabs>
         ) : null}
-      </DialogContent>
-    </Dialog>
+    </M3Sheet>
   );
 }
 

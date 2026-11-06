@@ -5,7 +5,7 @@ import { isNativeWebView } from "@/lib/native-shell";
 import { getToken } from "@/lib/api/client";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import xeLogo from "@/assets/logo-xe-m3.png";
+import xeLogo from "@/assets/logo-xe.png";
 
 export const Route = createFileRoute("/login")({
   head: () => ({

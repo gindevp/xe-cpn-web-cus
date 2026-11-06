@@ -93,13 +93,13 @@ export function AppShell({
       )}
     >
       {!nativeShell ? (
-        <div className="m3-nav-slot hidden md:block">
+        <div className="m3-nav-slot">
           <AppNav />
         </div>
       ) : null}
 
-      {mobileOpen ? (
-        <div className="m3-nav-drawer md:hidden">
+      {nativeShell && mobileOpen ? (
+        <div className="m3-nav-drawer">
           <div className="m3-nav-scrim" onClick={() => setMobileOpen(false)} />
           <div className="m3-nav-panel">
             <AppNav mobile onNavigate={() => setMobileOpen(false)} />
@@ -126,19 +126,6 @@ export function AppShell({
       >
         {!scanImmersive ? (
           <>
-            <div className="m3-mobile-bar md:hidden">
-              <button
-                type="button"
-                className="pill"
-                aria-label="Mở menu"
-                onClick={() => setMobileOpen(true)}
-              >
-                <span className="ms" aria-hidden="true">
-                  menu
-                </span>
-              </button>
-              {!hidePageTitle ? <div className="m3-mobile-title">{title}</div> : null}
-            </div>
             <AppHero hideLifecycle={hideLifecycle} />
             {!hidePageTitle ? (
               <div className="title-row m3-title-row">

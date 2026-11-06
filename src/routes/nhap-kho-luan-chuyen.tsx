@@ -4,6 +4,7 @@ import { resolveTripRouteCode } from "@/lib/api/trip-route";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3PageHeader } from "@/components/M3Page";
+import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { Section, EmptyState } from "@/components/PageBits";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -49,11 +50,6 @@ import { isApiEnabled } from "@/lib/api/client";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
 import { cn } from "@/lib/utils";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { RowActionsMenu } from "@/components/RowActionsMenu";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
@@ -194,9 +190,9 @@ function StageTime({ order, tab }: { order: OrderX; tab: Stage }) {
   const d = new Date(t.at);
   if (Number.isNaN(d.getTime())) return null;
   return (
-    <div className="mt-0.5 pl-[22px] text-[11px] font-normal tabular-nums text-muted-foreground">
+    <span className="sub">
       {t.label}: {stageTimeFmt.format(d)}
-    </div>
+    </span>
   );
 }
 
@@ -542,8 +538,8 @@ function Page() {
   } | null>(null);
   const [editOrderCode, setEditOrderCode] = useState<string | null>(null);
   const [editPkg, setEditPkg] = useState<{ code: string; seq: number } | null>(null);
-  const [expandedPlates, setExpandedPlates] = useState<Set<string>>(new Set());
-  const [collapsedSlots, setCollapsedSlots] = useState<Set<string>>(new Set());
+  /** M3: mở sheet chi tiết xe (design `.veh` → `.sheet`). */
+  const [vehicleSheetKey, setVehicleSheetKey] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [inboundPlatesOpen, setInboundPlatesOpen] = useState(false);
   const [shipperCode, setShipperCode] = useState<string | null>(null);
@@ -1738,469 +1734,424 @@ function Page() {
         {rows.length === 0 ? (
           <EmptyState>{ordersLoad.fullyLoaded ? "Không có đơn trong mục này" : "Đang tải đơn…"}</EmptyState>
         ) : tab === "TRANSFERRING" || tab === "TRANSFER_PENDING" ? (
-          <div className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {tab === "TRANSFERRING" ? "Hàng trên xe" : "Đợi trung chuyển"}{" "}
-              <span className="font-normal normal-case tracking-normal">
-                ({vehicleGroups.length} xe · {vehicleGroups.reduce((s, x) => s + x.orders.length, 0)} đơn)
-              </span>
-            </div>
-            {departSlots(pageGroups).map((slot) => {
-              const slotOpen = !collapsedSlots.has(slot.key);
-              return (
-                <div key={slot.key} className="space-y-2">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-lg bg-slate-100 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-200/70"
-                    onClick={() =>
-                      setCollapsedSlots((prev) => {
-                        const n = new Set(prev);
-                        if (n.has(slot.key)) n.delete(slot.key);
-                        else n.add(slot.key);
-                        return n;
-                      })
-                    }
-                  >
-                    <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", !slotOpen && "-rotate-90")} />
-                    <span className="font-medium">{slot.label}</span>
-                    <span className="text-slate-400">·</span>
-                    <span className="text-slate-500">{slot.groups.length} xe</span>
-                  </button>
-                  {slotOpen && slot.groups.map((g) => {
-              const open = expandedPlates.has(g.key);
-              const limit = groupLimit[g.key] ?? GROUP_ORDER_STEP;
-              const hasCheckbox = canUnassignTrip;
-              const health = vehicleHealth(g.oldestAt);
-              const pickedCount = g.orders.filter((o) => selected.has(o.code)).length;
-              const oldest = g.oldestAt ? formatDepartFull(g.oldestAt) : "";
-              return (
-                <Collapsible
-                  key={g.key}
-                  open={open}
-                  onOpenChange={(next) =>
-                    setExpandedPlates((prev) => {
-                      const n = new Set(prev);
-                      if (next) n.add(g.key);
-                      else n.delete(g.key);
-                      return n;
-                    })
-                  }
-                >
-                  <div
-                    className={cn(
-                      "relative flex items-center overflow-hidden rounded-lg border bg-white shadow-sm transition-colors",
-                      open ? "rounded-b-none border-blue-500 ring-1 ring-blue-500" : "border-slate-200 hover:bg-slate-50",
-                    )}
-                  >
-                    <span className={cn("absolute inset-y-0 left-0 w-1", HEALTH_BAR[health])} aria-hidden />
-                    {hasCheckbox ? (
-                      <div className="pl-4">
-                        <Checkbox
-                          checked={pickedCount === 0 ? false : pickedCount === g.orders.length ? true : "indeterminate"}
-                          onCheckedChange={(v) => {
-                            const on = Boolean(v);
-                            setSelected((prev) => {
-                              const next = new Set(prev);
-                              for (const r of g.orders) {
-                                if (on) next.add(r.code);
-                                else next.delete(r.code);
-                              }
-                              return next;
-                            });
-                          }}
-                          aria-label={`Chọn tất cả đơn xe ${g.plate}`}
-                        />
-                      </div>
-                    ) : null}
-                    <CollapsibleTrigger asChild>
-                      <button
-                        type="button"
-                        className={cn(
-                          "grid min-w-0 flex-1 grid-cols-[minmax(110px,auto)_minmax(140px,1fr)_minmax(200px,1.4fr)_auto] items-center gap-4 py-3 pr-3 text-left text-sm",
-                          hasCheckbox ? "pl-4" : "pl-5",
-                        )}
-                      >
-                        <span className="font-semibold tracking-wide text-slate-900">{g.plate}</span>
-                        <span className="truncate text-slate-700">{g.driver || "—"}</span>
-                        <span className="flex min-w-0 items-center gap-2">
-                          {g.route ? <span className="truncate text-xs text-slate-500">{g.route}</span> : null}
-                          <ChipList codes={g.froms} />
-                          <span className="text-slate-400">⟶</span>
-                          <ChipList codes={g.tos} />
-                        </span>
-                        <span className="flex items-center gap-3 whitespace-nowrap text-xs text-slate-500">
-                          <span>
-                            <span className="font-semibold text-slate-800">{g.orders.length}</span> đơn ·{" "}
-                            <span className="font-semibold text-slate-800">{g.qty}</span> kiện
-                            {tab === "TRANSFERRING" ? " còn trên xe" : ""} · {g.weight.toFixed(1)} kg
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {departSlots(pageGroups).map((slot) => (
+                <div key={slot.key} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <h2 className="group-title num">{slot.label}</h2>
+                  <div className="veh-grid">
+                    {slot.groups.map((g) => {
+                      const health = vehicleHealth(g.oldestAt);
+                      return (
+                        <button
+                          key={g.key}
+                          type="button"
+                          className="veh veh-btn num"
+                          aria-label={`Xe ${g.plate}, ${g.orders.length} đơn`}
+                          onClick={() => setVehicleSheetKey(g.key)}
+                        >
+                          <span className="plate">{g.plate}</span>
+                          <span style={{ display: "block", fontSize: 13, lineHeight: "18px", fontWeight: 500 }}>
+                            {g.driver || "—"}
+                            {g.route ? (
+                              <span className="sub" style={{ fontWeight: 400 }}>
+                                {g.route}
+                              </span>
+                            ) : null}
                           </span>
-                          {oldest ? (
-                            <span className={cn(health === "late" && "text-red-600", health === "watch" && "text-amber-600")}>
-                              {tab === "TRANSFERRING" ? "Ký nhận" : "Quét"} sớm nhất {oldest}
+                          <span
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                              gap: 8,
+                            }}
+                          >
+                            <span>
+                              <span className="val-sm" style={{ display: "block" }}>
+                                {g.orders.length}
+                              </span>
+                              <span className="sub" style={{ margin: 0 }}>
+                                Số đơn
+                              </span>
+                            </span>
+                            <span>
+                              <span className="val-sm" style={{ display: "block" }}>
+                                {g.qty}
+                              </span>
+                              <span className="sub" style={{ margin: 0 }}>
+                                Số kiện
+                              </span>
+                            </span>
+                            <span>
+                              <span className="val-sm" style={{ display: "block" }}>
+                                {g.weight.toFixed(1)}
+                              </span>
+                              <span className="sub" style={{ margin: 0 }}>
+                                Tổng cân nặng
+                              </span>
+                            </span>
+                          </span>
+                          {health !== "ok" ? (
+                            <span className="sub" style={{ margin: 0 }}>
+                              {health === "late" ? "Quá giờ" : "Cần theo dõi"}
                             </span>
                           ) : null}
-                          <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", open && "rotate-180")} />
-                        </span>
-                      </button>
-                    </CollapsibleTrigger>
-                    {canReassign && g.key !== UNASSIGNED_PLATE ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mr-3 shrink-0 gap-1.5"
-                        title={`Chuyển toàn bộ ${g.orders.length} đơn của xe ${g.plate} sang xe khác`}
-                        onClick={() => openReassign(g.orders.map((o) => o.code), g.plate)}
-                      >
-                        <Truck className="h-4 w-4" />
-                        Chuyển xe
-                      </Button>
-                    ) : null}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <CollapsibleContent>
-                    <div className="overflow-x-auto rounded-b-lg border border-t-0 border-blue-500">
-                      <table className="w-full min-w-[1180px] text-sm">
-                        <thead>
-                          <tr className="border-b bg-slate-50/80 text-left text-xs uppercase tracking-wide">
-                            {hasCheckbox ? (
-                              <th className="w-10 px-2 py-2">
-                                <Checkbox
-                                  checked={g.orders.length > 0 && g.orders.every((r) => selected.has(r.code))}
-                                  onCheckedChange={(v) => {
-                                    const on = Boolean(v);
-                                    setSelected((prev) => {
-                                      const next = new Set(prev);
-                                      for (const r of g.orders) {
-                                        if (on) next.add(r.code);
-                                        else next.delete(r.code);
-                                      }
-                                      return next;
-                                    });
-                                  }}
-                                  aria-label={`Chọn tất cả đơn xe ${g.plate}`}
-                                />
-                              </th>
-                            ) : null}
-                            <th className={`${TH_MUTED} pl-6`}>Mã đơn</th>
-                            <th className={TH_MUTED}>Người gửi</th>
-                            <th className={TH_MUTED}>Người nhận</th>
-                            <th className={TH_MUTED}>VP gửi → VP nhận</th>
-                            <OrderCargoHeader className={TH_MUTED} />
-                            <OrderFeeHeader />
-                            <th className={`${TH_MUTED} text-right`}>Tác vụ</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {g.orders.slice(0, limit).map((r) => (
-                            <Fragment key={r.code}>
-                              <tr className="border-b hover:bg-muted/40">
-                                {hasCheckbox ? (
-                                  <td className="px-2 py-2">
-                                    <Checkbox
-                                      checked={selected.has(r.code)}
-                                      onCheckedChange={(v) => toggle(r.code, Boolean(v))}
-                                      aria-label={`Chọn ${r.code}`}
-                                    />
-                                  </td>
-                                ) : null}
-                                <td className="px-2 py-2 pl-6 font-medium">
-                                  <span className="inline-flex items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      className="inline-flex items-center text-left"
-                                      title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                                      onClick={() => toggleOrderPkgs(r.code)}
-                                    >
-                                      <ChevronDown
-                                        className={cn(
-                                          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                          expandedOrders.has(r.code) && "rotate-180",
-                                        )}
-                                      />
-                                    </button>
-                                    <OrderCodeLink code={r.code} />
-                                  </span>
-                                  <TransferPaidBadge order={r} />
-                                  <StageTime order={r} tab={tab} />
-                                  {isReturnFlow(r) && (
-                                    <Badge variant="outline" className="ml-2 border-amber-500 text-amber-700">
-                                      HOÀN
-                                    </Badge>
-                                  )}
-                                  {r.homeDelivery && (
-                                    <Badge variant="secondary" className="ml-2">
-                                      Giao tận nơi
-                                    </Badge>
-                                  )}
-                                </td>
-                                <td className="px-2 py-2">
-                                  <div>{r.senderName ?? "-"}</div>
-                                  <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
-                                </td>
-                                <td className="px-2 py-2">
-                                  <div>{r.receiverName}</div>
-                                  <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
-                                </td>
-                                <td className="px-2 py-2 whitespace-nowrap">
-                                  <OfficeRouteCell order={r} />
-                                </td>
-                                <OrderCargoCell
-                                  order={r}
-                                  count={
-                                    tab === "TRANSFERRING" ? (
-                                      <InboundCountCell order={r} context="ON_TRUCK" />
-                                    ) : undefined
-                                  }
-                                />
-                                <OrderFeeCell order={r} />
-                                <td className="px-2 py-2 text-right">
-                                  <div className="flex flex-wrap items-center justify-end gap-1">
-                                    {canUnassignTrip && r.tripCode ? (
-                                      <NhapKhoRowActions code={r.code}>
-                                          {canReassign ? (
-                                            <DropdownMenuItem onClick={() => openReassign([r.code], g.plate)}>
-                                              <Truck className="mr-2 h-4 w-4" /> Chuyển xe
-                                            </DropdownMenuItem>
-                                          ) : null}
-                                          <DropdownMenuItem
-                                            disabled={unassigning}
-                                            className="text-destructive focus:text-destructive"
-                                            onClick={() => void unassignFromTrip([r.code])}
-                                          >
-                                            <Unlink className="mr-2 h-4 w-4" /> Gỡ khỏi xe
-                                          </DropdownMenuItem>
-                                      </NhapKhoRowActions>
-                                    ) : (
-                                      <NhapKhoRowActions code={r.code} />
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                              {expandedOrders.has(r.code) && (
-                                <OrderPackageListRow
-                                  order={r}
-                                  layout="rows"
-                                  leadingCols={hasCheckbox ? 1 : 0}
-                                  feeCols={FEE_COL_COUNT}
-                                  inboundContext={tab === "TRANSFERRING" ? "ON_TRUCK" : undefined}
-                                  onPrintPackage={(code, seq) => setPrintTarget({ code, packageSeq: seq })}
-                                />
-                              )}
-                            </Fragment>
-                          ))}
-                        </tbody>
-                      </table>
-                      {g.orders.length > limit ? (
-                        <div className="flex items-center justify-center gap-2 border-t py-2 text-sm text-muted-foreground">
-                          Đang hiện {limit}/{g.orders.length} đơn
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setGroupLimit((prev) => ({ ...prev, [g.key]: limit + GROUP_ORDER_STEP }))
-                            }
-                          >
-                            Xem thêm {Math.min(GROUP_ORDER_STEP, g.orders.length - limit)} đơn
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              );
-                  })}
                 </div>
-              );
-            })}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 pt-1 text-xs text-slate-600">
-              <span className="inline-flex items-center gap-1.5">
-                <span className={cn("h-3 w-3 rounded-sm", HEALTH_BAR.ok)} /> Bình thường
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className={cn("h-3 w-3 rounded-sm", HEALTH_BAR.watch)} /> Cần theo dõi (≥ {HEALTH_WATCH_H}h)
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className={cn("h-3 w-3 rounded-sm", HEALTH_BAR.late)} /> Quá giờ (≥ {HEALTH_LATE_H}h)
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-3 w-3 rounded-sm border-2 border-blue-500" /> Đang mở rộng
-              </span>
+              ))}
             </div>
             <TablePagination pager={groupPager} />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] text-sm">
-              <thead>
-                <tr className="border-b bg-slate-50/80 text-left text-xs uppercase tracking-wide">
-                  <th className="w-10 px-2 py-2">
-                    <Checkbox
-                      checked={allChecked}
-                      onCheckedChange={(v) => toggleAll(Boolean(v))}
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                  <th className={`${TH_MUTED} pl-6`}>Mã đơn</th>
-                  <th className={TH_MUTED}>Người gửi</th>
-                  <th className={TH_MUTED}>Người nhận</th>
-                  <th className={TH_MUTED}>VP gửi → VP nhận</th>
-                  <OrderCargoHeader className={TH_MUTED} />
-                  <OrderFeeHeader />
-                  {tab === "DEST_WH_IN" ? (
-                    <th className={`${TH_MUTED} whitespace-nowrap`}>Ghi chú</th>
+
+            {(() => {
+              const g = vehicleGroups.find((x) => x.key === vehicleSheetKey);
+              if (!g) return null;
+              const hasCheckbox = canUnassignTrip;
+              const limit = groupLimit[g.key] ?? GROUP_ORDER_STEP;
+              return (
+                <M3Sheet
+                  open={!!vehicleSheetKey}
+                  onOpenChange={(v) => !v && setVehicleSheetKey(null)}
+                  variant="sheet"
+                  alignTop
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                    <div>
+                      <M3SheetTitle className="num" style={{ margin: 0, fontSize: 22, lineHeight: "28px" }}>
+                        {g.plate}
+                      </M3SheetTitle>
+                      <div className="muted" style={{ fontSize: 13, lineHeight: "20px" }}>
+                        {g.driver || "—"}
+                        {g.route ? ` · ${g.route}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {canReassign && g.key !== UNASSIGNED_PLATE ? (
+                        <button
+                          type="button"
+                          className="btn tonal"
+                          style={{ height: 36 }}
+                          onClick={() => openReassign(g.orders.map((o) => o.code), g.plate)}
+                        >
+                          Chuyển xe
+                        </button>
+                      ) : null}
+                      <M3SheetClose />
+                    </div>
+                  </div>
+                  <div className="num" style={{ display: "flex", flexWrap: "wrap", gap: "8px 32px" }}>
+                    <div>
+                      <div className="val-sm">{g.orders.length}</div>
+                      <div className="sub" style={{ margin: 0 }}>
+                        Số đơn
+                      </div>
+                    </div>
+                    <div>
+                      <div className="val-sm">{g.qty}</div>
+                      <div className="sub" style={{ margin: 0 }}>
+                        Số kiện
+                      </div>
+                    </div>
+                    <div>
+                      <div className="val-sm">{g.weight.toFixed(1)}</div>
+                      <div className="sub" style={{ margin: 0 }}>
+                        Tổng cân nặng
+                      </div>
+                    </div>
+                  </div>
+                  <div className="scroller">
+                    <table className="tbl" style={{ ["--tbl-min" as string]: "680px" }}>
+                      <thead>
+                        <tr>
+                          {hasCheckbox ? (
+                            <th style={{ width: 18 }}>
+                              <input
+                                className="check"
+                                type="checkbox"
+                                checked={g.orders.length > 0 && g.orders.every((r) => selected.has(r.code))}
+                                onChange={(e) => {
+                                  const on = e.target.checked;
+                                  setSelected((prev) => {
+                                    const next = new Set(prev);
+                                    for (const r of g.orders) {
+                                      if (on) next.add(r.code);
+                                      else next.delete(r.code);
+                                    }
+                                    return next;
+                                  });
+                                }}
+                                aria-label={`Chọn tất cả đơn xe ${g.plate}`}
+                              />
+                            </th>
+                          ) : null}
+                          <th>Mã đơn</th>
+                          <th>Người gửi</th>
+                          <th>Người nhận</th>
+                          <th>Hàng</th>
+                          <OrderFeeHeader />
+                          <th className="r">Tác vụ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {g.orders.slice(0, limit).map((r) => (
+                          <Fragment key={r.code}>
+                            <tr className={selected.has(r.code) ? "sel" : undefined}>
+                              {hasCheckbox ? (
+                                <td>
+                                  <input
+                                    className="check"
+                                    type="checkbox"
+                                    checked={selected.has(r.code)}
+                                    onChange={(e) => toggle(r.code, e.target.checked)}
+                                    aria-label={`Chọn ${r.code}`}
+                                  />
+                                </td>
+                              ) : null}
+                              <td>
+                                <OrderCodeLink code={r.code} className="code" />
+                                <TransferPaidBadge order={r} />
+                                <StageTime order={r} tab={tab} />
+                              </td>
+                              <td>
+                                <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                                <span className="sub">{r.senderPhone}</span>
+                              </td>
+                              <td>
+                                <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                                <span className="sub">{r.receiverPhone}</span>
+                              </td>
+                              <OrderCargoCell
+                                order={r}
+                                count={
+                                  tab === "TRANSFERRING" ? (
+                                    <InboundCountCell order={r} context="ON_TRUCK" />
+                                  ) : undefined
+                                }
+                              />
+                              <OrderFeeCell order={r} />
+                              <td>
+                                <div className="act">
+                                  {activeTab.action ? (
+                                    <button type="button" className="ok" onClick={() => runAction([r.code])}>
+                                      {activeTab.action}
+                                    </button>
+                                  ) : null}
+                                  <NhapKhoRowActions code={r.code}>
+                                    {canReassign ? (
+                                      <DropdownMenuItem onClick={() => openReassign([r.code], g.plate)}>
+                                        <Truck className="mr-2 h-4 w-4" /> Chuyển xe
+                                      </DropdownMenuItem>
+                                    ) : null}
+                                    {canUnassignTrip && r.tripCode ? (
+                                      <DropdownMenuItem
+                                        disabled={unassigning}
+                                        className="text-destructive focus:text-destructive"
+                                        onClick={() => void unassignFromTrip([r.code])}
+                                      >
+                                        <Unlink className="mr-2 h-4 w-4" /> Gỡ khỏi xe
+                                      </DropdownMenuItem>
+                                    ) : null}
+                                  </NhapKhoRowActions>
+                                </div>
+                              </td>
+                            </tr>
+                          </Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {g.orders.length > limit ? (
+                    <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+                      <span className="muted" style={{ fontSize: 13 }}>
+                        Đang hiện {limit}/{g.orders.length} đơn
+                      </span>
+                      <button
+                        type="button"
+                        className="btn tonal"
+                        style={{ height: 32 }}
+                        onClick={() =>
+                          setGroupLimit((prev) => ({ ...prev, [g.key]: limit + GROUP_ORDER_STEP }))
+                        }
+                      >
+                        Xem thêm {Math.min(GROUP_ORDER_STEP, g.orders.length - limit)} đơn
+                      </button>
+                    </div>
                   ) : null}
-                  <th className={`${TH_MUTED} text-right`}>Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => (
-                  <Fragment key={r.code}>
-                    <tr className="border-b hover:bg-muted/40">
-                    <td className="px-2 py-2">
-                      <Checkbox
-                        checked={selected.has(r.code)}
-                        onCheckedChange={(v) => toggle(r.code, Boolean(v))}
-                        aria-label={`Chọn ${r.code}`}
+                </M3Sheet>
+              );
+            })()}
+          </>
+        ) : (
+          <>
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "1180px" }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 18 }}>
+                      <input
+                        className="check"
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => toggleAll(e.target.checked)}
+                        aria-label="Chọn tất cả"
                       />
-                    </td>
-                      <td className="px-2 py-2 pl-6 font-medium">
-                        <span className="inline-flex items-center gap-1.5">
+                    </th>
+                    <th>Mã đơn</th>
+                    <th>Người gửi</th>
+                    <th>Người nhận</th>
+                    <th>VP gửi → VP nhận</th>
+                    <OrderCargoHeader />
+                    <OrderFeeHeader />
+                    {tab === "DEST_WH_IN" ? <th>Ghi chú</th> : null}
+                    <th className="r">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => (
+                    <Fragment key={r.code}>
+                      <tr className={cn(selected.has(r.code) && "sel")}>
+                        <td>
+                          <input
+                            className="check"
+                            type="checkbox"
+                            checked={selected.has(r.code)}
+                            onChange={(e) => toggle(r.code, e.target.checked)}
+                            aria-label={`Chọn ${r.code}`}
+                          />
+                        </td>
+                        <td>
+                          <OrderCodeLink code={r.code} className="code" />
                           <button
                             type="button"
-                            className="inline-flex items-center text-left"
+                            className="link"
+                            style={{ display: "block", marginTop: 2 }}
                             title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
                             onClick={() => toggleOrderPkgs(r.code)}
                           >
-                            <ChevronDown
-                              className={cn(
-                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                                expandedOrders.has(r.code) && "rotate-180",
-                              )}
-                            />
+                            {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
                           </button>
-                          <OrderCodeLink code={r.code} />
-                        </span>
-                        <TransferPaidBadge order={r} />
-                        <StageTime order={r} tab={tab} />
-                        {isReturnFlow(r) && (
-                          <Badge variant="outline" className="ml-2 border-amber-500 text-amber-700">
-                            HOÀN
-                          </Badge>
-                        )}
-                      {r.homeDelivery && (
-                        <Badge variant="secondary" className="ml-2">
-                          Giao tận nơi
-                        </Badge>
-                      )}
-                        {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? (
-                          <AhamoveInfo order={r} />
-                        ) : (
-                          <InternalShipperInfo order={r} />
-                        )}
-                    </td>
-                    <td className="px-2 py-2">
-                      <div>{r.senderName ?? "-"}</div>
-                      <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
-                    </td>
-                    <td className="px-2 py-2">
-                      <div>{r.receiverName}</div>
-                      <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
-                    </td>
-                    <td className="px-2 py-2 whitespace-nowrap">
-                        <OfficeRouteCell order={r} />
-                    </td>
-                      <OrderCargoCell
-                        order={r}
-                        count={
-                          tab === "DEST_WH_IN" ? <InboundCountCell order={r} context="DEST_WH_IN" /> : undefined
-                        }
-                      />
-                      <OrderFeeCell order={r} />
-                      {tab === "DEST_WH_IN" ? (
-                        <td className="max-w-[240px] px-2 py-2 text-left">
-                          <div className="line-clamp-3 whitespace-normal text-xs" title={displayOrderNote(r.note) || undefined}>
+                          <TransferPaidBadge order={r} />
+                          <StageTime order={r} tab={tab} />
+                          {isReturnFlow(r) ? <span className="sub">HOÀN</span> : null}
+                          {r.homeDelivery ? <span className="sub">Giao tận nơi</span> : null}
+                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? (
+                            <AhamoveInfo order={r} />
+                          ) : (
+                            <InternalShipperInfo order={r} />
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                          <span className="sub">{r.senderPhone}</span>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                          <span className="sub">{r.receiverPhone}</span>
+                          {r.homeDelivery && r.address ? (
+                            <span className="sub" style={{ maxWidth: 200 }}>
+                              Giao tận nơi: {r.address}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td>
+                          <OfficeRouteCell order={r} />
+                        </td>
+                        <OrderCargoCell
+                          order={r}
+                          count={
+                            tab === "DEST_WH_IN" ? (
+                              <InboundCountCell order={r} context="DEST_WH_IN" />
+                            ) : undefined
+                          }
+                        />
+                        <OrderFeeCell order={r} />
+                        {tab === "DEST_WH_IN" ? (
+                          <td className="muted">
                             {displayOrderNote(r.note).trim() || "—"}
-                          </div>
-                      </td>
-                      ) : null}
-                    <td className="px-2 py-2 text-right">
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
-                          <NhapKhoRowActions code={r.code}>
-                                {tab === "WH_IN" || tab === "DEST_WH_IN" ? (
-                                  <DropdownMenuItem
-                                    onClick={() => setPrintTarget({ code: r.code, batchPackages: true })}
-                                  >
-                                    <Printer className="mr-2 h-4 w-4" /> In các kiện
-                                  </DropdownMenuItem>
-                                ) : null}
-                                {tab === "DELIVERING" ? (
-                                  <DropdownMenuItem onClick={() => fail([r.code])}>
-                                    <XCircle className="mr-2 h-4 w-4" /> Thất bại
-                                  </DropdownMenuItem>
-                                ) : null}
-                                {canPressReturn && r.status !== "RETURNING" && r.status !== "RETURNED" ? (
-                                  <DropdownMenuItem onClick={() => askStartReturn([r.code])}>
-                                    <Undo2 className="mr-2 h-4 w-4" /> Hoàn người gửi
-                                  </DropdownMenuItem>
-                                ) : null}
-                                {canCancelReturn &&
-                                r.status === "RETURNING" &&
-                                stageOf(r) === "WH_IN" ? (
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => void cancelReturn([r.code])}
-                                  >
-                                    <Ban className="mr-2 h-4 w-4" /> Huỷ hoàn
-                                  </DropdownMenuItem>
-                                ) : null}
-                                {canCancelOrder && isCancellable(r) ? (
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => askCancelOrders([r.code])}
-                                  >
-                                    <Ban className="mr-2 h-4 w-4" /> Huỷ đơn
-                                  </DropdownMenuItem>
-                                ) : null}
-                                {canRequestCancel && isCancelRequestable(r) ? (
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => askCancelRequest([r.code])}
-                                  >
-                                    <Ban className="mr-2 h-4 w-4" /> Yêu cầu huỷ
-                                  </DropdownMenuItem>
-                                ) : null}
-                          </NhapKhoRowActions>
-                          {activeTab.action &&
+                          </td>
+                        ) : null}
+                        <td>
+                          <div className="act">
+                            {activeTab.action &&
                             !(tab === "WH_IN" && !canAssignOnWeb) &&
-                            !(tab === "DELIVERING" && ahamovePodBlocked(r, session?.role)) && (
-                          <Button size="sm" variant="outline" onClick={() => runAction([r.code])}>
-                            {activeTab.action}
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                    {expandedOrders.has(r.code) && (
-                      <OrderPackageListRow
-                        order={r}
-                        layout="rows"
-                        leadingCols={1}
-                        feeCols={FEE_COL_COUNT}
-                        extraTailCols={tab === "DEST_WH_IN" ? 1 : 0}
-                        inboundContext={tab === "DEST_WH_IN" ? "DEST_WH_IN" : undefined}
-                        onPrintPackage={
-                          tab === "WH_IN" || tab === "DEST_WH_IN"
-                            ? undefined
-                            : (code, seq) => setPrintTarget({ code, packageSeq: seq })
-                        }
-                        {...(packagesEditable(r) ? packageActions.handlers : {})}
-                      />
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+                            !(tab === "DELIVERING" && ahamovePodBlocked(r, session?.role)) ? (
+                              <button type="button" className="ok" onClick={() => runAction([r.code])}>
+                                {activeTab.action}
+                              </button>
+                            ) : null}
+                            <NhapKhoRowActions code={r.code}>
+                              {tab === "WH_IN" || tab === "DEST_WH_IN" ? (
+                                <DropdownMenuItem
+                                  onClick={() => setPrintTarget({ code: r.code, batchPackages: true })}
+                                >
+                                  <Printer className="mr-2 h-4 w-4" /> In các kiện
+                                </DropdownMenuItem>
+                              ) : null}
+                              {tab === "DELIVERING" ? (
+                                <DropdownMenuItem onClick={() => fail([r.code])}>
+                                  <XCircle className="mr-2 h-4 w-4" /> Thất bại
+                                </DropdownMenuItem>
+                              ) : null}
+                              {canPressReturn && r.status !== "RETURNING" && r.status !== "RETURNED" ? (
+                                <DropdownMenuItem onClick={() => askStartReturn([r.code])}>
+                                  <Undo2 className="mr-2 h-4 w-4" /> Hoàn người gửi
+                                </DropdownMenuItem>
+                              ) : null}
+                              {canCancelReturn &&
+                              r.status === "RETURNING" &&
+                              stageOf(r) === "WH_IN" ? (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => void cancelReturn([r.code])}
+                                >
+                                  <Ban className="mr-2 h-4 w-4" /> Huỷ hoàn
+                                </DropdownMenuItem>
+                              ) : null}
+                              {canCancelOrder && isCancellable(r) ? (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => askCancelOrders([r.code])}
+                                >
+                                  <Ban className="mr-2 h-4 w-4" /> Huỷ đơn
+                                </DropdownMenuItem>
+                              ) : null}
+                              {canRequestCancel && isCancelRequestable(r) ? (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => askCancelRequest([r.code])}
+                                >
+                                  <Ban className="mr-2 h-4 w-4" /> Yêu cầu huỷ
+                                </DropdownMenuItem>
+                              ) : null}
+                            </NhapKhoRowActions>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedOrders.has(r.code) && (
+                        <OrderPackageListRow
+                          order={r}
+                          layout="rows"
+                          leadingCols={1}
+                          feeCols={FEE_COL_COUNT}
+                          extraTailCols={tab === "DEST_WH_IN" ? 1 : 0}
+                          inboundContext={tab === "DEST_WH_IN" ? "DEST_WH_IN" : undefined}
+                          onPrintPackage={
+                            tab === "WH_IN" || tab === "DEST_WH_IN"
+                              ? undefined
+                              : (code, seq) => setPrintTarget({ code, packageSeq: seq })
+                          }
+                          {...(packagesEditable(r) ? packageActions.handlers : {})}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

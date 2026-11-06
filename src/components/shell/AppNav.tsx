@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import xeLogo from "@/assets/logo-xe-m3.png";
+import xeLogo from "@/assets/logo-xe.png";
 import { useAuth } from "@/lib/auth";
 import { canRead, useRbacVersion } from "@/lib/rbac";
 import { TaoDonDialog } from "@/components/TaoDonDialog";

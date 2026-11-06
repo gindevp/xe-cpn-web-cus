@@ -8,13 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DialogDescription } from "@/components/ui/dialog";
+import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StaffInfoPopover } from "@/components/StaffInfoPopover";
@@ -102,12 +97,9 @@ import {
   MapPin,
   Pencil,
   Plus,
-  Printer,
   Clock,
-  QrCode,
   Trash2,
   User,
-  X,
 } from "lucide-react";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 
@@ -166,16 +158,13 @@ export function OrderCodeLink({
   if (!code?.trim()) return <span className={className}>{label}</span>;
 
   if (!ctx) {
-    return <span className={cn("font-medium text-primary", className)}>{label}</span>;
+    return <span className={cn("code", className)}>{label}</span>;
   }
 
   return (
     <button
       type="button"
-      className={cn(
-        "font-medium text-primary underline-offset-2 hover:underline text-left",
-        className,
-      )}
+      className={cn("code", className)}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1038,7 +1027,7 @@ export function OrderHistoryDialog({
 
   return (
     <>
-    <Dialog
+    <M3Sheet
       open={open}
       onOpenChange={(v) => {
         if (!v) {
@@ -1047,23 +1036,21 @@ export function OrderHistoryDialog({
         }
         onOpenChange(v);
       }}
+      variant="order-sheet"
+      alignTop
+      className="max-h-[92vh] overflow-hidden"
     >
-      <DialogContent
-        className={cn(
-          "flex max-h-[92vh] w-[min(1320px,96vw)] max-w-[1320px] flex-col gap-0 overflow-hidden border-[#E5EAF2] bg-[#F7F9FC] p-0 shadow-xl sm:rounded-xl",
-          // Ẩn nút X mặc định — dùng nút X custom cạnh Sửa đơn cho đúng mockup.
-          "[&>button.absolute]:hidden",
-        )}
-      >
-        <DialogHeader className="space-y-0 border-b border-[#E5EAF2] bg-white px-4 py-3 text-left sm:px-5">
-          <div className="flex items-center justify-between gap-3">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
             <div className="min-w-0 flex-1">
-              <DialogTitle className="truncate text-[15px] font-semibold leading-snug text-foreground sm:text-base">
-                <span className="font-bold">{code || "—"}</span>
+              <M3SheetTitle className="page-title" style={{ fontSize: 22, lineHeight: "28px", margin: 0 }}>
+                <span className="num">{code || "—"}</span>
                 {headerMeta ? (
-                  <span className="font-normal text-muted-foreground"> · {headerMeta}</span>
+                  <span className="lab muted" style={{ fontWeight: 400 }}>
+                    {" "}
+                    · {headerMeta}
+                  </span>
                 ) : null}
-              </DialogTitle>
+              </M3SheetTitle>
               <DialogDescription className="sr-only">
                 Thông tin đơn hàng, thanh toán và lịch sử tác động
               </DialogDescription>
@@ -1071,80 +1058,43 @@ export function OrderHistoryDialog({
             <div className="flex shrink-0 items-center gap-2">
               {editing ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8"
-                    disabled={saving}
-                    onClick={cancelEdit}
-                  >
+                  <button type="button" className="btn ghost" disabled={saving} onClick={cancelEdit}>
                     Hủy
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-8"
-                    disabled={saving}
-                    onClick={saveEdit}
-                  >
+                  </button>
+                  <button type="button" className="btn" disabled={saving} onClick={saveEdit}>
                     {saving ? "Đang lưu…" : "Lưu"}
-                  </Button>
+                  </button>
                 </>
               ) : (
                 <>
                   {o ? <OrderStatusBadge status={o.status} issue={o.issue} order={o} /> : null}
                   {o ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 border-[#C5D0E0] bg-white text-primary hover:bg-primary/5"
-                      onClick={() => setPrintOpen(true)}
-                    >
-                      <Printer className="h-3.5 w-3.5" />
+                    <button type="button" className="btn tonal" style={{ height: 36 }} onClick={() => setPrintOpen(true)}>
                       In đơn
-                    </Button>
+                    </button>
                   ) : null}
                   {o && canEditRole && canStaffSenderTransferQr(o) ? (
-                    <Button
+                    <button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 border-[#C5D0E0] bg-white text-primary hover:bg-primary/5"
+                      className="btn tonal"
+                      style={{ height: 36 }}
                       onClick={() => setTransferQrOpen(true)}
                       title="Tạo QR chuyển khoản OnePay"
                     >
-                      <QrCode className="h-3.5 w-3.5" />
                       QR CK
-                    </Button>
+                    </button>
                   ) : null}
                   {o?.transferPaidAt ? <TransferPaidBadge order={o} /> : null}
                   {canEdit && o ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 border-[#C5D0E0] bg-white text-primary hover:bg-primary/5"
-                      onClick={startEdit}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
+                    <button type="button" className="btn tonal" style={{ height: 36 }} onClick={startEdit}>
                       Sửa đơn
-                    </Button>
+                    </button>
                   ) : null}
                 </>
               )}
-              <button
-                type="button"
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="Đóng"
-                onClick={() => onOpenChange(false)}
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <M3SheetClose />
             </div>
           </div>
-        </DialogHeader>
 
         {loading && !o ? (
           <div className="bg-white px-6 py-16 text-center text-sm text-muted-foreground">
@@ -1892,8 +1842,7 @@ export function OrderHistoryDialog({
             </aside>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </M3Sheet>
     </>
   );
 }

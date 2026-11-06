@@ -381,10 +381,48 @@ function Page() {
   };
 
   return (
-    <div className="space-y-4">
-      {loading ? <p className="text-sm text-muted-foreground">Đang tải cài đặt từ máy chủ…</p> : null}
-      <Section title="Danh sách phụ phí">
-        <div className="rounded-md border px-4">
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row" style={{ marginTop: 0 }}>
+        <div>
+          <h1 className="page-title">Cài đặt phụ phí</h1>
+          {f.updatedAt ? (
+            <div className="lab muted num">
+              Cập nhật lần cuối: {new Date(f.updatedAt).toLocaleString("vi-VN")}
+            </div>
+          ) : loading ? (
+            <div className="lab muted">Đang tải cài đặt từ máy chủ…</div>
+          ) : null}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={saving || loading}
+            onClick={() => setF(normalizeSurcharge(DEFAULT_SURCHARGES))}
+          >
+            Khôi phục mặc định
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={saving || loading || !writable}
+            onMouseDown={captureOverageFromInputs}
+            onClick={() => void save()}
+          >
+            {saving ? "Đang lưu…" : "Lưu cài đặt"}
+          </button>
+        </div>
+      </div>
+
+      <div className="fee-layout">
+      <section className="card stack">
+        <h2 className="group-title sec-title">
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">payments</span>
+          </span>
+          Danh sách phụ phí
+        </h2>
+        <div>
           <Row
             index={1}
             label="Phí thu hộ COD"
@@ -485,7 +523,7 @@ function Page() {
             </div>
           </Row>
         </div>
-      </Section>
+      </section>
 
       <DoorFeeTable
         rows={doorDraft}
@@ -502,24 +540,6 @@ function Page() {
         }}
         disabled={!writable || loading || saving}
       />
-
-      <div className="flex items-center justify-end gap-2">
-        {f.updatedAt && (
-          <span className="mr-auto text-xs text-muted-foreground">
-            Cập nhật lần cuối: {new Date(f.updatedAt).toLocaleString("vi-VN")}
-          </span>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={saving || loading}
-          onClick={() => setF(normalizeSurcharge(DEFAULT_SURCHARGES))}
-        >
-          Khôi phục mặc định
-        </Button>
-        <Button size="sm" disabled={saving || loading || !writable} onMouseDown={captureOverageFromInputs} onClick={() => void save()}>
-          {saving ? "Đang lưu…" : "Lưu cài đặt"}
-        </Button>
       </div>
     </div>
   );
@@ -554,26 +574,34 @@ function DoorFeeTable({
     ]);
 
   return (
-    <Section title="Bảng phí lấy / giao hàng tận nơi">
-      <StageTabRow className="mb-3 gap-2.5 md:gap-3">
+    <section className="card stack">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <h2 className="group-title sec-title">
+          <span className="sec-ic" aria-hidden="true">
+            <span className="ms">local_shipping</span>
+          </span>
+          Bảng phí lấy / giao hàng tận nơi
+        </h2>
+        <button type="button" className="btn tonal" style={{ height: 36 }} onClick={addRow} disabled={disabled}>
+          Thêm dòng
+        </button>
+      </div>
+      <StageTabRow className="gap-2.5 md:gap-3">
         <StageTabButton active={kind === "PICKUP"} onClick={() => setKind("PICKUP")}>
           Lấy tận nơi
         </StageTabButton>
         <StageTabButton active={kind === "DELIVERY"} onClick={() => setKind("DELIVERY")}>
           Giao tận nơi
         </StageTabButton>
-        <Button size="sm" variant="outline" className="ml-auto shrink-0" onClick={addRow} disabled={disabled}>
-          Thêm dòng
-        </Button>
       </StageTabRow>
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+      <div className="scroller">
+        <table className="tbl" style={{ ["--tbl-min" as string]: "520px" }}>
+          <thead>
             <tr>
-              <th className="px-3 py-2">Khoảng cân (kg)</th>
-              <th className="px-3 py-2">Khoảng cách (km)</th>
-              <th className="px-3 py-2">Phí (VNĐ)</th>
-              <th className="px-3 py-2"></th>
+              <th>Khoảng cân (kg)</th>
+              <th>Khoảng cách (km)</th>
+              <th>Phí (VNĐ)</th>
+              <th aria-label="Tác vụ" />
             </tr>
           </thead>
           <tbody>
@@ -627,9 +655,9 @@ function DoorFeeTable({
           </div>
         </div>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="lab muted" style={{ margin: 0 }}>
         Khớp đúng khoảng cân và km thì lấy phí dòng đó. Vượt bậc cuối chỉ áp dụng cho tab đang chọn (lấy hoặc giao), không dùng chung. Bước = 0 thì không cộng. Lưu cùng nút <strong>Lưu cài đặt</strong>.
       </p>
-    </Section>
+    </section>
   );
 }

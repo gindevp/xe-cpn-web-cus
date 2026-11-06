@@ -321,21 +321,61 @@ function Page() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <FileText className="h-5 w-5 text-primary" />
-        <h1 className="text-lg font-semibold tracking-tight">Quản lý hoá đơn</h1>
+    <div className="stack" style={{ gap: 16 }}>
+      <div className="title-row" style={{ marginTop: 0 }}>
+        <div style={{ flex: "1 1 480px", minWidth: 0 }}>
+          <h1 className="page-title">Quản lý hoá đơn</h1>
+          <div className="lab muted" style={{ maxWidth: 760 }}>
+            Lọc theo mốc thanh toán: gửi trả là lúc nhập kho gửi, nhận trả và COD là lúc giao thành công. Hệ thống tự xuất
+            khi đơn đã giao thành công và quá 3 tiếng kể từ mốc này.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" className="btn ghost" onClick={clearFilters}>
+            Xoá bộ lọc
+          </button>
+          <ExportFormatButton variant="outline" disabled={!rows.length} onExport={exportExcel} />
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Lọc theo mốc thanh toán: gửi trả = lúc nhập kho gửi, nhận trả / COD = lúc giao thành công. Hệ thống tự xuất khi
-        đơn đã giao thành công và quá 3 tiếng kể từ mốc này; khách phải yêu cầu HĐ công ty trước lúc đó.
-      </p>
 
-      <Section>
-        <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Tìm kiếm</Label>
-            <Input
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">
+                pending_actions
+              </span>
+              Chưa xuất
+            </div>
+            <div className="sum-hero">{counts.NOT_ISSUED.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">domain</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Đã xuất doanh nghiệp</div>
+            <div className="sum-val">{counts.COMPANY.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">person</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Đã xuất cá nhân</div>
+            <div className="sum-val">{counts.PERSONAL.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="filter-grid">
+        <label className="field">
+          <span className="l">Tìm kiếm</span>
+          <span className="box input-box">
+            <input
+              type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onPaste={(e) => {
@@ -344,139 +384,119 @@ function Page() {
                 e.preventDefault();
                 setQ(text.split(/[\s,;]+/).filter(Boolean).join(" "));
               }}
-              placeholder="Mã đơn, tên, SĐT, MST, số HĐ... (dán được nhiều mã đơn)"
+              placeholder="Mã đơn, tên, SĐT, MST, số HĐ..."
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">VP gửi / nhận</Label>
-            <SearchableSelect
-              value={office || "all"}
-              onValueChange={(v) => setOffice(v === "all" ? "" : v)}
-              placeholder="Tất cả"
-              options={[{ value: "all", label: "Tất cả" }, ...offices.map((o) => ({ value: o.code, label: o.name }))]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Trạng thái HĐ</Label>
-            <SearchableSelect
-              value={state || "all"}
-              onValueChange={(v) => setState(v === "all" ? "" : (v as InvoiceState))}
-              placeholder="Tất cả"
-              options={STATE_FILTERS.map((f) => ({ value: f.value || "all", label: f.label }))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Loại đơn</Label>
-            <SearchableSelect
-              value={flag || "all"}
-              onValueChange={(v) => setFlag(v === "all" ? "" : (v as "NORMAL" | InvoiceOrderFlag))}
-              placeholder="Tất cả"
-              options={FLAG_FILTERS.map((f) => ({ value: f.value || "all", label: f.label }))}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Thanh toán từ ngày</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
+          </span>
+        </label>
+        <div className="field">
+          <span className="l">VP gửi / nhận</span>
+          <SearchableSelect
+            value={office || "all"}
+            onValueChange={(v) => setOffice(v === "all" ? "" : v)}
+            placeholder="Tất cả"
+            options={[{ value: "all", label: "Tất cả" }, ...offices.map((o) => ({ value: o.code, label: o.name }))]}
+          />
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label className="flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs">
-            <input
-              type="checkbox"
-              className="h-3.5 w-3.5 accent-amber-600"
-              checked={onlyBackfill}
-              onChange={(e) => setOnlyBackfill(e.target.checked)}
-            />
-            Chỉ đơn cần / có thể xuất bù
-            <span className="tabular-nums text-muted-foreground">
-              ({all.filter(canBackfill).length})
-            </span>
-          </label>
-          <Button variant="outline" size="sm" onClick={clearFilters}>
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            Xoá bộ lọc
-          </Button>
-          <ExportFormatButton variant="outline" disabled={!rows.length} onExport={exportExcel} />
-          <div className="flex-1" />
-          {canEdit ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={marking || !markable.length}
-                onClick={() => void mark(markable, true)}
-              >
-                <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
-                Bỏ xuất tự động ({markable.length})
-              </Button>
-              {unmarkable.length ? (
-                <Button variant="outline" size="sm" disabled={marking} onClick={() => void mark(unmarkable, false)}>
-                  Bỏ tích ({unmarkable.length})
-                </Button>
-              ) : null}
-              <InvoiceBackfillButton
-                orderCodes={backfillCodes}
-                lateCount={lateCount}
-                label={`Xuất bù HĐ ${selectedRows.length ? "đơn đã chọn" : "tất cả đơn chưa xuất"} (${backfillCodes.length})`}
-                onDone={() => void load()}
-              />
-            </>
-          ) : null}
+        <div className="field">
+          <span className="l">Trạng thái HĐ</span>
+          <SearchableSelect
+            value={state || "all"}
+            onValueChange={(v) => setState(v === "all" ? "" : (v as InvoiceState))}
+            placeholder="Tất cả"
+            options={STATE_FILTERS.map((f) => ({ value: f.value || "all", label: f.label }))}
+          />
         </div>
-        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-          {(Object.keys(INVOICE_STATE_LABEL) as InvoiceState[])
-            .filter((k) => counts[k] > 0)
-            .map((k) => (
-              <span key={k} className={cn("rounded px-1.5 py-0.5 font-medium", INVOICE_STATE_LABEL[k].cls)}>
-                {INVOICE_STATE_LABEL[k].text}: {counts[k]}
-              </span>
-            ))}
-          {(Object.keys(flagCounts) as InvoiceOrderFlag[])
-            .filter((k) => flagCounts[k] > 0)
-            .map((k) => {
-              const l = invoiceOrderFlagLabel(k);
-              return (
-                <span key={k} className={cn("rounded px-1.5 py-0.5 font-medium", l.cls)}>
-                  {l.text}: {flagCounts[k]}
-                </span>
-              );
-            })}
-          {canEdit ? (
-            <span className="text-muted-foreground">
-              Xuất bù tất cả chỉ lấy đơn đã giao hoặc đã hoàn, đã thu đủ, không công nợ. Đơn công nợ xuất khi tích chọn.
-              Đơn đang đi, đơn huỷ và đơn đang ngoại lệ không xuất bù.
-            </span>
-          ) : null}
+        <div className="field">
+          <span className="l">Loại đơn</span>
+          <SearchableSelect
+            value={flag || "all"}
+            onValueChange={(v) => setFlag(v === "all" ? "" : (v as "NORMAL" | InvoiceOrderFlag))}
+            placeholder="Tất cả"
+            options={FLAG_FILTERS.map((f) => ({ value: f.value || "all", label: f.label }))}
+          />
         </div>
-      </Section>
+        <label className="field">
+          <span className="l">Thanh toán từ ngày</span>
+          <span className="box input-box">
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Đến ngày</span>
+          <span className="box input-box">
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </span>
+        </label>
+      </div>
 
-      <Section title={loading ? "Đang tải…" : `${rows.length} đơn${selected.size ? ` · đã chọn ${selected.size}` : ""}`}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+        <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input
+            className="check"
+            type="checkbox"
+            checked={onlyBackfill}
+            onChange={(e) => setOnlyBackfill(e.target.checked)}
+          />
+          Chỉ đơn cần / có thể xuất bù ({all.filter(canBackfill).length})
+        </label>
+        <div style={{ flex: 1 }} />
+        {canEdit ? (
+          <>
+            <button
+              type="button"
+              className="btn tonal"
+              style={{ height: 36 }}
+              disabled={marking || !markable.length}
+              onClick={() => void mark(markable, true)}
+            >
+              Bỏ xuất tự động ({markable.length})
+            </button>
+            {unmarkable.length ? (
+              <button type="button" className="btn ghost" disabled={marking} onClick={() => void mark(unmarkable, false)}>
+                Bỏ tích ({unmarkable.length})
+              </button>
+            ) : null}
+            <InvoiceBackfillButton
+              orderCodes={backfillCodes}
+              lateCount={lateCount}
+              label={`Xuất bù HĐ ${selectedRows.length ? "đơn đã chọn" : "tất cả đơn chưa xuất"} (${backfillCodes.length})`}
+              onDone={() => void load()}
+            />
+          </>
+        ) : null}
+      </div>
+
+      <section className="card stack">
         {!rows.length ? (
           <EmptyState>{loading ? "Đang tải…" : "Không có đơn trong khoảng lọc."}</EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full min-w-[1300px] text-left text-sm">
-              <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+          <div className="scroller">
+            <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1300px" }}>
+              <thead>
                 <tr>
-                  <th className="px-2 py-2">
-                    <button type="button" onClick={togglePage} aria-label="Chọn cả trang">
-                      {allOnPageSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                  <th style={{ width: 18 }}>
+                    <button type="button" className="no-btn" onClick={togglePage} aria-label="Chọn cả trang">
+                      {allOnPageSelected ? (
+                        <span className="ms fill" aria-hidden="true">
+                          check_box
+                        </span>
+                      ) : (
+                        <span className="ms" aria-hidden="true">
+                          check_box_outline_blank
+                        </span>
+                      )}
                     </button>
                   </th>
-                  <th className="px-2 py-2 font-medium">Mã đơn</th>
-                  <th className="px-2 py-2 font-medium">Mốc thanh toán</th>
-                  <th className="px-2 py-2 font-medium">HTTT</th>
-                  <th className="px-2 py-2 font-medium">Người trả</th>
-                  <th className="px-2 py-2 font-medium">VP gửi → VP nhận</th>
-                  <th className="px-2 py-2 text-right font-medium">Tiền HĐ</th>
-                  <th className="px-2 py-2 font-medium">Trạng thái HĐ</th>
-                  <th className="px-2 py-2 font-medium">Lý do chưa xuất</th>
-                  <th className="px-2 py-2 font-medium">Số HĐ</th>
-                  <th className="px-2 py-2 font-medium">Công ty / MST</th>
+                  <th>Mã đơn</th>
+                  <th>Mốc thanh toán</th>
+                  <th>HTTT</th>
+                  <th>Người trả</th>
+                  <th>VP gửi → VP nhận</th>
+                  <th className="r">Tiền HĐ</th>
+                  <th>Trạng thái HĐ</th>
+                  <th>Lý do chưa xuất</th>
+                  <th>Số HĐ</th>
+                  <th>Công ty / MST</th>
                 </tr>
               </thead>
               <tbody>
@@ -579,7 +599,7 @@ function Page() {
           </div>
         )}
         <TablePagination pager={pager} />
-      </Section>
+      </section>
     </div>
   );
 }
