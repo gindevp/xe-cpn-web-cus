@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { M3Confirm } from "@/components/m3/M3Confirm";
-import { User, PackagePlus, Truck, Receipt } from "lucide-react";
 import { AddressPicker } from "@/components/AddressPicker";
 import { TransitHubNotice } from "@/components/TransitHubNotice";
 import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
@@ -1553,7 +1552,7 @@ export function TaoDonDialog({
 
               <div className="party-grid">
               {/* Sender section */}
-              <Section icon={<User className="h-4 w-4" />} title="Người gửi" msIcon="person">
+              <Section title="Người gửi" msIcon="person">
                 {partyLocked && (
                   <p className="mb-3 text-xs text-muted-foreground">
                     {senderLocked
@@ -1657,7 +1656,7 @@ export function TaoDonDialog({
               </Section>
 
               {/* Receiver section */}
-              <Section icon={<Truck className="h-4 w-4" />} title="Người nhận" msIcon="person_pin_circle">
+              <Section title="Người nhận" msIcon="person_pin_circle">
                 <div className="stack">
                   <F label="SĐT người nhận *">
                     <div className="relative" style={{ width: "100%" }}>
@@ -1770,7 +1769,7 @@ export function TaoDonDialog({
               </div>
 
               {/* Items — design `.pack` / `.pack-grid` */}
-              <Section icon={<PackagePlus className="h-4 w-4" />} title={`Danh sách hàng hoá (${items.length} kiện)`} msIcon="inventory_2">
+              <Section title={`Danh sách hàng hoá (${items.length} kiện)`} msIcon="inventory_2">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: -8 }}>
                   <button
                     type="button"
@@ -1903,7 +1902,7 @@ export function TaoDonDialog({
 
             <aside className="order-box stack order-side">
               {/* Payment section */}
-              <Section icon={<Receipt className="h-4 w-4" />} title="Thanh toán và ghi chú" msIcon="payments" bare>
+              <Section title="Thanh toán và ghi chú" msIcon="payments" bare>
                 <div className="stack">
                   {/* LEFT: Payment details */}
                   <div className="space-y-3">
@@ -2218,23 +2217,23 @@ export function TaoDonDialog({
 }
 
 function Section({
-  icon,
   title,
   children,
   msIcon,
   bare,
 }: {
-  icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
-  msIcon?: string;
+  msIcon: string;
   /** Không bọc `.order-box` (khi parent đã là order-box). */
   bare?: boolean;
 }) {
   const head = (
     <h2 className="group-title sec-title">
       <span className="sec-ic" aria-hidden="true">
-        {msIcon ? <span className="ms">{msIcon}</span> : icon}
+        <span className="ms" aria-hidden="true">
+          {msIcon}
+        </span>
       </span>
       {title}
     </h2>

@@ -427,8 +427,10 @@ html.xe-scan-immersive main {
   z-index: 50;
 }
 .m3-scrim-top {
-  align-items: flex-start;
-  overflow-y: auto;
+  align-items: flex-start !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 /* Sheet ổn định: nền đặc (không trong suốt), không tràn viewport */
 .scrim > .sheet {
@@ -437,16 +439,22 @@ html.xe-scan-immersive main {
   max-height: calc(100dvh - 48px);
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
 }
 .scrim {
   background: rgb(0 0 0 / 0.32);
 }
+/* Order sheet: phải có max-height + overflow để Radix/RemoveScroll nhận vùng cuộn
+   (max-height:none khiến wheel trên form không lăn được như design). */
 .scrim.m3-scrim-top > .sheet.order-sheet,
 .scrim > .sheet.order-sheet {
-  max-height: none;
   width: min(100%, 1180px);
-  margin: 0 auto;
+  max-height: calc(100dvh - 48px);
+  margin: 0 auto 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 /* Field trong sheet/order: full width, không bị flex 240px cắt */
 .sheet .field,

@@ -8,8 +8,29 @@ body{margin:0}
 button,input{font-family:inherit;color:inherit}
 button{cursor:pointer}
 button:focus-visible,a:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
-.ms{font-family:'Material Symbols Outlined';font-weight:300;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;white-space:nowrap;display:inline-block;font-feature-settings:'liga';user-select:none;flex:none}
-.ms.fill{font-variation-settings:'FILL' 1;font-weight:400}
+.ms{
+  font-family:'Material Symbols Outlined',sans-serif;
+  font-weight:300;
+  font-style:normal;
+  font-size:20px;
+  line-height:1;
+  letter-spacing:normal;
+  white-space:nowrap;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:1em;
+  height:1em;
+  overflow:hidden;
+  font-feature-settings:'liga';
+  font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;
+  -webkit-font-smoothing:antialiased;
+  user-select:none;
+  flex:none;
+  vertical-align:middle;
+  speak:never;
+}
+.ms.fill{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;font-weight:400}
 .num{font-variant-numeric:tabular-nums}
 .muted{color:var(--on-surface-variant)}
 .side{display:flex;flex-direction:column;gap:2px;flex:0 0 216px;width:216px;padding:16px 12px;background:var(--lowest);box-sizing:border-box}
@@ -139,7 +160,7 @@ dc-import{display:contents}
 .switch:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
 .file-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;background:var(--low)}
 .upload{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:16px;border-radius:16px;background:var(--low)}
-.sheet.order-sheet{width:min(100%,1180px);max-height:none;margin:0 auto}
+.sheet.order-sheet{width:min(100%,1180px);margin:0 auto}
 .order-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
 .order-box{padding:16px;border-radius:16px;background:var(--low)}
 .order-box .box{background:var(--lowest)}
@@ -344,9 +365,9 @@ body>*:not(#tem-print-root){display:none!important}
 .opt-sum.plain .opt-sum-a{font-size:14px;line-height:20px;font-weight:500}
 .opt-sum.plain .text-act{height:28px;color:var(--primary)}
 .view-more{gap:8px;margin-top:6px;padding-left:12px;border-left:2px solid var(--outline-variant)}
-.sec-title{display:flex;align-items:center;gap:8px}
+.sec-title{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sec-ic{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:9999px;background:var(--primary-container);color:var(--on-primary-container)}
-.sec-ic .ms{font-size:18px}
+.sec-ic .ms,.sec-title .ms{font-size:18px;width:18px;height:18px}
 .field span.l.l-ic{display:inline-flex;align-items:center;gap:4px}
 .l-ic .ms{font-size:16px;color:var(--on-surface-variant)}
 .opt-ic{font-size:18px;color:var(--on-surface-variant)}
@@ -446,6 +467,21 @@ body>*:not(#tem-print-root){display:none!important}
 .tbl tbody tr.mk-warn td{background:var(--warning-container)}
 .theme-light{--chart-sent:#DE8F45;--chart-recv:#6488CC}
 .theme-dark{--chart-sent:#CC7F3E;--chart-recv:#6C8ED6}
+/* Biểu đồ đơn theo ngày (Dashboard) — SoT từ Dashboard-v2 helmet */
+.plot{position:relative;height:280px;min-width:640px;box-sizing:border-box}
+.gl{position:absolute;left:56px;right:0;border-top:1px dashed var(--outline-variant);pointer-events:none}
+.gl span{position:absolute;right:100%;top:-8px;margin-right:10px}
+.days{position:absolute;left:56px;right:0;top:0;bottom:0;display:grid;grid-template-columns:repeat(var(--plot-days,31),minmax(0,1fr))}
+.day{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;padding:0;border:0;background:none;border-radius:8px;cursor:pointer;color:inherit}
+.day:hover,.day:focus-visible{background:rgb(from var(--on-surface) r g b / .04)}
+.day:focus-visible{outline:2px solid var(--secondary);outline-offset:-2px}
+.day .d{height:24px;line-height:24px;font-size:11px;color:var(--on-surface-variant)}
+.day.on .d{color:var(--on-surface);font-weight:600}
+.legend{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:0;border-radius:9999px;background:var(--low);font-size:12px;font-weight:500;color:var(--on-surface);cursor:pointer}
+.legend.off{background:none;color:var(--on-surface-variant);text-decoration:line-through}
+.dot{width:10px;height:10px;border-radius:9999px;flex:none}
+.dot.sent,.pt.sent{background:var(--chart-sent)}
+.dot.recv,.pt.recv{background:var(--chart-recv)}
 .area-svg{position:absolute;left:56px;top:0;width:calc(100% - 56px);height:256px;overflow:visible;pointer-events:none}
 .area-line{fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 .recv-line{stroke:var(--chart-recv)}

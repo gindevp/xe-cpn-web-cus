@@ -1637,6 +1637,9 @@ function OfficeOrdersChart({
   const tickVals = [MAX, Math.round(MAX / 2), 0];
   const fmt = (d?: string) => (d ? d.split("-").reverse().join("/") : "");
   const fmtN = (n: number) => n.toLocaleString("vi-VN");
+  /** Khớp toạ độ path `(i+0.5)*10` — không cố định 310 (31 ngày). */
+  const plotVbW = Math.max(rows.length, 1) * 10;
+  const plotMinW = Math.max(640, rows.length * 36);
 
   return (
     <section className="card" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1706,16 +1709,24 @@ function OfficeOrdersChart({
         </div>
       ) : (
         <div className="scroller">
-          <div className="plot" style={{ minWidth: Math.max(640, rows.length * 36) }}>
+          <div
+            className="plot"
+            style={{ minWidth: plotMinW, ["--plot-days" as string]: String(rows.length) }}
+          >
             {tickVals.map((v) => (
-              <div key={v} className="gl" style={{ top: BASE - Math.round((v / MAX) * PLOT) }}>
+              <div key={`gl-${v}`} className="gl" style={{ top: BASE - Math.round((v / MAX) * PLOT) }}>
                 <span className="small muted num">{fmtN(v)}</span>
               </div>
             ))}
             <div className="fee-band" aria-hidden="true">
               <span className="ms">payments</span>Cước
             </div>
-            <svg className="area-svg" viewBox="0 0 310 256" preserveAspectRatio="none" aria-hidden="true">
+            <svg
+              className="area-svg"
+              viewBox={`0 0 ${plotVbW} 256`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
               <defs>
                 <linearGradient id="grad-recv" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0" stopColor="var(--chart-recv)" stopOpacity=".32" />

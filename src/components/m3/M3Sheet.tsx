@@ -31,7 +31,10 @@ export function M3Sheet({
           )}
           style={alignTop ? { alignItems: "flex-start", overflowY: "auto" } : undefined}
         >
-          <DialogPrimitive.Overlay className="absolute inset-0" style={{ background: "transparent" }} />
+          <DialogPrimitive.Overlay
+            className="absolute inset-0"
+            style={{ background: "transparent", pointerEvents: "none" }}
+          />
           <DialogPrimitive.Content
             className={cn(
               "sheet relative z-[1] outline-none",
@@ -39,6 +42,7 @@ export function M3Sheet({
               variant !== "confirm" && variant !== "sheet" && variant,
               className,
             )}
+            style={{ pointerEvents: "auto" }}
             onOpenAutoFocus={(e) => {
               if (variant === "confirm") e.preventDefault();
             }}
@@ -47,6 +51,18 @@ export function M3Sheet({
               const t = e.target as HTMLElement | null;
               if (t?.closest?.("[data-radix-popper-content-wrapper], .m3-combo-portal")) {
                 e.preventDefault();
+              }
+            }}
+            onWheel={(e) => {
+              /* Bubbling wheel lên scrim khi sheet không còn chỗ cuộn (order form dài). */
+              const el = e.currentTarget;
+              const root = el.parentElement;
+              if (!root || root.scrollHeight <= root.clientHeight) return;
+              const atTop = el.scrollTop <= 0 && e.deltaY < 0;
+              const atBottom =
+                el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && e.deltaY > 0;
+              if (atTop || atBottom) {
+                root.scrollTop += e.deltaY;
               }
             }}
           >
