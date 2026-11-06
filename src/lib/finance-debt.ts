@@ -123,20 +123,50 @@ export function receiptFarePortion(
   return Math.max(0, Math.min(Math.round(collectable) || 0, fareDue));
 }
 
+/** Actor ảo Spring / hệ thống — không gán nợ phiếu thu. */
+function isSyntheticActor(by?: string | null): boolean {
+  const a = by?.trim().toLowerCase() ?? "";
+  return !a || a === "anonymoususer" || a === "anonymous" || a === "system" || a === "customer";
+}
+
 /** Người chịu trách nhiệm phiếu thu (API owner ưu tiên; offline: WH_IN với GUI_TRA, không thì POD). */
 export function deliveryActorForOrder(o: OrderX, apiOwner?: string | null): string {
   const fromApi = apiOwner?.trim();
-  if (fromApi) return fromApi;
+  if (fromApi && !isSyntheticActor(fromApi)) return fromApi;
   if (o.collectForm === "GUI_TRA") {
+    // LTN: nợ thu đầu gửi = người book ship (Aha/Grab).
+    if (o.homePickup) {
+      const book = [...(o.events ?? [])]
+        .reverse()
+        .find(
+          (e) =>
+            ["AHAMOVE_BOOK", "GRAB_BOOK"].includes(String(e.action ?? "").toUpperCase()) &&
+            !isSyntheticActor(e.by),
+        );
+      if (book?.by?.trim()) return book.by.trim();
+    }
     const wh = [...(o.events ?? [])]
       .reverse()
-      .find((e) => ["WAREHOUSE_RECEIVE", "WH_IN", "CONFIRM", "CREATED", "CREATE"].includes(String(e.action ?? "").toUpperCase()));
+      .find(
+        (e) =>
+          ["WAREHOUSE_RECEIVE", "WH_IN", "CONFIRM"].includes(String(e.action ?? "").toUpperCase()) &&
+          !isSyntheticActor(e.by),
+      );
     if (wh?.by?.trim()) return wh.by.trim();
+    if (!o.homePickup) {
+      const create = [...(o.events ?? [])].find(
+        (e) =>
+          ["CREATED", "CREATE"].includes(String(e.action ?? "").toUpperCase()) && !isSyntheticActor(e.by),
+      );
+      if (create?.by?.trim()) return create.by.trim();
+    }
   }
   const pod = [...(o.events ?? [])]
     .reverse()
-    .find((e) =>
-      ["POD", "POD_QUAY", "POD_HOME", "DELIVERED", "POD_OWNER"].includes(String(e.action ?? "").toUpperCase()),
+    .find(
+      (e) =>
+        ["POD", "POD_QUAY", "POD_HOME", "DELIVERED", "POD_OWNER"].includes(String(e.action ?? "").toUpperCase()) &&
+        !isSyntheticActor(e.by),
     );
   if (pod?.by?.trim()) return pod.by.trim();
   const payments = o.payments ?? [];
@@ -144,7 +174,7 @@ export function deliveryActorForOrder(o: OrderX, apiOwner?: string | null): stri
     const lastPodPay = [...payments]
       .sort((a, b) => a.at.localeCompare(b.at))
       .reverse()
-      .find((p) => /pod/i.test(p.note ?? "") || p.by?.trim());
+      .find((p) => !isSyntheticActor(p.by) && (/pod/i.test(p.note ?? "") || p.by?.trim()));
     if (lastPodPay?.by?.trim()) return lastPodPay.by.trim();
   }
   return UNKNOWN_DEBT_OWNER;
