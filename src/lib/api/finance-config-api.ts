@@ -1028,8 +1028,13 @@ export type BusinessTotals = {
 export type BusinessHourBucket = {
   label: string;
   slot: number;
+  /** sent + received (tương thích cũ). */
   count: number;
-  /** Mã VP gửi → số đơn. */
+  /** Nhập kho gửi trong khung (giờ VN). */
+  sent?: number;
+  /** Nhập kho giao trong khung (giờ VN). */
+  received?: number;
+  /** Mã VP → số sự kiện (gửi hoặc nhận tùy loại). */
   perOffice: Record<string, number>;
 };
 
@@ -1043,7 +1048,7 @@ export type BusinessReport = {
   previous: BusinessTotals;
   offices: { officeCode: string; officeName: string; delivered: number; backlog: number }[];
   days?: { date: string; sent: number; received: number; revenue: number }[];
-  /** Đơn gửi theo khung 2 giờ (giờ VN) — cùng quy tắc cột Đơn gửi. */
+  /** Khung 2 giờ (giờ VN): gửi + nhận; `count` = tổng. */
   hours?: BusinessHourBucket[];
 };
 

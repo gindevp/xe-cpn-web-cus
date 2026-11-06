@@ -163,21 +163,29 @@ function Page() {
   const locked = Boolean(draft?.locked);
 
   return (
-    <div className="space-y-4">
+    <div className="stack" style={{ gap: 16 }}>
+      <h1 className="page-title">Nhóm quyền</h1>
       <p className="text-xs text-muted-foreground">
         Mỗi tài khoản thuộc một chức danh. Quyền theo màn hình: <b>Sửa</b> = xem + ghi, <b>Xem</b> =
         chỉ đọc, <b>Không</b> = ẩn màn. Chức danh Admin luôn full quyền và không sửa được.
       </p>
 
       <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-        <Section
-          title={`Chức danh (${groups.length})`}
-          right={
-            <Button size="sm" onClick={() => setCreating(true)}>
-              <Plus className="mr-1 h-4 w-4" /> Thêm
-            </Button>
-          }
-        >
+        <section className="card stack">
+          <div className="title-row" style={{ alignItems: "center" }}>
+            <h2 className="group-title sec-title">
+              <span className="sec-ic" aria-hidden="true">
+                <span className="ms">badge</span>
+              </span>
+              Chức danh ({groups.length})
+            </h2>
+            <button type="button" className="btn tonal" onClick={() => setCreating(true)}>
+              <span className="ms" aria-hidden="true">
+                add
+              </span>
+              Thêm
+            </button>
+          </div>
           <div className="space-y-1">
             {groups.map((g) => (
               <div
@@ -232,17 +240,24 @@ function Page() {
               </div>
             ))}
           </div>
-        </Section>
+        </section>
 
         {draft ? (
-          <Section
-            title={`Quyền của ${draft.name}`}
-            right={
-              <Button size="sm" onClick={savePermissions} disabled={locked || saving}>
-                <Save className="mr-1 h-4 w-4" /> {saving ? "Đang lưu…" : "Lưu quyền"}
-              </Button>
-            }
-          >
+          <section className="card stack">
+            <div className="title-row" style={{ alignItems: "center" }}>
+              <h2 className="group-title sec-title">
+                <span className="sec-ic" aria-hidden="true">
+                  <span className="ms">lock</span>
+                </span>
+                Quyền của {draft.name}
+              </h2>
+              <button type="button" className="btn" onClick={savePermissions} disabled={locked || saving}>
+                <span className="ms" aria-hidden="true">
+                  save
+                </span>
+                {saving ? "Đang lưu…" : "Lưu quyền"}
+              </button>
+            </div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>
                 Mã <b className="text-foreground">{draft.code}</b> · chức danh gốc{" "}
@@ -333,7 +348,7 @@ function Page() {
                 </div>
               ))}
             </div>
-          </Section>
+          </section>
         ) : (
           <EmptyState>Chọn một chức danh để xem quyền</EmptyState>
         )}

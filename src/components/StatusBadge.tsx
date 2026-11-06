@@ -12,34 +12,35 @@ import {
 } from "@/lib/mock-data";
 import { orderTabStatusLabel } from "@/lib/customer-track-status";
 
+/** Soft badge = container sáng + chữ mực đậm (M3). Tránh text-*-foreground (màu sáng) trên nền nhạt. */
 const ORDER_STYLES: Record<OrderStatus, string> = {
-  DRAFT: "bg-muted text-muted-foreground border-transparent",
-  CONFIRMED: "bg-info/15 text-info border-info/30",
-  WAITING: "bg-warning/20 text-warning-foreground border-warning/40",
-  IN_TRANSIT: "bg-info/15 text-info border-info/30",
-  AT_DEST: "bg-accent text-accent-foreground border-accent",
-  OUT_FOR_DELIVERY: "bg-warning/25 text-warning-foreground border-warning/40",
-  DELIVERED: "bg-success/15 text-success border-success/40",
-  FAILED_DELIVERY: "bg-destructive/15 text-destructive border-destructive/30",
-  CANCELLED: "bg-muted text-muted-foreground border-transparent",
-  RETURNING: "bg-warning/20 text-warning-foreground border-warning/40",
-  RETURNED: "bg-muted text-muted-foreground border-transparent",
+  DRAFT: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
+  CONFIRMED: "border-transparent bg-[var(--primary-container)] text-[var(--on-primary-container)]",
+  WAITING: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
+  IN_TRANSIT: "border-transparent bg-[var(--primary-container)] text-[var(--on-primary-container)]",
+  AT_DEST: "border-transparent bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
+  OUT_FOR_DELIVERY: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
+  DELIVERED: "border-transparent bg-[var(--success-container)] text-[var(--on-success-container)]",
+  FAILED_DELIVERY: "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
+  CANCELLED: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
+  RETURNING: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
+  RETURNED: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
 };
 
 const TRIP_STYLES: Record<TripStatus, string> = {
-  CREATED: "bg-muted text-muted-foreground border-transparent",
-  LOADING: "bg-warning/20 text-warning-foreground border-warning/40",
-  DEPARTED: "bg-info/15 text-info border-info/30",
-  UNLOADING: "bg-accent text-accent-foreground border-accent",
-  CLOSED: "bg-success/15 text-success border-success/40",
-  CANCELLED: "bg-destructive/15 text-destructive border-destructive/30",
+  CREATED: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
+  LOADING: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
+  DEPARTED: "border-transparent bg-[var(--primary-container)] text-[var(--on-primary-container)]",
+  UNLOADING: "border-transparent bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
+  CLOSED: "border-transparent bg-[var(--success-container)] text-[var(--on-success-container)]",
+  CANCELLED: "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
 };
 
 const ISSUE_STYLES: Record<OrderIssueType, string> = {
-  EXCEPTION: "bg-orange-100 text-orange-700 border-orange-300",
-  LOST: "bg-destructive/15 text-destructive border-destructive/30",
-  DAMAGED: "bg-destructive/15 text-destructive border-destructive/30",
-  CANCEL_REQUEST: "bg-slate-100 text-slate-700 border-slate-300",
+  EXCEPTION: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
+  LOST: "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
+  DAMAGED: "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
+  CANCEL_REQUEST: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
 };
 
 export function OrderStatusBadge({

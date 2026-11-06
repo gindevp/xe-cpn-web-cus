@@ -185,20 +185,20 @@ function Page() {
         {filtered.length === 0 ? (
           <EmptyState>{loading ? "Đang tải…" : "Không có lịch sử kiểm kê"}</EmptyState>
         ) : (
-          <div className="overflow-hidden rounded-xl border bg-white">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-sm">
+          <section className="card stack" style={{ gap: 0, padding: 0, overflow: "hidden" }}>
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "960px" }}>
                 <thead>
-                  <tr className="border-b bg-slate-50/90 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="w-12 px-3 py-3">STT</th>
-                    <th className="px-3 py-3">Người kiểm kê</th>
-                    <th className="px-3 py-3">Văn phòng</th>
-                    <th className="px-3 py-3">Ngày kiểm</th>
-                    <th className="px-3 py-3">Trạng thái</th>
-                    <th className="px-3 py-3 text-right">Tổng số đơn</th>
-                    <th className="px-3 py-3 text-right">Đã kiểm</th>
-                    <th className="px-3 py-3 text-right">Thiếu</th>
-                    <th className="px-3 py-3 text-right">Tác vụ</th>
+                  <tr>
+                    <th style={{ width: 48 }}>STT</th>
+                    <th>Người kiểm kê</th>
+                    <th>Văn phòng</th>
+                    <th>Ngày kiểm</th>
+                    <th>Trạng thái</th>
+                    <th className="r">Tổng số đơn</th>
+                    <th className="r">Đã kiểm</th>
+                    <th className="r">Thiếu</th>
+                    <th className="r">Tác vụ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -276,7 +276,7 @@ function Page() {
               </table>
             </div>
             <TablePagination pager={pager} className="px-3 pb-3" />
-          </div>
+          </section>
         )}
       </div>
     </div>

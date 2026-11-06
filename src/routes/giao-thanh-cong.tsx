@@ -6,26 +6,34 @@ import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3PageHeader } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { AhamoveInfo, InternalShipperInfo } from "@/components/AhamoveInfo";
-import { OrderCargoCell, OrderCargoHeader, OrderFeeCell, OrderFeeHeader } from "@/components/OrderFeeCells";
-import { formatVND, formatMoney, formatDateTime, officeName, orderReceiverOffice, canonicalOfficeCode } from "@/lib/mock-data";
+import {
+  OrderCargoCell,
+  OrderCargoHeader,
+  OrderFeeCell,
+  OrderFeeHeader,
+} from "@/components/OrderFeeCells";
+import {
+  formatVND,
+  formatMoney,
+  formatDateTime,
+  officeName,
+  orderReceiverOffice,
+  canonicalOfficeCode,
+} from "@/lib/mock-data";
 import { useStore, type OrderX } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { getOrder, listOrdersPage } from "@/lib/api/domain-api";
 import { isApiEnabled } from "@/lib/api/client";
 import { assignedOfficeCode, hasAllOfficeScope, resolveViewOffice } from "@/lib/office-scope";
 import { orderGoodsLabel, packageCount, packageRows } from "@/lib/package-label";
-import { ImageIcon } from "lucide-react";
 import { useActivityFilters } from "@/lib/activity-filters";
 import { ImageLightbox, isViewableImageUrl } from "@/components/ImageLightbox";
 import { podMomentLabel } from "@/lib/ahamove";
-import { INVOICE_STATE_LABEL, invoiceStateOf } from "@/lib/invoice-policy";
-import { cn } from "@/lib/utils";
+import { INVOICE_STATE_LABEL, INVOICE_STATE_TAG_CLASS, invoiceStateOf } from "@/lib/invoice-policy";
 import { toast } from "sonner";
 
 function podSlides(photos: OrderX["podPhotos"]): { urls: string[]; labels: string[] } {
@@ -73,7 +81,9 @@ export const Route = createFileRoute("/giao-thanh-cong")({
 });
 
 function isReturned(o: OrderX): boolean {
-  return o.status === "RETURNED" || (o as OrderX & { returnStage?: string }).returnStage === "RT_DONE";
+  return (
+    o.status === "RETURNED" || (o as OrderX & { returnStage?: string }).returnStage === "RT_DONE"
+  );
 }
 
 function deliveredBy(o: OrderX): "SHIPPER" | "OFFICE" {
@@ -95,7 +105,13 @@ function deliveredAt(o: OrderX): string {
 function returnedBy(o: OrderX): "SHIPPER" | "OFFICE" {
   const ev = [...(o.events ?? [])]
     .reverse()
-    .find((e) => e.action === "RT_DONE" || e.action === "RETURNED" || e.action === "RETURN_DONE" || e.action === "POD");
+    .find(
+      (e) =>
+        e.action === "RT_DONE" ||
+        e.action === "RETURNED" ||
+        e.action === "RETURN_DONE" ||
+        e.action === "POD",
+    );
   const detail = `${ev?.detail ?? ""}`.toLowerCase();
   if (detail.includes("shipper") || detail.includes("hoàn tận")) return "SHIPPER";
   return "OFFICE";
@@ -104,7 +120,13 @@ function returnedBy(o: OrderX): "SHIPPER" | "OFFICE" {
 function returnedAt(o: OrderX): string {
   const ev = [...(o.events ?? [])]
     .reverse()
-    .find((e) => e.action === "RT_DONE" || e.action === "RETURNED" || e.action === "RETURN_DONE" || e.action === "POD");
+    .find(
+      (e) =>
+        e.action === "RT_DONE" ||
+        e.action === "RETURNED" ||
+        e.action === "RETURN_DONE" ||
+        e.action === "POD",
+    );
   return ev?.at ?? o.updatedAt ?? o.createdAt;
 }
 
@@ -112,7 +134,13 @@ function returnedAt(o: OrderX): string {
 function returnedAtOffice(o: OrderX): string {
   const ev = [...(o.events ?? [])]
     .reverse()
-    .find((e) => e.action === "RT_DONE" || e.action === "RETURNED" || e.action === "RETURN_DONE" || e.action === "POD");
+    .find(
+      (e) =>
+        e.action === "RT_DONE" ||
+        e.action === "RETURNED" ||
+        e.action === "RETURN_DONE" ||
+        e.action === "POD",
+    );
   const detail = `${ev?.detail ?? ""}`;
   const m = detail.match(/VP\s*=\s*([A-Za-z0-9]+)/i);
   if (m?.[1]) return m[1].toUpperCase();
@@ -171,7 +199,11 @@ function Page() {
     async (page, size) => {
       if (officeConflict) return { rows: [], total: 0 };
       const statuses =
-        kind === "GIAO" || mode === "SHIPPER" ? ["DELIVERED"] : kind === "HOAN" ? ["RETURNED"] : ["DELIVERED", "RETURNED"];
+        kind === "GIAO" || mode === "SHIPPER"
+          ? ["DELIVERED"]
+          : kind === "HOAN"
+            ? ["RETURNED"]
+            : ["DELIVERED", "RETURNED"];
       return listOrdersPage({
         statuses,
         updatedFrom: from || undefined,
@@ -288,7 +320,9 @@ function Page() {
           const ret = isReturned(order);
           const photoLabel = ret ? "Ảnh hoàn" : "Ảnh POD";
           const syncAhamove =
-            !ret && (order.partnerCode === "AHAMOVE" || order.partnerCode === "GRAB") && !!order.partnerOrderId;
+            !ret &&
+            (order.partnerCode === "AHAMOVE" || order.partnerCode === "GRAB") &&
+            !!order.partnerOrderId;
           const local = podSlides(order.podPhotos);
           if (local.urls.length && !syncAhamove) {
             setLightbox({ ...local, index: 0, title: `${photoLabel} · ${order.code}` });
@@ -316,8 +350,8 @@ function Page() {
               return;
             }
             setLightbox({ ...slides, index: 0, title: `${photoLabel} · ${order.code}` });
-          } catch (e: any) {
-            toast.error(e?.message || "Không tải được ảnh");
+          } catch (e: unknown) {
+            toast.error(e instanceof Error ? e.message : "Không tải được ảnh");
           } finally {
             setLoadingPodCode(null);
           }
@@ -349,7 +383,9 @@ function SuccessOrderTable({
   expanded: string | null;
   setExpanded: (v: string | null) => void;
   lightbox: { urls: string[]; labels: string[]; index: number; title: string } | null;
-  setLightbox: (v: { urls: string[]; labels: string[]; index: number; title: string } | null) => void;
+  setLightbox: (
+    v: { urls: string[]; labels: string[]; index: number; title: string } | null,
+  ) => void;
   loadingPodCode: string | null;
   onViewPod: (order: OrderX) => void | Promise<void>;
 }) {
@@ -396,44 +432,41 @@ function SuccessOrderTable({
                   const shipper = successBy(r) === "SHIPPER";
                   const photoLabel = ret ? "Xem ảnh hoàn" : "Xem POD";
                   const busy = loadingPodCode === r.code;
+                  const invState = invoiceStateOf(r.invoiceStatus, r.invoiceType);
                   return (
                     <Fragment key={r.code}>
-                      <tr className="border-b hover:bg-muted/40">
-                        <td className="px-2 py-2 font-medium">
-                          <span className="inline-flex flex-wrap items-center gap-1.5">
-                            <OrderCodeLink code={r.code} />
-                            {ret ? (
-                              <Badge variant="outline" className="border-amber-500 text-amber-700">
-                                HOÀN
-                              </Badge>
-                            ) : null}
-                          </span>
+                      <tr>
+                        <td>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <OrderCodeLink code={r.code} className="code" />
+                            {ret ? <span className="tag warn">HOÀN</span> : null}
+                          </div>
                           <button
                             type="button"
-                            className="mt-0.5 block text-[11px] text-muted-foreground hover:text-foreground"
+                            className="link"
+                            style={{ display: "block", marginTop: 2 }}
                             onClick={() => setExpanded(open ? null : r.code)}
                           >
                             {open ? "Ẩn kiện" : `Xem ${pkgs} kiện`}
                           </button>
                         </td>
-                        <td className="px-2 py-2">
-                          <Button
+                        <td>
+                          <button
                             type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8 gap-1.5 px-2.5 text-xs"
+                            className="link"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                             disabled={busy}
                             onClick={() => void onViewPod(r)}
                           >
-                            <ImageIcon className="h-3.5 w-3.5" />
+                            <span className="ms" aria-hidden="true">
+                              photo_camera
+                            </span>
                             {busy ? "Đang tải…" : photoLabel}
-                          </Button>
+                          </button>
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                          {formatDateTime(successAt(r))}
-                        </td>
-                        <td className="px-2 py-2 whitespace-nowrap">
-                          <Badge variant={shipper ? "default" : "secondary"}>
+                        <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(successAt(r))}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <span style={{ fontWeight: 500 }}>
                             {ret
                               ? shipper
                                 ? "Shipper hoàn"
@@ -441,51 +474,54 @@ function SuccessOrderTable({
                               : shipper
                                 ? "Shipper giao"
                                 : "Nhận tại bưu cục"}
-                          </Badge>
-                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? (
-                            <AhamoveInfo order={r} />
+                          </span>
+                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") &&
+                          r.partnerOrderId ? (
+                            <span className="sub" style={{ display: "block" }}>
+                              <AhamoveInfo order={r} />
+                            </span>
                           ) : shipper ? (
-                            <InternalShipperInfo order={r} />
+                            <span className="sub" style={{ display: "block" }}>
+                              <InternalShipperInfo order={r} />
+                            </span>
                           ) : null}
                         </td>
-                        <td className="px-2 py-2">
-                          <div>{r.senderName ?? "-"}</div>
-                          <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
+                        <td>
+                          <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                          <span className="sub">{r.senderPhone}</span>
                         </td>
-                        <td className="px-2 py-2">
-                          <div>{r.receiverName}</div>
-                          <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
+                        <td>
+                          <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                          <span className="sub">{r.receiverPhone}</span>
                           {r.receiverActualName ? (
-                            <div className="text-[11px] text-muted-foreground">
+                            <span className="sub" style={{ display: "block" }}>
                               Thực nhận: {r.receiverActualName}
                               {r.receiverActualPhone ? ` · ${r.receiverActualPhone}` : ""}
-                            </div>
+                            </span>
                           ) : null}
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap">
+                        <td style={{ whiteSpace: "nowrap" }}>
                           <OfficeRouteCell order={r} />
                         </td>
                         <OrderCargoCell order={r} />
                         <OrderFeeCell order={r} />
-                        <td className="px-2 py-2 text-right">{formatMoney(r.paidAmount ?? 0)}</td>
-                        <td className="px-2 py-2 whitespace-nowrap">
+                        <td className="r main">{formatMoney(r.paidAmount ?? 0)}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
                           {ret ? (
-                            <span className="text-xs text-muted-foreground">—</span>
+                            <span className="muted">—</span>
                           ) : (
-                            (() => {
-                              const label = INVOICE_STATE_LABEL[invoiceStateOf(r.invoiceStatus, r.invoiceType)];
-                              return (
-                                <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-semibold", label.cls)}>
-                                  {label.text}
-                                </span>
-                              );
-                            })()
+                            <span className={INVOICE_STATE_TAG_CLASS[invState]}>
+                              {INVOICE_STATE_LABEL[invState].text}
+                            </span>
                           )}
                         </td>
                       </tr>
                       {open ? (
-                        <tr className="border-b bg-muted/20">
-                          <td colSpan={13} className="px-3 py-2">
+                        <tr>
+                          <td
+                            colSpan={13}
+                            style={{ background: "var(--surface-variant)", padding: "8px 12px" }}
+                          >
                             <div className="mb-1 text-xs font-medium text-muted-foreground">
                               Chi tiết kiện
                             </div>

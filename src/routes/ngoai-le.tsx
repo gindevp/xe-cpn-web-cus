@@ -5,16 +5,26 @@ import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3PageHeader } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { OrderPackageListRow } from "@/components/OrderPackageListRow";
-import { OrderCargoCell, OrderCargoHeader, OrderFeeCell, OrderFeeHeader } from "@/components/OrderFeeCells";
+import {
+  OrderCargoCell,
+  OrderCargoHeader,
+  OrderFeeCell,
+  OrderFeeHeader,
+} from "@/components/OrderFeeCells";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
@@ -42,12 +52,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRefreshOrdersOnMount, refreshOrdersNow } from "@/lib/use-orders-poll";
 import { DonHuyPanel } from "./don-huy";
-import {
-  AlertTriangle,
-  Warehouse,
-  Ban,
-  ChevronDown,
-} from "lucide-react";
+import { AlertTriangle, ChevronDown } from "lucide-react";
 
 export const Route = createFileRoute("/ngoai-le")({
   head: () => ({
@@ -106,7 +111,8 @@ const TABS: { key: Tab; label: string; hint: string }[] = [
 ];
 
 function tabOf(o: OrderX): IssueTab | null {
-  if (o.issue && !o.issue.resolvedAt) return o.issue.type === "CANCEL_REQUEST" ? null : o.issue.type;
+  if (o.issue && !o.issue.resolvedAt)
+    return o.issue.type === "CANCEL_REQUEST" ? null : o.issue.type;
   if (isAutoException(o)) return "EXCEPTION";
   return null;
 }
@@ -125,7 +131,12 @@ function restoreLabelOf(o: OrderX, fromStage: IssueFromStage): string {
   return `${label} (hoàn) · ${officeName(office ?? "")}`;
 }
 
-function restorePatch(o: OrderX, fromStage: IssueFromStage, at: string, by: string): Partial<OrderX> {
+function restorePatch(
+  o: OrderX,
+  fromStage: IssueFromStage,
+  at: string,
+  by: string,
+): Partial<OrderX> {
   const baseIssue = o.issue
     ? { ...o.issue, fromStage: o.issue.fromStage ?? fromStage }
     : {
@@ -153,7 +164,9 @@ function Page() {
   const [office, setOffice] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-  const [printTarget, setPrintTarget] = useState<{ code: string; packageSeq?: number } | null>(null);
+  const [printTarget, setPrintTarget] = useState<{ code: string; packageSeq?: number } | null>(
+    null,
+  );
 
   const scopeAll = hasAllOfficeScope(session);
 
@@ -165,8 +178,8 @@ function Page() {
       const domain = await import("@/lib/api/domain-api");
       const { rows } = await domain.listOrdersPage({ cancelRequests: "only", size: 500 });
       setCancelRequests(rows);
-    } catch (e: any) {
-      toast.error(e?.message || "Không tải được yêu cầu huỷ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không tải được yêu cầu huỷ");
     } finally {
       setCancelRequestsLoading(false);
     }
@@ -214,7 +227,11 @@ function Page() {
         return false;
       return true;
     }).length;
-    return { ...issueCounts, CANCELLED: cancelled, CANCEL_REQUEST: cancelRequests.length } as Record<Tab, number>;
+    return {
+      ...issueCounts,
+      CANCELLED: cancelled,
+      CANCEL_REQUEST: cancelRequests.length,
+    } as Record<Tab, number>;
   }, [base, orders, scopeAll, session, cancelRequests.length]);
 
   useJumpToMatchingTab(q, tab, counts, ["EXCEPTION", "LOST", "DAMAGED"] as const, (k) => {
@@ -223,7 +240,8 @@ function Page() {
   });
 
   const rows = useMemo(
-    () => (tab === "CANCELLED" || tab === "CANCEL_REQUEST" ? [] : base.filter((o) => tabOf(o) === tab)),
+    () =>
+      tab === "CANCELLED" || tab === "CANCEL_REQUEST" ? [] : base.filter((o) => tabOf(o) === tab),
     [base, tab],
   );
   const { pageRows, pager } = usePagedRows(rows, "ngoai-le");
@@ -345,168 +363,183 @@ function Page() {
         />
       ) : (
         <>
-
-      <Section
-        title={`${activeTab.label} (${rows.length})`}
-        right={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              className="gap-2"
-              disabled={!sel.length}
-              onClick={() => restoreToWarehouse(sel)}
-            >
-              <Warehouse className="h-4 w-4" />
-              {selSameStage
-                ? `${ISSUE_FROM_STAGE_LABEL[selSameStage]} (${sel.length})`
-                : `Đưa lại kho (${sel.length})`}
-            </Button>
-          </div>
-        }
-      >
-        {rows.length === 0 ? (
-          <EmptyState>Không có đơn trong mục này</EmptyState>
-        ) : (
-          <>
-            <div className="scroller">
-              <table className="tbl" style={{ ["--tbl-min" as string]: "1150px" }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: 18 }}>
-                      <input
-                        className="check"
-                        type="checkbox"
-                        checked={allChecked}
-                        onChange={(e) => toggleAll(e.target.checked)}
-                        aria-label="Chọn tất cả"
-                      />
-                    </th>
-                    <th>Mã đơn</th>
-                    <th>Ghi nhận</th>
-                    <th>Lý do</th>
-                    <th>Người gửi</th>
-                    <th>Người nhận</th>
-                    <th>VP gửi → VP nhận</th>
-                    <th>Trạng thái</th>
-                    <OrderCargoHeader />
-                    <OrderFeeHeader />
-                    <th className="r">Tác vụ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map((r) => {
-                    const fromStage = issueFromStageOf(r);
-                    const restoreLabel = restoreLabelOf(r, fromStage);
-                    return (
-                      <Fragment key={r.code}>
-                        <tr className={cn(selected.has(r.code) && "sel")}>
-                          <td>
-                            <input
-                              className="check"
-                              type="checkbox"
-                              checked={selected.has(r.code)}
-                              onChange={(e) => toggle(r.code, e.target.checked)}
-                              aria-label={`Chọn ${r.code}`}
-                            />
-                          </td>
-                          <td>
-                            <OrderCodeLink code={r.code} className="code" />
-                            <button
-                              type="button"
-                              className="link"
-                              style={{ display: "block", marginTop: 2 }}
-                              onClick={() => toggleOrderPkgs(r.code)}
-                            >
-                              {expandedOrders.has(r.code)
-                                ? "Ẩn kiện"
-                                : `Xem ${packageCount(r)} kiện`}
-                            </button>
-                            <span className="sub">
-                              {TABS.find((t) => t.key === tabOf(r))?.label}
-                            </span>
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            <span style={{ fontWeight: 500 }}>
-                              {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}
-                            </span>
-                            <span className="sub">{r.issue?.by ?? "hệ thống"}</span>
-                          </td>
-                          <td title={reasonOf(r)}>
-                            <span style={{ fontWeight: 500 }}>{reasonOf(r)}</span>
-                            {r.issue?.photos?.length ? (
-                              <span className="sub" style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                                {r.issue.photos.slice(0, 3).map((url, i) => (
-                                  <img
-                                    key={i}
-                                    src={url}
-                                    alt={`Minh chứng ${i + 1}`}
-                                    style={{ height: 40, width: 56, borderRadius: 8, objectFit: "cover" }}
-                                  />
-                                ))}
-                              </span>
-                            ) : null}
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
-                            <span className="sub">{r.senderPhone}</span>
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
-                            <span className="sub">{r.receiverPhone}</span>
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            <OfficeRouteCell order={r} />
-                          </td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            <OrderStatusBadge
-                              status={r.status}
-                              issue={tabOf(r) ? { type: tabOf(r)! } : r.issue}
-                            />
-                          </td>
-                          <OrderCargoCell order={r} />
-                          <OrderFeeCell order={r} />
-                          <td>
-                            <div className="act">
-                              <button
-                                type="button"
-                                className="ok"
-                                onClick={() => restoreToWarehouse([r.code])}
-                              >
-                                {restoreLabel}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {expandedOrders.has(r.code) ? (
-                          <OrderPackageListRow
-                            order={r}
-                            layout="panel"
-                            colSpan={13}
-                            onPrintPackage={(code, seq) => setPrintTarget({ code, packageSeq: seq })}
+          <Section
+            title={`${activeTab.label} (${rows.length})`}
+            right={
+              <button
+                type="button"
+                className="btn tonal"
+                disabled={!sel.length}
+                onClick={() => restoreToWarehouse(sel)}
+              >
+                <span className="ms" aria-hidden="true">
+                  warehouse
+                </span>
+                {selSameStage
+                  ? `${ISSUE_FROM_STAGE_LABEL[selSameStage]} (${sel.length})`
+                  : `Đưa lại kho (${sel.length})`}
+              </button>
+            }
+          >
+            {rows.length === 0 ? (
+              <EmptyState>Không có đơn trong mục này</EmptyState>
+            ) : (
+              <>
+                <div className="scroller">
+                  <table className="tbl" style={{ ["--tbl-min" as string]: "1150px" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 18 }}>
+                          <input
+                            className="check"
+                            type="checkbox"
+                            checked={allChecked}
+                            onChange={(e) => toggleAll(e.target.checked)}
+                            aria-label="Chọn tất cả"
                           />
-                        ) : null}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <TablePagination pager={pager} />
-          </>
-        )}
-      </Section>
+                        </th>
+                        <th>Mã đơn</th>
+                        <th>Ghi nhận</th>
+                        <th>Lý do</th>
+                        <th>Người gửi</th>
+                        <th>Người nhận</th>
+                        <th>VP gửi → VP nhận</th>
+                        <th>Trạng thái</th>
+                        <OrderCargoHeader />
+                        <OrderFeeHeader />
+                        <th className="r">Tác vụ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((r) => {
+                        const fromStage = issueFromStageOf(r);
+                        const restoreLabel = restoreLabelOf(r, fromStage);
+                        return (
+                          <Fragment key={r.code}>
+                            <tr className={cn(selected.has(r.code) && "sel")}>
+                              <td>
+                                <input
+                                  className="check"
+                                  type="checkbox"
+                                  checked={selected.has(r.code)}
+                                  onChange={(e) => toggle(r.code, e.target.checked)}
+                                  aria-label={`Chọn ${r.code}`}
+                                />
+                              </td>
+                              <td>
+                                <OrderCodeLink code={r.code} className="code" />
+                                <button
+                                  type="button"
+                                  className="link"
+                                  style={{ display: "block", marginTop: 2 }}
+                                  onClick={() => toggleOrderPkgs(r.code)}
+                                >
+                                  {expandedOrders.has(r.code)
+                                    ? "Ẩn kiện"
+                                    : `Xem ${packageCount(r)} kiện`}
+                                </button>
+                                <span className="sub">
+                                  {TABS.find((t) => t.key === tabOf(r))?.label}
+                                </span>
+                              </td>
+                              <td style={{ whiteSpace: "nowrap" }}>
+                                <span style={{ fontWeight: 500 }}>
+                                  {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}
+                                </span>
+                                <span className="sub">{r.issue?.by ?? "hệ thống"}</span>
+                              </td>
+                              <td title={reasonOf(r)}>
+                                <span style={{ fontWeight: 500 }}>{reasonOf(r)}</span>
+                                {r.issue?.photos?.length ? (
+                                  <span
+                                    className="sub"
+                                    style={{
+                                      display: "flex",
+                                      flexWrap: "wrap",
+                                      gap: 4,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    {r.issue.photos.slice(0, 3).map((url, i) => (
+                                      <img
+                                        key={i}
+                                        src={url}
+                                        alt={`Minh chứng ${i + 1}`}
+                                        style={{
+                                          height: 40,
+                                          width: 56,
+                                          borderRadius: 8,
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                    ))}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td style={{ whiteSpace: "nowrap" }}>
+                                <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                                <span className="sub">{r.senderPhone}</span>
+                              </td>
+                              <td style={{ whiteSpace: "nowrap" }}>
+                                <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                                <span className="sub">{r.receiverPhone}</span>
+                              </td>
+                              <td style={{ whiteSpace: "nowrap" }}>
+                                <OfficeRouteCell order={r} />
+                              </td>
+                              <td style={{ whiteSpace: "nowrap" }}>
+                                <OrderStatusBadge
+                                  status={r.status}
+                                  issue={tabOf(r) ? { type: tabOf(r)! } : r.issue}
+                                />
+                              </td>
+                              <OrderCargoCell order={r} />
+                              <OrderFeeCell order={r} />
+                              <td>
+                                <div className="act">
+                                  <button
+                                    type="button"
+                                    className="ok"
+                                    onClick={() => restoreToWarehouse([r.code])}
+                                  >
+                                    {restoreLabel}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {expandedOrders.has(r.code) ? (
+                              <OrderPackageListRow
+                                order={r}
+                                layout="panel"
+                                colSpan={13}
+                                onPrintPackage={(code, seq) =>
+                                  setPrintTarget({ code, packageSeq: seq })
+                                }
+                              />
+                            ) : null}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <TablePagination pager={pager} />
+              </>
+            )}
+          </Section>
 
-      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <AlertTriangle className="h-3.5 w-3.5" />
-        Tác vụ đưa lại kho theo nguồn ghi nhận (nhập kho gửi / nhập kho giao).
-      </p>
-      <PrintLabelDialog
-        open={!!printTarget}
-        onOpenChange={(v) => {
-          if (!v) setPrintTarget(null);
-        }}
-        code={printTarget?.code ?? null}
-        packageSeq={printTarget?.packageSeq}
-      />
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Tác vụ đưa lại kho theo nguồn ghi nhận (nhập kho gửi / nhập kho giao).
+          </p>
+          <PrintLabelDialog
+            open={!!printTarget}
+            onOpenChange={(v) => {
+              if (!v) setPrintTarget(null);
+            }}
+            code={printTarget?.code ?? null}
+            packageSeq={printTarget?.packageSeq}
+          />
         </>
       )}
     </div>
@@ -543,7 +576,8 @@ function CancelRequestPanel({
 
   const decide = async (codes: string[], approve: boolean, note?: string) => {
     if (!codes.length || busy) return;
-    if (approve && !window.confirm(`Duyệt huỷ ${codes.length} đơn? Đơn sẽ chuyển sang Đơn huỷ.`)) return;
+    if (approve && !window.confirm(`Duyệt huỷ ${codes.length} đơn? Đơn sẽ chuyển sang Đơn huỷ.`))
+      return;
     setBusy(true);
     const domain = await import("@/lib/api/domain-api");
     let ok = 0;
@@ -552,14 +586,18 @@ function CancelRequestPanel({
         if (approve) await domain.approveCancelRequest(code, note);
         else await domain.rejectCancelRequest(code, note);
         ok++;
-      } catch (e: any) {
-        toast.error(e?.message || `Không xử lý được ${code}`);
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : `Không xử lý được ${code}`);
       }
     }
     setBusy(false);
     setSelected(new Set());
     if (ok) {
-      toast.success(approve ? `Đã duyệt huỷ ${ok} đơn` : `Đã từ chối ${ok} yêu cầu · đơn hiện lại ở Nhập kho gửi`);
+      toast.success(
+        approve
+          ? `Đã duyệt huỷ ${ok} đơn`
+          : `Đã từ chối ${ok} yêu cầu · đơn hiện lại ở Nhập kho gửi`,
+      );
       onChanged();
     }
   };
@@ -569,19 +607,26 @@ function CancelRequestPanel({
       title={`Yêu cầu huỷ (${list.length})`}
       right={
         canDecide ? (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={!sel.length || busy} onClick={() => setRejectCodes(sel)}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={!sel.length || busy}
+              onClick={() => setRejectCodes(sel)}
+            >
               Từ chối ({sel.length})
-            </Button>
-            <Button
-              variant="destructive"
-              className="gap-2"
+            </button>
+            <button
+              type="button"
+              className="btn danger"
               disabled={!sel.length || busy}
               onClick={() => void decide(sel, true)}
             >
-              <Ban className="h-4 w-4" />
+              <span className="ms" aria-hidden="true">
+                block
+              </span>
               Duyệt huỷ ({sel.length})
-            </Button>
+            </button>
           </div>
         ) : null
       }
@@ -591,41 +636,47 @@ function CancelRequestPanel({
       ) : list.length === 0 ? (
         <EmptyState>Không có yêu cầu huỷ đang chờ</EmptyState>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-sm">
+        <div className="scroller">
+          <table className="tbl" style={{ ["--tbl-min" as string]: "1100px" }}>
             <thead>
-              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+              <tr>
                 {canDecide ? (
-                  <th className="w-10 px-2 py-2">
-                    <Checkbox
+                  <th style={{ width: 18 }}>
+                    <input
+                      className="check"
+                      type="checkbox"
                       checked={list.length > 0 && list.every((r) => selected.has(r.code))}
-                      onCheckedChange={(v) => setSelected(v ? new Set(list.map((r) => r.code)) : new Set())}
+                      onChange={(e) =>
+                        setSelected(e.target.checked ? new Set(list.map((r) => r.code)) : new Set())
+                      }
                       aria-label="Chọn tất cả"
                     />
                   </th>
                 ) : null}
-                <th className="px-2 py-2">Mã đơn</th>
-                <th className="px-2 py-2">Yêu cầu</th>
-                <th className="px-2 py-2">Lý do</th>
-                <th className="px-2 py-2">Người gửi</th>
-                <th className="px-2 py-2">Người nhận</th>
-                <th className="px-2 py-2">VP gửi → VP nhận</th>
-                <OrderCargoHeader className="font-normal text-muted-foreground" />
-                <OrderFeeHeader className="text-muted-foreground" />
-                {canDecide ? <th className="px-2 py-2 text-right">Tác vụ</th> : null}
+                <th>Mã đơn</th>
+                <th>Yêu cầu</th>
+                <th>Lý do</th>
+                <th>Người gửi</th>
+                <th>Người nhận</th>
+                <th>VP gửi → VP nhận</th>
+                <OrderCargoHeader />
+                <OrderFeeHeader />
+                {canDecide ? <th className="r">Tác vụ</th> : null}
               </tr>
             </thead>
             <tbody>
               {pageRows.map((r) => (
-                <tr key={r.code} className="border-b hover:bg-muted/40">
+                <tr key={r.code} className={cn(selected.has(r.code) && "sel")}>
                   {canDecide ? (
-                    <td className="px-2 py-2">
-                      <Checkbox
+                    <td>
+                      <input
+                        className="check"
+                        type="checkbox"
                         checked={selected.has(r.code)}
-                        onCheckedChange={(v) =>
+                        onChange={(e) =>
                           setSelected((prev) => {
                             const next = new Set(prev);
-                            if (v) next.add(r.code);
+                            if (e.target.checked) next.add(r.code);
                             else next.delete(r.code);
                             return next;
                           })
@@ -634,43 +685,60 @@ function CancelRequestPanel({
                       />
                     </td>
                   ) : null}
-                  <td className="px-2 py-2 font-medium">
-                    <OrderCodeLink code={r.code} />
+                  <td>
+                    <OrderCodeLink code={r.code} className="code" />
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                    <div>{formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}</div>
-                    <div className="text-xs">{r.issue?.by ?? "-"}</div>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}
+                    <span className="sub">{r.issue?.by ?? "-"}</span>
                   </td>
-                  <td className="max-w-[240px] px-2 py-2" title={r.issue?.reason ?? ""}>
-                    <div className="line-clamp-2">{r.issue?.reason ?? "-"}</div>
+                  <td title={r.issue?.reason ?? ""} style={{ maxWidth: 280 }}>
+                    <span
+                      style={{
+                        fontWeight: 500,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {r.issue?.reason ?? "-"}
+                    </span>
                   </td>
-                  <td className="px-2 py-2">
-                    <div>{r.senderName ?? "-"}</div>
-                    <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
+                  <td>
+                    <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                    <span className="sub">{r.senderPhone}</span>
                   </td>
-                  <td className="px-2 py-2">
-                    <div>{r.receiverName}</div>
-                    <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
+                  <td>
+                    <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                    <span className="sub">{r.receiverPhone}</span>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td style={{ whiteSpace: "nowrap" }}>
                     <OfficeRouteCell order={r} />
                   </td>
                   <OrderCargoCell order={r} />
                   <OrderFeeCell order={r} />
                   {canDecide ? (
-                    <td className="px-2 py-2 text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <Button size="sm" variant="outline" disabled={busy} onClick={() => setRejectCodes([r.code])}>
+                    <td>
+                      <div className="act">
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          style={{ height: 36 }}
+                          disabled={busy}
+                          onClick={() => setRejectCodes([r.code])}
+                        >
                           Từ chối
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
+                        </button>
+                        <button
+                          type="button"
+                          className="btn danger"
+                          style={{ height: 36 }}
                           disabled={busy}
                           onClick={() => void decide([r.code], true)}
                         >
                           Duyệt huỷ
-                        </Button>
+                        </button>
                       </div>
                     </td>
                   ) : null}
@@ -710,7 +778,8 @@ function RejectCancelDialog({
           <DialogTitle>Từ chối yêu cầu huỷ</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          {codes.length === 1 ? `Đơn ${codes[0]}` : `${codes.length} đơn`} sẽ hiện lại ở Nhập kho gửi.
+          {codes.length === 1 ? `Đơn ${codes[0]}` : `${codes.length} đơn`} sẽ hiện lại ở Nhập kho
+          gửi.
         </p>
         <Textarea
           rows={3}

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { isApiEnabled } from "@/lib/api/client";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -61,40 +60,47 @@ export const Route = createFileRoute("/bao-tri")({
   ),
 });
 
+const CFG_TABS = [
+  { id: "bao-tri", label: "Bảo trì", icon: "build" },
+  { id: "phien", label: "Phiên đăng nhập", icon: "login" },
+  { id: "tra-cuu", label: "Tra cứu", icon: "qr_code_2" },
+  { id: "update", label: "Update", icon: "system_update" },
+  { id: "giong-quet", label: "Giọng quét", icon: "record_voice_over" },
+  { id: "hoa-don", label: "Hoá đơn", icon: "description" },
+  { id: "nop-tien", label: "Nộp tiền", icon: "account_balance" },
+] as const;
+type CfgTabId = (typeof CFG_TABS)[number]["id"];
+
 function Page() {
+  const [tab, setTab] = useState<CfgTabId>("bao-tri");
   return (
-    <Tabs defaultValue="bao-tri">
-      <TabsList>
-        <TabsTrigger value="bao-tri">Bảo trì</TabsTrigger>
-        <TabsTrigger value="phien">Phiên đăng nhập</TabsTrigger>
-        <TabsTrigger value="tra-cuu">Tra cứu</TabsTrigger>
-        <TabsTrigger value="update">Update</TabsTrigger>
-        <TabsTrigger value="giong-quet">Giọng quét</TabsTrigger>
-        <TabsTrigger value="hoa-don">Hoá đơn</TabsTrigger>
-        <TabsTrigger value="nop-tien">Nộp tiền</TabsTrigger>
-      </TabsList>
-      <TabsContent value="bao-tri" className="mt-4">
-        <MaintenanceTab />
-      </TabsContent>
-      <TabsContent value="phien" className="mt-4">
-        <SessionTab />
-      </TabsContent>
-      <TabsContent value="tra-cuu" className="mt-4">
-        <TrackLookupTab />
-      </TabsContent>
-      <TabsContent value="update" className="mt-4">
-        <MobileAppVersionTab />
-      </TabsContent>
-      <TabsContent value="giong-quet" className="mt-4">
-        <ScanVoiceTab />
-      </TabsContent>
-      <TabsContent value="hoa-don" className="mt-4">
-        <InvoiceAutoIssueTab />
-      </TabsContent>
-      <TabsContent value="nop-tien" className="mt-4">
-        <DepositAccountTab />
-      </TabsContent>
-    </Tabs>
+    <div className="stack" style={{ gap: 16 }}>
+      <h1 className="page-title">Cấu hình</h1>
+      <div className="seg" role="tablist" aria-label="Nhóm cấu hình" style={{ alignSelf: "flex-start" }}>
+        {CFG_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            className={tab === t.id ? "on" : undefined}
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+          >
+            <span className="ms" aria-hidden="true">
+              {t.icon}
+            </span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "bao-tri" ? <MaintenanceTab /> : null}
+      {tab === "phien" ? <SessionTab /> : null}
+      {tab === "tra-cuu" ? <TrackLookupTab /> : null}
+      {tab === "update" ? <MobileAppVersionTab /> : null}
+      {tab === "giong-quet" ? <ScanVoiceTab /> : null}
+      {tab === "hoa-don" ? <InvoiceAutoIssueTab /> : null}
+      {tab === "nop-tien" ? <DepositAccountTab /> : null}
+    </div>
   );
 }
 

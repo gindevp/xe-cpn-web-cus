@@ -18,11 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  officeName,
-  canonicalOfficeCode,
-  type Order,
-} from "@/lib/mock-data";
+import { officeName, canonicalOfficeCode, type Order } from "@/lib/mock-data";
 import { useStore, type OrderX, type TripX } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { useRefreshOrdersOnMount, refreshOrdersNow } from "@/lib/use-orders-poll";
@@ -75,12 +71,31 @@ import {
   assignShipper,
   autoCallCatchUp,
   type AutoCallCatchUpResult,
+  type OrderSummary,
 } from "@/lib/api/domain-api";
-import { AssignShipperDialog, type ExternalAssign, type InternalAssign } from "@/components/AssignShipperDialog";
+import {
+  AssignShipperDialog,
+  type ExternalAssign,
+  type InternalAssign,
+} from "@/components/AssignShipperDialog";
 import { AhamoveInfo, InternalShipperInfo } from "@/components/AhamoveInfo";
 import { createFileRoute } from "@tanstack/react-router";
-import { AssignVehiclePicker, findOpenTripByPlate, pickDepartMatch, realDriverName, realVehiclePlate, tripAuditFields, tripItineraryLabel, type AssignVehiclePick } from "@/components/AssignVehiclePicker";
-import { displayOrderNote, handbackAtOrigin, packageCount, warehouseInSeqs } from "@/lib/package-label";
+import {
+  AssignVehiclePicker,
+  findOpenTripByPlate,
+  pickDepartMatch,
+  realDriverName,
+  realVehiclePlate,
+  tripAuditFields,
+  tripItineraryLabel,
+  type AssignVehiclePick,
+} from "@/components/AssignVehiclePicker";
+import {
+  displayOrderNote,
+  handbackAtOrigin,
+  packageCount,
+  warehouseInSeqs,
+} from "@/lib/package-label";
 import { customerNotWarehouseReceived } from "@/lib/pending-handover";
 import { loadOriginOffice, unloadTargetOffice } from "@/lib/order-leg";
 import { usePackageActions } from "@/components/PackageActions";
@@ -113,11 +128,7 @@ export const Route = createFileRoute("/nhap-kho-luan-chuyen")({
     ],
   }),
   component: () => (
-    <ProtectedPage
-      title="Nhập kho - Luân chuyển"
-      screen="nhap-kho-luan-chuyen"
-      hidePageTitle
-    >
+    <ProtectedPage title="Nhập kho - Luân chuyển" screen="nhap-kho-luan-chuyen" hidePageTitle>
       <Page />
     </ProtectedPage>
   ),
@@ -136,7 +147,10 @@ type Stage =
 const TH_MUTED = "px-2 py-2 font-semibold text-slate-500";
 
 /** Chuyến xuất phát gần nhất lên trước; xe chưa có giờ xuất phát xếp cuối, cùng giờ thì theo BKS. */
-function byDepartThenPlate(a: { plate: string; departAt?: string }, b: { plate: string; departAt?: string }) {
+function byDepartThenPlate(
+  a: { plate: string; departAt?: string },
+  b: { plate: string; departAt?: string },
+) {
   const ta = a.departAt ? Date.parse(a.departAt) : NaN;
   const tb = b.departAt ? Date.parse(b.departAt) : NaN;
   const va = Number.isFinite(ta) ? ta : Number.NEGATIVE_INFINITY;
@@ -145,14 +159,40 @@ function byDepartThenPlate(a: { plate: string; departAt?: string }, b: { plate: 
   return a.plate.localeCompare(b.plate, "vi");
 }
 
-type StageTimeField = "warehouseInAt" | "tripAssignedAt" | "driverSignedAt" | "destWarehouseInAt" | "shipperAssignedAt";
+type StageTimeField =
+  "warehouseInAt" | "tripAssignedAt" | "driverSignedAt" | "destWarehouseInAt" | "shipperAssignedAt";
 
 /** Mốc hiện dưới mã đơn theo tab; {@code actions} = sự kiện cục bộ (vừa thao tác, chưa đồng bộ lại). */
-const STAGE_TIME: Partial<Record<Stage, { label: string; field: StageTimeField; actions: string[] }>> = {
-  WH_IN: { label: "Nhập kho", field: "warehouseInAt", actions: ["WAREHOUSE_RECEIVE", "WH_IN", "PICKUP_RECEIVED", "CONFIRM", "CREATE", "TRANSIT_HUB_IN"] },
-  TRANSFER_PENDING: { label: "Quét", field: "tripAssignedAt", actions: ["ASSIGN_TRIP", "TRANSFER_PENDING"] },
-  TRANSFERRING: { label: "Ký nhận", field: "driverSignedAt", actions: ["KY_BAN_GIAO_TAI_XE", "SCAN_OUT", "HANDOVER"] },
-  DEST_WH_IN: { label: "Nhập kho", field: "destWarehouseInAt", actions: ["SCAN_IN", "HUB_IN", "DEST_WH_IN"] },
+const STAGE_TIME: Partial<
+  Record<Stage, { label: string; field: StageTimeField; actions: string[] }>
+> = {
+  WH_IN: {
+    label: "Nhập kho",
+    field: "warehouseInAt",
+    actions: [
+      "WAREHOUSE_RECEIVE",
+      "WH_IN",
+      "PICKUP_RECEIVED",
+      "CONFIRM",
+      "CREATE",
+      "TRANSIT_HUB_IN",
+    ],
+  },
+  TRANSFER_PENDING: {
+    label: "Quét",
+    field: "tripAssignedAt",
+    actions: ["ASSIGN_TRIP", "TRANSFER_PENDING"],
+  },
+  TRANSFERRING: {
+    label: "Ký nhận",
+    field: "driverSignedAt",
+    actions: ["KY_BAN_GIAO_TAI_XE", "SCAN_OUT", "HANDOVER"],
+  },
+  DEST_WH_IN: {
+    label: "Nhập kho",
+    field: "destWarehouseInAt",
+    actions: ["SCAN_IN", "HUB_IN", "DEST_WH_IN"],
+  },
   DELIVERING: { label: "Gán ship", field: "shipperAssignedAt", actions: ["DELIVERING"] },
 };
 
@@ -240,12 +280,7 @@ const TABS: { key: Stage; label: string; hint: string; action?: string; next?: S
 const HANDOVER_TABS = new Set<Stage>(["DEST_WH_IN"]);
 
 /** Tab phía VP nhận (kho giao / đang giao / fail). Còn lại = phía VP gửi. */
-const DEST_PIPELINE_TABS = new Set<Stage>([
-  "DEST_WH_IN",
-  "DELIVERING",
-  "FAILED",
-  "REDELIVER_WAIT",
-]);
+const DEST_PIPELINE_TABS = new Set<Stage>(["DEST_WH_IN", "DELIVERING", "FAILED", "REDELIVER_WAIT"]);
 
 function isDestPipelineTab(tab: Stage) {
   return DEST_PIPELINE_TABS.has(tab);
@@ -324,7 +359,6 @@ function deriveStage(o: Order): Stage | null {
   // Đơn tạo tại quầy → đã có hàng tại kho gửi
   if (o.status === "CONFIRMED") return "WH_IN";
   return null;
-
 }
 
 function stageOf(o: Order): Stage | null {
@@ -355,7 +389,13 @@ function matchesPipelineTab(o: Order, tab: Stage, stage: Stage | null): boolean 
 }
 
 /** Cột "Kiện": tổng số kiện + tiến độ quét nhập kho giao khi đơn đang dở. */
-function InboundCountCell({ order, context }: { order: Order; context: "ON_TRUCK" | "DEST_WH_IN" }) {
+function InboundCountCell({
+  order,
+  context,
+}: {
+  order: Order;
+  context: "ON_TRUCK" | "DEST_WH_IN";
+}) {
   const total = packageCount(order);
   const inCount = warehouseInSeqs(order).length;
   if (inCount === 0 && context === "ON_TRUCK") return <>{total}</>;
@@ -375,7 +415,12 @@ function InboundCountCell({ order, context }: { order: Order; context: "ON_TRUCK
   return (
     <div className="leading-tight" title={`Đã quét nhập kho giao ${inCount}/${total} kiện`}>
       <div>{total}</div>
-      <div className={cn("whitespace-nowrap text-[11px]", context === "ON_TRUCK" ? "text-sky-700" : "text-amber-700")}>
+      <div
+        className={cn(
+          "whitespace-nowrap text-[11px]",
+          context === "ON_TRUCK" ? "text-sky-700" : "text-amber-700",
+        )}
+      >
         {context === "ON_TRUCK" ? `đã xuống ${inCount}/${total}` : `thiếu kiện ${inCount}/${total}`}
       </div>
     </div>
@@ -393,9 +438,7 @@ function driverOf(order: Order, trip?: TripX): string {
 function plateOf(order: Order, tripByCode: Map<string, TripX>): { key: string; plate: string } {
   const trip = order.tripCode ? tripByCode.get(order.tripCode) : undefined;
   // Ưu tiên biển trên đơn (API luôn trả) — store.trips của VP bị lọc theo VP nên hay thiếu chuyến → trước đây fallback ra mã chuyến.
-  const plate =
-    realVehiclePlate(order.vehiclePlate) ||
-    realVehiclePlate(trip?.bks);
+  const plate = realVehiclePlate(order.vehiclePlate) || realVehiclePlate(trip?.bks);
   if (plate) return { key: plate.toUpperCase(), plate };
   if (order.tripCode) return { key: `trip:${order.tripCode}`, plate: order.tripCode };
   return { key: UNASSIGNED_PLATE, plate: UNASSIGNED_PLATE };
@@ -420,15 +463,24 @@ type VehicleGroup = {
 
 /** VP_ND_77 → ND, VP_BC → BC. */
 function officeShort(code: string): string {
-  return code.replace(/^VP[_\s.-]*/i, "").split(/[_\s.-]/)[0].toUpperCase() || code;
+  return (
+    code
+      .replace(/^VP[_\s.-]*/i, "")
+      .split(/[_\s.-]/)[0]
+      .toUpperCase() || code
+  );
 }
 
 /** Chặng xe đang chạy của đơn: leg gắn chuyến hiện tại, không có thì VP gửi → VP nhận. */
 function segmentOf(o: Order): { from: string; to: string } {
   if (o.hubOffice) return { from: loadOriginOffice(o), to: unloadTargetOffice(o) };
   const legs = o.legs ?? [];
-  const leg = legs.find((l) => o.tripCode && l.tripCode === o.tripCode) ?? legs[o.currentLegIndex ?? -1];
-  return { from: leg?.fromOffice || o.fromOffice || "", to: leg?.toOffice || orderReceiverOffice(o) || "" };
+  const leg =
+    legs.find((l) => o.tripCode && l.tripCode === o.tripCode) ?? legs[o.currentLegIndex ?? -1];
+  return {
+    from: leg?.fromOffice || o.fromOffice || "",
+    to: leg?.toOffice || orderReceiverOffice(o) || "",
+  };
 }
 
 type VehicleHealth = "ok" | "watch" | "late";
@@ -448,7 +500,9 @@ function vehicleHealth(oldestAt?: string): VehicleHealth {
 }
 
 /** Gom xe (đã sắp theo giờ xuất phát) thành từng khung giờ. */
-function departSlots(groups: VehicleGroup[]): { key: string; label: string; groups: VehicleGroup[] }[] {
+function departSlots(
+  groups: VehicleGroup[],
+): { key: string; label: string; groups: VehicleGroup[] }[] {
   const out: { key: string; label: string; groups: VehicleGroup[] }[] = [];
   for (const g of groups) {
     const clock = formatDepartFull(g.departAt);
@@ -483,7 +537,13 @@ function ChipList({ codes }: { codes: string[] }) {
         <OfficeChip key={c} code={c} />
       ))}
       {codes.length > shown.length ? (
-        <span className="text-xs text-muted-foreground" title={codes.slice(3).map((c) => officeName(c) || c).join(", ")}>
+        <span
+          className="text-xs text-muted-foreground"
+          title={codes
+            .slice(3)
+            .map((c) => officeName(c) || c)
+            .join(", ")}
+        >
           +{codes.length - shown.length}
         </span>
       ) : null}
@@ -537,7 +597,10 @@ function Page() {
   const [inboundPlatesOpen, setInboundPlatesOpen] = useState(false);
   const [shipperCode, setShipperCode] = useState<string | null>(null);
   const [ahamoveCancelling, setAhamoveCancelling] = useState(false);
-  const [inboundOrderList, setInboundOrderList] = useState<{ title: string; rows: OrderListRow[] } | null>(null);
+  const [inboundOrderList, setInboundOrderList] = useState<{
+    title: string;
+    rows: OrderListRow[];
+  } | null>(null);
   const openInboundOrders = (title: string, list: OrderX[]) =>
     setInboundOrderList({
       title,
@@ -550,7 +613,8 @@ function Page() {
   // VP nhận quét / nhập kho giao → tab Hàng trên xe của VP gửi tự cập nhật.
   useRefreshOrdersOnMount();
   const ordersLoad = useOrdersLoadState();
-  const loadingMore = ordersLoad.firstPageReady && !ordersLoad.fullyLoaded ? " · đang tải thêm…" : "";
+  const loadingMore =
+    ordersLoad.firstPageReady && !ordersLoad.fullyLoaded ? " · đang tải thêm…" : "";
 
   const toggleOrderPkgs = (code: string) => {
     setExpandedOrders((prev) => {
@@ -602,11 +666,17 @@ function Page() {
       ),
     [base, scopedOffice, counterOffice],
   );
-  useJumpToMatchingTab(q, tab, counts, TABS.map((t) => t.key), (k) => {
-    setTab(k);
-    setSelected(new Set());
-    setExpandedPlates(new Set());
-  });
+  useJumpToMatchingTab(
+    q,
+    tab,
+    counts,
+    TABS.map((t) => t.key),
+    (k) => {
+      setTab(k);
+      setSelected(new Set());
+      setExpandedPlates(new Set());
+    },
+  );
 
   const tabRows = useMemo(
     () =>
@@ -679,7 +749,10 @@ function Page() {
       .filter((g) => g.orders.length > 0 && g.qty > 0)
       .sort(byDepartThenPlate);
   }, [rows, tripByCode, tab]);
-  const { pageRows: pageGroups, pager: groupPager } = usePagedRows(vehicleGroups, "nhap-kho-luan-chuyen-xe");
+  const { pageRows: pageGroups, pager: groupPager } = usePagedRows(
+    vehicleGroups,
+    "nhap-kho-luan-chuyen-xe",
+  );
   const [groupLimit, setGroupLimit] = useState<Record<string, number>>({});
 
   /** Xe đang mang hàng tới VP đang xem — chỉ đếm đơn/kiện giao tới VP đó. */
@@ -751,8 +824,8 @@ function Page() {
 
       // Đơn đang hoàn: chỉ đổi forwardStage, giữ status RETURNING tới khi POD → RETURNED.
       if (o.status === "RETURNING") {
-      st.updateOrder(code, {
-        stage: next,
+        st.updateOrder(code, {
+          stage: next,
           updatedAt: at,
           events: [...(o.events ?? []), { at, by, action: next, detail }],
         } as Partial<Order>);
@@ -808,12 +881,21 @@ function Page() {
       const o = st.orders.find((x) => x.code === code);
       return o && o.status !== "DELIVERED" && o.status !== "RETURNED";
     });
-    const pending = live.filter((code) => !ahamovePodBlocked(st.orders.find((x) => x.code === code), session?.role));
+    const pending = live.filter(
+      (code) =>
+        !ahamovePodBlocked(
+          st.orders.find((x) => x.code === code),
+          session?.role,
+        ),
+    );
     if (pending.length < live.length) {
-      toast.warning(`Bỏ qua ${live.length - pending.length} đơn đang giao qua Ahamove — tự giao thành công khi Ahamove báo về`);
+      toast.warning(
+        `Bỏ qua ${live.length - pending.length} đơn đang giao qua Ahamove — tự giao thành công khi Ahamove báo về`,
+      );
     }
     if (!pending.length) {
-      if (pending.length === live.length) toast.error("Không có đơn cần giao (đã giao/hoàn hoặc không tìm thấy)");
+      if (pending.length === live.length)
+        toast.error("Không có đơn cần giao (đã giao/hoàn hoặc không tìm thấy)");
       return;
     }
     setPodCodes(pending);
@@ -848,13 +930,20 @@ function Page() {
     for (const code of codes) {
       const o = st.orders.find((x) => x.code === code);
       if (!o || o.status !== "FAILED_DELIVERY") continue;
-      const tr = st.transitionOrder(code, "AT_DEST", "REDELIVER_IN", "Nhập kho giao lại — chờ bàn giao giao lại");
+      const tr = st.transitionOrder(
+        code,
+        "AT_DEST",
+        "REDELIVER_IN",
+        "Nhập kho giao lại — chờ bàn giao giao lại",
+      );
       if (!tr.ok) {
         toast.error(`${code}: ${tr.error}`);
         continue;
       }
       useStore.setState((s) => ({
-        orders: s.orders.map((x) => (x.code === code ? { ...x, stage: "DEST_WH_IN", updatedAt: at } : x)),
+        orders: s.orders.map((x) =>
+          x.code === code ? { ...x, stage: "DEST_WH_IN", updatedAt: at } : x,
+        ),
       }));
       okCount++;
     }
@@ -866,14 +955,14 @@ function Page() {
   };
 
   /** Giao thất bại → Giao thành công (POD + lý do bắt buộc). Chỉ Admin / Điều phối. */
-  const canDeliverFromFailed = tab === "FAILED" && (session?.role === "AD" || session?.role === "DH");
+  const canDeliverFromFailed =
+    tab === "FAILED" && (session?.role === "AD" || session?.role === "DH");
   /** Quên quét giao khách / Ahamove mất callback: Admin giao thành công bù từ Nhập kho giao. */
   const canCatchUpDeliver = tab === "DEST_WH_IN" && session?.role === "AD";
 
   /** Chuyển hoàn về người gửi — POST /return-start; giữ forwardStage trên pipeline chung. */
   const canStartReturn = tab === "WH_IN" || tab === "DEST_WH_IN" || tab === "FAILED";
-  const canPressReturn =
-    canStartReturn && (session?.role === "AD" || session?.role === "DH");
+  const canPressReturn = canStartReturn && (session?.role === "AD" || session?.role === "DH");
 
   const startReturn = (codes: string[], reason: string) => {
     if (!codes.length || !canPressReturn) return;
@@ -942,7 +1031,9 @@ function Page() {
   const canUnassignTrip = tab === "TRANSFER_PENDING" || canUnassignTransferring;
   const cancelReturn = async (codes: string[]) => {
     if (!canCancelReturn || !codes.length) return;
-    const pending = codes.filter((code) => isCancelableReturn(useStore.getState().orders.find((x) => x.code === code)));
+    const pending = codes.filter((code) =>
+      isCancelableReturn(useStore.getState().orders.find((x) => x.code === code)),
+    );
     if (!pending.length) {
       toast.error("Chỉ huỷ được đơn đang hoàn còn ở nhập kho gửi / nhập kho (chưa lên xe)");
       return;
@@ -955,7 +1046,7 @@ function Page() {
     for (const code of pending) {
       try {
         const dto = await domain.returnCancel(code, "Huỷ hoàn (admin)");
-        const mapped = domain.mapOrder(dto as any);
+        const mapped = domain.mapOrder(dto as OrderSummary);
         const restored = (mapped.stage as Stage | undefined) ?? null;
         const at = new Date().toISOString();
         const by = useStore.getState().session?.username ?? "system";
@@ -966,9 +1057,9 @@ function Page() {
                   ...o,
                   ...mapped,
                   returnStage: undefined,
-        updatedAt: at,
-        events: [
-          ...(o.events ?? []),
+                  updatedAt: at,
+                  events: [
+                    ...(o.events ?? []),
                     { at, by, action: "RETURN_CANCEL", detail: "Huỷ hoàn (admin)" },
                   ],
                 }
@@ -977,14 +1068,14 @@ function Page() {
         }));
         useStore.getState().audit({
           action: "RETURN_CANCEL",
-        entityType: "order",
-        entityId: code,
+          entityType: "order",
+          entityId: code,
           detail: restored ? `→ ${restored}` : "Huỷ hoàn",
-      });
+        });
         if (restored) lastStage = restored;
         ok++;
-      } catch (e: any) {
-        toast.error(e?.message || `Không huỷ hoàn được ${code}`);
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : `Không huỷ hoàn được ${code}`);
       }
     }
     setSelected(new Set());
@@ -1009,9 +1100,13 @@ function Page() {
   const isCancellable = (o: Order | undefined) =>
     Boolean(o) && (o!.status === "CONFIRMED" || o!.status === "WAITING");
   const [cancelCodes, setCancelCodes] = useState<string[]>([]);
-  const cancelHasTransfer = cancelCodes.some((c) => orders.find((o) => o.code === c)?.transferPaidAt);
+  const cancelHasTransfer = cancelCodes.some(
+    (c) => orders.find((o) => o.code === c)?.transferPaidAt,
+  );
   const askCancelOrders = (codes: string[]) => {
-    const pending = codes.filter((c) => isCancellable(useStore.getState().orders.find((x) => x.code === c)));
+    const pending = codes.filter((c) =>
+      isCancellable(useStore.getState().orders.find((x) => x.code === c)),
+    );
     if (!pending.length) {
       toast.error("Không có đơn huỷ được (đơn hoàn / đã lên xe không huỷ ở đây)");
       return;
@@ -1022,9 +1117,13 @@ function Page() {
   const isCancelRequestable = (o: Order | undefined) =>
     Boolean(o) && o!.status === "CONFIRMED" && !o!.tripCode;
   const [cancelRequestCodes, setCancelRequestCodes] = useState<string[]>([]);
-  const cancelRequestHasTransfer = cancelRequestCodes.some((c) => orders.find((o) => o.code === c)?.transferPaidAt);
+  const cancelRequestHasTransfer = cancelRequestCodes.some(
+    (c) => orders.find((o) => o.code === c)?.transferPaidAt,
+  );
   const askCancelRequest = (codes: string[]) => {
-    const pending = codes.filter((c) => isCancelRequestable(useStore.getState().orders.find((x) => x.code === c)));
+    const pending = codes.filter((c) =>
+      isCancelRequestable(useStore.getState().orders.find((x) => x.code === c)),
+    );
     if (!pending.length) {
       toast.error("Không có đơn gửi yêu cầu huỷ được (đơn hoàn / đã gán xe không huỷ ở đây)");
       return;
@@ -1039,8 +1138,8 @@ function Page() {
       try {
         await domain.openIssue(code, "CANCEL_REQUEST", reason);
         sent.add(code);
-      } catch (e: any) {
-        toast.error(e?.message || `Không gửi được yêu cầu huỷ ${code}`);
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : `Không gửi được yêu cầu huỷ ${code}`);
       }
     }
     setSelected(new Set());
@@ -1073,10 +1172,12 @@ function Page() {
               : o,
           ),
         }));
-        useStore.getState().audit({ action: "CANCEL", entityType: "order", entityId: code, detail });
+        useStore
+          .getState()
+          .audit({ action: "CANCEL", entityType: "order", entityId: code, detail });
         ok++;
-      } catch (e: any) {
-        toast.error(e?.message || `Không huỷ được ${code}`);
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : `Không huỷ được ${code}`);
       }
     }
     setSelected(new Set());
@@ -1125,12 +1226,15 @@ function Page() {
     setAssigning(true);
     try {
       const domain = await import("@/lib/api/domain-api");
-      const { syncOrdersFromApi, syncTripsFromApi, resolveOfficeCodeStrict } = await import("@/lib/api/sync");
+      const { syncOrdersFromApi, syncTripsFromApi, resolveOfficeCodeStrict } =
+        await import("@/lib/api/sync");
       const sessionOffice = assignedOfficeCode(
         resolveViewOffice(useStore.getState().session, useStore.getState().viewOffice),
       );
       const officeCode =
-        (sessionOffice && sessionOffice !== "ALL" ? resolveOfficeCodeStrict(sessionOffice) : null) ||
+        (sessionOffice && sessionOffice !== "ALL"
+          ? resolveOfficeCodeStrict(sessionOffice)
+          : null) ||
         useStore.getState().offices[0]?.code ||
         "";
       if (!officeCode) {
@@ -1166,7 +1270,8 @@ function Page() {
         : [];
       const match = pickDepartMatch(assignPick);
       const existing = plate
-        ? findOpenTripByPlate(listed, plate, match) ?? findOpenTripByPlate(useStore.getState().trips, plate, match)
+        ? (findOpenTripByPlate(listed, plate, match) ??
+          findOpenTripByPlate(useStore.getState().trips, plate, match))
         : undefined;
 
       const trip =
@@ -1182,7 +1287,7 @@ function Page() {
           departAt: assignPick.tab === "vthk" ? assignPick.trip.departAt : assignPick.departAt,
         }));
       await domain.assignOrdersToTrip(trip.code, assignCodes, itineraryLabel, driverName);
-    const at = new Date().toISOString();
+      const at = new Date().toISOString();
       const assigned = new Set(assignCodes);
       const tripForStore = {
         ...trip,
@@ -1196,12 +1301,12 @@ function Page() {
           assigned.has(o.code)
             ? {
                 ...o,
-        stage: "TRANSFER_PENDING",
-        tripCode: trip.code,
+                stage: "TRANSFER_PENDING",
+                tripCode: trip.code,
                 vehiclePlate: realVehiclePlate(tripForStore.bks) || o.vehiclePlate,
                 driverName: realDriverName(tripForStore.driver) || o.driverName,
                 departAt: tripForStore.departAt || o.departAt,
-        updatedAt: at,
+                updatedAt: at,
               }
             : o,
         ),
@@ -1221,8 +1326,8 @@ function Page() {
             )
           : [tripForStore, ...st.trips],
       }));
-    setAssignOpen(false);
-    setSelected(new Set());
+      setAssignOpen(false);
+      setSelected(new Set());
       setTab("TRANSFER_PENDING");
       const verb = reassignFrom ? "chuyển" : "gán";
       toast.success(
@@ -1230,8 +1335,8 @@ function Page() {
           ? `Đã ${verb} ${assignCodes.length} đơn sang xe ${plate}`
           : `Đã ${verb} ${assignCodes.length} đơn lên chuyến (chưa có BKS/tài xế)`,
       );
-    } catch (e: any) {
-      toast.error(e?.message || "Không gán được chuyến trên máy chủ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không gán được chuyến trên máy chủ");
     } finally {
       assigningRef.current = false;
       setAssigning(false);
@@ -1274,9 +1379,7 @@ function Page() {
       if (removed.size) {
         useStore.setState((st) => ({
           orders: st.orders.map((o) =>
-            removed.has(o.code)
-              ? { ...o, stage: "WH_IN", tripCode: undefined, updatedAt: at }
-              : o,
+            removed.has(o.code) ? { ...o, stage: "WH_IN", tripCode: undefined, updatedAt: at } : o,
           ),
         }));
       }
@@ -1288,8 +1391,8 @@ function Page() {
         if (tab === "TRANSFERRING") setTab("WH_IN");
       }
       if (failed) toast.error(`${failed} đơn không gỡ được khỏi xe`);
-    } catch (e: any) {
-      toast.error(e?.message || "Không gỡ được đơn khỏi xe");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không gỡ được đơn khỏi xe");
     } finally {
       setUnassigning(false);
     }
@@ -1337,7 +1440,11 @@ function Page() {
   const assignInternal = async (o: OrderX, { shipper, note }: InternalAssign) => {
     const who = `${shipper.fullName}${shipper.phone ? ` · ${shipper.phone}` : ""}`;
     if (isApiEnabled() && (o.status === "AT_DEST" || o.status === "FAILED_DELIVERY")) {
-      await assignShipper(o.code, { mode: "INTERNAL", shipperId: shipper.id, note: note || undefined });
+      await assignShipper(o.code, {
+        mode: "INTERNAL",
+        shipperId: shipper.id,
+        note: note || undefined,
+      });
       toast.success(`Đã bàn giao ${o.code} cho ${who}`);
       setSelected(new Set());
       setTab("DELIVERING");
@@ -1345,7 +1452,11 @@ function Page() {
       return true;
     }
     // Đơn đang hoàn chỉ đổi bước (giữ RETURNING) — đi luồng cũ, ghi tên shipper vào lịch sử.
-    move([o.code], "DELIVERING", `${activeTab.label} → Bàn giao shipper ${who}${note ? ` — ${note}` : ""}`);
+    move(
+      [o.code],
+      "DELIVERING",
+      `${activeTab.label} → Bàn giao shipper ${who}${note ? ` — ${note}` : ""}`,
+    );
     return true;
   };
 
@@ -1385,7 +1496,12 @@ function Page() {
       (selectedOne.status === "FAILED_DELIVERY" && ahamoveRunning));
   const cancelAhamove = async (o: OrderX) => {
     const grab = o.partnerCode === "GRAB";
-    if (!window.confirm(`Hủy đơn ${grab ? "Grab" : "Ahamove"} của ${o.code}? Chỉ hủy được khi tài xế chưa lấy hàng.`)) return;
+    if (
+      !window.confirm(
+        `Hủy đơn ${grab ? "Grab" : "Ahamove"} của ${o.code}? Chỉ hủy được khi tài xế chưa lấy hàng.`,
+      )
+    )
+      return;
     setAhamoveCancelling(true);
     try {
       if (grab) await grabCancel(o.code, "CPN hủy giao Grab");
@@ -1393,8 +1509,8 @@ function Page() {
       toast.success(`Đã hủy ${grab ? "Grab" : "Ahamove"} — ${o.code} chuyển Giao thất bại`);
       setSelected(new Set());
       void refreshOrdersNow();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Hủy Ahamove thất bại");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Hủy Ahamove thất bại");
     } finally {
       setAhamoveCancelling(false);
     }
@@ -1467,19 +1583,20 @@ function Page() {
     </div>
   );
 
+  /** Icon tab — khớp design-ref NhapKho.dc.html (TI). */
   const tabIcons: Partial<Record<Stage, string>> = {
-    PICKED: "handshake",
-    WH_IN: "warehouse",
-    TRANSFER_PENDING: "pending",
+    PICKED: "move_to_inbox",
+    WH_IN: "inventory_2",
+    TRANSFER_PENDING: "sync_alt",
     TRANSFERRING: "local_shipping",
-    DEST_WH: "store",
-    DELIVERING: "directions_bike",
-    DELIVERY_FAILED: "report",
+    DEST_WH_IN: "warehouse",
+    DELIVERING: "delivery_dining",
+    FAILED: "assignment_late",
   };
 
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader title={activeTab.label} description={activeTab.hint} />
+      <M3PageHeader title="Nhập kho - Luân chuyển" description={activeTab.hint} />
 
       <StageTabRow>
         {TABS.map((t) => (
@@ -1504,7 +1621,11 @@ function Page() {
       <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
         {showCounterOffice && isDestPipelineTab(tab) ? counterOfficeSelect : null}
         {showCounterOffice && session?.role === "DH" ? null : (
-          <div className="field" style={{ flex: "0 0 200px" }} title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}>
+          <div
+            className="field"
+            style={{ flex: "0 0 200px" }}
+            title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}
+          >
             <span className="l">{isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}</span>
             <SearchableSelect
               value={viewOffice}
@@ -1531,8 +1652,13 @@ function Page() {
         right={
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
             {tab === "TRANSFERRING" && scopedOffice ? (
-              <button type="button" className="btn tonal" onClick={() => setInboundPlatesOpen(true)}>
-                Xe đang tới ({inboundTotals.vehicles} BKS · {inboundTotals.orders} đơn · {inboundTotals.packages} kiện)
+              <button
+                type="button"
+                className="btn tonal"
+                onClick={() => setInboundPlatesOpen(true)}
+              >
+                Xe đang tới ({inboundTotals.vehicles} BKS · {inboundTotals.orders} đơn ·{" "}
+                {inboundTotals.packages} kiện)
               </button>
             ) : null}
             {canReassign && (
@@ -1566,7 +1692,10 @@ function Page() {
               </button>
             )}
             {tab === "DEST_WH_IN" && (
-              <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <label
+                className="lab"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+              >
                 <input
                   className="check"
                   type="checkbox"
@@ -1599,7 +1728,10 @@ function Page() {
               <button
                 type="button"
                 className="btn text"
-                disabled={selected.size === 0 || ![...selected].some((c) => isCancelableReturn(orders.find((x) => x.code === c)))}
+                disabled={
+                  selected.size === 0 ||
+                  ![...selected].some((c) => isCancelableReturn(orders.find((x) => x.code === c)))
+                }
                 onClick={() => void cancelReturn([...selected])}
               >
                 Huỷ hoàn ({selected.size})
@@ -1649,28 +1781,28 @@ function Page() {
             {canAhamove &&
               (tab === "DEST_WH_IN" || tab === "DELIVERING" || tab === "FAILED") &&
               ahamoveCancellable && (
-              <button
-                type="button"
-                className="btn text"
-                disabled={ahamoveCancelling}
-                onClick={() => selectedOne && void cancelAhamove(selectedOne)}
-              >
-                {ahamoveCancelling ? "Đang hủy…" : "Hủy Ahamove"}
-              </button>
-            )}
+                <button
+                  type="button"
+                  className="btn text"
+                  disabled={ahamoveCancelling}
+                  onClick={() => selectedOne && void cancelAhamove(selectedOne)}
+                >
+                  {ahamoveCancelling ? "Đang hủy…" : "Hủy Ahamove"}
+                </button>
+              )}
             {tab !== "TRANSFERRING" &&
               !HANDOVER_TABS.has(tab) &&
               activeTab.action &&
               !(tab === "WH_IN" && !canAssignOnWeb) && (
-              <button
-                type="button"
-                className="btn"
-                disabled={selected.size === 0}
-                onClick={() => runAction([...selected])}
-              >
-                {activeTab.action} ({selected.size})
-              </button>
-            )}
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={selected.size === 0}
+                  onClick={() => runAction([...selected])}
+                >
+                  {activeTab.action} ({selected.size})
+                </button>
+              )}
             {canDeliverFromFailed && (
               <button
                 type="button"
@@ -1701,7 +1833,9 @@ function Page() {
         }
       >
         {rows.length === 0 ? (
-          <EmptyState>{ordersLoad.fullyLoaded ? "Không có đơn trong mục này" : "Đang tải đơn…"}</EmptyState>
+          <EmptyState>
+            {ordersLoad.fullyLoaded ? "Không có đơn trong mục này" : "Đang tải đơn…"}
+          </EmptyState>
         ) : tab === "TRANSFERRING" || tab === "TRANSFER_PENDING" ? (
           <>
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -1720,7 +1854,14 @@ function Page() {
                           onClick={() => setVehicleSheetKey(g.key)}
                         >
                           <span className="plate">{g.plate}</span>
-                          <span style={{ display: "block", fontSize: 13, lineHeight: "18px", fontWeight: 500 }}>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: 13,
+                              lineHeight: "18px",
+                              fontWeight: 500,
+                            }}
+                          >
                             {g.driver || "—"}
                             {g.route ? (
                               <span className="sub" style={{ fontWeight: 400 }}>
@@ -1786,9 +1927,19 @@ function Page() {
                   variant="sheet"
                   alignTop
                 >
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 16,
+                    }}
+                  >
                     <div>
-                      <M3SheetTitle className="num" style={{ margin: 0, fontSize: 22, lineHeight: "28px" }}>
+                      <M3SheetTitle
+                        className="num"
+                        style={{ margin: 0, fontSize: 22, lineHeight: "28px" }}
+                      >
                         {g.plate}
                       </M3SheetTitle>
                       <div className="muted" style={{ fontSize: 13, lineHeight: "20px" }}>
@@ -1802,7 +1953,12 @@ function Page() {
                           type="button"
                           className="btn tonal"
                           style={{ height: 36 }}
-                          onClick={() => openReassign(g.orders.map((o) => o.code), g.plate)}
+                          onClick={() =>
+                            openReassign(
+                              g.orders.map((o) => o.code),
+                              g.plate,
+                            )
+                          }
                         >
                           Chuyển xe
                         </button>
@@ -1810,7 +1966,10 @@ function Page() {
                       <M3SheetClose />
                     </div>
                   </div>
-                  <div className="num" style={{ display: "flex", flexWrap: "wrap", gap: "8px 32px" }}>
+                  <div
+                    className="num"
+                    style={{ display: "flex", flexWrap: "wrap", gap: "8px 32px" }}
+                  >
                     <div>
                       <div className="val-sm">{g.orders.length}</div>
                       <div className="sub" style={{ margin: 0 }}>
@@ -1839,7 +1998,9 @@ function Page() {
                               <input
                                 className="check"
                                 type="checkbox"
-                                checked={g.orders.length > 0 && g.orders.every((r) => selected.has(r.code))}
+                                checked={
+                                  g.orders.length > 0 && g.orders.every((r) => selected.has(r.code))
+                                }
                                 onChange={(e) => {
                                   const on = e.target.checked;
                                   setSelected((prev) => {
@@ -1903,13 +2064,19 @@ function Page() {
                               <td>
                                 <div className="act">
                                   {activeTab.action ? (
-                                    <button type="button" className="ok" onClick={() => runAction([r.code])}>
+                                    <button
+                                      type="button"
+                                      className="ok"
+                                      onClick={() => runAction([r.code])}
+                                    >
                                       {activeTab.action}
                                     </button>
                                   ) : null}
                                   <NhapKhoRowActions code={r.code}>
                                     {canReassign ? (
-                                      <DropdownMenuItem onClick={() => openReassign([r.code], g.plate)}>
+                                      <DropdownMenuItem
+                                        onClick={() => openReassign([r.code], g.plate)}
+                                      >
                                         <Truck className="mr-2 h-4 w-4" /> Chuyển xe
                                       </DropdownMenuItem>
                                     ) : null}
@@ -2005,7 +2172,8 @@ function Page() {
                           <StageTime order={r} tab={tab} />
                           {isReturnFlow(r) ? <span className="sub">HOÀN</span> : null}
                           {r.homeDelivery ? <span className="sub">Giao tận nơi</span> : null}
-                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? (
+                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") &&
+                          r.partnerOrderId ? (
                             <AhamoveInfo order={r} />
                           ) : (
                             <InternalShipperInfo order={r} />
@@ -2037,23 +2205,27 @@ function Page() {
                         />
                         <OrderFeeCell order={r} />
                         {tab === "DEST_WH_IN" ? (
-                          <td className="muted">
-                            {displayOrderNote(r.note).trim() || "—"}
-                          </td>
+                          <td className="muted">{displayOrderNote(r.note).trim() || "—"}</td>
                         ) : null}
                         <td>
                           <div className="act">
                             {activeTab.action &&
                             !(tab === "WH_IN" && !canAssignOnWeb) &&
                             !(tab === "DELIVERING" && ahamovePodBlocked(r, session?.role)) ? (
-                              <button type="button" className="ok" onClick={() => runAction([r.code])}>
+                              <button
+                                type="button"
+                                className="ok"
+                                onClick={() => runAction([r.code])}
+                              >
                                 {activeTab.action}
                               </button>
                             ) : null}
                             <NhapKhoRowActions code={r.code}>
                               {tab === "WH_IN" || tab === "DEST_WH_IN" ? (
                                 <DropdownMenuItem
-                                  onClick={() => setPrintTarget({ code: r.code, batchPackages: true })}
+                                  onClick={() =>
+                                    setPrintTarget({ code: r.code, batchPackages: true })
+                                  }
                                 >
                                   <Printer className="mr-2 h-4 w-4" /> In các kiện
                                 </DropdownMenuItem>
@@ -2063,7 +2235,9 @@ function Page() {
                                   <XCircle className="mr-2 h-4 w-4" /> Thất bại
                                 </DropdownMenuItem>
                               ) : null}
-                              {canPressReturn && r.status !== "RETURNING" && r.status !== "RETURNED" ? (
+                              {canPressReturn &&
+                              r.status !== "RETURNING" &&
+                              r.status !== "RETURNED" ? (
                                 <DropdownMenuItem onClick={() => askStartReturn([r.code])}>
                                   <Undo2 className="mr-2 h-4 w-4" /> Hoàn người gửi
                                 </DropdownMenuItem>
@@ -2186,12 +2360,10 @@ function Page() {
       <Dialog open={inboundPlatesOpen} onOpenChange={setInboundPlatesOpen}>
         <DialogContent className="max-h-[85vh] w-[min(92vw,680px)] max-w-[680px] overflow-hidden flex flex-col gap-3">
           <DialogHeader>
-            <DialogTitle>
-              Xe đang giao tới {officeName(scopedOffice) || scopedOffice}
-            </DialogTitle>
+            <DialogTitle>Xe đang giao tới {officeName(scopedOffice) || scopedOffice}</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Chỉ đếm đơn / kiện còn trên xe sẽ giao tới VP này (
-              {inboundTotals.vehicles} BKS · {inboundTotals.orders} đơn · {inboundTotals.packages} kiện).
+              Chỉ đếm đơn / kiện còn trên xe sẽ giao tới VP này ({inboundTotals.vehicles} BKS ·{" "}
+              {inboundTotals.orders} đơn · {inboundTotals.packages} kiện).
             </p>
           </DialogHeader>
           {inboundPlateSummary.length === 0 ? (
@@ -2222,7 +2394,9 @@ function Page() {
                           onClick={() => openInboundOrders(`Đơn trên xe ${g.plate}`, g.orders)}
                         />
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium">{g.packageCount}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium">
+                        {g.packageCount}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -2246,8 +2420,8 @@ function Page() {
                   </tr>
                 </tfoot>
               </table>
-                  </div>
-                )}
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setInboundPlatesOpen(false)}>
               Đóng
@@ -2307,7 +2481,9 @@ function Page() {
                   <tbody>
                     {assignRows.map((r) => (
                       <tr key={r.code} className="border-b last:border-0">
-                        <td className="px-2 py-2 font-medium"><OrderCodeLink code={r.code} /></td>
+                        <td className="px-2 py-2 font-medium">
+                          <OrderCodeLink code={r.code} />
+                        </td>
                         <td className="px-2 py-2">{r.senderName ?? r.senderPhone}</td>
                         <td className="px-2 py-2">{r.receiverName}</td>
                         <td className="px-2 py-2 whitespace-nowrap">
@@ -2321,8 +2497,8 @@ function Page() {
                 </table>
               </div>
               <div className="mt-2 text-right text-xs text-muted-foreground">
-                Tổng khối lượng:{" "}
-                {assignRows.reduce((s, r) => s + (r.weightKg ?? 0), 0).toFixed(1)} KG
+                Tổng khối lượng: {assignRows.reduce((s, r) => s + (r.weightKg ?? 0), 0).toFixed(1)}{" "}
+                KG
               </div>
             </div>
           </div>
@@ -2333,8 +2509,12 @@ function Page() {
             </Button>
             <Button disabled={!assignPick || assigning} onClick={confirmAssign}>
               {assigning
-                ? reassignFrom === null ? "Đang gán…" : "Đang chuyển…"
-                : reassignFrom === null ? "Xác nhận gán lên xe" : "Xác nhận chuyển xe"}
+                ? reassignFrom === null
+                  ? "Đang gán…"
+                  : "Đang chuyển…"
+                : reassignFrom === null
+                  ? "Xác nhận gán lên xe"
+                  : "Xác nhận chuyển xe"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2405,9 +2585,12 @@ function NhapKhoRowActions({ code, children }: { code: string; children?: ReactN
       {issueDialog}
       {/* Dialog ngoài menu — đóng dropdown không unmount popup QR */}
       {canTransferQr ? (
-        <OrderTransferQrDialog open={transferQrOpen} orderCode={code} onOpenChange={setTransferQrOpen} />
+        <OrderTransferQrDialog
+          open={transferQrOpen}
+          orderCode={code}
+          onOpenChange={setTransferQrOpen}
+        />
       ) : null}
     </>
   );
 }
-

@@ -230,34 +230,51 @@ function Page() {
   const totalChecks = view?.rows.reduce((n, r) => n + r.total, 0) ?? 0;
 
   return (
-    <div className="space-y-4">
-      <Section>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Tháng</Label>
-            <Input
-              type="month"
-              value={month}
-              onChange={(e) => {
-                setMonth(e.target.value);
-                if (e.target.value) {
-                  const r = monthRange(e.target.value);
-                  setFrom(r.from);
-                  setTo(r.to);
-                }
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Từ ngày</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Đến ngày</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Văn phòng</Label>
+    <div className="stack" style={{ gap: 16 }}>
+      <h1 className="page-title">Chấm công</h1>
+      <section className="card stack">
+        <div className="filter-grid">
+          <label className="field">
+            <span className="l">Tháng</span>
+            <span className="box input-box">
+              <input
+                className="num"
+                type="month"
+                value={month}
+                onChange={(e) => {
+                  setMonth(e.target.value);
+                  if (e.target.value) {
+                    const r = monthRange(e.target.value);
+                    setFrom(r.from);
+                    setTo(r.to);
+                  }
+                }}
+              />
+              <span className="ms" aria-hidden="true">
+                calendar_month
+              </span>
+            </span>
+          </label>
+          <label className="field">
+            <span className="l">Từ ngày</span>
+            <span className="box input-box">
+              <input className="num" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <span className="ms" aria-hidden="true">
+                calendar_today
+              </span>
+            </span>
+          </label>
+          <label className="field">
+            <span className="l">Đến ngày</span>
+            <span className="box input-box">
+              <input className="num" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <span className="ms" aria-hidden="true">
+                calendar_today
+              </span>
+            </span>
+          </label>
+          <div className="field">
+            <span className="l">Văn phòng</span>
             <SearchableSelect
               value={office}
               onValueChange={(v) => {
@@ -272,31 +289,34 @@ function Page() {
               ]}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Nhân viên</Label>
+          <div className="field">
+            <span className="l">Nhân viên</span>
             <SearchableSelect value={login} onValueChange={setLogin} options={staffOptions} />
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm text-muted-foreground">
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div className="lab muted">
             {view
               ? `${view.rows.length} nhân viên · ${checkedStaff} người có chấm công · ${totalChecks} lượt chấm`
               : loading
                 ? "Đang tải…"
                 : "Chưa có dữ liệu"}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => void load()} disabled={loading}>
-              <RefreshCw className="h-4 w-4" /> Xem
-            </Button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <button type="button" className="btn tonal" onClick={() => void load()} disabled={loading}>
+              <span className="ms" aria-hidden="true">
+                refresh
+              </span>
+              Xem
+            </button>
             <ExportFormatButton disabled={!view || view.rows.length === 0} onExport={exportExcel} />
           </div>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="lab muted">
           Xuất theo đúng bộ lọc đang xem: chọn văn phòng để xuất theo VP, chọn nhân viên để xuất cá nhân, để trống để
           xuất toàn hệ thống. CSV: 2 file (Bảng công + Chi tiết). Excel: 1 file .xls gồm 2 sheet.
         </p>
-      </Section>
+      </section>
 
       <StageTabRow className="gap-2.5 md:gap-3">
         <StageTabButton active={tab === "BANG_CONG"} onClick={() => setTab("BANG_CONG")}>
@@ -312,11 +332,17 @@ function Page() {
           <EmptyState>{loading ? "Đang tải…" : "Không có nhân viên nào trong phạm vi lọc"}</EmptyState>
         </Section>
       ) : tab === "BANG_CONG" ? (
-        <Section title={`Bảng công ${viDay(loaded!.from)} – ${viDay(loaded!.to)}`}>
-          <div className="overflow-x-auto">
-            <table className="text-xs">
+        <section className="card stack">
+          <h2 className="group-title sec-title">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">calendar_month</span>
+            </span>
+            Bảng công {viDay(loaded!.from)} – {viDay(loaded!.to)}
+          </h2>
+          <div className="scroller">
+            <table className="tbl">
               <thead>
-                <tr className="border-b bg-muted/40 text-left uppercase text-muted-foreground">
+                <tr>
                   <th className="sticky left-0 z-10 min-w-[200px] bg-muted px-2 py-2">Nhân viên</th>
                   <th className="px-2 py-2 text-right">Ngày công</th>
                   {view.days.map((d) => (
@@ -363,23 +389,29 @@ function Page() {
             </table>
           </div>
           <TablePagination pager={staffPage.pager} />
-        </Section>
+        </section>
       ) : (
-        <Section title={`Chi tiết theo ngày (${detailRows.length})`}>
+        <section className="card stack">
+          <h2 className="group-title sec-title">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">list</span>
+            </span>
+            Chi tiết theo ngày ({detailRows.length})
+          </h2>
           {detailRows.length === 0 ? (
             <EmptyState>Chưa có lượt chấm công nào</EmptyState>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "900px" }}>
                 <thead>
-                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">Ngày</th>
-                    <th className="px-2 py-2">Nhân viên</th>
-                    <th className="px-2 py-2">VP chấm</th>
-                    <th className="px-2 py-2">Giờ vào</th>
-                    <th className="px-2 py-2">Giờ ra</th>
-                    <th className="px-2 py-2 text-right">Số lượt</th>
-                    <th className="px-2 py-2" />
+                  <tr>
+                    <th>Ngày</th>
+                    <th>Nhân viên</th>
+                    <th>VP chấm</th>
+                    <th>Giờ vào</th>
+                    <th>Giờ ra</th>
+                    <th className="r">Số lượt</th>
+                    <th className="r" />
                   </tr>
                 </thead>
                 <tbody>
@@ -410,7 +442,7 @@ function Page() {
               <TablePagination pager={detailPage.pager} />
             </div>
           )}
-        </Section>
+        </section>
       )}
 
       <DetailDialog detail={detail} onClose={() => setDetail(null)} />

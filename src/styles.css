@@ -456,6 +456,58 @@ html.xe-scan-immersive main {
   overflow-x: hidden;
   overflow-y: auto;
 }
+
+/* Thanh cuộn M3 — mỏng, bo tròn; tránh scrollbar OS dày trên popup tạo đơn */
+.scrim.m3-scrim-top {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 32%) transparent;
+}
+.scrim.m3-scrim-top::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrim.m3-scrim-top::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrim.m3-scrim-top::-webkit-scrollbar-thumb {
+  background-color: rgb(255 255 255 / 28%);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scrim.m3-scrim-top::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(255 255 255 / 44%);
+}
+.scrim > .sheet,
+.order-side {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--outline, #757780) 55%, transparent) transparent;
+}
+.scrim > .sheet::-webkit-scrollbar,
+.order-side::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrim > .sheet::-webkit-scrollbar-track,
+.order-side::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 16px; /* lệch khỏi bo góc 28px của sheet */
+}
+.scrim > .sheet::-webkit-scrollbar-thumb,
+.order-side::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--outline, #757780) 48%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scrim > .sheet::-webkit-scrollbar-thumb:hover,
+.order-side::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--outline, #757780) 72%, transparent);
+}
+.scrim > .sheet::-webkit-scrollbar-corner,
+.order-side::-webkit-scrollbar-corner {
+  background: transparent;
+}
 /* Field trong sheet/order: full width, không bị flex 240px cắt */
 .sheet .field,
 .order-box .field,

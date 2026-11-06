@@ -18,7 +18,16 @@ import { formatVND, officeName, canonicalOfficeCode } from "@/lib/mock-data";
 import { useStore, type ReceiptRec } from "@/lib/store";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
 import { downloadExcel, type ExportFormat } from "@/lib/csv";
-import { CheckCircle2, RotateCcw, Clock, ImageIcon, ImagePlus, Loader2, QrCode, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  RotateCcw,
+  Clock,
+  ImageIcon,
+  ImagePlus,
+  Loader2,
+  QrCode,
+  XCircle,
+} from "lucide-react";
 import {
   appendReceiptProofs,
   cancelReceipt,
@@ -41,10 +50,7 @@ import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { PodPhotoInput } from "@/components/PodPhotoInput";
 import { ImageLightbox, isViewableImageUrl } from "@/components/ImageLightbox";
 import { ReceiptPayQrDialog } from "@/components/ReceiptPayQrDialog";
-import {
-  RECEIPT_CONFIRMED_EVENT,
-  type ReceiptConfirmedPayload,
-} from "@/lib/use-realtime-sync";
+import { RECEIPT_CONFIRMED_EVENT, type ReceiptConfirmedPayload } from "@/lib/use-realtime-sync";
 import type { ReceiptTransferQr } from "@/lib/api/finance-config-api";
 
 export const Route = createFileRoute("/danh-sach-phieu-thu")({
@@ -68,7 +74,7 @@ export const Route = createFileRoute("/danh-sach-phieu-thu")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Danh sách phiếu thu" screen="danh-sach-phieu-thu">
+    <ProtectedPage title="Danh sách phiếu thu" screen="danh-sach-phieu-thu" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -127,7 +133,15 @@ function payerLabel(r: ReceiptRec): string {
   return r.payerName || r.payer;
 }
 
-function StaffNameCell({ staffKey, name, account }: { staffKey: string; name?: string; account: string }) {
+function StaffNameCell({
+  staffKey,
+  name,
+  account,
+}: {
+  staffKey: string;
+  name?: string;
+  account: string;
+}) {
   return (
     <div className="min-w-0">
       <StaffInfoPopover staffKey={staffKey} className="font-medium">
@@ -258,7 +272,8 @@ function Page() {
   const [loadingProof, setLoadingProof] = useState<string | null>(null);
   const proofCache = useRef(new Map<string, string[]>());
   const openProof = async (code: string, known?: string) => {
-    const show = (urls: string[]) => setLightbox({ urls, index: 0, title: `Ảnh giao dịch · ${code}` });
+    const show = (urls: string[]) =>
+      setLightbox({ urls, index: 0, title: `Ảnh giao dịch · ${code}` });
     const cached = proofCache.current.get(code) ?? (known && !isApiEnabled() ? [known] : undefined);
     if (cached) return show(cached);
     setLoadingProof(code);
@@ -267,8 +282,8 @@ function Page() {
       if (!urls.length) return void toast.error("Phiếu thu chưa có ảnh giao dịch");
       proofCache.current.set(code, urls);
       show(urls);
-    } catch (e: any) {
-      toast.error(e?.message || "Không tải được ảnh giao dịch");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không tải được ảnh giao dịch");
     } finally {
       setLoadingProof(null);
     }
@@ -276,7 +291,11 @@ function Page() {
   const busyRef = useRef<string | null>(null);
   const apiMode = isApiEnabled();
 
-  const [debounced, setDebounced] = useState({ code: searchCode ?? "", staffCode: "", creator: "" });
+  const [debounced, setDebounced] = useState({
+    code: searchCode ?? "",
+    staffCode: "",
+    creator: "",
+  });
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced({ code, staffCode, creator }), 350);
     return () => window.clearTimeout(t);
@@ -307,14 +326,17 @@ function Page() {
 
   /** Store action xác nhận / hoàn tác tìm phiếu trong store — phiếu ở trang server có thể chưa có. */
   const ensureInStore = (r: ReceiptRec) =>
-    useStore.setState((s) => (s.receipts.some((x) => x.code === r.code) ? s : { receipts: [r, ...s.receipts] }));
+    useStore.setState((s) =>
+      s.receipts.some((x) => x.code === r.code) ? s : { receipts: [r, ...s.receipts] },
+    );
 
   const rows = useMemo(() => {
     const created = (r: ReceiptRec) => {
       const t = Date.parse(r.createdAt);
       return Number.isFinite(t) ? t : 0;
     };
-    const [dayLo, dayHi] = dayFrom && dayTo && dayTo < dayFrom ? [dayTo, dayFrom] : [dayFrom, dayTo];
+    const [dayLo, dayHi] =
+      dayFrom && dayTo && dayTo < dayFrom ? [dayTo, dayFrom] : [dayFrom, dayTo];
     return receipts
       .filter((r) => {
         if (officeScope) {
@@ -368,7 +390,8 @@ function Page() {
         confirmedAt: detail.confirmedAt ?? new Date().toISOString(),
         confirmedBy: detail.confirmedBy ?? "ONEPAY",
         confirmNote: detail.confirmNote?.trim() || undefined,
-        paidTransId: detail.paidTransId?.trim() || paidTransIdFromNote(detail.confirmNote) || undefined,
+        paidTransId:
+          detail.paidTransId?.trim() || paidTransIdFromNote(detail.confirmNote) || undefined,
         // Thu hộ OnePay tự xác nhận không kèm ảnh — không đánh dấu đã có ảnh.
         hasConfirmProof: false,
       });
@@ -423,8 +446,8 @@ function Page() {
       toast.success(`Đã bổ sung ảnh ${receiptCode}`);
       server.reload();
       return true;
-    } catch (e: any) {
-      toast.error(e?.message || "Không bổ sung được ảnh");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không bổ sung được ảnh");
       return false;
     } finally {
       busyRef.current = null;
@@ -460,8 +483,8 @@ function Page() {
       server.reload();
       void syncOrdersByCodes(receipt.orderCodes).catch(() => undefined);
       return true;
-    } catch (e: any) {
-      toast.error(e?.message || "Không hủy được phiếu thu");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không hủy được phiếu thu");
       return false;
     } finally {
       busyRef.current = null;
@@ -503,8 +526,8 @@ function Page() {
     let data: ReceiptRec[];
     try {
       data = await loadAllForExport();
-    } catch (e: any) {
-      toast.error(e?.message || "Không tải được dữ liệu xuất");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Không tải được dữ liệu xuất");
       return;
     } finally {
       setExporting(false);
@@ -567,13 +590,17 @@ function Page() {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
-      <p className="lab muted" style={{ margin: 0 }}>{scopeHint}</p>
+      <p className="lab muted" style={{ margin: 0 }}>
+        {scopeHint}
+      </p>
 
       <section className="sum-row num">
         <div className="sum-lead">
           <div style={{ minWidth: 0 }}>
             <div className="rev-vp lab">
-              <span className="ms fill" aria-hidden="true">account_balance_wallet</span>
+              <span className="ms fill" aria-hidden="true">
+                account_balance_wallet
+              </span>
               Tổng tiền
             </div>
             <div className="sum-hero">
@@ -621,7 +648,12 @@ function Page() {
         <label className="field">
           <span className="l">Mã phiếu thu</span>
           <span className="box input-box">
-            <input type="search" value={code} onChange={(e) => setCode(e.target.value)} placeholder="PT..." />
+            <input
+              type="search"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="PT..."
+            />
           </span>
         </label>
         <label className="field">
@@ -649,13 +681,23 @@ function Page() {
         <label className="field">
           <span className="l">Thu tiền từ ngày</span>
           <span className="box input-box">
-            <input type="date" value={dayFrom} max={dayTo || undefined} onChange={(e) => setDayFrom(e.target.value)} />
+            <input
+              type="date"
+              value={dayFrom}
+              max={dayTo || undefined}
+              onChange={(e) => setDayFrom(e.target.value)}
+            />
           </span>
         </label>
         <label className="field">
           <span className="l">Đến ngày</span>
           <span className="box input-box">
-            <input type="date" value={dayTo} min={dayFrom || undefined} onChange={(e) => setDayTo(e.target.value)} />
+            <input
+              type="date"
+              value={dayTo}
+              min={dayFrom || undefined}
+              onChange={(e) => setDayTo(e.target.value)}
+            />
           </span>
         </label>
         <div className="field">
@@ -675,7 +717,9 @@ function Page() {
 
       <section className="card stack">
         {rowCount === 0 ? (
-          <EmptyState>{apiMode && server.loading ? "Đang tải…" : "Chưa có phiếu thu nào"}</EmptyState>
+          <EmptyState>
+            {apiMode && server.loading ? "Đang tải…" : "Chưa có phiếu thu nào"}
+          </EmptyState>
         ) : (
           <>
             <div className="scroller">
@@ -709,10 +753,18 @@ function Page() {
                           {r.office ? officeName(r.office) : "—"}
                         </td>
                         <td>
-                          <StaffNameCell staffKey={r.createdBy} name={r.createdByName} account={r.createdBy} />
+                          <StaffNameCell
+                            staffKey={r.createdBy}
+                            name={r.createdByName}
+                            account={r.createdBy}
+                          />
                         </td>
                         <td>
-                          <StaffNameCell staffKey={r.payerCode || r.payer} name={r.payerName} account={r.payer} />
+                          <StaffNameCell
+                            staffKey={r.payerCode || r.payer}
+                            name={r.payerName}
+                            account={r.payer}
+                          />
                         </td>
                         <td style={{ whiteSpace: "nowrap" }} className="num">
                           {fmtDayVn(receiptMoneyDay(r))}
@@ -1136,7 +1188,9 @@ function ReceiptOrdersDialog({
       const amount = receipt.lineAmounts?.[code];
       const cod =
         receipt.lineCodAmounts?.[code] ??
-        (o?.codAmount != null && Number.isFinite(Number(o.codAmount)) ? Number(o.codAmount) : undefined);
+        (o?.codAmount != null && Number.isFinite(Number(o.codAmount))
+          ? Number(o.codAmount)
+          : undefined);
       return { code, order: o, amount, cod };
     });
   }, [receipt, orders]);
@@ -1211,7 +1265,9 @@ function ReceiptOrdersDialog({
                         <td className="px-2 py-2">
                           {l.order?.receiverName ?? "—"}
                           {l.order?.receiverPhone ? (
-                            <div className="text-xs text-muted-foreground">{l.order.receiverPhone}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {l.order.receiverPhone}
+                            </div>
                           ) : null}
                         </td>
                         <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">

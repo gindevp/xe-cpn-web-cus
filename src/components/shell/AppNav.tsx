@@ -105,8 +105,10 @@ export function AppNav({ onNavigate, mobile }: Props) {
                 aria-expanded={isOpen}
                 aria-label={g.title}
                 onClick={() => {
+                  /* Desktop: hover đã mở — click trái không được đóng (khớp design-ref).
+                     Chỉ mở nhóm khác; đóng bằng mouseleave / Escape / chọn mục / menu-back. */
                   cancelClose();
-                  setOpenIdx(openIdx === i ? null : i);
+                  if (openIdx !== i) setOpenIdx(i);
                 }}
               >
                 <span className="nav-pill" aria-hidden="true">

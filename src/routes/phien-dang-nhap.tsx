@@ -191,47 +191,62 @@ function Page() {
     );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {TABS.map((t) => (
-          <Button
-            key={t.key}
-            size="sm"
-            variant={tab === t.key ? "default" : "outline"}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label} ({counts[t.key]})
-          </Button>
-        ))}
-        <div className="relative ml-auto w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Tài khoản / thiết bị / IP"
-          />
+    <div className="stack" style={{ gap: 16 }}>
+      <h1 className="page-title">Phiên đăng nhập &amp; thiết bị</h1>
+      <div className="title-row" style={{ alignItems: "flex-end" }}>
+        <div className="seg" role="tablist" aria-label="Phiên đăng nhập" style={{ alignSelf: "flex-start" }}>
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              className={tab === t.key ? "on" : undefined}
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+            >
+              {t.label}
+              <span className="count num">{counts[t.key]}</span>
+            </button>
+          ))}
         </div>
-        <Button size="sm" variant="outline" className="gap-2" onClick={() => void load()}>
-          <RefreshCw className="h-4 w-4" />
-          Tải lại
-        </Button>
+        <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label className="field" style={{ flex: "1 1 220px", minWidth: 180 }}>
+            <span className="l">Tìm kiếm</span>
+            <span className="box input-box">
+              <span className="ms" aria-hidden="true">
+                search
+              </span>
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Tài khoản / thiết bị / IP"
+              />
+            </span>
+          </label>
+          <button type="button" className="btn tonal" onClick={() => void load()}>
+            <span className="ms" aria-hidden="true">
+              refresh
+            </span>
+            Tải lại
+          </button>
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground">{activeTab.hint}</p>
+      <p className="lab muted">{activeTab.hint}</p>
 
       {tab === "PENDING" ? (
         <Section title={`Yêu cầu chờ duyệt (${pending.length})`}>
           {pending.length === 0 ? (
             <EmptyState>Không có yêu cầu chờ duyệt</EmptyState>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "760px" }}>
                 <thead>
-                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                    <th className="px-2 py-2">Tài khoản</th>
-                    <th className="px-2 py-2">Thiết bị</th>
-                    <th className="px-2 py-2">Yêu cầu lúc</th>
-                    <th className="px-2 py-2 text-right">Tác vụ</th>
+                  <tr>
+                    <th>Tài khoản</th>
+                    <th>Thiết bị</th>
+                    <th>Yêu cầu lúc</th>
+                    <th className="r">Tác vụ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -282,8 +297,8 @@ function Page() {
           {trusted.length === 0 ? (
             <EmptyState>Chưa có thiết bị nào được duyệt</EmptyState>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-sm">
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "860px" }}>
                 <thead>
                   <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                     <th className="px-2 py-2">Tài khoản</th>
@@ -355,8 +370,8 @@ function Page() {
           {activeSessions.length === 0 ? (
             <EmptyState>Không có phiên nào</EmptyState>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-sm">
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "860px" }}>
                 <thead>
                   <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                     <th className="px-2 py-2">Tài khoản</th>

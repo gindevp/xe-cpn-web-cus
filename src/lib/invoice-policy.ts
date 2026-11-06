@@ -24,7 +24,9 @@ export function orderPaidAt(o: OrderX): string | null {
   if (o.status === "DRAFT" || o.status === "CANCELLED") return null;
   if (paidAtWarehouseIn(o.collectForm)) return o.pickedUpAt ?? null;
   if (o.status !== "DELIVERED") return null;
-  const ev = [...(o.events ?? [])].reverse().find((e) => DELIVERED_ACTIONS.has(String(e.action).toUpperCase()));
+  const ev = [...(o.events ?? [])]
+    .reverse()
+    .find((e) => DELIVERED_ACTIONS.has(String(e.action).toUpperCase()));
   return ev?.at ?? null;
 }
 
@@ -34,7 +36,9 @@ const DONE_ACTIONS = new Set([...DELIVERED_ACTIONS, "RT_DONE", "TRANSITION_RETUR
 /** Lúc đơn hoàn tất (ISO) — null nếu chưa giao thành công / chưa hoàn xong. */
 export function orderDoneAt(o: OrderX): string | null {
   if (o.status !== "DELIVERED" && o.status !== "RETURNED") return null;
-  const ev = [...(o.events ?? [])].reverse().find((e) => DONE_ACTIONS.has(String(e.action).toUpperCase()));
+  const ev = [...(o.events ?? [])]
+    .reverse()
+    .find((e) => DONE_ACTIONS.has(String(e.action).toUpperCase()));
   return ev?.at ?? null;
 }
 
@@ -62,7 +66,8 @@ export type InvoiceState = "NOT_ISSUED" | "COMPANY" | "PERSONAL" | "MANUAL" | "F
 
 export function invoiceStateOf(status?: string, type?: string): InvoiceState {
   if (status === "MANUAL") return "MANUAL";
-  if (status === "ISSUED" || status === "DUPLICATE") return type === "COMPANY" ? "COMPANY" : "PERSONAL";
+  if (status === "ISSUED" || status === "DUPLICATE")
+    return type === "COMPANY" ? "COMPANY" : "PERSONAL";
   if (status === "FAILED") return "FAILED";
   if (status === "PENDING") return "PENDING";
   return "NOT_ISSUED";
@@ -77,10 +82,23 @@ export const INVOICE_STATE_LABEL: Record<InvoiceState, { text: string; cls: stri
   PENDING: { text: "Đang xuất", cls: "bg-amber-100 text-amber-800" },
 };
 
+/** Nhãn hoá đơn trên bảng M3 — dùng `.tag` thay cho chip Tailwind. */
+export const INVOICE_STATE_TAG_CLASS: Record<InvoiceState, string> = {
+  NOT_ISSUED: "tag warn",
+  COMPANY: "tag ok",
+  PERSONAL: "tag ok",
+  MANUAL: "tag info",
+  FAILED: "tag err",
+  PENDING: "tag warn",
+};
+
 /** Nhãn loại đơn trên màn hoá đơn. Huỷ / ngoại lệ mở: BE không tự xuất, không xuất bù. */
 export type InvoiceOrderFlag = "CANCELLED" | "EXCEPTION" | "RETURNING";
 
-export function invoiceOrderFlag(r: { orderStatus?: string; openIssueType?: string | null }): InvoiceOrderFlag | null {
+export function invoiceOrderFlag(r: {
+  orderStatus?: string;
+  openIssueType?: string | null;
+}): InvoiceOrderFlag | null {
   if (r.orderStatus === "CANCELLED") return "CANCELLED";
   if (r.openIssueType) return "EXCEPTION";
   if (r.orderStatus === "RETURNING" || r.orderStatus === "RETURNED") return "RETURNING";
@@ -103,7 +121,10 @@ export function invoiceOrderFlagLabel(
 ): { text: string; cls: string } {
   if (flag === "CANCELLED") return { text: "Đơn huỷ", cls: "bg-red-100 text-red-800" };
   if (flag === "EXCEPTION") {
-    return { text: ISSUE_TYPE_TEXT[openIssueType ?? ""] ?? "Ngoại lệ", cls: "bg-orange-100 text-orange-800" };
+    return {
+      text: ISSUE_TYPE_TEXT[openIssueType ?? ""] ?? "Ngoại lệ",
+      cls: "bg-orange-100 text-orange-800",
+    };
   }
   return { text: "Đơn hoàn", cls: "bg-violet-100 text-violet-800" };
 }

@@ -9,7 +9,6 @@ import { SecretInput } from "@/components/SecretInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TelegramAlertIntegration } from "@/components/TelegramAlertIntegration";
 import { ZaloZnsIntegration } from "@/components/ZaloZnsIntegration";
 import { getApiBase, isApiEnabled } from "@/lib/api/client";
@@ -19,6 +18,17 @@ import { toast } from "sonner";
 
 const TABS = ["van-chuyen", "ban-do", "luu-tru", "autocall", "zalo-zns", "thu-ho", "telegram"] as const;
 type TabKey = (typeof TABS)[number];
+
+/** Tab shell khớp design-ref TichHop.dc.html (`.seg` + icon). */
+const TAB_META: { id: TabKey; label: string; icon: string }[] = [
+  { id: "van-chuyen", label: "Vận chuyển", icon: "local_shipping" },
+  { id: "ban-do", label: "Bản đồ", icon: "map" },
+  { id: "luu-tru", label: "Lưu trữ", icon: "cloud" },
+  { id: "autocall", label: "Auto Call", icon: "phone_in_talk" },
+  { id: "zalo-zns", label: "Zalo ZNS", icon: "chat" },
+  { id: "thu-ho", label: "Thu hộ", icon: "payments" },
+  { id: "telegram", label: "Telegram", icon: "send" },
+];
 
 function daysInput(v: number | null | undefined) {
   return v != null && v > 0 ? String(v) : "";
@@ -363,21 +373,28 @@ function Page() {
   );
 
   return (
-    <Tabs
-      value={tab}
-      onValueChange={(v) => navigate({ search: { tab: v as TabKey }, replace: true })}
-    >
-      <TabsList>
-        <TabsTrigger value="van-chuyen">Vận chuyển</TabsTrigger>
-        <TabsTrigger value="ban-do">Bản đồ</TabsTrigger>
-        <TabsTrigger value="luu-tru">Lưu trữ</TabsTrigger>
-        <TabsTrigger value="autocall">Auto Call</TabsTrigger>
-        <TabsTrigger value="zalo-zns">Zalo ZNS</TabsTrigger>
-        <TabsTrigger value="thu-ho">Thu hộ</TabsTrigger>
-        <TabsTrigger value="telegram">Telegram</TabsTrigger>
-      </TabsList>
+    <div className="stack" style={{ gap: 16 }}>
+      <h1 className="page-title">Tích hợp</h1>
+      <div className="seg" role="tablist" aria-label="Nhóm tích hợp" style={{ alignSelf: "flex-start" }}>
+        {TAB_META.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            className={tab === t.id ? "on" : undefined}
+            aria-selected={tab === t.id}
+            onClick={() => navigate({ search: { tab: t.id }, replace: true })}
+          >
+            <span className="ms" aria-hidden="true">
+              {t.icon}
+            </span>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <TabsContent value="van-chuyen" className="space-y-4">
+      {tab === "van-chuyen" ? (
+      <div className="stack" style={{ gap: 16 }}>
         <Section title="Ahamove">
           <div className="grid gap-3 sm:grid-cols-2">
             <F label={`API Key ${hasSavedApiKey ? "· đã lưu" : ""}`}>
@@ -533,9 +550,11 @@ function Page() {
             {integrations.updatedAt ? new Date(integrations.updatedAt).toLocaleString("vi-VN") : "—"}
           </p>
         </div>
-      </TabsContent>
+      </div>
+      ) : null}
 
-      <TabsContent value="ban-do" className="space-y-4">
+      {tab === "ban-do" ? (
+      <div className="stack" style={{ gap: 16 }}>
         <Section title="Bản đồ / Khoảng cách">
           <div className="mb-3 flex flex-wrap items-center gap-4">
             <Label className="text-xs">Nhà cung cấp bản đồ pin</Label>
@@ -593,9 +612,11 @@ function Page() {
           </p>
         </Section>
         {footer}
-      </TabsContent>
+      </div>
+      ) : null}
 
-      <TabsContent value="thong-bao" className="space-y-4">
+      {false ? (
+      <div className="stack" style={{ gap: 16 }}>
         <Section title="Telegram cảnh báo">
           <div className="grid gap-3 sm:grid-cols-2">
             <F label={`Bot token ${integrations.telegramToken ? "· đã lưu" : ""}`}>
@@ -634,9 +655,11 @@ function Page() {
           </div>
         </Section>
         {footer}
-      </TabsContent>
+      </div>
+      ) : null}
 
-      <TabsContent value="luu-tru" className="space-y-4">
+      {tab === "luu-tru" ? (
+      <div className="stack" style={{ gap: 16 }}>
         <Section title="MinIO — ảnh và file">
           <p className="mb-3 text-xs text-muted-foreground">
             Ảnh POD, ảnh hàng, phiếu thu, chấm công, kiểm kho, ảnh xe lưu trên MinIO. Database chỉ giữ
@@ -751,24 +774,19 @@ function Page() {
           </div>
         </Section>
         {footer}
-      </TabsContent>
+      </div>
+      ) : null}
 
-      <TabsContent value="autocall">
-        <AutoCallIntegration />
-      </TabsContent>
-
-      <TabsContent value="zalo-zns">
-        <ZaloZnsIntegration />
-      </TabsContent>
-
-      <TabsContent value="thu-ho" className="space-y-4">
-        <OnePayCollectionIntegration />
-        <BidvCollectionIntegration />
-      </TabsContent>
-      <TabsContent value="telegram" className="space-y-4">
-        <TelegramAlertIntegration />
-      </TabsContent>
-    </Tabs>
+      {tab === "autocall" ? <AutoCallIntegration /> : null}
+      {tab === "zalo-zns" ? <ZaloZnsIntegration /> : null}
+      {tab === "thu-ho" ? (
+        <div className="stack" style={{ gap: 16 }}>
+          <OnePayCollectionIntegration />
+          <BidvCollectionIntegration />
+        </div>
+      ) : null}
+      {tab === "telegram" ? <TelegramAlertIntegration /> : null}
+    </div>
   );
 }
 

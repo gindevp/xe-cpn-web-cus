@@ -491,8 +491,8 @@ function StatsCards({ metrics }: { metrics: Metrics }) {
       value: metrics.stock.toLocaleString("vi-VN"),
       unit: `đơn > ${STOCK_DAYS} ngày`,
       icon: AlertTriangle,
-      color: "text-warning-foreground",
-      bg: "bg-warning",
+      color: "text-[var(--on-warning-container)]",
+      bg: "bg-[var(--warning-container)]",
       highlight: true,
     },
   ];
@@ -506,7 +506,7 @@ function StatsCards({ metrics }: { metrics: Metrics }) {
             key={it.label}
             className={
               it.highlight
-                ? "border-2 border-warning bg-warning/10 shadow-md ring-1 ring-warning/40"
+                ? "border-2 border-[var(--warning-container)] bg-[var(--warning-container)]/40 shadow-md ring-1 ring-[var(--on-warning-container)]/15"
                 : "border"
             }
           >
@@ -518,12 +518,12 @@ function StatsCards({ metrics }: { metrics: Metrics }) {
               </div>
               <div className="min-w-0">
                 <div
-                  className={`text-xs ${it.highlight ? "font-semibold text-warning-foreground" : "text-muted-foreground"}`}
+                  className={`text-xs ${it.highlight ? "font-semibold text-[var(--on-warning-container)]" : "text-muted-foreground"}`}
                 >
                   {it.label}
                 </div>
                 <div
-                  className={`truncate text-lg font-semibold ${it.highlight ? "text-warning-foreground" : ""}`}
+                  className={`truncate text-lg font-semibold ${it.highlight ? "text-[var(--on-warning-container)]" : ""}`}
                 >
                   {it.value}
                   <span className="ml-1 text-xs font-normal text-muted-foreground">
