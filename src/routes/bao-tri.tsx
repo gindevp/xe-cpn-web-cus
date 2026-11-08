@@ -2,14 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { Section } from "@/components/PageBits";
+import { M3Confirm } from "@/components/m3/M3Confirm";
 import { PodPhotoInput } from "@/components/PodPhotoInput";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { isApiEnabled } from "@/lib/api/client";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
@@ -52,7 +47,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/bao-tri")({
   head: () => ({ meta: [{ title: "Cấu hình — X.E" }] }),
   component: () => (
-    <ProtectedPage title="Cấu hình" screen="bao-tri">
+    <ProtectedPage title="Cấu hình" screen="bao-tri" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -76,7 +71,12 @@ function Page() {
   return (
     <div className="stack" style={{ gap: 16 }}>
       <h1 className="page-title">Cấu hình</h1>
-      <div className="seg" role="tablist" aria-label="Nhóm cấu hình" style={{ alignSelf: "flex-start" }}>
+      <div
+        className="seg"
+        role="tablist"
+        aria-label="Nhóm cấu hình"
+        style={{ alignSelf: "flex-start" }}
+      >
         {CFG_TABS.map((t) => (
           <button
             key={t.id}
@@ -145,7 +145,8 @@ function DepositAccountTab() {
     if (!isApiEnabled()) return;
     fetchDepositAccount()
       .then((a) => {
-        if (!cancelled) setF({ ...a, contentTemplate: a.contentTemplate || DEFAULT_DEPOSIT_TEMPLATE });
+        if (!cancelled)
+          setF({ ...a, contentTemplate: a.contentTemplate || DEFAULT_DEPOSIT_TEMPLATE });
       })
       .catch((e: any) => {
         if (!cancelled) toast.error(e?.message ?? "Không tải được cấu hình nộp tiền");
@@ -228,23 +229,25 @@ function DepositAccountTab() {
   };
 
   return (
-    <Section title="Tài khoản nhận tiền nhân viên nộp">
+    <CfgSection icon="account_balance" title="Tài khoản nhận tiền nhân viên nộp">
       {!f ? (
-        <p className="text-sm text-muted-foreground">Đang tải…</p>
+        <CfgLoading />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_260px]">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Ngân hàng *</Label>
+        <>
+          <div className="cfg-grid">
+            <Field label="Ngân hàng *">
               {banksFailed ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input
-                    placeholder="Mã BIN (6 số, VD 970407)"
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+                  <CfgInput
+                    className="num"
+                    placeholder="Mã BIN (6 số)"
                     value={f.bankBin ?? ""}
                     disabled={!writable}
-                    onChange={(e) => setF({ ...f, bankBin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                    onChange={(e) =>
+                      setF({ ...f, bankBin: e.target.value.replace(/\D/g, "").slice(0, 6) })
+                    }
                   />
-                  <Input
+                  <CfgInput
                     placeholder="Tên ngân hàng"
                     value={f.bankName ?? ""}
                     disabled={!writable}
@@ -256,88 +259,120 @@ function DepositAccountTab() {
                   value={f.bankBin ?? ""}
                   onValueChange={(bin) => {
                     const b = banks?.find((x) => x.bin === bin);
-                    setF({ ...f, bankBin: bin, bankName: b ? `${b.shortName} (${b.name})` : f.bankName });
+                    setF({
+                      ...f,
+                      bankBin: bin,
+                      bankName: b ? `${b.shortName} (${b.name})` : f.bankName,
+                    });
                   }}
                   placeholder={banks ? "Chọn ngân hàng" : "Đang tải danh sách ngân hàng…"}
                   disabled={!writable || !banks}
                   options={bankOptions}
                 />
               )}
-              {banksFailed ? (
-                <p className="text-[11px] text-amber-700">
-                  Không tải được danh sách ngân hàng VietQR — nhập mã BIN thủ công.
-                </p>
-              ) : null}
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Số tài khoản *</Label>
-                <Input
-                  value={f.accountNo ?? ""}
-                  disabled={!writable}
-                  inputMode="numeric"
-                  onChange={(e) => setF({ ...f, accountNo: e.target.value.replace(/[^0-9A-Za-z]/g, "") })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Chủ tài khoản *</Label>
-                <NameInput
-                  value={f.accountName ?? ""}
-                  disabled={!writable}
-                  onChange={(accountName) => setF({ ...f, accountName })}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Nội dung chuyển khoản</Label>
-              <Input
+            </Field>
+            <Field label="Số tài khoản *">
+              <CfgInput
+                className="num"
+                value={f.accountNo ?? ""}
+                disabled={!writable}
+                inputMode="numeric"
+                placeholder="Nhập số tài khoản"
+                onChange={(e) =>
+                  setF({ ...f, accountNo: e.target.value.replace(/[^0-9A-Za-z]/g, "") })
+                }
+              />
+            </Field>
+            <Field label="Chủ tài khoản *">
+              <NameInput
+                value={f.accountName ?? ""}
+                disabled={!writable}
+                placeholder="Nhập tên chủ tài khoản"
+                onChange={(accountName) => setF({ ...f, accountName })}
+              />
+            </Field>
+            <Field label="Nội dung chuyển khoản">
+              <CfgInput
                 value={f.contentTemplate ?? ""}
                 disabled={!writable}
                 maxLength={255}
+                placeholder="Nhập mẫu nội dung"
                 onChange={(e) => setF({ ...f, contentTemplate: e.target.value })}
               />
-              <div className="flex flex-wrap gap-1.5">
-                {DEPOSIT_TEMPLATE_VARS.map((v) => (
-                  <button
-                    key={v.key}
-                    type="button"
-                    disabled={!writable}
-                    onClick={() => insertVar(v.key)}
-                    className="rounded-full border px-2.5 py-0.5 text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-50"
-                  >
-                    {v.key} · {v.label}
-                  </button>
-                ))}
+            </Field>
+            {banksFailed ? (
+              <div className="note cfg-wide">
+                Không tải được danh sách ngân hàng VietQR — nhập mã BIN thủ công.
               </div>
-              <p className="text-xs text-muted-foreground">
-                Ví dụ thực tế: <span className="font-mono font-medium text-foreground">{sampleContent || "—"}</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Nội dung tự bỏ dấu, chỉ giữ chữ và số, tối đa 50 ký tự (giới hạn của ngân hàng).
-              </p>
+            ) : null}
+            <div
+              className="cfg-wide"
+              style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}
+            >
+              <span className="muted lab">Chèn nhanh:</span>
+              {DEPOSIT_TEMPLATE_VARS.map((v) => (
+                <button
+                  key={v.key}
+                  type="button"
+                  className="pill sm"
+                  style={{ height: 32 }}
+                  title={v.label}
+                  disabled={!writable}
+                  onClick={() => insertVar(v.key)}
+                >
+                  {v.key}
+                </button>
+              ))}
             </div>
-            <Button onClick={() => void save()} disabled={saving || !writable}>
-              {saving ? "Đang lưu…" : "Lưu"}
-            </Button>
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Xem trước QR (145.000đ)</Label>
-            <div className="flex aspect-square items-center justify-center rounded-lg border bg-white p-3">
-              {previewQr ? (
-                <img src={previewQr} alt="QR VietQR xem trước" className="h-full w-full object-contain" />
-              ) : (
-                <span className="px-4 text-center text-xs text-muted-foreground">
-                  Chọn ngân hàng và nhập số tài khoản để xem QR
-                </span>
-              )}
+            <div className="upload cfg-wide">
+              <span
+                className="thumb"
+                style={{
+                  width: 96,
+                  height: 96,
+                  background: previewQr ? "#fff" : undefined,
+                  overflow: "hidden",
+                }}
+              >
+                {previewQr ? (
+                  <img
+                    src={previewQr}
+                    alt="QR VietQR xem trước"
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+                ) : (
+                  <span className="ms" aria-hidden="true" style={{ fontSize: 40 }}>
+                    qr_code_2
+                  </span>
+                )}
+              </span>
+              <div style={{ flex: "1 1 200px" }}>
+                <div style={{ fontWeight: 500 }}>Xem trước QR (145.000đ)</div>
+                <div className="muted lab">
+                  Nội dung tự bỏ dấu, chỉ giữ chữ và số, tối đa 50 ký tự. Ví dụ thực tế:{" "}
+                  <span className="num" style={{ fontWeight: 500, color: "var(--on-surface)" }}>
+                    {sampleContent || "—"}
+                  </span>
+                </div>
+                <div className="muted lab">
+                  {previewQr
+                    ? "Quét thử bằng app ngân hàng để kiểm tra đúng tài khoản trước khi lưu."
+                    : "Chọn ngân hàng và nhập số tài khoản để xem QR."}
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Quét thử bằng app ngân hàng để kiểm tra đúng tài khoản trước khi lưu.
-            </p>
           </div>
-        </div>
+          <CfgSave
+            label="Lưu"
+            saving={saving}
+            disabled={!writable}
+            confirmTitle="Lưu cấu hình nộp tiền?"
+            confirmBody="Nhân viên sẽ nộp tiền vào tài khoản này từ lần tạo mã QR tiếp theo. Bạn kiểm tra kỹ số tài khoản."
+            onSave={() => void save()}
+          />
+        </>
       )}
-    </Section>
+    </CfgSection>
   );
 }
 
@@ -363,14 +398,10 @@ function InvoiceAutoIssueTab() {
     };
   }, []);
 
+  const [asking, setAsking] = useState<boolean | null>(null);
+
   const toggle = async (enabled: boolean) => {
     if (!writable) return toast.error("Tài khoản không có quyền ghi màn này");
-    const msg = enabled
-      ? "BẬT tự xuất hoá đơn điện tử THẬT qua MISA?\n\n" +
-        "Từ lúc bật, đơn đã giao thành công (hoặc hoàn xong) và quá 3 tiếng kể từ khi thanh toán sẽ tự xuất: HĐ doanh nghiệp nếu khách đã yêu cầu, còn lại HĐ cá nhân.\n" +
-        "Đơn thanh toán trước lúc bật KHÔNG tự xuất — dùng nút Xuất bù ở màn Quản lý hoá đơn / Giao thành công."
-      : "TẮT tự xuất hoá đơn?\n\nSau khi tắt, chỉ đơn có yêu cầu HĐ công ty tự xuất khi giao thành công (như trước).";
-    if (!window.confirm(msg)) return;
     setSaving(true);
     try {
       setF(await putInvoiceAutoIssue(enabled));
@@ -383,32 +414,58 @@ function InvoiceAutoIssueTab() {
   };
 
   return (
-    <Section title="Tự xuất hoá đơn điện tử (MISA)">
+    <CfgSection icon="description" title="Tự xuất hoá đơn điện tử (MISA)">
       {!f ? (
-        <p className="text-sm text-muted-foreground">Đang tải…</p>
+        <CfgLoading />
       ) : (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Switch checked={f.enabled} disabled={saving || !writable} onCheckedChange={(v) => void toggle(v)} />
-            <Label className="text-sm">Tự xuất hoá đơn sau 3 tiếng kể từ khi thanh toán (đơn đã giao thành công)</Label>
-          </div>
+        <div className="cfg-grid">
+          <CfgToggle
+            label="Tự xuất hoá đơn sau 3 tiếng kể từ khi thanh toán (đơn đã giao thành công)"
+            checked={f.enabled}
+            disabled={saving || !writable}
+            onChange={(v) => setAsking(v)}
+          />
           {f.enabled && f.since ? (
-            <p className="text-xs text-emerald-700">Đang bật từ {new Date(f.since).toLocaleString("vi-VN")}.</p>
+            <div className="lab cfg-wide" style={{ color: "var(--success, #1b873f)" }}>
+              Đang bật từ {new Date(f.since).toLocaleString("vi-VN")}.
+            </div>
           ) : null}
-          <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-            <li>Mốc thanh toán: gửi trả = lúc nhập kho gửi; nhận trả / COD = lúc giao thành công.</li>
+          <ul className="note cfg-wide" style={{ margin: 0, paddingLeft: 32 }}>
             <li>
-              Chỉ tự xuất khi đơn đã giao thành công (đơn gửi trả bị hoàn: đã hoàn xong về người gửi) và đã quá 3 tiếng
-              kể từ mốc thanh toán.
+              Mốc thanh toán: gửi trả = lúc nhập kho gửi; nhận trả / COD = lúc giao thành công.
             </li>
-            <li>Khách muốn HĐ công ty phải yêu cầu trước lúc đó; quá hạn hệ thống xuất HĐ cá nhân.</li>
+            <li>
+              Chỉ tự xuất khi đơn đã giao thành công (đơn gửi trả bị hoàn: đã hoàn xong về người
+              gửi) và đã quá 3 tiếng kể từ mốc thanh toán.
+            </li>
+            <li>
+              Khách muốn HĐ công ty phải yêu cầu trước lúc đó; quá hạn hệ thống xuất HĐ cá nhân.
+            </li>
             <li>HĐ cá nhân ghi tên + SĐT người trả cước, hình thức thanh toán tiền mặt.</li>
-            <li>Không tự xuất: đơn công nợ, đơn còn nợ cước, đơn kế toán đã tích bỏ xuất tự động, đơn lần trước lỗi.</li>
+            <li>
+              Không tự xuất: đơn công nợ, đơn còn nợ cước, đơn kế toán đã tích bỏ xuất tự động, đơn
+              lần trước lỗi.
+            </li>
             <li>Đơn thanh toán trước lúc bật không tự xuất bù — dùng nút Xuất bù.</li>
           </ul>
         </div>
       )}
-    </Section>
+      <M3Confirm
+        open={asking != null}
+        onOpenChange={(v) => !v && setAsking(null)}
+        title={asking ? "Bật tự xuất hoá đơn điện tử thật qua MISA?" : "Tắt tự xuất hoá đơn?"}
+        body={
+          asking
+            ? "Từ lúc bật, đơn đã giao thành công (hoặc hoàn xong) và quá 3 tiếng kể từ khi thanh toán sẽ tự xuất: HĐ doanh nghiệp nếu khách đã yêu cầu, còn lại HĐ cá nhân. Đơn thanh toán trước lúc bật không tự xuất — dùng nút Xuất bù ở màn Quản lý hoá đơn / Giao thành công."
+            : "Sau khi tắt, chỉ đơn có yêu cầu HĐ công ty tự xuất khi giao thành công (như trước)."
+        }
+        confirmLabel={asking ? "Bật tự xuất" : "Tắt tự xuất"}
+        confirmDanger={!!asking}
+        onConfirm={() => {
+          if (asking != null) void toggle(asking);
+        }}
+      />
+    </CfgSection>
   );
 }
 
@@ -476,77 +533,69 @@ function MaintenanceTab() {
   };
 
   return (
-    <Section title="Cấu hình bảo trì">
+    <CfgSection icon="build" title="Cấu hình bảo trì">
       {loading ? (
-        <p className="text-sm text-muted-foreground">Đang tải…</p>
+        <CfgLoading />
       ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Switch checked={f.enabled} onCheckedChange={(v) => setF({ ...f, enabled: v })} />
-            <Label className="text-sm">Bật bảo trì</Label>
-          </div>
-
-          <div className="space-y-2 rounded-md border p-3">
-            <p className="text-xs font-medium text-muted-foreground">Phạm vi kênh</p>
-            <ChannelRow
+        <>
+          <div className="cfg-grid">
+            <CfgToggle
+              label="Bật bảo trì"
+              checked={f.enabled}
+              onChange={(v) => setF({ ...f, enabled: v })}
+            />
+            <CfgCheck
               label="Tất cả (app + web, NV + KH)"
               checked={f.blockAll}
               onChange={(v) => setChannel("blockAll", v)}
             />
-            <ChannelRow
+            <CfgCheck
               label="App nhân viên"
               checked={f.blockAll || f.blockAppStaff}
               disabled={f.blockAll}
               onChange={(v) => setChannel("blockAppStaff", v)}
             />
-            <ChannelRow
+            <CfgCheck
               label="App khách hàng"
               checked={f.blockAll || f.blockAppCustomer}
               disabled={f.blockAll}
               onChange={(v) => setChannel("blockAppCustomer", v)}
             />
-            <ChannelRow
+            <CfgCheck
               label="Web nhân viên"
               checked={f.blockAll || f.blockWebStaff}
               disabled={f.blockAll}
               onChange={(v) => setChannel("blockWebStaff", v)}
             />
-            <ChannelRow
+            <CfgCheck
               label="Web khách hàng"
               checked={f.blockAll || f.blockWebCustomer}
               disabled={f.blockAll}
               onChange={(v) => setChannel("blockWebCustomer", v)}
             />
-            <p className="text-[11px] text-muted-foreground">
-              Khi bật web nhân viên: tài khoản admin vẫn vào được để tắt bảo trì; user khác bị chặn.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-1">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Tiêu đề</Label>
-              <Input
+            <div className="note cfg-wide">
+              Khi bật web nhân viên: tài khoản admin vẫn vào được để tắt bảo trì, người dùng khác bị
+              chặn.
+            </div>
+            <Field label="Tiêu đề">
+              <CfgInput
                 value={f.title}
                 onChange={(e) => setF({ ...f, title: e.target.value })}
                 maxLength={200}
                 placeholder="Hệ thống đang bảo trì"
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Nội dung</Label>
-              <Textarea
+            </Field>
+            <Field label="Nội dung">
+              <CfgInput
                 value={f.message}
                 onChange={(e) => setF({ ...f, message: e.target.value })}
                 maxLength={2000}
-                rows={4}
-                placeholder="Vui lòng quay lại sau…"
+                placeholder="Vui lòng quay lại sau. Xin cảm ơn."
               />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs">Ảnh bảo trì (tuỳ chọn, 1 ảnh)</Label>
+            </Field>
             <PodPhotoInput
+              variant="upload"
+              title="Ảnh bảo trì (tuỳ chọn, 1 ảnh)"
               photos={f.imageUrl ? [f.imageUrl] : []}
               onChange={(next) => setF({ ...f, imageUrl: next[0] ?? null })}
               max={1}
@@ -554,13 +603,16 @@ function MaintenanceTab() {
               label="Chọn ảnh"
             />
           </div>
-
-          <Button onClick={() => void save()} disabled={saving || !writable || loading}>
-            {saving ? "Đang lưu…" : "Lưu cấu hình"}
-          </Button>
-        </div>
+          <CfgSave
+            saving={saving}
+            disabled={!writable || loading}
+            confirmTitle="Lưu cấu hình bảo trì?"
+            confirmBody="Bật bảo trì sẽ chặn người dùng ở các kênh đã chọn. Tài khoản admin vẫn vào được để tắt."
+            onSave={() => void save()}
+          />
+        </>
       )}
-    </Section>
+    </CfgSection>
   );
 }
 
@@ -611,34 +663,40 @@ function SessionTab() {
   };
 
   return (
-    <Section title="Tự đăng xuất theo giờ">
+    <CfgSection
+      icon="login"
+      title="Tự đăng xuất theo giờ"
+      desc="Đăng nhập sau giờ đó vẫn được, phiên mới kéo đến cùng giờ ngày hôm sau."
+    >
       {loading ? (
-        <p className="text-sm text-muted-foreground">Đang tải…</p>
+        <CfgLoading />
       ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Switch checked={f.enabled} onCheckedChange={(v) => setF({ ...f, enabled: v })} />
-            <Label className="text-sm">Bật tự đăng xuất</Label>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Giờ đăng xuất (giờ Việt Nam)</Label>
-            <Input
-              type="time"
-              className="max-w-[10rem]"
-              value={f.logoutTime}
-              onChange={(e) => setF({ ...f, logoutTime: e.target.value })}
+        <>
+          <div className="cfg-grid">
+            <CfgToggle
+              label="Bật tự đăng xuất"
+              checked={f.enabled}
+              onChange={(v) => setF({ ...f, enabled: v })}
             />
+            <Field label="Giờ đăng xuất (giờ Việt Nam)">
+              <CfgInput
+                type="time"
+                className="num"
+                value={f.logoutTime}
+                onChange={(e) => setF({ ...f, logoutTime: e.target.value })}
+              />
+            </Field>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Đến giờ này mọi tài khoản đang đăng nhập sẽ bị đăng xuất. Đăng nhập sau giờ đó vẫn được,
-            phiên mới kéo đến cùng giờ ngày hôm sau.
-          </p>
-          <Button onClick={() => void save()} disabled={saving || !writable || loading}>
-            {saving ? "Đang lưu…" : "Lưu cấu hình"}
-          </Button>
-        </div>
+          <CfgSave
+            saving={saving}
+            disabled={!writable || loading}
+            confirmTitle="Lưu cấu hình phiên đăng nhập?"
+            confirmBody="Đến giờ đã đặt, mọi tài khoản đang đăng nhập sẽ bị đăng xuất."
+            onSave={() => void save()}
+          />
+        </>
       )}
-    </Section>
+    </CfgSection>
   );
 }
 
@@ -720,9 +778,10 @@ function ScanVoiceTab() {
     }
   };
 
+  const [resetting, setResetting] = useState<ScanVoiceType | null>(null);
+
   const onReset = async (type: ScanVoiceType) => {
     if (!writable) return toast.error("Tài khoản không có quyền ghi màn này");
-    if (!confirm(`Xóa giọng tùy chỉnh «${scanVoiceLabel(type)}»?\nApp sẽ dùng giọng mặc định.`)) return;
     setBusy(type);
     try {
       await deleteScanVoice(type);
@@ -736,34 +795,50 @@ function ScanVoiceTab() {
   };
 
   return (
-    <Section title="Giọng quét trên app">
-      <p className="mb-3 text-sm text-muted-foreground">
-        App mở máy chỉ kiểm tra 1 lần: etag không đổi thì dùng cache; đổi thì tải lại. Không cấu hình = giọng
-        mặc định trong app («Được» / «Sai»).
-      </p>
+    <CfgSection
+      icon="record_voice_over"
+      title="Giọng quét trên app"
+      desc="App mở máy chỉ kiểm tra 1 lần: tệp không đổi thì dùng bản đã lưu. Không cấu hình thì dùng giọng mặc định trong app."
+    >
       {loading ? (
-        <p className="text-sm text-muted-foreground">Đang tải…</p>
+        <CfgLoading />
       ) : (
-        <div className="space-y-3">
+        <div className="cfg-grid">
           {SCAN_VOICE_TYPES.map((type) => {
             const row = of(type);
             const configured = !!row?.configured;
             const working = busy === type;
             return (
-              <div
-                key={type}
-                className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium">{scanVoiceLabel(type)}</div>
-                  <div className="truncate text-xs text-muted-foreground">
+              <div key={type} className="file-row cfg-wide">
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <div style={{ fontWeight: 500 }}>{scanVoiceLabel(type)}</div>
+                  <div className="muted" style={{ fontSize: 12, lineHeight: "16px" }}>
                     {configured
                       ? `${row?.fileName || type} · ${Math.round((row?.byteSize ?? 0) / 1024)} KB`
                       : "Đang dùng giọng mặc định trên app"}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <label className="inline-flex">
+                <div className="act" style={{ flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="text-act"
+                    disabled={!configured || working}
+                    onClick={() => void onListen(type)}
+                  >
+                    Nghe
+                  </button>
+                  <button
+                    type="button"
+                    className="text-act"
+                    disabled={!writable || !configured || working}
+                    onClick={() => setResetting(type)}
+                  >
+                    Mặc định
+                  </button>
+                  <label
+                    className="ok"
+                    style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
+                  >
                     <input
                       type="file"
                       accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*"
@@ -775,39 +850,35 @@ function ScanVoiceTab() {
                         void onUpload(type, f);
                       }}
                     />
-                    <Button type="button" size="sm" variant="secondary" disabled={!writable || working} asChild>
-                      <span>{working ? "Đang xử lý…" : "Tải lên"}</span>
-                    </Button>
+                    {working ? "Đang xử lý…" : "Tải lên"}
                   </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!configured || working}
-                    onClick={() => void onListen(type)}
-                  >
-                    Nghe
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    disabled={!writable || !configured || working}
-                    onClick={() => void onReset(type)}
-                  >
-                    Mặc định
-                  </Button>
                 </div>
               </div>
             );
           })}
           {previewUrl ? (
-            <audio controls autoPlay src={previewUrl} className="w-full" />
+            <audio
+              controls
+              autoPlay
+              src={previewUrl}
+              className="cfg-wide"
+              style={{ width: "100%" }}
+            />
           ) : null}
         </div>
       )}
-    </Section>
+      <M3Confirm
+        open={resetting != null}
+        onOpenChange={(v) => !v && setResetting(null)}
+        title={`Xoá giọng tuỳ chỉnh «${resetting ? scanVoiceLabel(resetting) : ""}»?`}
+        body="App sẽ dùng giọng mặc định."
+        confirmLabel="Về mặc định"
+        confirmDanger
+        onConfirm={() => {
+          if (resetting) void onReset(resetting);
+        }}
+      />
+    </CfgSection>
   );
 }
 
@@ -867,47 +938,53 @@ function MobileAppVersionTab() {
   };
 
   return (
-    <Section title="Bắt buộc cập nhật app mobile">
+    <CfgSection icon="system_update" title="Bắt buộc cập nhật app mobile">
       {loading ? (
-        <p className="text-sm text-muted-foreground">Đang tải chính sách từ máy chủ…</p>
+        <CfgLoading text="Đang tải chính sách từ máy chủ…" />
       ) : (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Phiên bản tối thiểu (vd 1.40.0)">
-              <Input
+        <>
+          <div className="cfg-grid">
+            <Field label="Phiên bản tối thiểu">
+              <CfgInput
+                className="num"
                 value={f.minimumVersion}
                 onChange={(e) => setF({ ...f, minimumVersion: e.target.value })}
-                placeholder="1.40.0"
+                placeholder="Ví dụ 1.40.0"
               />
             </Field>
-            <Field label="Android versionCode tối thiểu (bỏ trống = không xét)">
-              <Input
+            <Field label="Android versionCode tối thiểu">
+              <CfgInput
+                className="num"
                 inputMode="numeric"
                 value={f.minimumAndroidVersionCode ?? ""}
                 onChange={(e) => {
                   const raw = e.target.value.trim();
                   setF({ ...f, minimumAndroidVersionCode: raw === "" ? null : Number(raw) });
                 }}
-                placeholder="40"
+                placeholder="Bỏ trống = không xét"
               />
             </Field>
-          </div>
-          <div className="flex items-center gap-2">
-            <Switch
+            <CfgToggle
+              label="Bật chặn app cũ (tắt = không chặn ai, dùng khi cần gỡ gấp)"
               checked={f.mandatoryUpdateEnabled}
-              onCheckedChange={(v) => setF({ ...f, mandatoryUpdateEnabled: v })}
+              onChange={(v) => setF({ ...f, mandatoryUpdateEnabled: v })}
             />
-            <Label className="text-xs">Bật chặn app cũ (tắt = không chặn ai, dùng khi cần gỡ gấp)</Label>
+            <div className="note cfg-wide">
+              App mobile đang cài bản thấp hơn sẽ bị chặn ở màn hình cập nhật ngay lần mở tiếp theo.
+              Máy chủ lỗi hoặc quá 10 giây thì app vẫn vào bình thường.
+            </div>
           </div>
-          <Button onClick={() => void save()} disabled={saving || !writable}>
-            {saving ? "Đang lưu…" : "Lưu chính sách app"}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            App mobile đang cài bản thấp hơn sẽ bị chặn ở màn hình cập nhật ngay lần mở tiếp theo. Máy chủ lỗi hoặc quá 10 giây thì app vẫn vào bình thường.
-          </p>
-        </div>
+          <CfgSave
+            label="Lưu chính sách app"
+            saving={saving}
+            disabled={!writable}
+            confirmTitle="Lưu cấu hình update?"
+            confirmBody="App bản thấp hơn sẽ bị chặn ở màn hình cập nhật ngay lần mở tiếp theo."
+            onSave={() => void save()}
+          />
+        </>
       )}
-    </Section>
+    </CfgSection>
   );
 }
 
@@ -965,7 +1042,10 @@ function TrackLookupTab() {
     if (!Number.isFinite(refresh) || refresh < 15 || refresh > 36000) {
       return toast.error("Thời gian làm mới QR phải từ 15 đến 36000 giây.");
     }
-    if (f.qrQuietEnabled && (!/^\d{2}:\d{2}$/.test(f.qrQuietFrom) || !/^\d{2}:\d{2}$/.test(f.qrQuietTo))) {
+    if (
+      f.qrQuietEnabled &&
+      (!/^\d{2}:\d{2}$/.test(f.qrQuietFrom) || !/^\d{2}:\d{2}$/.test(f.qrQuietTo))
+    ) {
       return toast.error("Giờ tắt và giờ bật lại phải dạng HH:mm, ví dụ 21:00");
     }
     if (f.qrQuietEnabled && f.qrQuietFrom === f.qrQuietTo) {
@@ -1014,135 +1094,194 @@ function TrackLookupTab() {
   };
 
   return (
-    <div className="space-y-4">
-      <Section title="Giới hạn tra cứu mỗi thiết bị">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Đang tải…</p>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Switch checked={f.enabled} onCheckedChange={(v) => setF({ ...f, enabled: v })} />
-              <Label className="text-sm">Chặn khi tra cứu quá nhiều lần</Label>
-            </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Số lần tối đa trong một ngày</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={10000}
-                  className="max-w-[10rem]"
-                  value={f.dailyLimit}
-                  onChange={(e) => setF({ ...f, dailyLimit: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">QR văn phòng làm mới sau (giây)</Label>
-                <Input
-                  type="number"
-                  min={15}
-                  max={36000}
-                  className="max-w-[10rem]"
-                  value={f.qrRefreshSeconds}
-                  disabled={!f.qrAutoRefresh}
-                  onChange={(e) => setF({ ...f, qrRefreshSeconds: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={f.qrAutoRefresh}
-                onCheckedChange={(v) => setF({ ...f, qrAutoRefresh: v })}
+    <CfgSection
+      icon="qr_code_2"
+      title="Giới hạn tra cứu mỗi thiết bị"
+      desc="Mỗi văn phòng chỉ một máy được chiếu QR. Khi tự làm mới, ảnh chụp mang về nhà sẽ hết hạn."
+    >
+      {loading ? (
+        <CfgLoading />
+      ) : (
+        <>
+          <div className="cfg-grid">
+            <CfgToggle
+              label="Chặn khi tra cứu quá nhiều lần"
+              checked={f.enabled}
+              onChange={(v) => setF({ ...f, enabled: v })}
+            />
+            <Field label="Số lần tối đa trong một ngày">
+              <CfgInput
+                type="number"
+                className="num"
+                min={0}
+                max={10000}
+                value={f.dailyLimit}
+                onChange={(e) => setF({ ...f, dailyLimit: Number(e.target.value) })}
               />
-              <Label className="text-sm">Tự làm mới QR văn phòng khi tra cứu</Label>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Mỗi văn phòng chỉ một máy được chiếu QR. Bật thì mã đổi theo số giây ở trên, ảnh chụp mang về nhà sẽ hết hạn.
-              Tắt thì mã giữ nguyên suốt giờ mở cửa; khung tắt QR bên dưới vẫn xóa mã và phát mã mới khi mở lại.
-              Nhập 0 lần tra cứu hoặc tắt công tắc số lần nếu không muốn chặn số lần.
-            </p>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={f.qrQuietEnabled}
-                onCheckedChange={(v) => setF({ ...f, qrQuietEnabled: v })}
+            </Field>
+            <Field label="QR văn phòng làm mới sau (giây)">
+              <CfgInput
+                type="number"
+                className="num"
+                min={15}
+                max={36000}
+                value={f.qrRefreshSeconds}
+                disabled={!f.qrAutoRefresh}
+                onChange={(e) => setF({ ...f, qrRefreshSeconds: Number(e.target.value) })}
               />
-              <Label className="text-sm">Tắt QR ngoài giờ, hết giờ tự phát mã mới</Label>
+            </Field>
+            <CfgToggle
+              label="Tự làm mới QR văn phòng khi tra cứu"
+              checked={f.qrAutoRefresh}
+              onChange={(v) => setF({ ...f, qrAutoRefresh: v })}
+            />
+            <CfgToggle
+              label="Tắt QR ngoài giờ, hết giờ tự phát mã mới"
+              checked={f.qrQuietEnabled}
+              onChange={(v) => setF({ ...f, qrQuietEnabled: v })}
+            />
+            <Field label="Tắt từ">
+              <CfgInput
+                type="time"
+                className="num"
+                value={f.qrQuietFrom}
+                onChange={(e) => setF({ ...f, qrQuietFrom: e.target.value })}
+              />
+            </Field>
+            <Field label="Bật lại">
+              <CfgInput
+                type="time"
+                className="num"
+                value={f.qrQuietTo}
+                onChange={(e) => setF({ ...f, qrQuietTo: e.target.value })}
+              />
+            </Field>
+            <div className="note cfg-wide">
+              Giờ Việt Nam. Ví dụ 21:00 đến 07:00: mã đang chiếu hết hạn lúc 21:00, sáng hôm sau
+              đúng 07:00 màn hình tự hiện mã mới. Nhập 0 lần tra cứu hoặc tắt công tắc số lần nếu
+              không muốn chặn số lần.
             </div>
-            <div className="flex flex-wrap gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tắt từ</Label>
-                <Input
-                  type="time"
-                  className="max-w-[10rem]"
-                  value={f.qrQuietFrom}
-                  onChange={(e) => setF({ ...f, qrQuietFrom: e.target.value })}
-                />
+            {links.length === 0 ? (
+              <div className="lab muted cfg-wide">Chưa có văn phòng đang hoạt động.</div>
+            ) : (
+              <div className="scroller cfg-wide">
+                <table className="tbl" style={{ ["--tbl-min" as string]: "560px" }}>
+                  <thead>
+                    <tr>
+                      <th>Văn phòng</th>
+                      <th>Đang chiếu</th>
+                      <th>Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {links.map((row) => (
+                      <tr key={row.officeCode}>
+                        <td style={{ fontWeight: 500 }}>
+                          {row.officeName}
+                          <span className="sub">{row.officeCode}</span>
+                        </td>
+                        <td>
+                          <span className={row.showing ? "tag ok" : "tag warn"}>
+                            {row.showing ? "Đang chiếu" : "Chưa chiếu"}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="act" style={{ justifyContent: "flex-start" }}>
+                            <button
+                              type="button"
+                              className="text-act"
+                              onClick={() => void copyLink(row.displayKey)}
+                            >
+                              Copy link
+                            </button>
+                            <button
+                              type="button"
+                              className="text-act"
+                              onClick={() => void rotate(row.officeCode)}
+                            >
+                              Tạo link mới
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Bật lại</Label>
-                <Input
-                  type="time"
-                  className="max-w-[10rem]"
-                  value={f.qrQuietTo}
-                  onChange={(e) => setF({ ...f, qrQuietTo: e.target.value })}
-                />
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Giờ Việt Nam. Ví dụ 21:00 đến 07:00: mã đang chiếu chết lúc 21:00, sáng hôm sau đúng 07:00 màn hình tự
-              hiện mã mới. Ảnh chụp mã cũ không tra được trong khoảng này.
-            </p>
-            <Button onClick={() => void save()} disabled={saving || !writable || loading}>
-              {saving ? "Đang lưu…" : "Lưu cấu hình"}
-            </Button>
+            )}
           </div>
-        )}
-      </Section>
-      <Section title="Link màn hình QR từng văn phòng">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Đang tải…</p>
-        ) : links.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Chưa có văn phòng đang hoạt động.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-3 font-medium">Văn phòng</th>
-                  <th className="py-2 pr-3 font-medium">Đang chiếu</th>
-                  <th className="py-2 font-medium">Link</th>
-                </tr>
-              </thead>
-              <tbody>
-                {links.map((row) => (
-                  <tr key={row.officeCode} className="border-t">
-                    <td className="py-2 pr-3">
-                      <div className="font-medium">{row.officeName}</div>
-                      <div className="text-xs text-muted-foreground">{row.officeCode}</div>
-                    </td>
-                    <td className="py-2 pr-3">{row.showing ? "Có" : "Không"}</td>
-                    <td className="py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="sm" variant="outline" onClick={() => void copyLink(row.displayKey)}>
-                          Chép link
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => void rotate(row.officeCode)}>
-                          Tạo link mới
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Section>
-    </div>
+          <CfgSave
+            saving={saving}
+            disabled={!writable || loading}
+            confirmTitle="Lưu cấu hình tra cứu?"
+            confirmBody="Thay đổi áp dụng ngay cho các thiết bị đang tra cứu và máy chiếu QR."
+            onSave={() => void save()}
+          />
+        </>
+      )}
+    </CfgSection>
   );
 }
 
-function ChannelRow({
+function CfgSection({
+  icon,
+  title,
+  desc,
+  children,
+}: {
+  icon: string;
+  title: string;
+  desc?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="card stack">
+      <h2 className="group-title sec-title">
+        <span className="sec-ic" aria-hidden="true">
+          <span className="ms">{icon}</span>
+        </span>
+        {title}
+      </h2>
+      {desc ? (
+        <div className="lab muted" style={{ maxWidth: 860, marginTop: -8 }}>
+          {desc}
+        </div>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+function CfgLoading({ text = "Đang tải…" }: { text?: string }) {
+  return <div className="lab muted">{text}</div>;
+}
+
+function CfgToggle({
+  label,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: React.ReactNode;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="toggle cfg-wide">
+      <input
+        className="switch"
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function CfgCheck({
   label,
   checked,
   disabled,
@@ -1154,18 +1293,80 @@ function ChannelRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
-      <Label className="text-xs">{label}</Label>
+    <label className="choice" style={disabled ? { opacity: 0.6, cursor: "default" } : undefined}>
+      <input
+        className="check"
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+function Field({
+  label,
+  wide,
+  children,
+}: {
+  label: string;
+  wide?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={wide ? "field cfg-field cfg-wide" : "field cfg-field"}>
+      <span className="l">{label}</span>
+      {children}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function CfgInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
+    <span className="box input-box">
+      <input {...props} />
+    </span>
+  );
+}
+
+function CfgSave({
+  label = "Lưu cấu hình",
+  saving,
+  disabled,
+  confirmTitle,
+  confirmBody,
+  onSave,
+}: {
+  label?: string;
+  saving: boolean;
+  disabled?: boolean;
+  confirmTitle: string;
+  confirmBody: string;
+  onSave: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          className="btn"
+          disabled={saving || disabled}
+          onClick={() => setOpen(true)}
+        >
+          {saving ? "Đang lưu…" : label}
+        </button>
+      </div>
+      <M3Confirm
+        open={open}
+        onOpenChange={setOpen}
+        title={confirmTitle}
+        body={confirmBody}
+        confirmLabel="Xác nhận lưu"
+        onConfirm={onSave}
+      />
+    </>
   );
 }

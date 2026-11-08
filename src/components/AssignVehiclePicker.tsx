@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,14 +46,7 @@ const GIO_CHAY_OPTIONS = Array.from({ length: 48 }, (_, i) => {
   return { value: v, label: v };
 });
 
-const TAI_TRONG_OPTIONS = [
-  "1.5 tấn",
-  "2.5 tấn",
-  "5 tấn",
-  "8 tấn",
-  "10 tấn",
-  "15 tấn",
-];
+const TAI_TRONG_OPTIONS = ["1.5 tấn", "2.5 tấn", "5 tấn", "8 tấn", "10 tấn", "15 tấn"];
 
 function truckTypeFromTaiTrong(taiTrong: string): { vehicleType: string; capacity: number } {
   const n = Number.parseFloat(taiTrong.replace(",", "."));
@@ -146,7 +140,12 @@ export function tripItineraryLabel(pick: AssignVehiclePick): string {
 }
 
 export function vthkTripKey(t: AvailableTrip): string {
-  return [String(t.externalTripId ?? ""), t.departAt ?? "", t.vehiclePlate || "", t.timeSlot || ""].join("|");
+  return [
+    String(t.externalTripId ?? ""),
+    t.departAt ?? "",
+    t.vehiclePlate || "",
+    t.timeSlot || "",
+  ].join("|");
 }
 
 export function realVehiclePlate(raw?: string | null): string {
@@ -158,7 +157,10 @@ export function realVehiclePlate(raw?: string | null): string {
 }
 
 /** Trường audit gửi kèm `POST /api/trips`. */
-export function tripAuditFields(pick: AssignVehiclePick): { vehicleSource?: string; externalTripId?: string } {
+export function tripAuditFields(pick: AssignVehiclePick): {
+  vehicleSource?: string;
+  externalTripId?: string;
+} {
   if (!pick) return {};
   if (pick.tab === "vthk") {
     return { vehicleSource: "VTHK", externalTripId: pick.trip.externalTripId || undefined };
@@ -178,9 +180,13 @@ const OPEN_TRIP = new Set(["CREATED", "LOADING", "DEPARTED", "UNLOADING"]);
 const vnDay = (ms: number) => new Date(ms + 7 * 3_600_000).toISOString().slice(0, 10);
 
 /** Giờ xuất phát dùng để so chuyến: xe tải không chọn giờ → chỉ so ngày. */
-export function pickDepartMatch(pick: AssignVehiclePick): { departAt?: string; exactTime: boolean } {
+export function pickDepartMatch(pick: AssignVehiclePick): {
+  departAt?: string;
+  exactTime: boolean;
+} {
   if (!pick) return { exactTime: false };
-  if (pick.tab === "vthk") return { departAt: pick.trip.departAt, exactTime: Boolean(pick.trip.departAt) };
+  if (pick.tab === "vthk")
+    return { departAt: pick.trip.departAt, exactTime: Boolean(pick.trip.departAt) };
   return { departAt: pick.departAt, exactTime: pick.source === "MANUAL_LIMO" };
 }
 
@@ -225,7 +231,9 @@ function TripCard({
       onClick={onClick}
       className={cn(
         "box-border flex h-[96px] w-[168px] shrink-0 flex-col overflow-hidden rounded-lg border bg-background px-3 py-2.5 text-left transition",
-        active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-primary/40 hover:bg-accent/40",
+        active
+          ? "border-primary bg-primary/5 ring-1 ring-primary"
+          : "hover:border-primary/40 hover:bg-accent/40",
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -387,7 +395,6 @@ export function AssignVehiclePicker({
   useEffect(() => {
     if (!open || tab !== "vthh") return;
     void reloadTrucks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, tab]);
 
   useEffect(() => {
@@ -441,7 +448,9 @@ export function AssignVehiclePicker({
       return;
     }
     const trip = vthk.find((t) => vthkTripKey(t) === pickedVthkKey);
-    onPickRef.current(trip ? { tab: "vthk", trip, branchName: branch, itineraryName: itinerary } : null);
+    onPickRef.current(
+      trip ? { tab: "vthk", trip, branchName: branch, itineraryName: itinerary } : null,
+    );
   }, [tab, vthk, pickedVthkKey, branch, itinerary, manualLimo]);
 
   useEffect(() => {
@@ -479,7 +488,13 @@ export function AssignVehiclePicker({
     setTruckDlgOpen(true);
   };
 
-  const openTruckEdit = (v: { id: number; bks: string; capacity: number; vehicleType?: string; driverName?: string }) => {
+  const openTruckEdit = (v: {
+    id: number;
+    bks: string;
+    capacity: number;
+    vehicleType?: string;
+    driverName?: string;
+  }) => {
     setTruckEditId(v.id);
     setTruckBks(v.bks);
     setTruckDriver(v.driverName ?? "");
@@ -567,7 +582,7 @@ export function AssignVehiclePicker({
   };
 
   const deleteTruck = async (v: { id: number; bks: string }) => {
-    if (!window.confirm(`Xóa xe ${v.bks}?`)) return;
+    if (!(await askConfirm(`Xóa xe ${v.bks}?`))) return;
     if (!isApiEnabled()) return toast.error("API chưa cấu hình");
     try {
       const domain = await import("@/lib/api/domain-api");
@@ -634,12 +649,11 @@ export function AssignVehiclePicker({
             <p className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
               Đang lấy xe từ portal theo khung giờ{" "}
               <span className="font-semibold text-foreground">
-                {formatTripClock(vthkWindow.from.toISOString())} → {formatTripClock(vthkWindow.to.toISOString())}
+                {formatTripClock(vthkWindow.from.toISOString())} →{" "}
+                {formatTripClock(vthkWindow.to.toISOString())}
               </span>{" "}
               (xe đã chạy {VTHK_BEFORE_HOURS} tiếng trước đến {VTHK_AFTER_HOURS} tiếng tới)
-              {loadingVthk
-                ? " — đang tải…"
-                : ` — có ${vthk.length} xe trong khung này.`}
+              {loadingVthk ? " — đang tải…" : ` — có ${vthk.length} xe trong khung này.`}
             </p>
           ) : null}
 
@@ -651,7 +665,9 @@ export function AssignVehiclePicker({
                   : "Chọn tuyến và lộ trình để xem xe Limousine"}
               </div>
             ) : loadingVthk ? (
-              <div className="w-[min(100%,420px)] py-6 text-center text-sm text-muted-foreground">Đang tải xe…</div>
+              <div className="w-[min(100%,420px)] py-6 text-center text-sm text-muted-foreground">
+                Đang tải xe…
+              </div>
             ) : (
               <>
                 {vthk.map((t) => {
@@ -688,7 +704,8 @@ export function AssignVehiclePicker({
                 )}
                 {vthk.length === 0 && !manualLimo && (
                   <div className="flex h-[96px] w-[180px] shrink-0 items-center rounded-lg border border-dashed px-3 text-xs text-muted-foreground">
-                    Không có chuyến từ {VTHK_BEFORE_HOURS} tiếng trước đến {VTHK_AFTER_HOURS} tiếng tới
+                    Không có chuyến từ {VTHK_BEFORE_HOURS} tiếng trước đến {VTHK_AFTER_HOURS} tiếng
+                    tới
                   </div>
                 )}
                 <AddManualCard
@@ -708,7 +725,9 @@ export function AssignVehiclePicker({
 
         <TabsContent value="vthh" className="mt-3 min-w-0 space-y-3">
           {loadingTrucks ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">Đang tải xe tải từ máy chủ…</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              Đang tải xe tải từ máy chủ…
+            </div>
           ) : (
             <VehicleRow>
               {truckVehicles.map((v) => {
@@ -798,14 +817,17 @@ export function AssignVehiclePicker({
                     }}
                   >
                     <span className="font-medium">{v.bks}</span>
-                    {v.driverName ? <span className="truncate text-xs text-muted-foreground">{v.driverName}</span> : null}
+                    {v.driverName ? (
+                      <span className="truncate text-xs text-muted-foreground">{v.driverName}</span>
+                    ) : null}
                   </button>
                 ))}
               </div>
             )}
             {limoBks.trim() && limoVehicleId == null && !isValidVnPlate(limoBks) && (
               <p className="text-xs text-destructive">
-                Biển chưa đúng định dạng (vd 29H88524){limoPlateSuggestions.length ? " — chọn xe gợi ý ở trên" : ""}
+                Biển chưa đúng định dạng (vd 29H88524)
+                {limoPlateSuggestions.length ? " — chọn xe gợi ý ở trên" : ""}
               </p>
             )}
           </div>
@@ -885,7 +907,9 @@ export function AssignVehiclePicker({
               <option value="">Chọn</option>
               {[
                 ...TAI_TRONG_OPTIONS,
-                ...(truckTaiTrong && !TAI_TRONG_OPTIONS.includes(truckTaiTrong) ? [truckTaiTrong] : []),
+                ...(truckTaiTrong && !TAI_TRONG_OPTIONS.includes(truckTaiTrong)
+                  ? [truckTaiTrong]
+                  : []),
               ].map((t) => (
                 <option key={t} value={t}>
                   {t}

@@ -35,11 +35,13 @@ import {
   type ReceiptPortion,
 } from "@/lib/api/finance-config-api";
 import { ReceiptPayQrDialog } from "@/components/ReceiptPayQrDialog";
+import { RECEIPT_CONFIRMED_EVENT, type ReceiptConfirmedPayload } from "@/lib/use-realtime-sync";
 import {
-  RECEIPT_CONFIRMED_EVENT,
-  type ReceiptConfirmedPayload,
-} from "@/lib/use-realtime-sync";
-import { assignedOfficeCode, hasAllOfficeScope, resolveViewOffice, VIEW_ALL_OFFICES } from "@/lib/office-scope";
+  assignedOfficeCode,
+  hasAllOfficeScope,
+  resolveViewOffice,
+  VIEW_ALL_OFFICES,
+} from "@/lib/office-scope";
 import {
   deliveryActorForOrder,
   debtOwnerLabel,
@@ -234,9 +236,7 @@ function Page() {
 
   useEffect(() => {
     if (!seeAllOwners || !officeScope || users.length > 0 || !isApiEnabled()) return;
-    void import("@/lib/api/sync")
-      .then((m) => m.syncStaffFromApi())
-      .catch(() => undefined);
+    void import("@/lib/api/sync").then((m) => m.syncStaffFromApi()).catch(() => undefined);
   }, [seeAllOwners, officeScope, users.length]);
 
   const dueOrders = useMemo((): DueOrder[] => {
@@ -334,7 +334,9 @@ function Page() {
           onePayCollected: prev.onePayCollected || row.onePayCollected,
         });
       }
-      return [...merged.values()].filter((row) => orderOnDay(row.moneyAt || row.createdAt, filterDay));
+      return [...merged.values()].filter((row) =>
+        orderOnDay(row.moneyAt || row.createdAt, filterDay),
+      );
     }
 
     // Offline / mock: DELIVERED, hoặc GUI_TRA đã nhập kho gửi
@@ -361,7 +363,16 @@ function Page() {
       out.push({ ...o, dueAmount: receiptCollectableAmount(o), debtOwner, moneyAt });
     }
     return out;
-  }, [orders, candidates, viewOffice, seeAllOwners, selfOwner, officeScope, ownersInScopedOffice, filterDay]);
+  }, [
+    orders,
+    candidates,
+    viewOffice,
+    seeAllOwners,
+    selfOwner,
+    officeScope,
+    ownersInScopedOffice,
+    filterDay,
+  ]);
 
   /** Tài khoản → tên nhân viên: ưu tiên tên BE trả kèm, sau đó danh mục nhân viên. */
   const ownerNames = useMemo(() => {
@@ -427,7 +438,9 @@ function Page() {
           day: day === "unknown" ? "" : day,
           label: debtOwnerLabel(owner),
           name:
-            owner === UNKNOWN_DEBT_OWNER ? "" : ownerNames.get(owner.trim().toLowerCase()) ?? owner,
+            owner === UNKNOWN_DEBT_OWNER
+              ? ""
+              : (ownerNames.get(owner.trim().toLowerCase()) ?? owner),
           count: list.length,
           amount: list.reduce((a, o) => a + o.dueAmount, 0),
         };
@@ -477,6 +490,19 @@ function Page() {
               {formatVND(totals.amount)} <span className="sum-unit">VNĐ</span>
             </div>
           </div>
+          <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+            <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+            <path className="ill-mid" d="M36 8h66v84l-8-5-8.5 5-8-5-8.5 5-8-5-8.5 5-8-5-8 5z" />
+            <rect className="ill-paper" x="44" y="17" width="50" height="58" rx="3" />
+            <rect className="ill-main" x="50" y="24" width="26" height="5" rx="2.5" />
+            <rect className="ill-mid" x="50" y="35" width="38" height="5" rx="2.5" />
+            <rect className="ill-mid" x="50" y="45" width="38" height="5" rx="2.5" />
+            <rect className="ill-main" x="50" y="58" width="38" height="10" rx="3" />
+            <circle className="ill-box" cx="118" cy="74" r="18" />
+            <circle className="ill-box2" cx="118" cy="74" r="12" />
+            <circle className="ill-box" cx="112" cy="46" r="11" />
+            <circle className="ill-box2" cx="112" cy="46" r="6.5" />
+          </svg>
         </div>
         <div className="rev-tile card-tile">
           <span className="rev-ic" aria-hidden="true">
@@ -516,7 +542,12 @@ function Page() {
           <label className="field">
             <span className="l">Ngày nhận tiền</span>
             <span className="box input-box">
-              <input type="date" className="num" value={filterDay} onChange={(e) => setFilterDay(e.target.value)} />
+              <input
+                type="date"
+                className="num"
+                value={filterDay}
+                onChange={(e) => setFilterDay(e.target.value)}
+              />
               <span className="ms" aria-hidden="true">
                 calendar_today
               </span>
@@ -532,7 +563,10 @@ function Page() {
                 { value: "all", label: "Tất cả" },
                 ...ownerKeys.map((k) => {
                   const name = ownerNames.get(k.trim().toLowerCase());
-                  return { value: k, label: name ? `${debtOwnerLabel(k)} · ${name}` : debtOwnerLabel(k) };
+                  return {
+                    value: k,
+                    label: name ? `${debtOwnerLabel(k)} · ${name}` : debtOwnerLabel(k),
+                  };
                 }),
               ]}
             />
@@ -599,7 +633,9 @@ function Page() {
                             onClick={() =>
                               setWaiveTarget({
                                 title: `${r.label}${r.day ? ` · ${fmtDayVn(r.day)}` : ""}`,
-                                orders: (rowsByOwnerDay.get(r.key) ?? []).filter((o) => !isFeeRow(o)),
+                                orders: (rowsByOwnerDay.get(r.key) ?? []).filter(
+                                  (o) => !isFeeRow(o),
+                                ),
                               })
                             }
                           >
@@ -728,7 +764,10 @@ function WaiveDialog({
         </DialogHeader>
         <div className="max-h-40 overflow-y-auto rounded-md border text-sm">
           {orders.map((o) => (
-            <div key={`${o.code}|${o.portion ?? ""}`} className="flex justify-between border-b px-3 py-1.5 last:border-b-0">
+            <div
+              key={`${o.code}|${o.portion ?? ""}`}
+              className="flex justify-between border-b px-3 py-1.5 last:border-b-0"
+            >
               <span className="font-medium">
                 {o.code}
                 {o.portion ? (
@@ -843,14 +882,18 @@ function HistorySection({ reloadKey }: { reloadKey: number }) {
                     {new Date(h.at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
                   </td>
                   <td className="px-2 py-2">
-                    <StaffInfoPopover staffKey={h.username}>{h.displayName || h.username || "—"}</StaffInfoPopover>
+                    <StaffInfoPopover staffKey={h.username}>
+                      {h.displayName || h.username || "—"}
+                    </StaffInfoPopover>
                     {h.displayName && h.username ? (
                       <div className="text-xs text-muted-foreground">{h.username}</div>
                     ) : null}
                   </td>
                   <td
                     className={`px-2 py-2 whitespace-nowrap font-medium ${
-                      h.action === "RECEIPT_DUE_WAIVE" || h.action === "RECEIPT_CANCEL" ? "text-destructive" : ""
+                      h.action === "RECEIPT_DUE_WAIVE" || h.action === "RECEIPT_CANCEL"
+                        ? "text-destructive"
+                        : ""
                     }`}
                   >
                     {HISTORY_ACTION_LABEL[h.action] ?? h.action}
@@ -916,7 +959,8 @@ function ReceiptDialog({
     }
     const payerUser = st.users.find((u) => u.username.trim().toUpperCase() === payerCode);
     const payerOffice = assignedOfficeCode(payerUser?.office) || undefined;
-    const viewOfficeCode = assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice)) || undefined;
+    const viewOfficeCode =
+      assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice)) || undefined;
     const office = payerOffice || viewOfficeCode;
     setBusy(true);
     try {
@@ -970,7 +1014,8 @@ function ReceiptDialog({
       ? st.users.find((u) => u.username.trim().toUpperCase() === payerCode)
       : undefined;
     const payerOffice = assignedOfficeCode(payerUser?.office) || undefined;
-    const viewOfficeCode = assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice)) || undefined;
+    const viewOfficeCode =
+      assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice)) || undefined;
     const rec = st.addReceipt({
       payer: payerName,
       payerCode,
@@ -1082,7 +1127,10 @@ function ReceiptDialog({
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={rowKey(o)} className={`border-b hover:bg-muted/40 ${isFeeRow(o) ? "bg-amber-50/60" : ""}`}>
+                <tr
+                  key={rowKey(o)}
+                  className={`border-b hover:bg-muted/40 ${isFeeRow(o) ? "bg-amber-50/60" : ""}`}
+                >
                   <td className="px-2 py-2">
                     <Checkbox
                       checked={selected.has(rowKey(o))}
@@ -1140,7 +1188,9 @@ function ReceiptDialog({
               {formatVND(total)}
             </span>
             {total < 0 ? (
-              <div className="text-xs text-amber-700">Số âm: công ty trả lại người nộp khoản phí đã ứng.</div>
+              <div className="text-xs text-amber-700">
+                Số âm: công ty trả lại người nộp khoản phí đã ứng.
+              </div>
             ) : null}
           </div>
           <div className="flex gap-2">
@@ -1172,4 +1222,3 @@ function ReceiptDialog({
     </Dialog>
   );
 }
-

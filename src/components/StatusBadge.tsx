@@ -18,10 +18,13 @@ const ORDER_STYLES: Record<OrderStatus, string> = {
   CONFIRMED: "border-transparent bg-[var(--primary-container)] text-[var(--on-primary-container)]",
   WAITING: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
   IN_TRANSIT: "border-transparent bg-[var(--primary-container)] text-[var(--on-primary-container)]",
-  AT_DEST: "border-transparent bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
-  OUT_FOR_DELIVERY: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
+  AT_DEST:
+    "border-transparent bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
+  OUT_FOR_DELIVERY:
+    "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
   DELIVERED: "border-transparent bg-[var(--success-container)] text-[var(--on-success-container)]",
-  FAILED_DELIVERY: "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
+  FAILED_DELIVERY:
+    "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
   CANCELLED: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
   RETURNING: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
   RETURNED: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
@@ -31,7 +34,8 @@ const TRIP_STYLES: Record<TripStatus, string> = {
   CREATED: "border-transparent bg-[var(--low)] text-[var(--on-surface-variant)]",
   LOADING: "border-transparent bg-[var(--warning-container)] text-[var(--on-warning-container)]",
   DEPARTED: "border-transparent bg-[var(--primary-container)] text-[var(--on-primary-container)]",
-  UNLOADING: "border-transparent bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
+  UNLOADING:
+    "border-transparent bg-[var(--secondary-container)] text-[var(--on-secondary-container)]",
   CLOSED: "border-transparent bg-[var(--success-container)] text-[var(--on-success-container)]",
   CANCELLED: "border-transparent bg-[var(--error-container)] text-[var(--on-error-container)]",
 };

@@ -1,11 +1,19 @@
-import { Section } from "@/components/PageBits";
+import {
+  CfgActs,
+  CfgCard,
+  CfgField,
+  CfgHeader,
+  CfgInput,
+  CfgToggle,
+  CfgUrl,
+  type CollectSub,
+} from "@/components/m3/CfgKit";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { SecretInput } from "@/components/SecretInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getApiBase, isApiEnabled } from "@/lib/api/client";
 import type { BidvCallLog, BidvConfig, BidvSample, BidvTestBill } from "@/lib/api/bidv-api";
 import { useCallback, useEffect, useState } from "react";
@@ -43,7 +51,7 @@ async function api() {
   return import("@/lib/api/bidv-api");
 }
 
-export function BidvCollectionIntegration() {
+export function BidvCollectionIntegration({ sub = "ket-noi" }: { sub?: CollectSub }) {
   const [cfg, setCfg] = useState<BidvConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -63,48 +71,51 @@ export function BidvCollectionIntegration() {
 
   if (!isApiEnabled()) {
     return (
-      <Section title="Thu hộ BIDV">
-        <p className="text-sm text-muted-foreground">
-          Cần kết nối API máy chủ để cấu hình thu hộ BIDV.
-        </p>
-      </Section>
+      <CfgCard
+        icon="payments"
+        title="Thu hộ BIDV"
+        desc="Cần kết nối API máy chủ để cấu hình thu hộ BIDV."
+      />
     );
   }
 
   return (
-    <Section
-      title="Thu hộ định danh BIDV"
-      right={
-        <div className="flex gap-1.5">
-          <Badge variant="secondary">Chế độ TEST · chỉ hoá đơn test</Badge>
-          {cfg ? (
-            cfg.enabled ? (
-              <Badge>Đang bật</Badge>
-            ) : (
-              <Badge variant="outline">Đang tắt</Badge>
-            )
-          ) : null}
+    <section className="card stack">
+      {sub === "ket-noi" ? (
+        <CfgHeader
+          icon="payments"
+          title="Thu hộ định danh BIDV"
+          tags={[
+            { label: "Chế độ TEST", tone: "warn" },
+            cfg
+              ? cfg.enabled
+                ? { label: "Đang bật", tone: "ok" }
+                : { label: "Đang tắt", tone: "warn" }
+              : null,
+          ]}
+          desc="Chế độ TEST chỉ trả và gạch nợ hoá đơn test, không đụng đơn hàng và phiếu thu thật."
+        />
+      ) : (
+        <CfgHeader
+          icon="payments"
+          title={sub === "hoa-don" ? "Hoá đơn test · BIDV" : "Nhật ký callback · BIDV"}
+        />
+      )}
+      {loadError ? (
+        <div className="lab" style={{ color: "var(--error)" }}>
+          {loadError}
         </div>
-      }
-    >
-      {loadError ? <p className="mb-2 text-sm text-destructive">{loadError}</p> : null}
-      <Tabs defaultValue="ket-noi">
-        <TabsList>
-          <TabsTrigger value="ket-noi">Kết nối</TabsTrigger>
-          <TabsTrigger value="hoa-don">Hoá đơn test</TabsTrigger>
-          <TabsTrigger value="nhat-ky">Nhật ký callback</TabsTrigger>
-        </TabsList>
-        <TabsContent value="ket-noi" className="pt-2">
-          {cfg ? <ConnectionPanel cfg={cfg} onSaved={setCfg} /> : null}
-        </TabsContent>
-        <TabsContent value="hoa-don" className="pt-2">
-          <TestBillsPanel cfg={cfg} />
-        </TabsContent>
-        <TabsContent value="nhat-ky" className="pt-2">
-          <LogsPanel />
-        </TabsContent>
-      </Tabs>
-    </Section>
+      ) : null}
+      {sub === "ket-noi" ? (
+        cfg ? (
+          <ConnectionPanel cfg={cfg} onSaved={setCfg} />
+        ) : null
+      ) : sub === "hoa-don" ? (
+        <TestBillsPanel cfg={cfg} />
+      ) : (
+        <LogsPanel />
+      )}
+    </section>
   );
 }
 
@@ -154,10 +165,10 @@ function ConnectionPanel({ cfg, onSaved }: { cfg: BidvConfig; onSaved: (c: BidvC
     })();
   };
 
-  const rotate = () => {
+  const rotate = async () => {
     if (
       cfg.apiKey &&
-      !window.confirm("Tạo API key mới? Key cũ hết hiệu lực ngay, BIDV phải cập nhật key mới.")
+      !(await askConfirm("Tạo API key mới? Key cũ hết hiệu lực ngay, BIDV phải cập nhật key mới."))
     )
       return;
     setRotating(true);
@@ -175,140 +186,106 @@ function ConnectionPanel({ cfg, onSaved }: { cfg: BidvConfig; onSaved: (c: BidvC
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Switch id="bidv-enabled" checked={enabled} onCheckedChange={setEnabled} />
-        <Label htmlFor="bidv-enabled" className="text-sm">
-          Nhận callback BIDV {cfg.enabled ? "· đang bật" : "· đang tắt"}
-        </Label>
-        <span className="text-xs text-muted-foreground">
-          Khi tắt, mọi lệnh getbill/paybill trả mã 031. Chế độ TEST chỉ trả và gạch nợ hoá đơn ở tab
-          Hoá đơn test, không đụng đơn hàng / phiếu thu thật.
-        </span>
-      </div>
-
-      <div className="rounded-md border bg-muted/30 p-3 text-xs">
-        <div className="mb-1.5 font-medium">URL đăng ký với BIDV</div>
+    <>
+      <div className="cfg-grid">
+        <CfgToggle label="Nhận callback BIDV" checked={enabled} onChange={setEnabled} />
+        <div className="lab muted cfg-wide" style={{ marginTop: -8 }}>
+          Khi tắt, mọi lệnh getbill/paybill trả mã 031.
+        </div>
         {urls.map((u) => (
-          <div key={u.url} className="flex flex-wrap items-center gap-2 py-0.5">
-            <span className="w-32 text-muted-foreground">{u.label}</span>
-            <span className="select-all break-all font-mono">{u.url}</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6"
-              onClick={() => copy(u.url)}
-            >
-              Copy
-            </Button>
-          </div>
+          <CfgUrl
+            key={u.url}
+            label={`URL đăng ký với BIDV · ${u.label}`}
+            url={u.url}
+            emptyText=""
+            copiedText="Đã copy URL"
+          />
         ))}
-        <p className="mt-1.5 text-muted-foreground">
-          Phương thức POST, body JSON. CPN luôn trả HTTP 200 kèm{" "}
-          <span className="font-mono">result_code</span>.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <F label="Mã dịch vụ (serviceId) BIDV cấp">
-          <Input
+        <div className="lab muted cfg-wide">
+          Phương thức POST, body JSON. CPN luôn trả HTTP 200 kèm <code>result_code</code>.
+        </div>
+        <CfgField label="Mã dịch vụ (serviceId) BIDV cấp">
+          <CfgInput
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
             placeholder="VD: XECPN"
           />
-        </F>
-        <F label={`Secret code checksum ${cfg.secretConfigured ? "· đã lưu" : ""}`}>
+        </CfgField>
+        <CfgField label="Secret code checksum" saved={cfg.secretConfigured}>
           <SecretInput
             name="bidv-secret"
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
             placeholder={cfg.secretConfigured ? "Nhập secret mới để thay" : "BIDV cấp"}
           />
-        </F>
-        <F label="Tiền tố tài khoản định danh">
-          <Input
+        </CfgField>
+        <CfgField label="Tiền tố tài khoản định danh">
+          <CfgInput
             value={vaPrefix}
             onChange={(e) => setVaPrefix(e.target.value)}
             placeholder="VD: V3XVN"
           />
-        </F>
-      </div>
-
-      <F label="IP BIDV được phép gọi (mỗi dòng hoặc dấu phẩy, hỗ trợ CIDR — bỏ trống = không chặn IP)">
-        <textarea
-          className="min-h-[64px] w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
-          value={allowedIps}
-          onChange={(e) => setAllowedIps(e.target.value)}
-          placeholder={"203.0.113.10\n198.51.100.0/24"}
-        />
-      </F>
-
-      <div className="rounded-md border p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium">API key cấp cho BIDV</span>
-          <span className="text-xs text-muted-foreground">
-            BIDV gửi trong header <span className="font-mono">X-API-KEY</span> hoặc{" "}
-            <span className="font-mono">Authorization: Bearer</span>
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {cfg.apiKey ? (
-            <>
-              <span className="select-all break-all rounded bg-muted px-2 py-1 font-mono text-xs">
-                {cfg.apiKey}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => copy(cfg.apiKey ?? "")}
-              >
+        </CfgField>
+        <CfgField
+          label="IP BIDV được phép gọi (mỗi dòng hoặc dấu phẩy, hỗ trợ CIDR — bỏ trống = không chặn IP)"
+          wide
+        >
+          <textarea
+            className="area num"
+            rows={3}
+            value={allowedIps}
+            onChange={(e) => setAllowedIps(e.target.value)}
+            placeholder={"203.0.113.10\n198.51.100.0/24"}
+          />
+        </CfgField>
+        <CfgField label="API key cấp cho BIDV" wide>
+          <div
+            className="box input-box"
+            style={{ background: "var(--low)", borderColor: "transparent" }}
+          >
+            <span
+              className={cfg.apiKey ? "num" : "muted"}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {cfg.apiKey || "Chưa có key"}
+            </span>
+            {cfg.apiKey ? (
+              <button type="button" className="text-act" onClick={() => copy(cfg.apiKey ?? "")}>
                 Copy
-              </Button>
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">Chưa có key</span>
-          )}
-          <Button type="button" size="sm" variant="outline" onClick={rotate} disabled={rotating}>
+              </button>
+            ) : null}
+          </div>
+        </CfgField>
+        <div style={{ display: "flex", alignItems: "flex-end" }}>
+          <button type="button" className="btn tonal" onClick={rotate} disabled={rotating}>
             {rotating ? "Đang tạo…" : cfg.apiKey ? "Tạo key mới" : "Tạo API key"}
-          </Button>
+          </button>
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-x-6 gap-y-2">
-        <div className="flex items-center gap-2">
-          <Switch
-            id="bidv-key-required"
-            checked={apiKeyRequired}
-            onCheckedChange={setApiKeyRequired}
-          />
-          <Label htmlFor="bidv-key-required" className="text-sm">
-            Bắt buộc API key
-          </Label>
+        <div className="lab muted cfg-wide">
+          BIDV gửi trong header <code>X-API-KEY</code> hoặc <code>Authorization: Bearer</code>.
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="bidv-checksum-required"
-            checked={checksumRequired}
-            onCheckedChange={setChecksumRequired}
-          />
-          <Label htmlFor="bidv-checksum-required" className="text-sm">
-            Bắt buộc checksum
-          </Label>
-        </div>
-        <span className="text-xs text-muted-foreground">
+        <CfgToggle label="Bắt buộc API key" checked={apiKeyRequired} onChange={setApiKeyRequired} />
+        <CfgToggle
+          label="Bắt buộc checksum"
+          checked={checksumRequired}
+          onChange={setChecksumRequired}
+        />
+        <div className="lab muted cfg-wide">
           Chỉ tắt tạm khi BIDV chưa gửi kèm; key/checksum gửi sai vẫn luôn bị từ chối.
-        </span>
+        </div>
       </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={save} disabled={saving}>
+      <CfgActs meta={`Cập nhật: ${when(cfg.updatedAt)}`}>
+        <button type="button" className="btn" onClick={save} disabled={saving}>
           {saving ? "Đang lưu…" : "Lưu cấu hình BIDV"}
-        </Button>
-        <span className="text-xs text-muted-foreground">Cập nhật: {when(cfg.updatedAt)}</span>
-      </div>
-    </div>
+        </button>
+      </CfgActs>
+    </>
   );
 }
 
@@ -370,13 +347,13 @@ function TestBillsPanel({ cfg }: { cfg: BidvConfig | null }) {
     }, "Đã thêm hoá đơn test");
   };
 
-  const remove = (b: BidvTestBill) => {
-    if (!window.confirm(`Xoá hoá đơn test ${b.customerId}?`)) return;
+  const remove = async (b: BidvTestBill) => {
+    if (!(await askConfirm(`Xoá hoá đơn test ${b.customerId}?`))) return;
     run(async () => (await api()).deleteBidvTestBill(b.id), "Đã xoá");
   };
 
-  const reset = () => {
-    if (!window.confirm("Xoá trạng thái đã thanh toán của mọi hoá đơn test để BIDV test lại?"))
+  const reset = async () => {
+    if (!(await askConfirm("Xoá trạng thái đã thanh toán của mọi hoá đơn test để BIDV test lại?")))
       return;
     run(async () => (await api()).resetBidvTestPayments(), "Đã đặt lại trạng thái");
   };
@@ -565,7 +542,8 @@ function TestBillsPanel({ cfg }: { cfg: BidvConfig | null }) {
           </pre>
           <details>
             <summary className="cursor-pointer text-muted-foreground">
-              Checksum theo mọi kiểu CPN đang chấp nhận ({Object.keys(sample.checksums ?? {}).length})
+              Checksum theo mọi kiểu CPN đang chấp nhận (
+              {Object.keys(sample.checksums ?? {}).length})
             </summary>
             <div className="mt-1 space-y-0.5 font-mono">
               {Object.entries(sample.checksums ?? {}).map(([k, v]) => (

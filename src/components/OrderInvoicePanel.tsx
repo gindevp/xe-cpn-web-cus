@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { toast } from "sonner";
 import { FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,9 @@ export function OrderInvoicePanel({
     setAddress(order.invoiceCompanyAddress ?? "");
     setEmail(order.invoiceEmail ?? "");
     const storedBuyer = toUpperName(order.invoiceBuyerName ?? "");
-    const payer = toUpperName((senderPays(order.collectForm) ? order.senderName : order.receiverName) ?? "");
+    const payer = toUpperName(
+      (senderPays(order.collectForm) ? order.senderName : order.receiverName) ?? "",
+    );
     setBuyerName(storedBuyer || payer);
     setBuyerIdNumber(order.invoiceBuyerIdNumber ?? "");
     setBuyerPhone(order.invoiceBuyerPhone ?? "");
@@ -190,7 +193,7 @@ export function OrderInvoicePanel({
 
   const saveInfo = async (requested: boolean) => {
     if (requested && !validate()) return;
-    if (!requested && !window.confirm(`Bỏ yêu cầu xuất hoá đơn của đơn ${order.code}?`)) return;
+    if (!requested && !(await askConfirm(`Bỏ yêu cầu xuất hoá đơn của đơn ${order.code}?`))) return;
     setBusy(true);
     try {
       await saveOrderInvoiceInfo(
@@ -222,8 +225,10 @@ export function OrderInvoicePanel({
     if (!validate()) return;
     const tax = taxCode.trim();
 
-    const ok = window.confirm(
-      (late ? `⚠ XUẤT MUỘN: đã quá 3 tiếng kể từ thanh toán (hạn ${formatDateTime(deadline!.toISOString())}).\n\n` : "") +
+    const ok = await askConfirm(
+      (late
+        ? `⚠ XUẤT MUỘN: đã quá 3 tiếng kể từ thanh toán (hạn ${formatDateTime(deadline!.toISOString())}).\n\n`
+        : "") +
         (marked ? "Đơn đang Bỏ xuất tự động — xuất xong sẽ chuyển sang Đã xuất DN.\n\n" : "") +
         `Xuất hoá đơn điện tử THẬT qua MISA cho đơn ${order.code}?\n\n` +
         `MST: ${normalizeTaxCode(tax)}\nNgười: ${toUpperName(buyerName)}\n` +
@@ -290,13 +295,17 @@ export function OrderInvoicePanel({
 
       {editable && late && issueMode ? (
         <div className="mb-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-          Đã quá 3 tiếng kể từ thanh toán (hạn {formatDateTime(deadline!.toISOString())}) — xuất bây giờ là xuất muộn.
+          Đã quá 3 tiếng kể từ thanh toán (hạn {formatDateTime(deadline!.toISOString())}) — xuất bây
+          giờ là xuất muộn.
         </div>
       ) : null}
       {marked ? (
         <div className={cn("space-y-1 text-xs", editable && "mb-1.5")}>
           <Row label="Trạng thái" value="Không tự xuất / xuất bù" />
-          <Row label="Ngày tích" value={order.invoiceIssuedAt ? formatDateTime(order.invoiceIssuedAt) : null} />
+          <Row
+            label="Ngày tích"
+            value={order.invoiceIssuedAt ? formatDateTime(order.invoiceIssuedAt) : null}
+          />
           {order.invoiceError ? (
             <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700">
               Lần xuất DN trước lỗi: {order.invoiceError}
@@ -381,10 +390,13 @@ export function OrderInvoicePanel({
         </div>
       ) : editable ? (
         <div className="space-y-1.5">
-          {marked ? null : !issueMode && order.status !== "CANCELLED" && order.status !== "RETURNED" ? (
+          {marked ? null : !issueMode &&
+            order.status !== "CANCELLED" &&
+            order.status !== "RETURNED" ? (
             <div className="text-[11px] text-sky-800">
               Khách cần yêu cầu HĐ công ty trước hạn: 3 tiếng sau khi thanh toán (
-              {paidAtWarehouseIn(order.collectForm) ? "nhập kho gửi" : "giao thành công"}) và đơn đã giao thành công.
+              {paidAtWarehouseIn(order.collectForm) ? "nhập kho gửi" : "giao thành công"}) và đơn đã
+              giao thành công.
             </div>
           ) : !late && deadline ? (
             <div className="text-[11px] text-sky-800">
@@ -392,7 +404,8 @@ export function OrderInvoicePanel({
             </div>
           ) : !deadline && issueMode ? (
             <div className="text-[11px] text-sky-800">
-              Hạn nhận yêu cầu HĐ công ty: khi đơn đã giao thành công và quá 3 tiếng kể từ thanh toán.
+              Hạn nhận yêu cầu HĐ công ty: khi đơn đã giao thành công và quá 3 tiếng kể từ thanh
+              toán.
             </div>
           ) : null}
           {status === "FAILED" && order.invoiceError ? (
@@ -401,7 +414,8 @@ export function OrderInvoicePanel({
             </div>
           ) : null}
           <p className="text-[11px] text-muted-foreground">
-            MST lấy theo người trả cước ({senderPays(order.collectForm) ? "người gửi" : "người nhận"}
+            MST lấy theo người trả cước (
+            {senderPays(order.collectForm) ? "người gửi" : "người nhận"}
             {payerPhone ? ` · ${payerPhone}` : ""}).
           </p>
           <NameInput

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -576,7 +577,10 @@ function CancelRequestPanel({
 
   const decide = async (codes: string[], approve: boolean, note?: string) => {
     if (!codes.length || busy) return;
-    if (approve && !window.confirm(`Duyệt huỷ ${codes.length} đơn? Đơn sẽ chuyển sang Đơn huỷ.`))
+    if (
+      approve &&
+      !(await askConfirm(`Duyệt huỷ ${codes.length} đơn? Đơn sẽ chuyển sang Đơn huỷ.`))
+    )
       return;
     setBusy(true);
     const domain = await import("@/lib/api/domain-api");

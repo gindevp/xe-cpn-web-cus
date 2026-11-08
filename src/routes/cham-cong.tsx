@@ -5,13 +5,18 @@ import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
 import { EmptyState, Section } from "@/components/PageBits";
-import { StageTabButton, StageTabRow } from "@/components/StageTabs";
 import { Button } from "@/components/ui/button";
 import { StaffInfoPopover } from "@/components/StaffInfoPopover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
 import { downloadExcelSheets, type ExportFormat } from "@/lib/csv";
@@ -29,11 +34,14 @@ export const Route = createFileRoute("/cham-cong")({
   head: () => ({
     meta: [
       { title: "Chấm công — X.E" },
-      { name: "description", content: "Xem và xuất bảng chấm công nhân viên theo văn phòng, cá nhân hoặc toàn hệ thống." },
+      {
+        name: "description",
+        content: "Xem và xuất bảng chấm công nhân viên theo văn phòng, cá nhân hoặc toàn hệ thống.",
+      },
     ],
   }),
   component: () => (
-    <ProtectedPage title="Chấm công" screen="cham-cong">
+    <ProtectedPage title="Chấm công" screen="cham-cong" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -46,8 +54,18 @@ const ALL = "";
 
 type Tab = "BANG_CONG" | "CHI_TIET";
 
-const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: VN_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
-const timeFmt = new Intl.DateTimeFormat("en-GB", { timeZone: VN_TZ, hour: "2-digit", minute: "2-digit", hour12: false });
+const dayFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: VN_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const timeFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: VN_TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 
 function dayOf(iso: string) {
   return dayFmt.format(new Date(iso));
@@ -103,9 +121,11 @@ function Page() {
   const [data, setData] = useState<AttendanceReport | null>(null);
   const [loaded, setLoaded] = useState<{ from: string; to: string; office: string } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [detail, setDetail] = useState<{ staff: AttendanceReportStaff; day: string; items: AttendanceReportRecord[] } | null>(
-    null,
-  );
+  const [detail, setDetail] = useState<{
+    staff: AttendanceReportStaff;
+    day: string;
+    items: AttendanceReportRecord[];
+  } | null>(null);
 
   const load = useCallback(async () => {
     if (!from || !to || to < from) {
@@ -145,12 +165,18 @@ function Page() {
       .filter((k) => !known.has(k))
       .map((k) => {
         const any = data.records.find((r) => r.login.toLowerCase() === k)!;
-        return { login: any.login, officeCode: any.officeCode, officeName: any.officeName, active: false };
+        return {
+          login: any.login,
+          officeCode: any.officeCode,
+          officeName: any.officeName,
+          active: false,
+        };
       });
     const allStaff = [...data.staff, ...orphans];
     const staff = login ? allStaff.filter((s) => s.login.toLowerCase() === login) : allStaff;
     const rows = staff.map((s) => {
-      const perDay = byLogin.get(s.login.toLowerCase()) ?? new Map<string, AttendanceReportRecord[]>();
+      const perDay =
+        byLogin.get(s.login.toLowerCase()) ?? new Map<string, AttendanceReportRecord[]>();
       const workDays = days.filter((d) => perDay.has(d)).length;
       const total = [...perDay.values()].reduce((n, l) => n + l.length, 0);
       return { staff: s, perDay, workDays, total };
@@ -171,7 +197,8 @@ function Page() {
 
   const detailRows = useMemo(() => {
     if (!view) return [];
-    const out: { staff: AttendanceReportStaff; day: string; items: AttendanceReportRecord[] }[] = [];
+    const out: { staff: AttendanceReportStaff; day: string; items: AttendanceReportRecord[] }[] =
+      [];
     for (const day of view.days) {
       for (const r of view.rows) {
         const items = r.perDay.get(day);
@@ -190,37 +217,58 @@ function Page() {
     downloadExcelSheets(
       `cham-cong_${scope}_${loaded.from}_${loaded.to}`,
       [
-      {
-        name: "Bảng công",
-        headers: ["STT", "Mã NV", "Tài khoản", "Họ tên", "Văn phòng", ...dayHeaders, "Số ngày công", "Tổng lượt chấm"],
-        rows: view.rows.map((r, i) => [
-          i + 1,
-          r.staff.staffCode ?? "",
-          r.staff.login,
-          staffName(r.staff),
-          r.staff.officeName ?? r.staff.officeCode ?? "",
-          ...view.days.map((d) => inOut(r.perDay.get(d))),
-          r.workDays,
-          r.total,
-        ]),
-      },
-      {
-        name: "Chi tiết",
-        headers: ["STT", "Ngày", "Mã NV", "Tài khoản", "Họ tên", "VP chấm", "Giờ vào", "Giờ ra", "Số lượt", "Các lượt", "IP"],
-        rows: detailRows.map((d, i) => [
-          i + 1,
-          viDay(d.day),
-          d.staff.staffCode ?? "",
-          d.staff.login,
-          staffName(d.staff),
-          d.items[0].officeName,
-          timeOf(d.items[0].checkedAt),
-          d.items.length > 1 ? timeOf(d.items[d.items.length - 1].checkedAt) : "",
-          d.items.length,
-          d.items.map((x) => timeOf(x.checkedAt)).join(", "),
-          [...new Set(d.items.map((x) => x.clientIp).filter(Boolean))].join(", "),
-        ]),
-      },
+        {
+          name: "Bảng công",
+          headers: [
+            "STT",
+            "Mã NV",
+            "Tài khoản",
+            "Họ tên",
+            "Văn phòng",
+            ...dayHeaders,
+            "Số ngày công",
+            "Tổng lượt chấm",
+          ],
+          rows: view.rows.map((r, i) => [
+            i + 1,
+            r.staff.staffCode ?? "",
+            r.staff.login,
+            staffName(r.staff),
+            r.staff.officeName ?? r.staff.officeCode ?? "",
+            ...view.days.map((d) => inOut(r.perDay.get(d))),
+            r.workDays,
+            r.total,
+          ]),
+        },
+        {
+          name: "Chi tiết",
+          headers: [
+            "STT",
+            "Ngày",
+            "Mã NV",
+            "Tài khoản",
+            "Họ tên",
+            "VP chấm",
+            "Giờ vào",
+            "Giờ ra",
+            "Số lượt",
+            "Các lượt",
+            "IP",
+          ],
+          rows: detailRows.map((d, i) => [
+            i + 1,
+            viDay(d.day),
+            d.staff.staffCode ?? "",
+            d.staff.login,
+            staffName(d.staff),
+            d.items[0].officeName,
+            timeOf(d.items[0].checkedAt),
+            d.items.length > 1 ? timeOf(d.items[d.items.length - 1].checkedAt) : "",
+            d.items.length,
+            d.items.map((x) => timeOf(x.checkedAt)).join(", "),
+            [...new Set(d.items.map((x) => x.clientIp).filter(Boolean))].join(", "),
+          ]),
+        },
       ],
       format,
     );
@@ -231,122 +279,197 @@ function Page() {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
-      <h1 className="page-title">Chấm công</h1>
-      <section className="card stack">
-        <div className="filter-grid">
-          <label className="field">
-            <span className="l">Tháng</span>
-            <span className="box input-box">
-              <input
-                className="num"
-                type="month"
-                value={month}
-                onChange={(e) => {
-                  setMonth(e.target.value);
-                  if (e.target.value) {
-                    const r = monthRange(e.target.value);
-                    setFrom(r.from);
-                    setTo(r.to);
-                  }
-                }}
-              />
-              <span className="ms" aria-hidden="true">
-                calendar_month
+      <div className="title-row">
+        <div>
+          <h1 className="page-title">Chấm công</h1>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <button
+            type="button"
+            className="btn tonal"
+            onClick={() => void load()}
+            disabled={loading}
+          >
+            Xem
+          </button>
+          <ExportFormatButton disabled={!view || view.rows.length === 0} onExport={exportExcel} />
+        </div>
+      </div>
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">
+                event_available
               </span>
-            </span>
-          </label>
-          <label className="field">
-            <span className="l">Từ ngày</span>
-            <span className="box input-box">
-              <input className="num" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-              <span className="ms" aria-hidden="true">
-                calendar_today
-              </span>
-            </span>
-          </label>
-          <label className="field">
-            <span className="l">Đến ngày</span>
-            <span className="box input-box">
-              <input className="num" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-              <span className="ms" aria-hidden="true">
-                calendar_today
-              </span>
-            </span>
-          </label>
-          <div className="field">
-            <span className="l">Văn phòng</span>
-            <SearchableSelect
-              value={office}
-              onValueChange={(v) => {
-                setOffice(v);
-                setLogin(ALL);
-              }}
-              options={[
-                { value: ALL, label: "Toàn hệ thống" },
-                ...[...offices]
-                  .sort((a, b) => a.name.localeCompare(b.name, "vi"))
-                  .map((o) => ({ value: o.code, label: o.name })),
-              ]}
-            />
+              Lượt chấm công
+            </div>
+            <div className="sum-hero">
+              {loading && !view ? "…" : totalChecks.toLocaleString("vi-VN")}{" "}
+              <span className="sum-unit">lượt</span>
+            </div>
           </div>
-          <div className="field">
-            <span className="l">Nhân viên</span>
-            <SearchableSelect value={login} onValueChange={setLogin} options={staffOptions} />
+          <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+            <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+            <rect className="ill-mid" x="28" y="16" width="84" height="78" rx="8" />
+            <path className="ill-main" d="M28 24a8 8 0 0 1 8-8h68a8 8 0 0 1 8 8v12H28z" />
+            <rect className="ill-main" x="46" y="7" width="6" height="16" rx="3" />
+            <rect className="ill-main" x="88" y="7" width="6" height="16" rx="3" />
+            <rect className="ill-paper" x="38" y="44" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="56" y="44" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="74" y="44" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="92" y="44" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="38" y="63" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="56" y="63" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="74" y="63" width="13" height="13" rx="3" />
+            <rect className="ill-paper" x="92" y="63" width="13" height="13" rx="3" />
+            <rect className="ill-main" x="56" y="44" width="13" height="13" rx="3" />
+            <path className="ill-tick" d="M59 50.5l2.5 2.6 4.6-5" />
+            <circle className="ill-box" cx="118" cy="74" r="20" />
+            <circle className="ill-paper" cx="118" cy="74" r="14" />
+            <path className="ill-hand" d="M118 65v9l6 4" />
+          </svg>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">group</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Nhân viên</div>
+            <div className="sum-val">{(view?.rows.length ?? 0).toLocaleString("vi-VN")}</div>
           </div>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <div className="lab muted">
-            {view
-              ? `${view.rows.length} nhân viên · ${checkedStaff} người có chấm công · ${totalChecks} lượt chấm`
-              : loading
-                ? "Đang tải…"
-                : "Chưa có dữ liệu"}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <button type="button" className="btn tonal" onClick={() => void load()} disabled={loading}>
-              <span className="ms" aria-hidden="true">
-                refresh
-              </span>
-              Xem
-            </button>
-            <ExportFormatButton disabled={!view || view.rows.length === 0} onExport={exportExcel} />
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">how_to_reg</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Người có chấm công</div>
+            <div className="sum-val">{checkedStaff.toLocaleString("vi-VN")}</div>
           </div>
         </div>
-        <p className="lab muted">
-          Xuất theo đúng bộ lọc đang xem: chọn văn phòng để xuất theo VP, chọn nhân viên để xuất cá nhân, để trống để
-          xuất toàn hệ thống. CSV: 2 file (Bảng công + Chi tiết). Excel: 1 file .xls gồm 2 sheet.
-        </p>
       </section>
+      <div className="filter-grid">
+        <label className="field">
+          <span className="l">Tháng</span>
+          <span className="box input-box">
+            <input
+              className="num"
+              type="month"
+              value={month}
+              onChange={(e) => {
+                setMonth(e.target.value);
+                if (e.target.value) {
+                  const r = monthRange(e.target.value);
+                  setFrom(r.from);
+                  setTo(r.to);
+                }
+              }}
+            />
+            <span className="ms" aria-hidden="true">
+              calendar_month
+            </span>
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Từ ngày</span>
+          <span className="box input-box">
+            <input
+              className="num"
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <span className="ms" aria-hidden="true">
+              calendar_today
+            </span>
+          </span>
+        </label>
+        <label className="field">
+          <span className="l">Đến ngày</span>
+          <span className="box input-box">
+            <input className="num" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <span className="ms" aria-hidden="true">
+              calendar_today
+            </span>
+          </span>
+        </label>
+        <div className="field">
+          <span className="l">Văn phòng</span>
+          <SearchableSelect
+            value={office}
+            onValueChange={(v) => {
+              setOffice(v);
+              setLogin(ALL);
+            }}
+            options={[
+              { value: ALL, label: "Toàn hệ thống" },
+              ...[...offices]
+                .sort((a, b) => a.name.localeCompare(b.name, "vi"))
+                .map((o) => ({ value: o.code, label: o.name })),
+            ]}
+          />
+        </div>
+        <div className="field">
+          <span className="l">Nhân viên</span>
+          <SearchableSelect value={login} onValueChange={setLogin} options={staffOptions} />
+        </div>
+      </div>
 
-      <StageTabRow className="gap-2.5 md:gap-3">
-        <StageTabButton active={tab === "BANG_CONG"} onClick={() => setTab("BANG_CONG")}>
+      <div className="seg" role="tablist" aria-label="Kiểu xem" style={{ alignSelf: "flex-start" }}>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "BANG_CONG" ? "on" : undefined}
+          aria-selected={tab === "BANG_CONG"}
+          onClick={() => setTab("BANG_CONG")}
+        >
           Bảng công
-        </StageTabButton>
-        <StageTabButton active={tab === "CHI_TIET"} onClick={() => setTab("CHI_TIET")}>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "CHI_TIET" ? "on" : undefined}
+          aria-selected={tab === "CHI_TIET"}
+          onClick={() => setTab("CHI_TIET")}
+        >
           Chi tiết theo ngày
-        </StageTabButton>
-      </StageTabRow>
+        </button>
+      </div>
 
       {!view || view.rows.length === 0 ? (
         <Section>
-          <EmptyState>{loading ? "Đang tải…" : "Không có nhân viên nào trong phạm vi lọc"}</EmptyState>
+          <EmptyState>
+            {loading ? "Đang tải…" : "Không có nhân viên nào trong phạm vi lọc"}
+          </EmptyState>
         </Section>
       ) : tab === "BANG_CONG" ? (
         <section className="card stack">
-          <h2 className="group-title sec-title">
-            <span className="sec-ic" aria-hidden="true">
-              <span className="ms">calendar_month</span>
-            </span>
-            Bảng công {viDay(loaded!.from)} – {viDay(loaded!.to)}
-          </h2>
+          <div className="title-row" style={{ alignItems: "center" }}>
+            <h2 className="group-title sec-title num">
+              <span className="sec-ic" aria-hidden="true">
+                <span className="ms">calendar_month</span>
+              </span>
+              Bảng công {viDay(loaded!.from)} - {viDay(loaded!.to)}
+            </h2>
+            <div
+              className="lab muted"
+              title="Chọn văn phòng để xuất theo VP, chọn nhân viên để xuất cá nhân, để trống để xuất toàn hệ thống. CSV: 2 file (Bảng công + Chi tiết). Excel: 1 file .xls gồm 2 sheet."
+            >
+              Xuất theo đúng bộ lọc đang xem
+            </div>
+          </div>
           <div className="scroller">
-            <table className="tbl">
+            <table
+              className="tbl sticky-1 compact att"
+              style={{ ["--tbl-min" as string]: `${360 + view.days.length * 40}px` }}
+            >
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[200px] bg-muted px-2 py-2">Nhân viên</th>
-                  <th className="px-2 py-2 text-right">Ngày công</th>
+                  <th>Nhân viên</th>
+                  <th className="r">Ngày công</th>
                   {view.days.map((d) => (
-                    <th key={d} className="min-w-[64px] px-1 py-2 text-center">
+                    <th key={d} className="c num">
                       {d.slice(8, 10)}/{d.slice(5, 7)}
                     </th>
                   ))}
@@ -354,31 +477,34 @@ function Page() {
               </thead>
               <tbody>
                 {staffPage.pageRows.map((r) => (
-                  <tr key={r.staff.login} className="border-b hover:bg-muted/30">
-                    <td className="sticky left-0 z-10 bg-card px-2 py-1.5">
-                      <div className="font-medium">
-                        <StaffInfoPopover staffKey={r.staff.login}>{staffName(r.staff)}</StaffInfoPopover>
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
+                  <tr key={r.staff.login}>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <span style={{ fontWeight: 500 }}>
+                        <StaffInfoPopover staffKey={r.staff.login}>
+                          {staffName(r.staff)}
+                        </StaffInfoPopover>
+                      </span>
+                      <span className="sub">
                         {r.staff.login}
                         {r.staff.officeName ? ` · ${r.staff.officeName}` : ""}
-                      </div>
+                      </span>
                     </td>
-                    <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{r.workDays}</td>
+                    <td className="r main num">{r.workDays}</td>
                     {view.days.map((d) => {
                       const items = r.perDay.get(d);
                       return (
-                        <td key={d} className="px-1 py-1.5 text-center tabular-nums">
+                        <td key={d} className={items ? "c num" : "c muted"}>
                           {items ? (
                             <button
                               type="button"
-                              className="rounded px-1 text-primary hover:bg-primary/10"
+                              className="text-act"
+                              style={{ height: 24, padding: "0 4px", color: "var(--primary)" }}
                               onClick={() => setDetail({ staff: r.staff, day: d, items })}
                             >
                               {inOut(items)}
                             </button>
                           ) : (
-                            <span className="text-muted-foreground">-</span>
+                            "-"
                           )}
                         </td>
                       );
@@ -416,24 +542,28 @@ function Page() {
                 </thead>
                 <tbody>
                   {detailPage.pageRows.map((d) => (
-                    <tr key={`${d.day}-${d.staff.login}`} className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2 whitespace-nowrap tabular-nums">{viDay(d.day)}</td>
-                      <td className="px-2 py-2">
-                        <div className="font-medium">
-                          <StaffInfoPopover staffKey={d.staff.login}>{staffName(d.staff)}</StaffInfoPopover>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">{d.staff.login}</div>
+                    <tr key={`${d.day}-${d.staff.login}`}>
+                      <td className="num" style={{ whiteSpace: "nowrap" }}>
+                        {viDay(d.day)}
                       </td>
-                      <td className="px-2 py-2 text-muted-foreground">{d.items[0].officeName}</td>
-                      <td className="px-2 py-2 tabular-nums">{timeOf(d.items[0].checkedAt)}</td>
-                      <td className="px-2 py-2 tabular-nums">
+                      <td className="main">
+                        <StaffInfoPopover staffKey={d.staff.login}>
+                          {staffName(d.staff)}
+                        </StaffInfoPopover>
+                        <span className="sub">{d.staff.login}</span>
+                      </td>
+                      <td className="muted">{d.items[0].officeName}</td>
+                      <td className="num">{timeOf(d.items[0].checkedAt)}</td>
+                      <td className="num">
                         {d.items.length > 1 ? timeOf(d.items[d.items.length - 1].checkedAt) : "—"}
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums">{d.items.length}</td>
-                      <td className="px-2 py-2 text-right">
-                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setDetail(d)}>
-                          Chi tiết
-                        </Button>
+                      <td className="r num">{d.items.length}</td>
+                      <td>
+                        <div className="act">
+                          <button type="button" className="ok" onClick={() => setDetail(d)}>
+                            Chi tiết
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -480,7 +610,9 @@ function DetailDialog({
           <DialogTitle>
             {detail ? `${staffName(detail.staff)} — ${viDay(detail.day)}` : ""}
           </DialogTitle>
-          <DialogDescription>{detail ? `${detail.items.length} lượt chấm công` : ""}</DialogDescription>
+          <DialogDescription>
+            {detail ? `${detail.items.length} lượt chấm công` : ""}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid max-h-[70vh] gap-3 overflow-y-auto sm:grid-cols-2">
           {detail?.items.map((it) => {
@@ -495,12 +627,18 @@ function DetailDialog({
                   {photo === undefined ? (
                     <span className="text-xs text-muted-foreground">Đang tải ảnh…</span>
                   ) : photo ? (
-                    <img src={photo} alt={`Ảnh chấm công ${timeOf(it.checkedAt)}`} className="h-full w-full object-cover" />
+                    <img
+                      src={photo}
+                      alt={`Ảnh chấm công ${timeOf(it.checkedAt)}`}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <span className="text-xs text-muted-foreground">Không có ảnh</span>
                   )}
                 </div>
-                <div className="mt-1 text-[11px] text-muted-foreground">IP: {it.clientIp || "—"}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  IP: {it.clientIp || "—"}
+                </div>
               </div>
             );
           })}

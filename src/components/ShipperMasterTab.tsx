@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   createShipper,
   deactivateShipper,
@@ -16,7 +29,14 @@ import {
 import { isApiEnabled } from "@/lib/api/client";
 import type { OfficeRec } from "@/lib/mock-data";
 
-type Form = { id?: number; fullName: string; phone: string; officeCode: string; note: string; active: boolean };
+type Form = {
+  id?: number;
+  fullName: string;
+  phone: string;
+  officeCode: string;
+  note: string;
+  active: boolean;
+};
 
 const EMPTY: Form = { fullName: "", phone: "", officeCode: "", note: "", active: true };
 
@@ -91,7 +111,8 @@ export function ShipperMasterTab({
   };
 
   const deactivate = async (s: ShipperDTO) => {
-    if (!confirm(`Ngừng hoạt động shipper ${s.fullName}? Đơn cũ vẫn giữ tên shipper.`)) return;
+    if (!(await askConfirm(`Ngừng hoạt động shipper ${s.fullName}? Đơn cũ vẫn giữ tên shipper.`)))
+      return;
     try {
       await deactivateShipper(s.id);
       toast.success(`Đã ngừng ${s.fullName}`);
@@ -154,10 +175,15 @@ export function ShipperMasterTab({
               </tr>
             ) : (
               visible.map((s) => (
-                <tr key={s.id} className={`border-b last:border-0 ${s.active === false ? "opacity-50" : ""}`}>
+                <tr
+                  key={s.id}
+                  className={`border-b last:border-0 ${s.active === false ? "opacity-50" : ""}`}
+                >
                   <td className="py-2 pr-4 font-medium">
                     {s.fullName}
-                    {s.active === false ? <span className="ml-2 text-xs text-muted-foreground">(ngừng)</span> : null}
+                    {s.active === false ? (
+                      <span className="ml-2 text-xs text-muted-foreground">(ngừng)</span>
+                    ) : null}
                   </td>
                   <td className="py-2 pr-4">{s.phone || "—"}</td>
                   <td className="py-2 pr-4">{s.officeName || s.officeCode}</td>
@@ -183,7 +209,12 @@ export function ShipperMasterTab({
                           Sửa
                         </Button>
                         {s.active !== false && (
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => void deactivate(s)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => void deactivate(s)}
+                          >
                             Ngừng
                           </Button>
                         )}
@@ -215,11 +246,18 @@ export function ShipperMasterTab({
               </div>
               <div className="space-y-1">
                 <Label>Số điện thoại</Label>
-                <Input value={form.phone} maxLength={20} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <Input
+                  value={form.phone}
+                  maxLength={20}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
               </div>
               <div className="space-y-1">
                 <Label>VP giao hàng</Label>
-                <Select value={form.officeCode} onValueChange={(v) => setForm({ ...form, officeCode: v })}>
+                <Select
+                  value={form.officeCode}
+                  onValueChange={(v) => setForm({ ...form, officeCode: v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn VP" />
                   </SelectTrigger>
@@ -234,7 +272,11 @@ export function ShipperMasterTab({
               </div>
               <div className="space-y-1">
                 <Label>Ghi chú</Label>
-                <Input value={form.note} maxLength={255} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+                <Input
+                  value={form.note}
+                  maxLength={255}
+                  onChange={(e) => setForm({ ...form, note: e.target.value })}
+                />
               </div>
               {form.id != null && (
                 <label className="flex items-center gap-2 text-sm">

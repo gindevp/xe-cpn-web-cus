@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -40,7 +41,8 @@ export const Route = createFileRoute("/quan-ly-hoa-don")({
       { title: "Quản lý hoá đơn — X.E" },
       {
         name: "description",
-        content: "Kế toán theo dõi đơn đã / chưa xuất hoá đơn điện tử, bỏ xuất tự động, xuất bù và xuất Excel.",
+        content:
+          "Kế toán theo dõi đơn đã / chưa xuất hoá đơn điện tử, bỏ xuất tự động, xuất bù và xuất Excel.",
       },
       { property: "og:title", content: "Quản lý hoá đơn — X.E" },
       { property: "og:type", content: "website" },
@@ -48,7 +50,7 @@ export const Route = createFileRoute("/quan-ly-hoa-don")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Quản lý hoá đơn" screen="quan-ly-hoa-don">
+    <ProtectedPage title="Quản lý hoá đơn" screen="quan-ly-hoa-don" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -72,7 +74,9 @@ function defaultRange() {
 
 function money(n?: number) {
   if (n == null || !Number.isFinite(Number(n))) return "—";
-  return formatVND(Number(n)).replace(/\s*VNĐ$/i, "").trim();
+  return formatVND(Number(n))
+    .replace(/\s*VNĐ$/i, "")
+    .trim();
 }
 
 function dt(s?: string) {
@@ -101,7 +105,8 @@ const FLAG_FILTERS: { value: "" | "NORMAL" | InvoiceOrderFlag; label: string }[]
   { value: "EXCEPTION", label: "Ngoại lệ" },
 ];
 const payerName = (r: InvoiceRow) => (r.payer === "SENDER" ? r.senderName : r.receiverName) ?? "";
-const payerPhone = (r: InvoiceRow) => (r.payer === "SENDER" ? r.senderPhone : r.receiverPhone) ?? "";
+const payerPhone = (r: InvoiceRow) =>
+  (r.payer === "SENDER" ? r.senderPhone : r.receiverPhone) ?? "";
 
 const STATE_FILTERS: { value: "" | InvoiceState; label: string }[] = [
   { value: "", label: "Tất cả" },
@@ -175,7 +180,14 @@ function Page() {
   const { pageRows, pager } = usePagedRows(rows, "quan-ly-hoa-don");
 
   const counts = useMemo(() => {
-    const c: Record<InvoiceState, number> = { NOT_ISSUED: 0, COMPANY: 0, PERSONAL: 0, MANUAL: 0, FAILED: 0, PENDING: 0 };
+    const c: Record<InvoiceState, number> = {
+      NOT_ISSUED: 0,
+      COMPANY: 0,
+      PERSONAL: 0,
+      MANUAL: 0,
+      FAILED: 0,
+      PENDING: 0,
+    };
     for (const r of rows) c[stateOf(r)] += 1;
     return c;
   }, [rows]);
@@ -221,7 +233,7 @@ function Page() {
     const verb = marked
       ? "BỎ XUẤT TỰ ĐỘNG (hệ thống sẽ không tự xuất / xuất bù HĐ)"
       : "Bỏ tích bỏ xuất tự động (đơn về Chưa xuất)";
-    if (!window.confirm(`${verb} cho ${list.length} đơn?`)) return;
+    if (!(await askConfirm(`${verb} cho ${list.length} đơn?`))) return;
     setMarking(true);
     try {
       const res = await markInvoicesPersonal(
@@ -230,7 +242,12 @@ function Page() {
       );
       const failed = Object.entries(res).filter(([, v]) => v !== "OK");
       if (failed.length) {
-        toast.error(`${failed.length} đơn không cập nhật được: ${failed.slice(0, 5).map(([k, v]) => `${k} (${v})`).join("; ")}`);
+        toast.error(
+          `${failed.length} đơn không cập nhật được: ${failed
+            .slice(0, 5)
+            .map(([k, v]) => `${k} (${v})`)
+            .join("; ")}`,
+        );
       } else {
         toast.success(marked ? `Đã tích ${list.length} đơn` : `Đã bỏ tích ${list.length} đơn`);
       }
@@ -326,8 +343,8 @@ function Page() {
         <div style={{ flex: "1 1 480px", minWidth: 0 }}>
           <h1 className="page-title">Quản lý hoá đơn</h1>
           <div className="lab muted" style={{ maxWidth: 760 }}>
-            Lọc theo mốc thanh toán: gửi trả là lúc nhập kho gửi, nhận trả và COD là lúc giao thành công. Hệ thống tự xuất
-            khi đơn đã giao thành công và quá 3 tiếng kể từ mốc này.
+            Lọc theo mốc thanh toán: gửi trả là lúc nhập kho gửi, nhận trả và COD là lúc giao thành
+            công. Hệ thống tự xuất khi đơn đã giao thành công và quá 3 tiếng kể từ mốc này.
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -349,6 +366,18 @@ function Page() {
             </div>
             <div className="sum-hero">{counts.NOT_ISSUED.toLocaleString("vi-VN")}</div>
           </div>
+          <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+            <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+            <path className="ill-mid" d="M36 6h50l22 22v68H36z" />
+            <path className="ill-paper" d="M43 13h40l18 18v58H43z" />
+            <path className="ill-main" d="M84 6l24 22H84z" />
+            <rect className="ill-main" x="50" y="28" width="24" height="5" rx="2.5" />
+            <rect className="ill-mid" x="50" y="40" width="42" height="5" rx="2.5" />
+            <rect className="ill-mid" x="50" y="51" width="42" height="5" rx="2.5" />
+            <rect className="ill-mid" x="50" y="62" width="26" height="5" rx="2.5" />
+            <circle className="ill-box" cx="108" cy="74" r="19" />
+            <path className="ill-tick wide" d="M99 74l6.5 6.5L118 67" />
+          </svg>
         </div>
         <div className="rev-tile card-tile">
           <span className="rev-ic" aria-hidden="true">
@@ -368,6 +397,15 @@ function Page() {
             <div className="sum-val">{counts.PERSONAL.toLocaleString("vi-VN")}</div>
           </div>
         </div>
+        <div className="rev-tile card-tile bad">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">cancel</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Đơn huỷ</div>
+            <div className="sum-val">{flagCounts.CANCELLED.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
       </section>
 
       <div className="filter-grid">
@@ -382,7 +420,12 @@ function Page() {
                 const text = e.clipboardData.getData("text");
                 if (!/[\r\n]/.test(text)) return;
                 e.preventDefault();
-                setQ(text.split(/[\s,;]+/).filter(Boolean).join(" "));
+                setQ(
+                  text
+                    .split(/[\s,;]+/)
+                    .filter(Boolean)
+                    .join(" "),
+                );
               }}
               placeholder="Mã đơn, tên, SĐT, MST, số HĐ..."
             />
@@ -394,7 +437,10 @@ function Page() {
             value={office || "all"}
             onValueChange={(v) => setOffice(v === "all" ? "" : v)}
             placeholder="Tất cả"
-            options={[{ value: "all", label: "Tất cả" }, ...offices.map((o) => ({ value: o.code, label: o.name }))]}
+            options={[
+              { value: "all", label: "Tất cả" },
+              ...offices.map((o) => ({ value: o.code, label: o.name })),
+            ]}
           />
         </div>
         <div className="field">
@@ -430,7 +476,10 @@ function Page() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-        <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <label
+          className="lab"
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+        >
           <input
             className="check"
             type="checkbox"
@@ -452,7 +501,12 @@ function Page() {
               Bỏ xuất tự động ({markable.length})
             </button>
             {unmarkable.length ? (
-              <button type="button" className="btn ghost" disabled={marking} onClick={() => void mark(unmarkable, false)}>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={marking}
+                onClick={() => void mark(unmarkable, false)}
+              >
                 Bỏ tích ({unmarkable.length})
               </button>
             ) : null}
@@ -475,7 +529,12 @@ function Page() {
               <thead>
                 <tr>
                   <th style={{ width: 18 }}>
-                    <button type="button" className="no-btn" onClick={togglePage} aria-label="Chọn cả trang">
+                    <button
+                      type="button"
+                      className="no-btn"
+                      onClick={togglePage}
+                      aria-label="Chọn cả trang"
+                    >
                       {allOnPageSelected ? (
                         <span className="ms fill" aria-hidden="true">
                           check_box
@@ -515,7 +574,11 @@ function Page() {
                       )}
                     >
                       <td className="px-2 py-2 align-top">
-                        <button type="button" onClick={() => toggle(r.orderCode)} aria-label={`Chọn ${r.orderCode}`}>
+                        <button
+                          type="button"
+                          onClick={() => toggle(r.orderCode)}
+                          aria-label={`Chọn ${r.orderCode}`}
+                        >
                           {selected.has(r.orderCode) ? (
                             <CheckSquare className="h-4 w-4 text-primary" />
                           ) : (
@@ -527,7 +590,12 @@ function Page() {
                         <OrderCodeLink code={r.orderCode} />
                         {flagLabel ? (
                           <div className="mt-0.5">
-                            <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", flagLabel.cls)}>
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                                flagLabel.cls,
+                              )}
+                            >
                               {flagLabel.text}
                             </span>
                           </div>
@@ -538,7 +606,9 @@ function Page() {
                       </td>
                       <td className="px-2 py-2 align-top whitespace-nowrap">
                         <div>{collectFormLabel(r.paymentTerm)}</div>
-                        {r.onCredit ? <div className="text-[11px] font-medium text-amber-700">Công nợ</div> : null}
+                        {r.onCredit ? (
+                          <div className="text-[11px] font-medium text-amber-700">Công nợ</div>
+                        ) : null}
                       </td>
                       <td className="px-2 py-2 align-top">
                         <div>{payerName(r) || "—"}</div>
@@ -549,9 +619,16 @@ function Page() {
                       <td className="px-2 py-2 align-top text-xs">
                         {r.fromOfficeName || "—"} → {r.toOfficeName || "—"}
                       </td>
-                      <td className="px-2 py-2 align-top text-right tabular-nums">{money(r.invoiceAmount)}</td>
+                      <td className="px-2 py-2 align-top text-right tabular-nums">
+                        {money(r.invoiceAmount)}
+                      </td>
                       <td className="px-2 py-2 align-top">
-                        <span className={cn("rounded px-1.5 py-0.5 text-[11px] font-semibold", label.cls)}>
+                        <span
+                          className={cn(
+                            "rounded px-1.5 py-0.5 text-[11px] font-semibold",
+                            label.cls,
+                          )}
+                        >
                           {label.text}
                         </span>
                         {r.late ? (
@@ -560,7 +637,9 @@ function Page() {
                           </span>
                         ) : null}
                         {r.invoiceRequested && st === "NOT_ISSUED" ? (
-                          <div className="mt-0.5 text-[11px] text-sky-700">Có yêu cầu HĐ công ty</div>
+                          <div className="mt-0.5 text-[11px] text-sky-700">
+                            Có yêu cầu HĐ công ty
+                          </div>
                         ) : null}
                       </td>
                       <td className="px-2 py-2 align-top text-xs">

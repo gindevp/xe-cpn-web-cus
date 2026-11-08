@@ -1,12 +1,20 @@
 import { AutoCallCallsPanel, AutoCallTestPanel } from "@/components/AutoCallCalls";
-import { Section } from "@/components/PageBits";
+import { askConfirm } from "@/components/m3/askConfirm";
+import {
+  CfgCard,
+  CfgCheck,
+  CfgField,
+  CfgHead,
+  CfgInput,
+  CfgNote,
+  CfgSeg,
+  CfgSentence,
+  CfgSubTabs,
+  CfgToggle,
+  CfgUrl,
+  type CfgTag,
+} from "@/components/m3/CfgKit";
 import { SecretInput } from "@/components/SecretInput";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getApiBase, isApiEnabled } from "@/lib/api/client";
 import type { AutoCallAudio, AutoCallResult, AutoCallType } from "@/lib/api/finance-config-api";
 import { resolveAutoCallRates } from "@/lib/phone-carrier";
@@ -31,19 +39,18 @@ function detectMode(key: string): "SANDBOX" | "LIVE" | "UNKNOWN" | undefined {
   return "UNKNOWN";
 }
 
-function ModeBadge({
-  mode,
-  provider,
-}: {
-  mode?: "SANDBOX" | "LIVE" | "UNKNOWN";
-  provider: AutoCallProvider;
-}) {
-  if (provider === "VTECH") return <Badge variant="destructive">Vtech · gọi thật</Badge>;
+function modeTag(
+  mode: "SANDBOX" | "LIVE" | "UNKNOWN" | undefined,
+  provider: AutoCallProvider,
+): CfgTag | null {
+  if (provider === "VTECH") return { label: "Vtech · gọi thật", tone: "err" };
   if (!mode) return null;
-  if (mode === "SANDBOX") return <Badge variant="secondary">Sandbox · không gọi thật</Badge>;
-  if (mode === "LIVE") return <Badge variant="destructive">Live · gọi thật</Badge>;
-  return <Badge variant="outline">Key không rõ loại</Badge>;
+  if (mode === "SANDBOX") return { label: "Sandbox · không gọi thật", tone: "info" };
+  if (mode === "LIVE") return { label: "Live · gọi thật", tone: "err" };
+  return { label: "Key không rõ loại", tone: "warn" };
 }
+
+type AutoCallSub = "ket-noi" | "goi-lai" | "file" | "cuoc-goi" | "goi-thu";
 
 export function AutoCallIntegration() {
   const integrations = useStore((s) => s.integrations);
@@ -122,7 +129,7 @@ export function AutoCallIntegration() {
     loadAudios().catch(() => undefined);
   }, [hhvnKeySaved, savedProvider, loadAudios]);
 
-  const save = () => {
+  const save = async () => {
     const hasKey =
       provider === "VTECH" ? vtechKeySaved || !!vtechKey.trim() : hhvnKeySaved || !!apiKey.trim();
     if (enabled && !hasKey) {
@@ -130,9 +137,9 @@ export function AutoCallIntegration() {
     }
     if (
       provider !== savedProvider &&
-      !window.confirm(
+      !(await askConfirm(
         `Chuyển Auto Call sang ${PROVIDER_LABEL[provider]}? Cuộc gọi mới (kể cả cuộc gọi đang chờ khung giờ / gọi lại) sẽ gửi qua ${PROVIDER_LABEL[provider]}.`,
-      )
+      ))
     ) {
       return;
     }
@@ -238,11 +245,11 @@ export function AutoCallIntegration() {
     })();
   };
 
-  const resetDefault = (type: AutoCallType) => {
+  const resetDefault = async (type: AutoCallType) => {
     if (
-      !window.confirm(
+      !(await askConfirm(
         `Xoá file riêng, quay về file mặc định của tổng đài cho "${TYPE_LABEL[type]}"?`,
-      )
+      ))
     )
       return;
     setAudioBusy(type);
@@ -280,100 +287,117 @@ export function AutoCallIntegration() {
     })();
   };
 
+  const [sub, setSub] = useState<AutoCallSub>("ket-noi");
+
   if (!isApiEnabled()) {
     return (
-      <Section title="Auto Call">
-        <p className="text-sm text-muted-foreground">
-          Cần kết nối API máy chủ để cấu hình Auto Call.
-        </p>
-      </Section>
+      <CfgCard
+        icon="phone_in_talk"
+        title="Auto Call"
+        desc="Cần kết nối API máy chủ để cấu hình Auto Call."
+      />
     );
   }
 
-  const needKey = <p className="text-xs text-muted-foreground">Lưu API key ở tab Kết nối trước.</p>;
+  const needKey = <div className="note">Lưu API key ở mục Kết nối trước.</div>;
+  const activeSub: AutoCallSub = sub === "file" && savedProvider !== "HHVN" ? "ket-noi" : sub;
+  const subTabs: { id: AutoCallSub; label: string }[] = [
+    { id: "ket-noi", label: "Kết nối" },
+    { id: "goi-lai", label: "Lịch gọi" },
+    ...(savedProvider === "HHVN" ? [{ id: "file" as const, label: "File thông báo" }] : []),
+    { id: "cuoc-goi", label: "Cuộc gọi" },
+    { id: "goi-thu", label: "Gọi thử" },
+  ];
+  const saveBtn = (
+    <button type="button" className="btn" onClick={save} disabled={saving}>
+      {saving ? "Đang lưu…" : "Lưu Auto Call"}
+    </button>
+  );
+  const rateInput = (
+    value: string,
+    onChange: (v: string) => void,
+    size: "short" | "tiny",
+    max: number,
+    label: string,
+  ) => (
+    <input
+      type="number"
+      className={`cell-input ${size}`}
+      min={1}
+      max={max}
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 
   return (
-    <Section
-      title={`Auto Call · ${PROVIDER_LABEL[savedProvider]}`}
-      right={<ModeBadge mode={mode} provider={savedProvider} />}
-    >
-      <Tabs defaultValue="ket-noi">
-        <TabsList>
-          <TabsTrigger value="ket-noi">Kết nối</TabsTrigger>
-          <TabsTrigger value="goi-lai">Lịch gọi</TabsTrigger>
-          {savedProvider === "HHVN" ? <TabsTrigger value="file">File thông báo</TabsTrigger> : null}
-          <TabsTrigger value="cuoc-goi">Cuộc gọi</TabsTrigger>
-          <TabsTrigger value="goi-thu">Gọi thử</TabsTrigger>
-        </TabsList>
+    <div className="stack" style={{ gap: 16 }}>
+      <CfgSubTabs tabs={subTabs} value={activeSub} onChange={setSub} />
 
-        <TabsContent value="ket-noi" className="pt-2">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <Switch id="autocall-enabled" checked={enabled} onCheckedChange={setEnabled} />
-            <Label htmlFor="autocall-enabled" className="text-sm">
-              Bật Auto Call {integrations.autocallEnabled ? "· đang bật" : "· đang tắt"}
-            </Label>
-            <span className="text-xs text-muted-foreground">
-              Khi bật: đơn nhập kho giao (hoặc quay về kho sau giao thất bại) tự gọi người nhận. Đơn giao tận nơi không gọi.
-            </span>
-          </div>
-
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Label className="text-sm">Nhà cung cấp</Label>
-            {(["HHVN", "VTECH"] as AutoCallProvider[]).map((p) => (
-              <Button
-                key={p}
-                type="button"
-                size="sm"
-                variant={provider === p ? "default" : "outline"}
-                onClick={() => {
-                  setProvider(p);
-                  setResult(null);
-                }}
-              >
-                {PROVIDER_LABEL[p]}
-                {savedProvider === p ? " · đang dùng" : ""}
-              </Button>
-            ))}
+      {activeSub === "ket-noi" ? (
+        <>
+          <CfgCard
+            icon="phone_in_talk"
+            title={`Auto Call · ${PROVIDER_LABEL[savedProvider]}`}
+            tags={[
+              integrations.autocallEnabled
+                ? { label: "Đang bật", tone: "ok" }
+                : { label: "Đang tắt", tone: "warn" },
+              modeTag(mode, savedProvider),
+            ]}
+            desc="Đơn nhập kho giao (hoặc quay về kho sau giao thất bại) tự gọi người nhận. Đơn giao tận nơi không gọi."
+            acts={
+              <>
+                <button type="button" className="btn tonal" onClick={test} disabled={testing}>
+                  {testing ? "Đang test…" : formKey ? "Test key vừa nhập" : "Test kết nối"}
+                </button>
+                {saveBtn}
+              </>
+            }
+          >
+            <CfgToggle label="Bật Auto Call" checked={enabled} onChange={setEnabled} />
+            <CfgSeg
+              label="Nhà cung cấp"
+              value={provider}
+              options={[
+                { value: "VTECH", label: PROVIDER_LABEL.VTECH },
+                { value: "HHVN", label: PROVIDER_LABEL.HHVN },
+              ]}
+              onChange={(p) => {
+                setProvider(p);
+                setResult(null);
+              }}
+            />
             {provider !== savedProvider ? (
-              <span className="text-xs text-amber-700">
+              <div className="lab cfg-wide" style={{ color: "var(--on-warning-container)" }}>
                 Bấm Lưu để chuyển sang {PROVIDER_LABEL[provider]}
-              </span>
-            ) : null}
-          </div>
-
-          {provider === "VTECH" ? (
-            <>
-              <div className="mb-3 space-y-1 text-xs text-muted-foreground">
-                <p>
-                  Vtech chỉ gọi và trả kết quả: CPN đẩy SĐT người nhận vào chiến dịch callbot kèm
-                  biến <span className="font-mono">ten_san_pham</span> (tên hàng hoá),{" "}
-                  <span className="font-mono">diem_nhan</span> (tên VP nhận),{" "}
-                  <span className="font-mono">ma_don</span>. Không huỷ được cuộc gọi đã gửi, không
-                  dùng file thông báo.
-                </p>
-                <p>
-                  URL webhook cấu hình trong chiến dịch Vtech:{" "}
-                  {vtechWebhookUrl ? (
-                    <span className="select-all break-all font-mono text-foreground">
-                      {vtechWebhookUrl}
-                    </span>
-                  ) : (
-                    <span className="text-foreground">
-                      bấm Lưu với nhà cung cấp Vtech để tạo URL
-                    </span>
-                  )}
-                </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <F label="Base URL">
-                  <Input
+            ) : null}
+            {provider === "VTECH" ? (
+              <>
+                <CfgNote>
+                  Vtech chỉ gọi và trả kết quả: CPN đẩy SĐT người nhận vào chiến dịch callbot kèm
+                  biến <code>ten_san_pham</code> (tên hàng hoá), <code>diem_nhan</code> (tên VP
+                  nhận), <code>ma_don</code>. Không huỷ được cuộc gọi đã gửi, không dùng file thông
+                  báo.
+                </CfgNote>
+                <CfgUrl
+                  label="URL webhook cấu hình trong chiến dịch Vtech"
+                  url={vtechWebhookUrl}
+                  emptyText="Bấm Lưu với nhà cung cấp Vtech để tạo URL"
+                  copiedText="Đã copy URL webhook"
+                />
+                <CfgField label="Base URL">
+                  <CfgInput
                     value={vtechBaseUrl}
                     onChange={(e) => setVtechBaseUrl(e.target.value)}
                     placeholder={VTECH_DEFAULT_BASE_URL}
                   />
-                </F>
-                <F
-                  label={`API Key chiến dịch ${vtechKeySaved ? `· đã lưu${integrations.autocallVtechApiKeySuffix ? ` (…${integrations.autocallVtechApiKeySuffix})` : ""}` : ""}`}
+                </CfgField>
+                <CfgField
+                  label={`API Key chiến dịch${vtechKeySaved && integrations.autocallVtechApiKeySuffix ? ` (…${integrations.autocallVtechApiKeySuffix})` : ""}`}
+                  saved={vtechKeySaved}
                 >
                   <SecretInput
                     name="autocall-vtech-api-key"
@@ -381,26 +405,26 @@ export function AutoCallIntegration() {
                     onChange={(e) => setVtechKey(e.target.value)}
                     placeholder={vtechKeySaved ? "Nhập key mới để thay" : "tdai_…"}
                   />
-                </F>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="mb-3 text-xs text-muted-foreground">
-                URL webhook gửi HHVN Tech:{" "}
-                <span className="select-all font-mono text-foreground">{`${getApiBase()}/api/public/hhvn/webhook`}</span>
-              </p>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <F label="Base URL">
-                  <Input
+                </CfgField>
+              </>
+            ) : (
+              <>
+                <CfgUrl
+                  label="URL webhook gửi HHVN Tech"
+                  url={`${getApiBase()}/api/public/hhvn/webhook`}
+                  emptyText=""
+                  copiedText="Đã copy URL webhook"
+                />
+                <CfgField label="Base URL">
+                  <CfgInput
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
                     placeholder={DEFAULT_BASE_URL}
                   />
-                </F>
-                <F
-                  label={`API Key ${keySaved ? `· đã lưu${integrations.autocallApiKeySuffix ? ` (…${integrations.autocallApiKeySuffix})` : ""}` : ""}`}
+                </CfgField>
+                <CfgField
+                  label={`API Key${keySaved && integrations.autocallApiKeySuffix ? ` (…${integrations.autocallApiKeySuffix})` : ""}`}
+                  saved={keySaved}
                 >
                   <SecretInput
                     name="autocall-api-key"
@@ -408,9 +432,10 @@ export function AutoCallIntegration() {
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder={keySaved ? "Nhập key mới để thay" : "xk_test_… hoặc xk_live_…"}
                   />
-                </F>
-                <F
-                  label={`Webhook secret ${integrations.autocallWebhookSecretConfigured ? "· đã lưu" : ""}`}
+                </CfgField>
+                <CfgField
+                  label="Webhook secret"
+                  saved={integrations.autocallWebhookSecretConfigured === true}
                 >
                   <SecretInput
                     name="autocall-webhook-secret"
@@ -422,214 +447,157 @@ export function AutoCallIntegration() {
                         : "whsec_…"
                     }
                   />
-                </F>
-              </div>
-            </>
-          )}
-
-          <div className="mt-4 space-y-3 rounded-md border p-3">
-            <div>
-              <div className="text-sm font-medium">Cách tính tiền ước tính</div>
-              <p className="text-xs text-muted-foreground">
-                Dùng cho cột Ước tính trên tab Cuộc gọi (theo thời lượng nghe). Không trừ tiền thật.
-              </p>
-            </div>
-            <div className="grid gap-3">
-              <F label="Viettel / Vinaphone / Mobifone">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={100000}
-                    className="h-9 w-28"
-                    value={big3PerMin}
-                    onChange={(e) => setBig3PerMin(e.target.value)}
-                  />
-                  <span className="text-xs text-muted-foreground">đ / phút đã bắt đầu (dưới 1 phút tính 1 phút)</span>
-                </div>
-              </F>
-              <F label="Nhà mạng còn lại">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={100000}
-                    className="h-9 w-24"
-                    value={otherFirstFee}
-                    onChange={(e) => setOtherFirstFee(e.target.value)}
-                  />
-                  <span>đ cho</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={60}
-                    className="h-9 w-16"
-                    value={otherFirstSec}
-                    onChange={(e) => setOtherFirstSec(e.target.value)}
-                  />
-                  <span>giây đầu; mỗi giây sau +</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={100000}
-                    className="h-9 w-20"
-                    value={otherPerSec}
-                    onChange={(e) => setOtherPerSec(e.target.value)}
-                  />
-                  <span>đ</span>
-                </div>
-              </F>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" onClick={save} disabled={saving}>
-              {saving ? "Đang lưu…" : "Lưu Auto Call"}
-            </Button>
-            <Button type="button" variant="secondary" onClick={test} disabled={testing}>
-              {testing
-                ? "Đang test…"
-                : formKey
-                  ? "Test key vừa nhập"
-                  : `Test kết nối ${PROVIDER_LABEL[provider]}`}
-            </Button>
-          </div>
-
-          {result ? <TestResult r={result} /> : null}
-        </TabsContent>
-
-        <TabsContent value="goi-lai" className="pt-2">
-          <p className="mb-3 text-xs text-muted-foreground">
-            Nhắc Zalo ZNS sau hết vòng gọi ngày 1 (không nghe máy) cấu hình tại{" "}
-            <strong>Tích hợp → Zalo ZNS → Tự động</strong>.
-          </p>
-          <AutoCallRetrySettings />
-        </TabsContent>
-
-        <TabsContent value="file" className="pt-2">
-          <div>
-            {mode === "SANDBOX" ? (
-              <p className="mb-2 text-xs text-muted-foreground">
-                Key sandbox: file lưu cấu hình test riêng, không ảnh hưởng cuộc gọi thật
-              </p>
-            ) : null}
-            {!keySaved ? (
-              needKey
-            ) : audios == null ? (
-              <p className="text-xs text-muted-foreground">
-                Chưa tải được danh sách audio — bấm Test kết nối.
-              </p>
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">Loại</th>
-                      <th className="px-3 py-2 text-left font-medium">Nguồn</th>
-                      <th className="px-3 py-2 text-left font-medium">Thời lượng</th>
-                      <th className="px-3 py-2 text-left font-medium">File gốc</th>
-                      <th className="px-3 py-2 text-left font-medium">Cập nhật</th>
-                      <th className="px-3 py-2 text-right font-medium">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(["giao", "hoan"] as AutoCallType[]).map((type) => {
-                      const a = audios.find((x) => x.type === type);
-                      const busy = audioBusy === type;
-                      return (
-                        <tr key={type} className="border-t align-middle">
-                          <td className="px-3 py-2 font-medium">
-                            {TYPE_LABEL[type]}
-                            {type === "hoan" ? (
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                (không ghi âm)
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="px-3 py-2">
-                            {a?.source === "custom" ? (
-                              <Badge>Tự tải lên</Badge>
-                            ) : (
-                              <Badge variant="outline">Mặc định tổng đài</Badge>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            {a?.duration != null ? `${a.duration}s` : "—"}
-                          </td>
-                          <td className="px-3 py-2">{a?.originalName ?? "—"}</td>
-                          <td className="px-3 py-2">
-                            {a?.updatedAt ? new Date(a.updatedAt).toLocaleString("vi-VN") : "—"}
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex justify-end gap-1.5">
-                              {a?.source === "custom" ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={busy}
-                                  onClick={() => listen(type)}
-                                >
-                                  Nghe
-                                </Button>
-                              ) : null}
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="secondary"
-                                disabled={busy}
-                                onClick={() => fileRefs[type].current?.click()}
-                              >
-                                {busy ? "Đang xử lý…" : "Tải file mới"}
-                              </Button>
-                              {a?.source === "custom" ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={busy}
-                                  onClick={() => resetDefault(type)}
-                                >
-                                  Về mặc định
-                                </Button>
-                              ) : null}
-                              <input
-                                ref={fileRefs[type]}
-                                type="file"
-                                accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/x-m4a,audio/mp4"
-                                className="hidden"
-                                onChange={(e) => upload(type, e.target.files?.[0])}
-                              />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                </CfgField>
+              </>
             )}
-            {preview ? (
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {TYPE_LABEL[preview.type]} (sau chuyển đổi 8 kHz):
-                </span>
-                <audio controls autoPlay src={preview.url} className="h-8" />
+            {result ? (
+              <div className="cfg-wide">
+                <TestResult r={result} />
               </div>
             ) : null}
-            <p className="mt-2 text-xs text-muted-foreground">
-              MP3 / WAV / M4A, tối đa 5 MB, dài 2–60 giây. Tối đa 10 lần tải lên mỗi giờ. File mới
-              áp dụng cho lượt gọi bắt đầu sau khi tải lên.
-            </p>
-          </div>
-        </TabsContent>
+          </CfgCard>
 
-        <TabsContent value="cuoc-goi" className="pt-2">
+          <CfgCard
+            icon="phone_in_talk"
+            title="Cách tính tiền ước tính"
+            desc="Dùng cho cột Ước tính ở mục Cuộc gọi, theo thời lượng nghe. Không trừ tiền thật."
+            acts={saveBtn}
+          >
+            <CfgHead>Viettel / Vinaphone / Mobifone</CfgHead>
+            <CfgSentence>
+              {rateInput(big3PerMin, setBig3PerMin, "short", 100000, "Giá mỗi phút")}
+              <span>đ / phút đã bắt đầu (dưới 1 phút tính 1 phút)</span>
+            </CfgSentence>
+            <CfgHead>Nhà mạng còn lại</CfgHead>
+            <CfgSentence>
+              {rateInput(otherFirstFee, setOtherFirstFee, "short", 100000, "Giá các giây đầu")}
+              <span>đ cho</span>
+              {rateInput(otherFirstSec, setOtherFirstSec, "tiny", 60, "Số giây đầu")}
+              <span>giây đầu; mỗi giây sau +</span>
+              {rateInput(otherPerSec, setOtherPerSec, "short", 100000, "Giá mỗi giây sau")}
+              <span>đ</span>
+            </CfgSentence>
+          </CfgCard>
+        </>
+      ) : null}
+
+      {activeSub === "goi-lai" ? <AutoCallRetrySettings /> : null}
+
+      {activeSub === "file" ? (
+        <CfgCard
+          icon="phone_in_talk"
+          title="File thông báo"
+          desc="MP3 / WAV / M4A, tối đa 5 MB, dài 2–60 giây. Tối đa 10 lần tải lên mỗi giờ. File mới áp dụng cho lượt gọi bắt đầu sau khi tải lên."
+          grid={false}
+        >
+          {mode === "SANDBOX" ? (
+            <div className="note">
+              Key sandbox: file lưu cấu hình test riêng, không ảnh hưởng cuộc gọi thật
+            </div>
+          ) : null}
+          {!keySaved ? (
+            needKey
+          ) : audios == null ? (
+            <div className="note">Chưa tải được danh sách audio — bấm Test kết nối.</div>
+          ) : (
+            <div className="scroller">
+              <table className="tbl" style={{ "--tbl-min": "820px" } as React.CSSProperties}>
+                <thead>
+                  <tr>
+                    <th>Loại</th>
+                    <th>Nguồn</th>
+                    <th>Thời lượng</th>
+                    <th>File gốc</th>
+                    <th>Cập nhật</th>
+                    <th style={{ textAlign: "right" }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(["giao", "hoan"] as AutoCallType[]).map((type) => {
+                    const a = audios.find((x) => x.type === type);
+                    const busy = audioBusy === type;
+                    return (
+                      <tr key={type}>
+                        <td style={{ fontWeight: 500 }}>
+                          {TYPE_LABEL[type]}
+                          {type === "hoan" ? <span className="muted"> (không ghi âm)</span> : null}
+                        </td>
+                        <td>
+                          {a?.source === "custom" ? (
+                            <span className="tag info">Tự tải lên</span>
+                          ) : (
+                            <span className="tag ok">Mặc định tổng đài</span>
+                          )}
+                        </td>
+                        <td className="num">{a?.duration != null ? `${a.duration}s` : "—"}</td>
+                        <td>{a?.originalName ?? "—"}</td>
+                        <td className="num">
+                          {a?.updatedAt ? new Date(a.updatedAt).toLocaleString("vi-VN") : "—"}
+                        </td>
+                        <td>
+                          <div className="act">
+                            {a?.source === "custom" ? (
+                              <button
+                                type="button"
+                                className="text-act"
+                                disabled={busy}
+                                onClick={() => listen(type)}
+                              >
+                                Nghe
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="text-act"
+                              disabled={busy}
+                              onClick={() => fileRefs[type].current?.click()}
+                            >
+                              {busy ? "Đang xử lý…" : "Tải file mới"}
+                            </button>
+                            {a?.source === "custom" ? (
+                              <button
+                                type="button"
+                                className="text-act danger"
+                                disabled={busy}
+                                onClick={() => resetDefault(type)}
+                              >
+                                Về mặc định
+                              </button>
+                            ) : null}
+                            <input
+                              ref={fileRefs[type]}
+                              type="file"
+                              accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/x-m4a,audio/mp4"
+                              className="hidden"
+                              onChange={(e) => upload(type, e.target.files?.[0])}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {preview ? (
+            <div className="file-row">
+              <span className="lab muted">{TYPE_LABEL[preview.type]} (sau chuyển đổi 8 kHz):</span>
+              <audio controls autoPlay src={preview.url} className="h-8" />
+            </div>
+          ) : null}
+        </CfgCard>
+      ) : null}
+
+      {activeSub === "cuoc-goi" ? (
+        <CfgCard icon="phone_in_talk" title="Cuộc gọi" grid={false}>
           {keySaved ? <AutoCallCallsPanel key={savedProvider} provider={savedProvider} /> : needKey}
-        </TabsContent>
+        </CfgCard>
+      ) : null}
 
-        {/* Giữ danh sách gọi thử khi chuyển tab con. */}
-        <TabsContent value="goi-thu" forceMount className="pt-2 data-[state=inactive]:hidden">
+      {/* Giữ danh sách gọi thử khi chuyển mục con. */}
+      <div style={activeSub === "goi-thu" ? undefined : { display: "none" }}>
+        <CfgCard icon="phone_in_talk" title="Gọi thử" grid={false}>
           {keySaved ? (
             <AutoCallTestPanel
               key={savedProvider}
@@ -639,9 +607,9 @@ export function AutoCallIntegration() {
           ) : (
             needKey
           )}
-        </TabsContent>
-      </Tabs>
-    </Section>
+        </CfgCard>
+      </div>
+    </div>
   );
 }
 
@@ -731,87 +699,100 @@ function AutoCallRetrySettings() {
       ? ` Gọi hết ${cfg.intervals.length + 1} cuộc vẫn chưa được thì ${cfg.callFrom} hôm sau gọi lại từ cuộc 1 theo lịch trên, tối đa ${cfg.days} ngày.`
       : "");
 
+  const timeInput = (value: string, onChange: (v: string) => void, label: string) => (
+    <input
+      type="time"
+      className="cell-input"
+      style={{ width: 120, textAlign: "left" }}
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+
   return (
-    <div className="space-y-4">
-      <div>
-        <div className="mb-1.5 text-xs font-medium">Khung giờ gọi (áp dụng mọi cuộc gọi)</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            type="time"
-            className="w-32"
-            value={cfg.callFrom}
-            onChange={(e) => set("callFrom", e.target.value)}
-          />
-          <span className="text-sm text-muted-foreground">đến</span>
-          <Input
-            type="time"
-            className="w-32"
-            value={cfg.callTo}
-            onChange={(e) => set("callTo", e.target.value)}
-          />
-        </div>
-      </div>
+    <>
+      <CfgCard
+        icon="phone_in_talk"
+        title="Khung giờ gọi"
+        desc={
+          <>
+            Áp dụng mọi cuộc gọi. Nhắc Zalo ZNS sau hết vòng gọi ngày 1 (không nghe máy) cấu hình
+            tại <strong>Tích hợp → Zalo ZNS → Tự động</strong>.
+          </>
+        }
+      >
+        <CfgSentence>
+          {timeInput(cfg.callFrom, (v) => set("callFrom", v), "Giờ bắt đầu")}
+          <span>đến</span>
+          {timeInput(cfg.callTo, (v) => set("callTo", v), "Giờ kết thúc")}
+        </CfgSentence>
+      </CfgCard>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Switch
-          id="autocall-retry-enabled"
+      <CfgCard
+        icon="phone_in_talk"
+        title="Tự gọi lại khi chưa gọi được"
+        acts={
+          <button type="button" className="btn" onClick={save} disabled={saving}>
+            {saving ? "Đang lưu…" : "Lưu lịch gọi"}
+          </button>
+        }
+      >
+        <CfgToggle
+          label="Tự gọi lại khi chưa gọi được"
           checked={cfg.enabled}
-          onCheckedChange={(v) => set("enabled", v)}
+          onChange={(v) => set("enabled", v)}
         />
-        <Label htmlFor="autocall-retry-enabled" className="text-sm">
-          Tự gọi lại khi chưa gọi được
-        </Label>
-      </div>
-
-      <div className={cfg.enabled ? "space-y-4" : "pointer-events-none space-y-4 opacity-50"}>
-        <div>
-          <div className="mb-1.5 text-xs font-medium">Gọi lại khi</div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <Check
-              id="retry-no-answer"
+        <div
+          className="cfg-wide stack"
+          style={{ gap: 12, ...(cfg.enabled ? {} : { pointerEvents: "none", opacity: 0.5 }) }}
+        >
+          <div className="title-small" style={{ fontWeight: 600 }}>
+            Gọi lại khi
+          </div>
+          <div className="cfg-grid">
+            <CfgCheck
               label="Khách không nghe máy / máy bận"
               checked={cfg.onNoAnswer}
               onChange={(v) => set("onNoAnswer", v)}
             />
-            <Check
-              id="retry-carrier-error"
+            <CfgCheck
               label="Tổng đài / nhà mạng lỗi"
               checked={cfg.onCarrierError}
               onChange={(v) => set("onCarrierError", v)}
             />
-            <Check
-              id="retry-send-error"
+            <CfgCheck
               label="Gửi cuộc gọi sang tổng đài không thành công"
               checked={cfg.onSendError}
               onChange={(v) => set("onSendError", v)}
             />
           </div>
-        </div>
 
-        <div>
-          <div className="mb-1.5 text-xs font-medium">Lịch gọi lại</div>
-          <div className="space-y-2">
+          <div className="title-small" style={{ fontWeight: 600, marginTop: 4 }}>
+            Lịch gọi lại
+          </div>
+          <div className="stack" style={{ gap: 8 }}>
             {cfg.intervals.map((m, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="w-16 font-medium">Cuộc {i + 2}</span>
-                <span className="text-muted-foreground">sau cuộc {i + 1}</span>
-                <Input
+              <div key={i} className="file-row num" style={{ padding: "8px 12px 8px 16px" }}>
+                <span style={{ fontWeight: 500 }}>Cuộc {i + 2}</span>
+                <span className="muted">sau cuộc {i + 1}</span>
+                <input
                   type="number"
                   min={5}
                   max={1440}
-                  className="h-8 w-20"
+                  className="cell-input short"
+                  aria-label={`Số phút trước cuộc ${i + 2}`}
                   value={m || ""}
                   onChange={(e) => setGap(i, e.target.value)}
                 />
-                <span className="text-muted-foreground">phút</span>
-                {m >= 60 ? (
-                  <span className="text-xs text-muted-foreground">({minutesLabel(m)})</span>
-                ) : null}
-                <Button
+                <span className="muted">phút</span>
+                {m >= 60 ? <span className="lab muted">({minutesLabel(m)})</span> : null}
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-destructive"
+                  className="icon-btn"
+                  style={{ marginLeft: "auto" }}
+                  aria-label={`Xoá cuộc ${i + 2}`}
+                  title="Xoá"
                   onClick={() =>
                     set(
                       "intervals",
@@ -819,15 +800,17 @@ function AutoCallRetrySettings() {
                     )
                   }
                 >
-                  Xoá
-                </Button>
+                  <span className="ms" aria-hidden="true">
+                    delete
+                  </span>
+                </button>
               </div>
             ))}
             {cfg.intervals.length < MAX_RETRIES ? (
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
+                className="btn tonal"
+                style={{ alignSelf: "flex-start", height: 36 }}
                 onClick={() =>
                   set("intervals", [
                     ...cfg.intervals,
@@ -835,33 +818,36 @@ function AutoCallRetrySettings() {
                   ])
                 }
               >
-                + Thêm lần gọi lại
-              </Button>
+                <span className="ms" aria-hidden="true">
+                  add
+                </span>
+                Thêm lần gọi lại
+              </button>
             ) : null}
           </div>
-        </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Switch
-            id="autocall-retry-days"
-            checked={cfg.days > 1}
-            onCheckedChange={(v) => {
-              const d = v ? Math.max(2, cfg.days) : 1;
-              set("days", d);
-              setDaysText(String(d));
-            }}
-          />
-          <Label htmlFor="autocall-retry-days" className="text-sm">
-            Gọi hết lịch vẫn chưa được thì hôm sau lặp lại từ cuộc 1
-          </Label>
+          <label className="toggle">
+            <input
+              className="switch"
+              type="checkbox"
+              checked={cfg.days > 1}
+              onChange={(e) => {
+                const d = e.target.checked ? Math.max(2, cfg.days) : 1;
+                set("days", d);
+                setDaysText(String(d));
+              }}
+            />
+            <span>Gọi hết lịch vẫn chưa được thì hôm sau lặp lại từ cuộc 1</span>
+          </label>
           {cfg.days > 1 ? (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">tối đa</span>
-              <Input
+            <div className="sentence num">
+              <span>Tối đa</span>
+              <input
                 type="number"
                 min={1}
                 max={7}
-                className="h-8 w-16"
+                className="cell-input tiny"
+                aria-label="Số ngày tối đa"
                 value={daysText}
                 onChange={(e) => setDaysText(e.target.value)}
                 onBlur={commitDays}
@@ -869,46 +855,17 @@ function AutoCallRetrySettings() {
                   if (e.key === "Enter") commitDays();
                 }}
               />
-              <span className="text-muted-foreground">ngày (1–7)</span>
+              <span>ngày (1–7)</span>
             </div>
           ) : null}
         </div>
-      </div>
 
-      <p className="rounded-md bg-muted/50 p-2.5 text-xs text-muted-foreground">
-        {summary} Khách đã nghe máy, đơn đã giao thành công / huỷ / hoàn thì không gọi lại nữa. Mỗi
-        lần gọi lại, tổng đài có thể tự đổ chuông thêm theo cấu hình riêng của nhà cung cấp.
-      </p>
-
-      <Button type="button" onClick={save} disabled={saving}>
-        {saving ? "Đang lưu…" : "Lưu lịch gọi"}
-      </Button>
-    </div>
-  );
-}
-
-function Check({
-  id,
-  label,
-  checked,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label htmlFor={id} className="flex cursor-pointer items-center gap-2 text-sm">
-      <input
-        id={id}
-        type="checkbox"
-        className="h-4 w-4 accent-primary"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      {label}
-    </label>
+        <CfgNote>
+          {summary} Khách đã nghe máy, đơn đã giao thành công / huỷ / hoàn thì không gọi lại nữa.
+          Mỗi lần gọi lại, tổng đài có thể tự đổ chuông thêm theo cấu hình riêng của nhà cung cấp.
+        </CfgNote>
+      </CfgCard>
+    </>
   );
 }
 
@@ -935,15 +892,6 @@ function TestResult({ r }: { r: AutoCallResult }) {
           đổi sau mỗi lần deploy.
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function F({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
     </div>
   );
 }

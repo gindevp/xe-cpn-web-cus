@@ -5,10 +5,16 @@ import { AutoCallIntegration } from "@/components/AutoCallIntegration";
 import { BidvCollectionIntegration } from "@/components/BidvCollectionIntegration";
 import { OnePayCollectionIntegration } from "@/components/OnePayCollectionIntegration";
 import { Section } from "@/components/PageBits";
+import {
+  CfgActs as Acts,
+  CfgField as F,
+  CfgInput as TInput,
+  CfgSeg as Seg,
+  CfgSubTabs,
+  CfgUrl as CallbackUrl,
+  type CollectSub,
+} from "@/components/m3/CfgKit";
 import { SecretInput } from "@/components/SecretInput";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { TelegramAlertIntegration } from "@/components/TelegramAlertIntegration";
 import { ZaloZnsIntegration } from "@/components/ZaloZnsIntegration";
 import { getApiBase, isApiEnabled } from "@/lib/api/client";
@@ -16,7 +22,15 @@ import { useStore, type Integrations } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const TABS = ["van-chuyen", "ban-do", "luu-tru", "autocall", "zalo-zns", "thu-ho", "telegram"] as const;
+const TABS = [
+  "van-chuyen",
+  "ban-do",
+  "luu-tru",
+  "autocall",
+  "zalo-zns",
+  "thu-ho",
+  "telegram",
+] as const;
 type TabKey = (typeof TABS)[number];
 
 /** Tab shell khớp design-ref TichHop.dc.html (`.seg` + icon). */
@@ -50,7 +64,7 @@ export const Route = createFileRoute("/tich-hop")({
     return TABS.includes(search.tab as TabKey) ? { tab: search.tab as TabKey } : {};
   },
   component: () => (
-    <ProtectedPage title="Cấu hình tích hợp" screen="tich-hop">
+    <ProtectedPage title="Cấu hình tích hợp" screen="tich-hop" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -61,6 +75,8 @@ export const Route = createFileRoute("/tich-hop")({
 function Page() {
   const { tab = "van-chuyen" } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const tabIcon = TAB_META.find((t) => t.id === tab)?.icon ?? "tune";
+  const [collectSub, setCollectSub] = useState<CollectSub>("ket-noi");
   const integrations = useStore((s) => s.integrations);
   const setIntegrations = useStore((s) => s.setIntegrations);
   const [f, setF] = useState<Integrations>({
@@ -98,10 +114,7 @@ function Page() {
   const [saving, setSaving] = useState(false);
   const [apiKeyFocused, setApiKeyFocused] = useState(false);
   const SECRET_MASK = "••••••••••••";
-  const selectClass = "h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
   const hasSavedApiKey = Boolean(integrations.ahamoveApiKey?.trim());
-  const mask = (v?: string) => (v ? "•".repeat(Math.min(v.length, 8)) : "");
-
   // Load cấu hình từ BE khi vào màn — tránh store trống / lệch DB.
   useEffect(() => {
     if (!isApiEnabled()) return;
@@ -114,7 +127,8 @@ function Page() {
           ...prev,
           ahamoveMobile: saved.ahamoveMobile ?? prev.ahamoveMobile ?? "",
           ahamoveSenderMobile: saved.ahamoveSenderMobile ?? prev.ahamoveSenderMobile ?? "",
-          ahamovePaymentMethod: saved.ahamovePaymentMethod ?? prev.ahamovePaymentMethod ?? "BALANCE",
+          ahamovePaymentMethod:
+            saved.ahamovePaymentMethod ?? prev.ahamovePaymentMethod ?? "BALANCE",
           grabClientId: saved.grabClientId ?? prev.grabClientId ?? "",
           grabPartnerId: saved.grabPartnerId ?? prev.grabPartnerId ?? "",
           grabSandbox: saved.grabSandbox === true,
@@ -267,7 +281,8 @@ function Page() {
         if (!isApiEnabled()) throw new Error("API chưa cấu hình");
         const { testGrabApi } = await import("@/lib/api/finance-config-api");
         const r = await testGrabApi();
-        if (r.ok === false || r.grabTokenOk === false) toast.error(r.grabError || "Grab từ chối token");
+        if (r.ok === false || r.grabTokenOk === false)
+          toast.error(r.grabError || "Grab từ chối token");
         else toast.success("Grab đã cấp token");
       } catch (e: any) {
         toast.error(e?.message ?? "Test Grab thất bại");
@@ -277,8 +292,14 @@ function Page() {
     })();
   };
 
-  const minioSecretReady = Boolean(f.minioSecretKey?.trim()) || Boolean(integrations.minioSecretConfigured);
-  const minioTestReady = Boolean(f.minioEndpoint?.trim() && f.minioBucket?.trim() && f.minioAccessKey?.trim() && minioSecretReady);
+  const minioSecretReady =
+    Boolean(f.minioSecretKey?.trim()) || Boolean(integrations.minioSecretConfigured);
+  const minioTestReady = Boolean(
+    f.minioEndpoint?.trim() &&
+    f.minioBucket?.trim() &&
+    f.minioAccessKey?.trim() &&
+    minioSecretReady,
+  );
 
   const testMinio = () => {
     if (!minioTestReady) return toast.error("Điền đủ endpoint, bucket, access key và secret");
@@ -304,7 +325,8 @@ function Page() {
   };
 
   const migrateMinio = () => {
-    if (!integrations.minioConfigured) return toast.error("Lưu cấu hình MinIO trước khi chuyển ảnh cũ");
+    if (!integrations.minioConfigured)
+      return toast.error("Lưu cấu hình MinIO trước khi chuyển ảnh cũ");
     setMigratingMinio(true);
     void (async () => {
       try {
@@ -316,11 +338,16 @@ function Page() {
           const moved = r.moved ?? 0;
           total += moved;
           if (!r.hasMore || moved === 0) {
-            if (r.hasMore && moved === 0) toast.message("Còn ảnh không chuyển được — giữ nguyên trong database");
+            if (r.hasMore && moved === 0)
+              toast.message("Còn ảnh không chuyển được — giữ nguyên trong database");
             break;
           }
         }
-        toast.success(total > 0 ? `Đã chuyển ${total} ảnh/file lên MinIO` : "Không còn ảnh data-URL trong database");
+        toast.success(
+          total > 0
+            ? `Đã chuyển ${total} ảnh/file lên MinIO`
+            : "Không còn ảnh data-URL trong database",
+        );
       } catch (e: any) {
         toast.error(e?.message ?? "Chuyển ảnh thất bại");
       } finally {
@@ -355,27 +382,15 @@ function Page() {
     })();
   };
 
-  const footer = (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={save} disabled={saving}>
-          {saving ? "Đang lưu…" : "Lưu"}
-        </Button>
-        <Button variant="outline" onClick={test} disabled={testing}>
-          {testing ? "Đang test…" : "Test kết nối"}
-        </Button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Cập nhật gần nhất:{" "}
-        {integrations.updatedAt ? new Date(integrations.updatedAt).toLocaleString("vi-VN") : "—"}
-      </p>
-    </div>
-  );
-
   return (
     <div className="stack" style={{ gap: 16 }}>
       <h1 className="page-title">Tích hợp</h1>
-      <div className="seg" role="tablist" aria-label="Nhóm tích hợp" style={{ alignSelf: "flex-start" }}>
+      <div
+        className="seg"
+        role="tablist"
+        aria-label="Nhóm tích hợp"
+        style={{ alignSelf: "flex-start" }}
+      >
         {TAB_META.map((t) => (
           <button
             key={t.id}
@@ -394,407 +409,408 @@ function Page() {
       </div>
 
       {tab === "van-chuyen" ? (
-      <div className="stack" style={{ gap: 16 }}>
-        <Section title="Ahamove">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label={`API Key ${hasSavedApiKey ? "· đã lưu" : ""}`}>
-              <SecretInput
-                name="ahamove-api-key"
-                placeholder={hasSavedApiKey ? "Nhập key mới để thay" : "API key Partner"}
-                value={
-                  f.ahamoveApiKey
-                    ? f.ahamoveApiKey
-                    : !apiKeyFocused && hasSavedApiKey
-                      ? SECRET_MASK
-                      : ""
-                }
-                onFocus={() => {
-                  setApiKeyFocused(true);
-                  if (!f.ahamoveApiKey && hasSavedApiKey) {
-                    setF((prev) => ({ ...prev, ahamoveApiKey: "" }));
+        <div className="stack" style={{ gap: 16 }}>
+          <Section title="Ahamove" icon={tabIcon}>
+            <div className="cfg-grid">
+              <F label="API Key" saved={hasSavedApiKey}>
+                <SecretInput
+                  name="ahamove-api-key"
+                  placeholder={hasSavedApiKey ? "Nhập giá trị mới để thay" : "API key Partner"}
+                  value={
+                    f.ahamoveApiKey
+                      ? f.ahamoveApiKey
+                      : !apiKeyFocused && hasSavedApiKey
+                        ? SECRET_MASK
+                        : ""
                   }
-                }}
-                onBlur={() => {
-                  if (!f.ahamoveApiKey?.trim()) setApiKeyFocused(false);
-                }}
-                onChange={(e) => setF({ ...f, ahamoveApiKey: e.target.value })}
-              />
-            </F>
-            <F label={`SĐT tài khoản ${integrations.ahamoveMobile ? "· đã lưu" : ""}`}>
-              <Input
-                placeholder={integrations.ahamoveMobile || "84xxxxxxxxx (vd 84901234567)"}
-                value={f.ahamoveMobile ?? ""}
-                onChange={(e) => setF({ ...f, ahamoveMobile: e.target.value })}
-              />
-            </F>
-            <F label={`SĐT người gửi (tài xế gọi) ${integrations.ahamoveSenderMobile ? "· đã lưu" : ""}`}>
-              <Input
-                placeholder="Bỏ trống = gọi SĐT tài khoản Ahamove"
-                value={f.ahamoveSenderMobile ?? ""}
-                onChange={(e) => setF({ ...f, ahamoveSenderMobile: e.target.value })}
-              />
-            </F>
-            <F label="Thanh toán phí">
-              <select
-                className={selectClass}
-                value={f.ahamovePaymentMethod ?? "BALANCE"}
-                onChange={(e) =>
-                  setF({ ...f, ahamovePaymentMethod: e.target.value === "CASH" ? "CASH" : "BALANCE" })
-                }
-              >
-                <option value="BALANCE">Trừ ví Ahamove</option>
-                <option value="CASH">Trả tiền mặt cho tài xế</option>
-              </select>
-            </F>
-            <div className="sm:col-span-2">
-              <F label="URL callback (đăng ký với Ahamove)">
-                {integrations.ahamoveWebhookToken ? (
-                  <Input
-                    readOnly
-                    className="font-mono text-xs"
-                    value={`${getApiBase()}/api/public/ahamove/webhook?token=${integrations.ahamoveWebhookToken}`}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                ) : (
-                  <p className="text-xs text-muted-foreground">Bấm Lưu để sinh URL callback.</p>
-                )}
+                  onFocus={() => {
+                    setApiKeyFocused(true);
+                    if (!f.ahamoveApiKey && hasSavedApiKey) {
+                      setF((prev) => ({ ...prev, ahamoveApiKey: "" }));
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!f.ahamoveApiKey?.trim()) setApiKeyFocused(false);
+                  }}
+                  onChange={(e) => setF({ ...f, ahamoveApiKey: e.target.value })}
+                />
               </F>
+              <F label="SĐT tài khoản" saved={!!integrations.ahamoveMobile}>
+                <TInput
+                  className="num"
+                  placeholder={integrations.ahamoveMobile || "84xxxxxxxxx (vd 84901234567)"}
+                  value={f.ahamoveMobile ?? ""}
+                  onChange={(e) => setF({ ...f, ahamoveMobile: e.target.value })}
+                />
+              </F>
+              <F label="SĐT người gửi (tài xế gọi)" saved={!!integrations.ahamoveSenderMobile}>
+                <TInput
+                  className="num"
+                  placeholder="Bỏ trống = gọi SĐT tài khoản Ahamove"
+                  value={f.ahamoveSenderMobile ?? ""}
+                  onChange={(e) => setF({ ...f, ahamoveSenderMobile: e.target.value })}
+                />
+              </F>
+              <Seg
+                label="Thanh toán phí"
+                value={f.ahamovePaymentMethod === "CASH" ? "CASH" : "BALANCE"}
+                options={[
+                  { value: "BALANCE", label: "Trừ ví Ahamove" },
+                  { value: "CASH", label: "Trả tiền mặt cho tài xế" },
+                ]}
+                onChange={(v) =>
+                  setF({ ...f, ahamovePaymentMethod: v === "CASH" ? "CASH" : "BALANCE" })
+                }
+              />
+              <CallbackUrl
+                label="URL callback (đăng ký với Ahamove)"
+                url={
+                  integrations.ahamoveWebhookToken
+                    ? `${getApiBase()}/api/public/ahamove/webhook?token=${integrations.ahamoveWebhookToken}`
+                    : ""
+                }
+                emptyText="Bấm Lưu để sinh URL callback."
+              />
+              {integrations.ahamoveTokenFetchedAt ? (
+                <div className="lab muted cfg-wide">
+                  Token lấy lúc{" "}
+                  {new Date(integrations.ahamoveTokenFetchedAt).toLocaleString("vi-VN")} · tự làm
+                  mới mỗi tuần
+                </div>
+              ) : null}
             </div>
-          </div>
-          {integrations.ahamoveTokenFetchedAt ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Token lấy lúc {new Date(integrations.ahamoveTokenFetchedAt).toLocaleString("vi-VN")} · tự làm mới mỗi tuần
-            </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" onClick={testAhamove} disabled={testingAhamove}>
-              {testingAhamove ? "Đang lấy token…" : "Test Ahamove"}
-            </Button>
-            <p className="text-xs text-muted-foreground">Chỉ kiểm tra API key và SĐT Ahamove, không gọi Grab.</p>
-          </div>
-        </Section>
+            <Acts>
+              <button
+                type="button"
+                className="btn tonal"
+                title="Chỉ kiểm tra API key và SĐT Ahamove, không gọi Grab."
+                onClick={testAhamove}
+                disabled={testingAhamove}
+              >
+                {testingAhamove ? "Đang lấy token…" : "Test Ahamove"}
+              </button>
+              <button type="button" className="btn" onClick={save} disabled={saving}>
+                {saving ? "Đang lưu…" : "Lưu"}
+              </button>
+            </Acts>
+          </Section>
 
-        <Section title="Grab Express">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label={`Client ID ${integrations.grabClientId ? "· đã lưu" : ""}`}>
-              <Input
-                value={f.grabClientId ?? ""}
-                onChange={(e) => setF({ ...f, grabClientId: e.target.value })}
-                autoComplete="off"
-              />
-            </F>
-            <F label={`Client Secret ${integrations.grabClientSecretConfigured ? "· đã lưu" : ""}`}>
-              <SecretInput
-                placeholder={integrations.grabClientSecretConfigured ? "Để trống nếu giữ secret đã lưu" : "Nhập secret"}
-                value={f.grabClientSecret ?? ""}
-                onChange={(e) => setF({ ...f, grabClientSecret: e.target.value })}
-              />
-            </F>
-            <F label="Partner ID">
-              <Input
-                value={f.grabPartnerId ?? ""}
-                onChange={(e) => setF({ ...f, grabPartnerId: e.target.value })}
-                autoComplete="off"
-              />
-            </F>
-            <F label="Môi trường">
-              <select
-                className={selectClass}
-                value={f.grabSandbox === true ? "stg" : "prod"}
-                onChange={(e) => setF({ ...f, grabSandbox: e.target.value === "stg" })}
-              >
-                <option value="prod">Production</option>
-                <option value="stg">Staging (sandbox)</option>
-              </select>
-            </F>
-            <F label="Thanh toán phí">
-              <select
-                className={selectClass}
-                value={f.grabPaymentMethod ?? "BALANCE"}
-                onChange={(e) =>
-                  setF({ ...f, grabPaymentMethod: e.target.value === "CASH" ? "CASH" : "BALANCE" })
-                }
-              >
-                <option value="BALANCE">Trừ ví Grab</option>
-                <option value="CASH">Trả tiền mặt cho tài xế</option>
-              </select>
-            </F>
-            <div className="sm:col-span-2">
-              <F label="URL callback (dán vào Grab Express Integration)">
-                {integrations.grabWebhookToken ? (
-                  <Input
-                    readOnly
-                    className="font-mono text-xs"
-                    value={`${getApiBase()}/api/public/grab/webhook?token=${integrations.grabWebhookToken}`}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                ) : (
-                  <p className="text-xs text-muted-foreground">Bấm Lưu để sinh URL callback Grab.</p>
-                )}
+          <Section title="Grab Express" icon={tabIcon}>
+            <div className="cfg-grid">
+              <F label="Client ID" saved={!!integrations.grabClientId}>
+                <TInput
+                  value={f.grabClientId ?? ""}
+                  placeholder="Nhập Client ID"
+                  onChange={(e) => setF({ ...f, grabClientId: e.target.value })}
+                  autoComplete="off"
+                />
               </F>
+              <F label="Client Secret" saved={!!integrations.grabClientSecretConfigured}>
+                <SecretInput
+                  placeholder={
+                    integrations.grabClientSecretConfigured
+                      ? "Nhập giá trị mới để thay"
+                      : "Nhập secret"
+                  }
+                  value={f.grabClientSecret ?? ""}
+                  onChange={(e) => setF({ ...f, grabClientSecret: e.target.value })}
+                />
+              </F>
+              <F label="Partner ID">
+                <TInput
+                  value={f.grabPartnerId ?? ""}
+                  placeholder="Nhập Partner ID"
+                  onChange={(e) => setF({ ...f, grabPartnerId: e.target.value })}
+                  autoComplete="off"
+                />
+              </F>
+              <Seg
+                label="Môi trường"
+                value={f.grabSandbox === true ? "stg" : "prod"}
+                options={[
+                  { value: "prod", label: "Production" },
+                  { value: "stg", label: "Staging (sandbox)" },
+                ]}
+                onChange={(v) => setF({ ...f, grabSandbox: v === "stg" })}
+              />
+              <Seg
+                label="Thanh toán phí"
+                value={f.grabPaymentMethod === "CASH" ? "CASH" : "BALANCE"}
+                options={[
+                  { value: "BALANCE", label: "Trừ ví Grab" },
+                  { value: "CASH", label: "Trả tiền mặt cho tài xế" },
+                ]}
+                onChange={(v) =>
+                  setF({ ...f, grabPaymentMethod: v === "CASH" ? "CASH" : "BALANCE" })
+                }
+              />
+              <CallbackUrl
+                label="URL callback (dán vào Grab Express Integration)"
+                url={
+                  integrations.grabWebhookToken
+                    ? `${getApiBase()}/api/public/grab/webhook?token=${integrations.grabWebhookToken}`
+                    : ""
+                }
+                emptyText="Bấm Lưu để sinh URL callback Grab."
+              />
             </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" onClick={testGrab} disabled={testingGrab}>
-              {testingGrab ? "Đang lấy token…" : "Test Grab"}
-            </Button>
-            <p className="text-xs text-muted-foreground">Chỉ lấy token Grab bằng client đã lưu, không gọi Ahamove.</p>
-          </div>
-        </Section>
-        <div className="space-y-2">
-          <Button onClick={save} disabled={saving}>
-            {saving ? "Đang lưu…" : "Lưu"}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Cập nhật gần nhất:{" "}
-            {integrations.updatedAt ? new Date(integrations.updatedAt).toLocaleString("vi-VN") : "—"}
-          </p>
+            <Acts updatedAt={integrations.updatedAt}>
+              <button
+                type="button"
+                className="btn tonal"
+                title="Chỉ lấy token Grab bằng client đã lưu, không gọi Ahamove."
+                onClick={testGrab}
+                disabled={testingGrab}
+              >
+                {testingGrab ? "Đang lấy token…" : "Test Grab"}
+              </button>
+              <button type="button" className="btn" onClick={save} disabled={saving}>
+                {saving ? "Đang lưu…" : "Lưu"}
+              </button>
+            </Acts>
+          </Section>
         </div>
-      </div>
       ) : null}
 
       {tab === "ban-do" ? (
-      <div className="stack" style={{ gap: 16 }}>
-        <Section title="Bản đồ / Khoảng cách">
-          <div className="mb-3 flex flex-wrap items-center gap-4">
-            <Label className="text-xs">Nhà cung cấp bản đồ pin</Label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className={`rounded-md border px-3 py-1.5 text-sm ${(f.mapProvider ?? "OSM") === "OSM" ? "border-primary bg-primary/10 font-medium" : "border-border"}`}
-                onClick={() => setF({ ...f, mapProvider: "OSM" })}
+        <div className="stack" style={{ gap: 16 }}>
+          <Section
+            title={
+              <span
+                style={{
+                  display: "inline-flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: "8px 12px",
+                }}
               >
-                OpenStreetMap
-              </button>
-              <button
-                type="button"
-                className={`rounded-md border px-3 py-1.5 text-sm ${f.mapProvider === "GOONG" ? "border-primary bg-primary/10 font-medium" : "border-border"}`}
-                onClick={() => setF({ ...f, mapProvider: "GOONG" })}
-              >
-                Goong Map
-              </button>
+                Bản đồ / Khoảng cách
+                <span
+                  className={
+                    integrations.mapProvider === "GOONG" && !integrations.goongMapTilesKey
+                      ? "tag warn"
+                      : "tag info"
+                  }
+                >
+                  Đang dùng: {integrations.mapProvider === "GOONG" ? "Goong" : "OpenStreetMap"}
+                  {integrations.mapProvider === "GOONG" && !integrations.goongMapTilesKey
+                    ? " · thiếu Map tiles key"
+                    : ""}
+                </span>
+              </span>
+            }
+            icon={tabIcon}
+          >
+            <div className="cfg-grid">
+              <Seg
+                label="Nhà cung cấp bản đồ pin"
+                value={f.mapProvider === "GOONG" ? "GOONG" : "OSM"}
+                options={[
+                  { value: "OSM", label: "OpenStreetMap" },
+                  { value: "GOONG", label: "Goong Map" },
+                ]}
+                onChange={(v) => setF({ ...f, mapProvider: v === "GOONG" ? "GOONG" : "OSM" })}
+              />
+              <F label="Goong REST / Places key" saved={!!integrations.goongToken}>
+                <SecretInput
+                  placeholder={
+                    integrations.goongToken
+                      ? "Nhập giá trị mới để thay"
+                      : "API key (rsapi.goong.io)"
+                  }
+                  value={f.goongToken}
+                  onChange={(e) => setF({ ...f, goongToken: e.target.value })}
+                />
+              </F>
+              <F label="Goong Map tiles key" saved={!!integrations.goongMapTilesKey}>
+                <SecretInput
+                  placeholder={
+                    integrations.goongMapTilesKey
+                      ? "Nhập giá trị mới để thay"
+                      : "Maptiles key (goong-js)"
+                  }
+                  value={f.goongMapTilesKey}
+                  onChange={(e) => setF({ ...f, goongMapTilesKey: e.target.value })}
+                />
+              </F>
+              <div className="note cfg-wide">
+                REST key dùng geocode/places; Map tiles key dùng hiển thị bản đồ. Đây là hai key
+                khác nhau trên{" "}
+                <a
+                  href="https://account.goong.io"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ textDecoration: "underline" }}
+                >
+                  account.goong.io
+                </a>
+                , dùng nhầm REST key cho bản đồ sẽ ra nền trắng. OSM không cần key.
+              </div>
             </div>
-            <p className="w-full text-xs text-muted-foreground">
-              Đang dùng: {integrations.mapProvider === "GOONG" ? "Goong" : "OpenStreetMap"}
-              {integrations.mapProvider === "GOONG" && !integrations.goongMapTilesKey
-                ? " · thiếu Map tiles key → FE fallback OSM"
-                : ""}
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label={`Goong REST / Places key ${integrations.goongToken ? "· đã lưu" : ""}`}>
-              <SecretInput
-                placeholder={mask(integrations.goongToken) || "API key (rsapi.goong.io)"}
-                value={f.goongToken}
-                onChange={(e) => setF({ ...f, goongToken: e.target.value })}
-              />
-            </F>
-            <F label={`Goong Map tiles key ${integrations.goongMapTilesKey ? "· đã lưu" : ""}`}>
-              <SecretInput
-                placeholder={mask(integrations.goongMapTilesKey) || "Maptiles key (goong-js)"}
-                value={f.goongMapTilesKey}
-                onChange={(e) => setF({ ...f, goongMapTilesKey: e.target.value })}
-              />
-            </F>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            REST key dùng geocode/places; Map tiles key dùng hiển thị bản đồ Goong —{" "}
-            <span className="font-medium text-foreground">hai key khác nhau</span> trên{" "}
-            <a
-              className="underline"
-              href="https://account.goong.io"
-              target="_blank"
-              rel="noreferrer"
-            >
-              account.goong.io
-            </a>
-            . Dùng nhầm REST key cho map → nền trắng. OSM không cần key.
-          </p>
-        </Section>
-        {footer}
-      </div>
-      ) : null}
-
-      {false ? (
-      <div className="stack" style={{ gap: 16 }}>
-        <Section title="Telegram cảnh báo">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label={`Bot token ${integrations.telegramToken ? "· đã lưu" : ""}`}>
-              <SecretInput
-                placeholder={mask(integrations.telegramToken) || "••••••"}
-                value={f.telegramToken}
-                onChange={(e) => setF({ ...f, telegramToken: e.target.value })}
-              />
-            </F>
-            <F label="Chat ID">
-              <Input
-                value={f.telegramChatId}
-                onChange={(e) => setF({ ...f, telegramChatId: e.target.value })}
-                placeholder="-1001234567890"
-              />
-            </F>
-          </div>
-        </Section>
-
-        <Section title="Webhook">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label={`Webhook URL ${integrations.webhookUrl ? "· đã lưu" : ""}`}>
-              <Input
-                value={f.webhookUrl}
-                onChange={(e) => setF({ ...f, webhookUrl: e.target.value })}
-                placeholder="https://…"
-              />
-            </F>
-            <F label={`Webhook secret (HMAC) ${integrations.webhookSecret ? "· đã lưu" : ""}`}>
-              <SecretInput
-                placeholder={mask(integrations.webhookSecret) || "shared secret"}
-                value={f.webhookSecret}
-                onChange={(e) => setF({ ...f, webhookSecret: e.target.value })}
-              />
-            </F>
-          </div>
-        </Section>
-        {footer}
-      </div>
+            <Acts updatedAt={integrations.updatedAt}>
+              <button type="button" className="btn tonal" onClick={test} disabled={testing}>
+                {testing ? "Đang test…" : "Test kết nối"}
+              </button>
+              <button type="button" className="btn" onClick={save} disabled={saving}>
+                {saving ? "Đang lưu…" : "Lưu"}
+              </button>
+            </Acts>
+          </Section>
+        </div>
       ) : null}
 
       {tab === "luu-tru" ? (
-      <div className="stack" style={{ gap: 16 }}>
-        <Section title="MinIO — ảnh và file">
-          <p className="mb-3 text-xs text-muted-foreground">
-            Ảnh POD, ảnh hàng, phiếu thu, chấm công, kiểm kho, ảnh xe lưu trên MinIO. Database chỉ giữ
-            mã file. Path-style luôn bật. Web tải ảnh qua API (HTTPS), không mở thẳng MinIO HTTP.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label="Endpoint">
-              <Input
-                value={f.minioEndpoint ?? ""}
-                placeholder="http://host:9000"
-                onChange={(e) => setF({ ...f, minioEndpoint: e.target.value })}
-              />
-            </F>
-            <F label="Bucket">
-              <Input
-                value={f.minioBucket ?? ""}
-                placeholder="cpn"
-                onChange={(e) => setF({ ...f, minioBucket: e.target.value })}
-              />
-            </F>
-            <F label="Region">
-              <Input
-                value={f.minioRegion ?? ""}
-                placeholder="us-east-1"
-                onChange={(e) => setF({ ...f, minioRegion: e.target.value })}
-              />
-            </F>
-            <F label={`Access key ${integrations.minioAccessKey ? "· đã lưu" : ""}`}>
-              <Input
-                value={f.minioAccessKey ?? ""}
-                onChange={(e) => setF({ ...f, minioAccessKey: e.target.value })}
-              />
-            </F>
-            <F label={`Secret key ${integrations.minioSecretConfigured ? "· đã lưu" : ""}`}>
-              <SecretInput
-                placeholder={integrations.minioSecretConfigured ? "Nhập secret mới để thay" : "Secret key"}
-                value={f.minioSecretKey ?? ""}
-                onChange={(e) => setF({ ...f, minioSecretKey: e.target.value })}
-              />
-            </F>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={!minioTestReady || testingMinio}
-              onClick={testMinio}
-            >
-              {testingMinio ? "Đang thử…" : "Test kết nối"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!integrations.minioConfigured || migratingMinio}
-              onClick={migrateMinio}
-            >
-              {migratingMinio ? "Đang chuyển…" : "Chuyển ảnh cũ lên MinIO"}
-            </Button>
-          </div>
-          {!minioTestReady ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Điền đủ endpoint, bucket, access key và secret (hoặc secret đã lưu) thì bấm được Test.
-            </p>
-          ) : null}
-        </Section>
+        <div className="stack" style={{ gap: 16 }}>
+          <Section title="MinIO - ảnh và file" icon={tabIcon}>
+            <div className="lab muted" style={{ maxWidth: 860, marginTop: -8 }}>
+              Ảnh POD, ảnh hàng, phiếu thu, chấm công, kiểm kho, ảnh xe lưu trên MinIO. Database chỉ
+              giữ mã file. Path-style luôn bật. Web tải ảnh qua API (HTTPS), không mở thẳng MinIO
+              HTTP.
+            </div>
+            <div className="cfg-grid">
+              <F label="Endpoint">
+                <TInput
+                  value={f.minioEndpoint ?? ""}
+                  placeholder="http://host:9000"
+                  onChange={(e) => setF({ ...f, minioEndpoint: e.target.value })}
+                />
+              </F>
+              <F label="Bucket">
+                <TInput
+                  value={f.minioBucket ?? ""}
+                  placeholder="cpn"
+                  onChange={(e) => setF({ ...f, minioBucket: e.target.value })}
+                />
+              </F>
+              <F label="Region">
+                <TInput
+                  value={f.minioRegion ?? ""}
+                  placeholder="us-east-1"
+                  onChange={(e) => setF({ ...f, minioRegion: e.target.value })}
+                />
+              </F>
+              <F label="Access key" saved={!!integrations.minioAccessKey}>
+                <TInput
+                  value={f.minioAccessKey ?? ""}
+                  placeholder="Nhập access key"
+                  onChange={(e) => setF({ ...f, minioAccessKey: e.target.value })}
+                />
+              </F>
+              <F label="Secret key" saved={!!integrations.minioSecretConfigured}>
+                <SecretInput
+                  placeholder={
+                    integrations.minioSecretConfigured ? "Nhập giá trị mới để thay" : "Secret key"
+                  }
+                  value={f.minioSecretKey ?? ""}
+                  onChange={(e) => setF({ ...f, minioSecretKey: e.target.value })}
+                />
+              </F>
+              {!minioTestReady ? (
+                <div className="lab muted cfg-wide">
+                  Điền đủ endpoint, bucket, access key và secret (hoặc secret đã lưu) thì bấm được
+                  Test.
+                </div>
+              ) : null}
+            </div>
+            <Acts>
+              <button
+                type="button"
+                className="btn tonal"
+                disabled={!integrations.minioConfigured || migratingMinio}
+                onClick={migrateMinio}
+              >
+                {migratingMinio ? "Đang chuyển…" : "Chuyển ảnh cũ lên MinIO"}
+              </button>
+              <button
+                type="button"
+                className="btn tonal"
+                disabled={!minioTestReady || testingMinio}
+                onClick={testMinio}
+              >
+                {testingMinio ? "Đang thử…" : "Test kết nối"}
+              </button>
+              <button type="button" className="btn" onClick={save} disabled={saving}>
+                {saving ? "Đang lưu…" : "Lưu"}
+              </button>
+            </Acts>
+          </Section>
 
-        <Section title="TTL ảnh — xóa theo số ngày">
-          <p className="mb-3 text-xs text-muted-foreground">
-            Job chạy mỗi ngày 03:30 (giờ VN). Nhập số ngày giữ ảnh; <b>để trống = không xóa</b> loại đó.
-            Chỉ áp dụng chấm công, chấm xe, kiểm kho — không đụng POD / ảnh hàng / phiếu thu / sự cố.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <F label="Chấm công (ngày)">
-              <Input
-                type="number"
-                min={1}
-                max={3650}
-                inputMode="numeric"
-                placeholder="Trống = không xóa"
-                value={daysInput(f.mediaRetentionAttendanceDays)}
-                onChange={(e) =>
-                  setF({ ...f, mediaRetentionAttendanceDays: parseDays(e.target.value) })
-                }
-              />
-            </F>
-            <F label="Chấm xe (ngày)">
-              <Input
-                type="number"
-                min={1}
-                max={3650}
-                inputMode="numeric"
-                placeholder="Trống = không xóa"
-                value={daysInput(f.mediaRetentionVehicleDays)}
-                onChange={(e) =>
-                  setF({ ...f, mediaRetentionVehicleDays: parseDays(e.target.value) })
-                }
-              />
-            </F>
-            <F label="Kiểm kho (ngày)">
-              <Input
-                type="number"
-                min={1}
-                max={3650}
-                inputMode="numeric"
-                placeholder="Trống = không xóa"
-                value={daysInput(f.mediaRetentionInventoryDays)}
-                onChange={(e) =>
-                  setF({ ...f, mediaRetentionInventoryDays: parseDays(e.target.value) })
-                }
-              />
-            </F>
-          </div>
-        </Section>
-        {footer}
-      </div>
+          <Section title="TTL ảnh - xoá theo số ngày" icon={tabIcon}>
+            <div className="lab muted" style={{ maxWidth: 860, marginTop: -8 }}>
+              Job chạy mỗi ngày 03:30 (giờ VN). Để trống = không xoá loại đó. Chỉ áp dụng chấm công,
+              chấm xe, kiểm kho — không đụng POD / ảnh hàng / phiếu thu / sự cố.
+            </div>
+            <div className="cfg-grid">
+              <F label="Chấm công (ngày)">
+                <TInput
+                  type="number"
+                  className="num"
+                  min={1}
+                  max={3650}
+                  inputMode="numeric"
+                  placeholder="Trống = không xoá"
+                  value={daysInput(f.mediaRetentionAttendanceDays)}
+                  onChange={(e) =>
+                    setF({ ...f, mediaRetentionAttendanceDays: parseDays(e.target.value) })
+                  }
+                />
+              </F>
+              <F label="Chấm xe (ngày)">
+                <TInput
+                  type="number"
+                  className="num"
+                  min={1}
+                  max={3650}
+                  inputMode="numeric"
+                  placeholder="Trống = không xoá"
+                  value={daysInput(f.mediaRetentionVehicleDays)}
+                  onChange={(e) =>
+                    setF({ ...f, mediaRetentionVehicleDays: parseDays(e.target.value) })
+                  }
+                />
+              </F>
+              <F label="Kiểm kho (ngày)">
+                <TInput
+                  type="number"
+                  className="num"
+                  min={1}
+                  max={3650}
+                  inputMode="numeric"
+                  placeholder="Trống = không xoá"
+                  value={daysInput(f.mediaRetentionInventoryDays)}
+                  onChange={(e) =>
+                    setF({ ...f, mediaRetentionInventoryDays: parseDays(e.target.value) })
+                  }
+                />
+              </F>
+            </div>
+            <Acts updatedAt={integrations.updatedAt}>
+              <button type="button" className="btn" onClick={save} disabled={saving}>
+                {saving ? "Đang lưu…" : "Lưu"}
+              </button>
+            </Acts>
+          </Section>
+        </div>
       ) : null}
 
       {tab === "autocall" ? <AutoCallIntegration /> : null}
       {tab === "zalo-zns" ? <ZaloZnsIntegration /> : null}
       {tab === "thu-ho" ? (
         <div className="stack" style={{ gap: 16 }}>
-          <OnePayCollectionIntegration />
-          <BidvCollectionIntegration />
+          <CfgSubTabs
+            tabs={[
+              { id: "ket-noi", label: "Kết nối" },
+              { id: "hoa-don", label: "Hoá đơn test" },
+              { id: "nhat-ky", label: "Nhật ký" },
+            ]}
+            value={collectSub}
+            onChange={setCollectSub}
+          />
+          <OnePayCollectionIntegration sub={collectSub} />
+          <BidvCollectionIntegration sub={collectSub} />
         </div>
       ) : null}
       {tab === "telegram" ? <TelegramAlertIntegration /> : null}
-    </div>
-  );
-}
-
-function F({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
 import { EmptyState } from "@/components/PageBits";
@@ -6,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { VehicleFormDialog } from "@/components/VehicleFormDialog";
 import { ShipperMasterTab } from "@/components/ShipperMasterTab";
 import { useStore, type VehicleRec } from "@/lib/store";
@@ -18,13 +25,25 @@ import { isApiEnabled } from "@/lib/api/client";
 import { syncMasterFromApi } from "@/lib/api/sync";
 import { geoGeocodeAddress } from "@/lib/api/geo-api";
 import type { OfficeRec as StoreOfficeRec } from "@/lib/mock-data";
-import { itineraryPointLabel, OFFICE_ITINERARY_POINTS, splitItineraryPoints } from "@/lib/mock-data";
+import {
+  itineraryPointLabel,
+  OFFICE_ITINERARY_POINTS,
+  splitItineraryPoints,
+} from "@/lib/mock-data";
 import { OfficeLocationMap } from "@/components/OfficeLocationMap";
 import { OfficeWifiDialog } from "@/components/OfficeWifiDialog";
 import { OfficeVehicleItineraryDialog } from "@/components/OfficeVehicleItineraryDialog";
 import { AddressPicker } from "@/components/AddressPicker";
 import { TransitHubSettings } from "@/components/TransitHubSettings";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/master")({
   head: () => ({ meta: [{ title: "Master dữ liệu — X.E" }] }),
@@ -42,7 +61,8 @@ type MasterTab = "vp" | "tuyen" | "xe" | "ts" | "shipper";
 type OfficeRec = StoreOfficeRec;
 
 const OFFICE_SOURCE_ORDER = [
-  16655, 63418, 17323, 18094, 41156, 40911, 46159, 46063, 59165, 36202, 36201, 45654, 57439, 48341, 46042, 16632,
+  16655, 63418, 17323, 18094, 41156, 40911, 46159, 46063, 59165, 36202, 36201, 45654, 57439, 48341,
+  46042, 16632,
 ];
 
 function Page() {
@@ -52,7 +72,8 @@ function Page() {
   const listedOffices = [...offices].sort((a, b) => {
     const ia = a.sourceId != null ? OFFICE_SOURCE_ORDER.indexOf(a.sourceId) : -1;
     const ib = b.sourceId != null ? OFFICE_SOURCE_ORDER.indexOf(b.sourceId) : -1;
-    if (ia === -1 && ib === -1) return (a.code + (a.address ?? "")).localeCompare(b.code + (b.address ?? ""));
+    if (ia === -1 && ib === -1)
+      return (a.code + (a.address ?? "")).localeCompare(b.code + (b.address ?? ""));
     if (ia === -1) return 1;
     if (ib === -1) return -1;
     return ia - ib;
@@ -83,13 +104,15 @@ function Page() {
     clear: () => void,
   ) => {
     if (!items.length) return;
-    const preview = items.slice(0, 10).join(", ") + (items.length > 10 ? ` … (+${items.length - 10})` : "");
-    if (!confirm(`Xóa ${items.length} ${label}?\n${preview}`)) return;
+    const preview =
+      items.slice(0, 10).join(", ") + (items.length > 10 ? ` … (+${items.length - 10})` : "");
+    if (!(await askConfirm(`Xóa ${items.length} ${label}?\n${preview}`))) return;
     setDeleting(true);
     try {
       const failed = await remove(items);
       clear();
-      if (failed > 0) toast.error(`${failed}/${items.length} ${label} không xóa được — xem lại sau khi tải lại`);
+      if (failed > 0)
+        toast.error(`${failed}/${items.length} ${label} không xóa được — xem lại sau khi tải lại`);
       else toast.success(`Đã xóa ${items.length} ${label}`);
     } catch (e: any) {
       toast.error(e?.message || `Không xóa được ${label}`);
@@ -98,9 +121,9 @@ function Page() {
     }
   };
 
-  const [dlg, setDlg] = useState<null | "vp" | "vp-edit" | "tuyen" | "tuyen-edit" | "xe" | "xe-edit" | "ts" | "ts-edit">(
-    null,
-  );
+  const [dlg, setDlg] = useState<
+    null | "vp" | "vp-edit" | "tuyen" | "tuyen-edit" | "xe" | "xe-edit" | "ts" | "ts-edit"
+  >(null);
   const [editXe, setEditXe] = useState<VehicleRec | null>(null);
   const [editVp, setEditVp] = useState<OfficeRec | null>(null);
   const [wifiVp, setWifiVp] = useState<OfficeRec | null>(null);
@@ -133,7 +156,6 @@ function Page() {
 
   useEffect(() => {
     void reloadMaster();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -213,7 +235,12 @@ function Page() {
                         </button>
                       ) : null}
                       {o.id != null && isApiEnabled() ? (
-                        <button type="button" className="text-act" style={{ whiteSpace: "nowrap" }} onClick={() => setItinVp(o)}>
+                        <button
+                          type="button"
+                          className="text-act"
+                          style={{ whiteSpace: "nowrap" }}
+                          onClick={() => setItinVp(o)}
+                        >
                           Lộ trình áp dụng
                         </button>
                       ) : null}
@@ -234,11 +261,11 @@ function Page() {
                             </span>
                           </button>
                           <Del
-                            onClick={() => {
+                            onClick={async () => {
                               if (
-                                !confirm(
+                                !(await askConfirm(
                                   `Xóa văn phòng "${o.name}" (${o.code})?\nVP sẽ ngừng hoạt động, đơn và lịch sử cũ vẫn giữ nguyên.`,
-                                )
+                                ))
                               )
                                 return;
                               removeOffice(o);
@@ -296,11 +323,11 @@ function Page() {
                         </span>
                       </button>
                       <Del
-                        onClick={() => {
+                        onClick={async () => {
                           if (
-                            !confirm(
+                            !(await askConfirm(
                               `Xóa tuyến "${r}"?\nNếu tuyến đang gắn chuyến, hệ thống sẽ ẩn khỏi danh sách (không xóa lịch sử chuyến).`,
-                            )
+                            ))
                           )
                             return;
                           removeRoute(r);
@@ -326,10 +353,17 @@ function Page() {
                 </span>
                 Xe tải ({truckVehicles.length})
               </h2>
-              <div className="lab muted">Cùng danh sách xe tải với màn gán xe. Xe đã chạy chuyến được ẩn, giữ lịch sử.</div>
+              <div className="lab muted">
+                Cùng danh sách xe tải với màn gán xe. Xe đã chạy chuyến được ẩn, giữ lịch sử.
+              </div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <button type="button" className="btn ghost" disabled={syncingXe || !isApiEnabled()} onClick={() => void reloadMaster()}>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={syncingXe || !isApiEnabled()}
+                onClick={() => void reloadMaster()}
+              >
                 <span className="ms" aria-hidden="true">
                   refresh
                 </span>
@@ -348,7 +382,11 @@ function Page() {
                   type="button"
                   className="btn danger"
                   disabled={deleting}
-                  onClick={() => void runDelete("xe", [...pickedXe], removeVehicles, () => setPickedXe(new Set()))}
+                  onClick={() =>
+                    void runDelete("xe", [...pickedXe], removeVehicles, () =>
+                      setPickedXe(new Set()),
+                    )
+                  }
                 >
                   {deleting ? "Đang xóa…" : `Xóa ${pickedXe.size} xe đã chọn`}
                 </button>
@@ -357,7 +395,9 @@ function Page() {
           </div>
           {truckVehicles.length === 0 ? (
             <EmptyState>
-              {syncingXe ? "Đang tải xe tải…" : "Chưa có xe tải — thêm tại đây hoặc từ tab Xe tải khi gán đơn."}
+              {syncingXe
+                ? "Đang tải xe tải…"
+                : "Chưa có xe tải — thêm tại đây hoặc từ tab Xe tải khi gán đơn."}
             </EmptyState>
           ) : (
             <Table
@@ -365,7 +405,12 @@ function Page() {
               rightLast
               headers={[
                 writable ? (
-                  <PickAll key="all" all={truckVehicles.map((v) => v.bks)} picked={pickedXe} onChange={setPickedXe} />
+                  <PickAll
+                    key="all"
+                    all={truckVehicles.map((v) => v.bks)}
+                    picked={pickedXe}
+                    onChange={setPickedXe}
+                  />
                 ) : (
                   ""
                 ),
@@ -379,7 +424,11 @@ function Page() {
             >
               {truckVehicles.map((v) => (
                 <tr key={v.id ?? v.bks}>
-                  <td>{writable ? <PickOne value={v.bks} picked={pickedXe} onChange={setPickedXe} /> : null}</td>
+                  <td>
+                    {writable ? (
+                      <PickOne value={v.bks} picked={pickedXe} onChange={setPickedXe} />
+                    ) : null}
+                  </td>
                   <td className="main">{v.bks}</td>
                   <td>{v.vehicleType ?? "Xe tải"}</td>
                   <td className="r">{v.capacity || "—"}</td>
@@ -450,7 +499,11 @@ function Page() {
                   type="button"
                   className="btn danger"
                   disabled={deleting}
-                  onClick={() => void runDelete("tài xế", [...pickedTs], removeDrivers, () => setPickedTs(new Set()))}
+                  onClick={() =>
+                    void runDelete("tài xế", [...pickedTs], removeDrivers, () =>
+                      setPickedTs(new Set()),
+                    )
+                  }
                 >
                   {deleting ? "Đang xóa…" : `Xóa ${pickedTs.size} tài xế đã chọn`}
                 </button>
@@ -460,14 +513,20 @@ function Page() {
           <Table
             rightLast
             headers={[
-              writable ? <PickAll key="all" all={drivers} picked={pickedTs} onChange={setPickedTs} /> : "",
+              writable ? (
+                <PickAll key="all" all={drivers} picked={pickedTs} onChange={setPickedTs} />
+              ) : (
+                ""
+              ),
               "Tài xế",
               "Tác vụ",
             ]}
           >
             {drivers.map((d) => (
               <tr key={d}>
-                <td>{writable ? <PickOne value={d} picked={pickedTs} onChange={setPickedTs} /> : null}</td>
+                <td>
+                  {writable ? <PickOne value={d} picked={pickedTs} onChange={setPickedTs} /> : null}
+                </td>
                 <td style={{ fontWeight: 500 }}>{d}</td>
                 <td>
                   {writable ? (
@@ -758,8 +817,12 @@ function VpDialog({
   const [itineraryPoint, setItineraryPoint] = useState(initialPoints[0] ?? "");
   const [secondaryPoint, setSecondaryPoint] = useState(initialPoints[1] ?? "");
   const [latText, setLatText] = useState(initial?.latitude != null ? String(initial.latitude) : "");
-  const [lngText, setLngText] = useState(initial?.longitude != null ? String(initial.longitude) : "");
-  const [sourceIdText, setSourceIdText] = useState(initial?.sourceId != null ? String(initial.sourceId) : "");
+  const [lngText, setLngText] = useState(
+    initial?.longitude != null ? String(initial.longitude) : "",
+  );
+  const [sourceIdText, setSourceIdText] = useState(
+    initial?.sourceId != null ? String(initial.sourceId) : "",
+  );
   const [pinning, setPinning] = useState(false);
 
   /** Chọn địa chỉ (V1/V2 như tạo đơn) → geocode OSM → pin map. */
@@ -838,8 +901,8 @@ function VpDialog({
             </div>
           </div>
           <p className="-mt-1 text-xs text-muted-foreground">
-            Khi tạo đơn, hệ thống ưu tiên lộ trình theo điểm chính; nếu điểm chính không có lộ trình đang bật tới đầu kia
-            thì dùng điểm phụ.
+            Khi tạo đơn, hệ thống ưu tiên lộ trình theo điểm chính; nếu điểm chính không có lộ trình
+            đang bật tới đầu kia thì dùng điểm phụ.
           </p>
           <AddressPicker
             label="Địa chỉ văn phòng"
@@ -848,7 +911,9 @@ function VpDialog({
             onChange={(full) => void onAddressPicked(full)}
             placeholder="Chọn địa chỉ (trước/sau sáp nhập)"
           />
-          {pinning ? <p className="text-xs text-muted-foreground">Đang lấy GPS trên bản đồ…</p> : null}
+          {pinning ? (
+            <p className="text-xs text-muted-foreground">Đang lấy GPS trên bản đồ…</p>
+          ) : null}
           <div className="space-y-1.5">
             <Label>Bản đồ (kéo/click pin để chỉnh GPS)</Label>
             <OfficeLocationMap

@@ -2,18 +2,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { Section } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
-import { StageTabButton, StageTabRow } from "@/components/StageTabs";
-import { Switch } from "@/components/ui/switch";
-import { useStore, DEFAULT_SURCHARGES, DEFAULT_COD_TIERS, type SurchargeConfig, type DoorFeeRule, type CodFeeTier, type DoorOverageSide } from "@/lib/store";
+import {
+  useStore,
+  DEFAULT_SURCHARGES,
+  DEFAULT_COD_TIERS,
+  type SurchargeConfig,
+  type DoorFeeRule,
+  type CodFeeTier,
+  type DoorOverageSide,
+} from "@/lib/store";
 import { formatVND, parseVndInput } from "@/lib/mock-data";
 import { MoneyInput } from "@/components/MoneyInput";
 import { NumberInput } from "@/components/NumberInput";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
 import { isApiEnabled } from "@/lib/api/client";
-import { fetchSurchargePolicy, putSurchargePolicy, fetchDoorFeeRules, persistDoorFeeRules } from "@/lib/api/finance-config-api";
+import {
+  fetchSurchargePolicy,
+  putSurchargePolicy,
+  fetchDoorFeeRules,
+  persistDoorFeeRules,
+} from "@/lib/api/finance-config-api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/rbac";
 
@@ -21,7 +29,11 @@ export const Route = createFileRoute("/phu-phi")({
   head: () => ({
     meta: [
       { title: "Cài đặt phụ phí — X.E" },
-      { name: "description", content: "Thiết lập các loại phụ phí: giao tận nơi, thu hộ COD, ship giao lại, bảo hiểm hàng hóa, hoàn đơn." },
+      {
+        name: "description",
+        content:
+          "Thiết lập các loại phụ phí: giao tận nơi, thu hộ COD, ship giao lại, bảo hiểm hàng hóa, hoàn đơn.",
+      },
       { property: "og:title", content: "Cài đặt phụ phí — X.E" },
       { property: "og:description", content: "Thiết lập các loại phụ phí áp dụng cho đơn hàng." },
       { property: "og:type", content: "website" },
@@ -29,7 +41,7 @@ export const Route = createFileRoute("/phu-phi")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Cài đặt phụ phí" screen="phu-phi">
+    <ProtectedPage title="Cài đặt phụ phí" screen="phu-phi" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -75,7 +87,7 @@ function NumBox({
         decimal
         min={0}
         disabled={disabled}
-        className="h-9 pr-12 text-right"
+        className={suffix ? "h-9 pr-12 text-right" : "h-9 text-right"}
         value={Number.isFinite(value) ? value : 0}
         onChange={onChange}
       />
@@ -86,32 +98,57 @@ function NumBox({
   );
 }
 
-function Row({
-  index,
+/** Card phụ phí: tiêu đề `.sec-title` + công tắc áp dụng; tắt thì ẩn nội dung, hiện ghi chú. */
+function FeeCard({
+  icon,
   label,
+  desc,
   enabled,
   onToggle,
   hint,
+  gap,
   children,
 }: {
-  index: number;
+  icon: string;
   label: string;
+  desc?: React.ReactNode;
   enabled: boolean;
   onToggle: (v: boolean) => void;
   hint?: string;
+  gap?: number;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="border-b py-3 last:border-b-0">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sm font-medium">
-          {index}. {label}
-        </span>
-        <Switch checked={enabled} onCheckedChange={onToggle} />
-        {!enabled && hint && <span className="text-xs italic text-muted-foreground">{hint}</span>}
+    <section className="card stack" style={gap ? { gap } : undefined}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <h2 className="group-title sec-title">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">{icon}</span>
+            </span>
+            {label}
+          </h2>
+          {desc && enabled ? <div className="lab muted">{desc}</div> : null}
+        </div>
+        <input
+          className="switch"
+          type="checkbox"
+          aria-label={`Áp dụng ${label.toLowerCase()}`}
+          title={enabled ? "Đang áp dụng" : "Đang tắt"}
+          checked={enabled}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ marginTop: 6 }}
+        />
       </div>
-      {enabled && children && <div className="mt-3 space-y-3 pl-4">{children}</div>}
-    </div>
+      {enabled ? children : hint ? <div className="lab muted">{hint}</div> : null}
+    </section>
   );
 }
 
@@ -175,80 +212,108 @@ function CodTiersEditor({
   };
 
   return (
-    <div className="space-y-3">
-      {rows.map((t, idx) => {
-        const isFirst = idx === 0;
-        const isLast = idx === rows.length - 1;
-        const isPercent = isLast || (t.feePercent != null && t.feeAmount == null);
-        return (
-          <div
-            key={idx}
-            className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/20 px-3 py-3"
-          >
-            <div className="w-16 shrink-0 pb-2 text-sm font-medium">Mức {idx + 1}</div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">{isFirst ? "Từ" : "Trên"}</div>
-              <MoneyInput
-                className="w-40"
-                value={t.minAmount}
-                onChange={(v) => patchAt(idx, { minAmount: v })}
-                disabled={isFirst}
-              />
-            </div>
-            {!isPercent && (
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Đến</div>
-                <MoneyInput
-                  className="w-40"
-                  value={t.maxAmount ?? 0}
-                  onChange={(v) => patchAt(idx, { maxAmount: v })}
-                />
-              </div>
-            )}
-            {isPercent ? (
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Phí thu hộ (%)</div>
-                <NumBox
-                  className="w-28"
-                  value={t.feePercent ?? 0}
-                  onChange={(v) => patchAt(idx, { feePercent: v, feeAmount: null, maxAmount: null })}
-                  suffix="%"
-                />
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Phí thu hộ (VNĐ)</div>
-                <MoneyInput
-                  className="w-40"
-                  value={t.feeAmount ?? 0}
-                  onChange={(v) => patchAt(idx, { feeAmount: v, feePercent: null })}
-                />
-              </div>
-            )}
-            {!isFirst && !isLast && (
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="mb-0.5 h-9 w-9 text-muted-foreground hover:text-destructive"
-                onClick={() => removeAt(idx)}
-                title="Xoá mức"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        );
-      })}
-      <Button type="button" size="sm" variant="outline" className="gap-1" onClick={addFixedBeforeLast}>
-        <Plus className="h-4 w-4" /> Thêm mức cố định
-      </Button>
-      <p className="text-xs text-muted-foreground">
-        Mức 1 gồm biên trên (vd 2.000.000 thuộc mức 1). Từ mức 2 trở đi là{" "}
-        <strong>trên</strong> mức dưới — đúng bằng biên dưới thuộc mức trước. Mức cuối không có
-        &quot;Đến&quot;: phí = % × tiền thu hộ.
-      </p>
-    </div>
+    <>
+      <div className="scroller">
+        <table className="tbl" style={{ ["--tbl-min" as string]: "520px" }}>
+          <thead>
+            <tr>
+              <th>Mức</th>
+              <th>Từ / Trên (VND)</th>
+              <th>Đến (VND)</th>
+              <th>Phí thu hộ</th>
+              <th aria-label="Tác vụ" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((t, idx) => {
+              const isFirst = idx === 0;
+              const isLast = idx === rows.length - 1;
+              const isPercent = isLast || (t.feePercent != null && t.feeAmount == null);
+              return (
+                <tr key={idx}>
+                  <td className="main" style={{ whiteSpace: "nowrap", verticalAlign: "middle" }}>
+                    Mức {idx + 1}
+                  </td>
+                  <td>
+                    <MoneyInput
+                      suffix=""
+                      aria-label={`Mức ${idx + 1} ${isFirst ? "từ" : "trên"}`}
+                      value={t.minAmount}
+                      onChange={(v) => patchAt(idx, { minAmount: v })}
+                      disabled={isFirst}
+                    />
+                  </td>
+                  <td>
+                    {isPercent ? (
+                      <span className="muted" style={{ lineHeight: "36px" }}>
+                        Không giới hạn
+                      </span>
+                    ) : (
+                      <MoneyInput
+                        suffix=""
+                        aria-label={`Mức ${idx + 1} đến`}
+                        value={t.maxAmount ?? 0}
+                        onChange={(v) => patchAt(idx, { maxAmount: v })}
+                      />
+                    )}
+                  </td>
+                  <td>
+                    <span className="unit-input">
+                      {isPercent ? (
+                        <NumBox
+                          className="w-full"
+                          value={t.feePercent ?? 0}
+                          onChange={(v) =>
+                            patchAt(idx, { feePercent: v, feeAmount: null, maxAmount: null })
+                          }
+                          suffix=""
+                        />
+                      ) : (
+                        <MoneyInput
+                          suffix=""
+                          aria-label={`Mức ${idx + 1} phí thu hộ`}
+                          value={t.feeAmount ?? 0}
+                          onChange={(v) => patchAt(idx, { feeAmount: v, feePercent: null })}
+                        />
+                      )}
+                      <span className="muted">{isPercent ? "%" : "VND"}</span>
+                    </span>
+                  </td>
+                  <td style={{ verticalAlign: "middle" }}>
+                    <div className="act">
+                      <button
+                        type="button"
+                        className="no"
+                        aria-label={`Xoá mức ${idx + 1}`}
+                        title="Xoá mức"
+                        disabled={isFirst || isLast}
+                        style={isFirst || isLast ? { visibility: "hidden" } : undefined}
+                        onClick={() => removeAt(idx)}
+                      >
+                        <span className="ms" aria-hidden="true">
+                          delete
+                        </span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <button
+        type="button"
+        className="btn tonal"
+        style={{ alignSelf: "flex-start" }}
+        onClick={addFixedBeforeLast}
+      >
+        <span className="ms" aria-hidden="true">
+          add
+        </span>
+        Thêm mức cố định
+      </button>
+    </>
   );
 }
 
@@ -259,11 +324,16 @@ function normalizeSurcharge(raw?: SurchargeConfig | null): SurchargeConfig {
     cod: {
       ...DEFAULT_SURCHARGES.cod,
       ...(raw?.cod ?? {}),
-      tiers: raw?.cod?.tiers?.length ? raw.cod.tiers.map((t) => ({ ...t })) : DEFAULT_COD_TIERS.map((t) => ({ ...t })),
+      tiers: raw?.cod?.tiers?.length
+        ? raw.cod.tiers.map((t) => ({ ...t }))
+        : DEFAULT_COD_TIERS.map((t) => ({ ...t })),
     },
     doorOverage: {
       pickup: { ...DEFAULT_SURCHARGES.doorOverage.pickup, ...(raw?.doorOverage?.pickup ?? {}) },
-      delivery: { ...DEFAULT_SURCHARGES.doorOverage.delivery, ...(raw?.doorOverage?.delivery ?? {}) },
+      delivery: {
+        ...DEFAULT_SURCHARGES.doorOverage.delivery,
+        ...(raw?.doorOverage?.delivery ?? {}),
+      },
     },
   };
 }
@@ -271,9 +341,13 @@ function normalizeSurcharge(raw?: SurchargeConfig | null): SurchargeConfig {
 function Page() {
   const { session } = useAuth();
   const writable = canWrite(session?.role, "phu-phi");
-  const [f, setF] = useState<SurchargeConfig>(() => normalizeSurcharge(useStore.getState().surcharges));
+  const [f, setF] = useState<SurchargeConfig>(() =>
+    normalizeSurcharge(useStore.getState().surcharges),
+  );
   const overageRef = useRef(f.doorOverage ?? DEFAULT_SURCHARGES.doorOverage);
-  const [doorDraft, setDoorDraft] = useState<DoorFeeRule[]>(() => [...(useStore.getState().doorFees ?? [])]);
+  const [doorDraft, setDoorDraft] = useState<DoorFeeRule[]>(() => [
+    ...(useStore.getState().doorFees ?? []),
+  ]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -365,7 +439,9 @@ function Page() {
         echo.delivery.kmStep !== payload.doorOverage.delivery.kmStep ||
         echo.delivery.kmFee !== payload.doorOverage.delivery.kmFee;
       if (mismatch) {
-        throw new Error("Máy chủ không ghi được vượt cân/km. Kiểm tra API đã cập nhật rồi tải lại trang.");
+        throw new Error(
+          "Máy chủ không ghi được vượt cân/km. Kiểm tra API đã cập nhật rồi tải lại trang.",
+        );
       }
       const doors = await persistDoorFeeRules(doorDraft, prevDoors);
       useStore.setState({ surcharges: saved, doorFees: doors });
@@ -415,115 +491,113 @@ function Page() {
       </div>
 
       <div className="fee-layout">
-      <section className="card stack">
-        <h2 className="group-title sec-title">
-          <span className="sec-ic" aria-hidden="true">
-            <span className="ms">payments</span>
-          </span>
-          Danh sách phụ phí
-        </h2>
-        <div>
-          <Row
-            index={1}
-            label="Phí thu hộ COD"
-            enabled={f.cod.enabled}
-            onToggle={(v) => patch("cod", { enabled: v })}
-            hint="Không thu phí !"
-          >
-            <CodTiersEditor
-              tiers={f.cod.tiers?.length ? f.cod.tiers : DEFAULT_COD_TIERS}
-              onChange={(tiers) => {
-                const last = tiers[tiers.length - 1];
-                patch("cod", {
-                  tiers,
-                  percent: last?.feePercent ?? f.cod.percent,
-                });
-              }}
-            />
-          </Row>
+        <FeeCard
+          icon="payments"
+          label="Phí thu hộ COD"
+          desc={
+            'Mức 1 gồm biên trên. Từ mức 2 là trên mức dưới. Mức cuối không có "Đến": phí = % x tiền thu hộ.'
+          }
+          enabled={f.cod.enabled}
+          onToggle={(v) => patch("cod", { enabled: v })}
+          hint="Không thu phí thu hộ."
+        >
+          <CodTiersEditor
+            tiers={f.cod.tiers?.length ? f.cod.tiers : DEFAULT_COD_TIERS}
+            onChange={(tiers) => {
+              const last = tiers[tiers.length - 1];
+              patch("cod", {
+                tiers,
+                percent: last?.feePercent ?? f.cod.percent,
+              });
+            }}
+          />
+        </FeeCard>
 
-          <Row
-            index={2}
+        <div className="stack">
+          <FeeCard
+            icon="warehouse"
             label="Phí tồn kho tại kho giao"
             enabled={f.storage.enabled}
             onToggle={(v) => patch("storage", { enabled: v })}
-            hint="Không thu phí !"
+            hint="Không thu phí tồn kho."
+            gap={12}
           >
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="text-muted-foreground">Miễn phí</span>
+            <div className="sentence num">
+              Miễn phí
               <NumBox
+                className="w-24"
                 value={f.storage.freeDays}
                 onChange={(v) => patch("storage", { freeDays: v })}
-                suffix="ngày"
-                className="w-28"
+                suffix=""
               />
-              <span className="text-muted-foreground">kể từ ngày hàng đến kho giao, sau đó thu</span>
-              <NumBox
+              ngày kể từ ngày hàng đến kho giao, sau đó thu
+              <MoneyInput
+                className="w-28"
+                suffix=""
+                aria-label="Phí mỗi ngày"
                 value={f.storage.feePerDay}
                 onChange={(v) => patch("storage", { feePerDay: v })}
-                suffix="VNĐ"
               />
-              <span>/ ngày</span>
+              VND/ngày
             </div>
-          </Row>
-
-
-          <Row
-            index={3}
+          </FeeCard>
+          <FeeCard
+            icon="verified_user"
             label="Hàng hoá khai báo giá trị"
             enabled={f.insurance.enabled}
             onToggle={(v) => patch("insurance", { enabled: v })}
-            hint="Kèm hoá đơn, chứng từ thể hiện giá trị khai báo"
+            hint="Kèm hoá đơn, chứng từ thể hiện giá trị khai báo."
+            gap={12}
           >
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="w-40 text-muted-foreground">Giá trị khai báo dưới</span>
-              <NumBox
+            <div className="sentence num">
+              Giá trị khai báo dưới
+              <MoneyInput
+                className="w-28"
+                suffix=""
+                aria-label="Ngưỡng giá trị khai báo"
                 value={f.insurance.threshold}
                 onChange={(v) => patch("insurance", { threshold: v })}
-                suffix="VNĐ"
               />
-              <span>= thu</span>
+              VND thu
               <NumBox
+                className="w-16"
                 value={f.insurance.percentUnder}
                 onChange={(v) => patch("insurance", { percentUnder: v })}
-                suffix="%"
-                className="w-24"
+                suffix=""
               />
-              <span>× giá trị khai báo</span>
+              % x giá trị khai báo
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="w-40 text-muted-foreground">Giá trị khai báo trên</span>
-              <span className="text-muted-foreground">{formatVND(f.insurance.threshold)} = thu</span>
+            <div className="sentence num">
+              Giá trị khai báo trên {formatVND(f.insurance.threshold).replace(/\s*₫?$/, "")} VND thu
               <NumBox
+                className="w-16"
                 value={f.insurance.percentOver}
                 onChange={(v) => patch("insurance", { percentOver: v })}
-                suffix="%"
-                className="w-24"
+                suffix=""
               />
-              <span>× giá trị khai báo</span>
+              % x giá trị khai báo
             </div>
-          </Row>
-
-
-          <Row
-            index={4}
+          </FeeCard>
+          <FeeCard
+            icon="undo"
             label="Phí hoàn đơn"
             enabled={f.refund.enabled}
             onToggle={(v) => patch("refund", { enabled: v })}
-            hint="Không thu phí !"
+            hint="Không thu phí hoàn đơn."
+            gap={12}
           >
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+            <div className="sentence num">
               <NumBox
+                className="w-16"
                 value={f.refund.percent}
                 onChange={(v) => patch("refund", { percent: v })}
-                suffix="%"
-                className="w-28"
+                suffix=""
               />
-              <span>× Phí vận chuyển</span>
+              % x Phí vận chuyển
             </div>
-          </Row>
+          </FeeCard>
         </div>
-      </section>
+      </div>
 
       <DoorFeeTable
         rows={doorDraft}
@@ -532,7 +606,10 @@ function Page() {
         onOverage={(side, p) => {
           const next = {
             pickup: { ...DEFAULT_SURCHARGES.doorOverage.pickup, ...overageRef.current?.pickup },
-            delivery: { ...DEFAULT_SURCHARGES.doorOverage.delivery, ...overageRef.current?.delivery },
+            delivery: {
+              ...DEFAULT_SURCHARGES.doorOverage.delivery,
+              ...overageRef.current?.delivery,
+            },
           };
           next[side] = { ...next[side], ...p };
           overageRef.current = next;
@@ -540,7 +617,6 @@ function Page() {
         }}
         disabled={!writable || loading || saving}
       />
-      </div>
     </div>
   );
 }
@@ -575,89 +651,191 @@ function DoorFeeTable({
 
   return (
     <section className="card stack">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
         <h2 className="group-title sec-title">
           <span className="sec-ic" aria-hidden="true">
             <span className="ms">local_shipping</span>
           </span>
           Bảng phí lấy / giao hàng tận nơi
         </h2>
-        <button type="button" className="btn tonal" style={{ height: 36 }} onClick={addRow} disabled={disabled}>
-          Thêm dòng
-        </button>
+        <div
+          className="seg"
+          role="tablist"
+          aria-label="Loại phí tận nơi"
+          style={{ background: "var(--low)" }}
+        >
+          <button
+            type="button"
+            role="tab"
+            className={kind === "PICKUP" ? "on" : undefined}
+            aria-selected={kind === "PICKUP"}
+            onClick={() => setKind("PICKUP")}
+          >
+            Lấy tận nơi
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={kind === "DELIVERY" ? "on" : undefined}
+            aria-selected={kind === "DELIVERY"}
+            onClick={() => setKind("DELIVERY")}
+          >
+            Giao tận nơi
+          </button>
+        </div>
       </div>
-      <StageTabRow className="gap-2.5 md:gap-3">
-        <StageTabButton active={kind === "PICKUP"} onClick={() => setKind("PICKUP")}>
-          Lấy tận nơi
-        </StageTabButton>
-        <StageTabButton active={kind === "DELIVERY"} onClick={() => setKind("DELIVERY")}>
-          Giao tận nơi
-        </StageTabButton>
-      </StageTabRow>
       <div className="scroller">
-        <table className="tbl" style={{ ["--tbl-min" as string]: "520px" }}>
+        <table className="tbl" style={{ ["--tbl-min" as string]: "620px" }}>
           <thead>
             <tr>
               <th>Khoảng cân (kg)</th>
               <th>Khoảng cách (km)</th>
-              <th>Phí (VNĐ)</th>
-              <th aria-label="Tác vụ" />
+              <th className="r">Phí (VND)</th>
+              <th className="r">Tác vụ</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-t">
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <NumBox value={r.minKg} onChange={(v) => patchRow(r.id, { minKg: v })} suffix="KG" className="w-28" disabled={disabled} />
-                    <span className="text-muted-foreground">→</span>
-                    <NumBox value={r.maxKg} onChange={(v) => patchRow(r.id, { maxKg: v })} suffix="KG" className="w-28" disabled={disabled} />
-                  </div>
+              <tr key={r.id}>
+                <td>
+                  <span className="sentence num" style={{ flexWrap: "nowrap" }}>
+                    <NumBox
+                      value={r.minKg}
+                      onChange={(v) => patchRow(r.id, { minKg: v })}
+                      suffix=""
+                      className="w-20"
+                      disabled={disabled}
+                    />
+                    <span className="muted">–</span>
+                    <NumBox
+                      value={r.maxKg}
+                      onChange={(v) => patchRow(r.id, { maxKg: v })}
+                      suffix=""
+                      className="w-20"
+                      disabled={disabled}
+                    />
+                  </span>
                 </td>
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <NumBox value={r.minKm} onChange={(v) => patchRow(r.id, { minKm: v })} suffix="km" className="w-28" disabled={disabled} />
-                    <span className="text-muted-foreground">→</span>
-                    <NumBox value={r.maxKm} onChange={(v) => patchRow(r.id, { maxKm: v })} suffix="km" className="w-28" disabled={disabled} />
-                  </div>
+                <td>
+                  <span className="sentence num" style={{ flexWrap: "nowrap" }}>
+                    <NumBox
+                      value={r.minKm}
+                      onChange={(v) => patchRow(r.id, { minKm: v })}
+                      suffix=""
+                      className="w-20"
+                      disabled={disabled}
+                    />
+                    <span className="muted">–</span>
+                    <NumBox
+                      value={r.maxKm}
+                      onChange={(v) => patchRow(r.id, { maxKm: v })}
+                      suffix=""
+                      className="w-20"
+                      disabled={disabled}
+                    />
+                  </span>
                 </td>
-                <td className="px-3 py-2">
-                  <NumBox value={r.fee} onChange={(v) => patchRow(r.id, { fee: v })} suffix="VNĐ" disabled={disabled} />
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <Button
-                    size="sm"
-                    variant="ghost"
+                <td className="r">
+                  <MoneyInput
+                    className="ml-auto w-32"
+                    suffix=""
+                    aria-label="Phí"
+                    value={r.fee}
+                    onChange={(v) => patchRow(r.id, { fee: v })}
                     disabled={disabled}
-                    onClick={() => onChange(doorFees.filter((x) => x.id !== r.id))}
-                  >
-                    Xóa
-                  </Button>
+                  />
+                </td>
+                <td style={{ verticalAlign: "middle" }}>
+                  <div className="act">
+                    <button
+                      type="button"
+                      className="no"
+                      aria-label="Xoá dòng"
+                      title="Xoá"
+                      disabled={disabled}
+                      onClick={() => onChange(doorFees.filter((x) => x.id !== r.id))}
+                    >
+                      <span className="ms" aria-hidden="true">
+                        delete
+                      </span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div id="door-overage" data-over-side={side} className="mt-3 grid gap-3 md:grid-cols-2">
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">Vượt cân bậc cuối — mỗi bước cộng thêm</div>
-          <div className="flex items-center gap-2">
-            <NumBox name={`over-${side}-kgStep`} value={band.kgStep} onChange={(v) => onOverage(side, { kgStep: v })} suffix="KG" className="w-28" disabled={disabled} />
-            <NumBox name={`over-${side}-kgFee`} value={band.kgFee} onChange={(v) => onOverage(side, { kgFee: v })} suffix="VNĐ" disabled={disabled} />
-          </div>
+      <button
+        type="button"
+        className="btn tonal"
+        style={{ alignSelf: "flex-start" }}
+        onClick={addRow}
+        disabled={disabled}
+      >
+        <span className="ms" aria-hidden="true">
+          add
+        </span>
+        Thêm dòng
+      </button>
+      <div id="door-overage" data-over-side={side} className="stack" style={{ gap: 12 }}>
+        <div className="sentence num">
+          Vượt cân bậc cuối: mỗi
+          <NumBox
+            name={`over-${side}-kgStep`}
+            value={band.kgStep}
+            onChange={(v) => onOverage(side, { kgStep: v })}
+            suffix=""
+            className="w-16"
+            disabled={disabled}
+          />
+          kg cộng thêm
+          <NumBox
+            name={`over-${side}-kgFee`}
+            value={band.kgFee}
+            onChange={(v) => onOverage(side, { kgFee: v })}
+            suffix=""
+            money
+            className="w-28"
+            disabled={disabled}
+          />
+          VND
         </div>
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">Vượt km bậc cuối — mỗi bước cộng thêm</div>
-          <div className="flex items-center gap-2">
-            <NumBox name={`over-${side}-kmStep`} value={band.kmStep} onChange={(v) => onOverage(side, { kmStep: v })} suffix="km" className="w-28" disabled={disabled} />
-            <NumBox name={`over-${side}-kmFee`} value={band.kmFee} onChange={(v) => onOverage(side, { kmFee: v })} suffix="VNĐ" disabled={disabled} />
-          </div>
+        <div className="sentence num">
+          Vượt km bậc cuối: mỗi
+          <NumBox
+            name={`over-${side}-kmStep`}
+            value={band.kmStep}
+            onChange={(v) => onOverage(side, { kmStep: v })}
+            suffix=""
+            className="w-16"
+            disabled={disabled}
+          />
+          km cộng thêm
+          <NumBox
+            name={`over-${side}-kmFee`}
+            value={band.kmFee}
+            onChange={(v) => onOverage(side, { kmFee: v })}
+            suffix=""
+            money
+            className="w-28"
+            disabled={disabled}
+          />
+          VND
         </div>
       </div>
-      <p className="lab muted" style={{ margin: 0 }}>
-        Khớp đúng khoảng cân và km thì lấy phí dòng đó. Vượt bậc cuối chỉ áp dụng cho tab đang chọn (lấy hoặc giao), không dùng chung. Bước = 0 thì không cộng. Lưu cùng nút <strong>Lưu cài đặt</strong>.
-      </p>
+      <div className="note">
+        Khớp đúng khoảng cân và km thì lấy phí dòng đó. Vượt bậc cuối chỉ áp dụng cho tab đang chọn.
+        Bước bằng 0 thì không cộng. Lưu cùng nút Lưu cài đặt.
+      </div>
     </section>
   );
 }

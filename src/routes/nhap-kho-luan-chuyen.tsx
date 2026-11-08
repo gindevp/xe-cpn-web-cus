@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { resolveTripRouteCode } from "@/lib/api/trip-route";
 import { TablePagination } from "@/components/TablePagination";
@@ -1038,7 +1039,8 @@ function Page() {
       toast.error("Chỉ huỷ được đơn đang hoàn còn ở nhập kho gửi / nhập kho (chưa lên xe)");
       return;
     }
-    if (!confirm(`Huỷ hoàn ${pending.length} đơn? Đơn sẽ về tab trước khi bấm hoàn.`)) return;
+    if (!(await askConfirm(`Huỷ hoàn ${pending.length} đơn? Đơn sẽ về tab trước khi bấm hoàn.`)))
+      return;
 
     const domain = await import("@/lib/api/domain-api");
     let ok = 0;
@@ -1356,9 +1358,9 @@ function Page() {
     }
     if (
       tab === "TRANSFERRING" &&
-      !confirm(
+      !(await askConfirm(
         `Gỡ ${candidates.length} đơn khỏi xe?\nĐơn sẽ về tab Nhập kho gửi (có thể gán lại lên xe khác).`,
-      )
+      ))
     ) {
       return;
     }
@@ -1497,9 +1499,9 @@ function Page() {
   const cancelAhamove = async (o: OrderX) => {
     const grab = o.partnerCode === "GRAB";
     if (
-      !window.confirm(
+      !(await askConfirm(
         `Hủy đơn ${grab ? "Grab" : "Ahamove"} của ${o.code}? Chỉ hủy được khi tài xế chưa lấy hàng.`,
-      )
+      ))
     )
       return;
     setAhamoveCancelling(true);

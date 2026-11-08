@@ -20,19 +20,10 @@ export function TablePagination({ pager, className }: { pager: Pager; className?
   const end = Math.min(total, start + pageSize);
 
   return (
-    <div
-      className={cn(className)}
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "8px 16px",
-      }}
-    >
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-        <span className="muted num" style={{ fontSize: 13 }}>
-          {start + 1}–{end} / {total}
+    <div className={cn("pager", className)}>
+      <div className="pager-left">
+        <span className="muted num lab">
+          {start + 1}-{end} trên {total}
         </span>
         <label className="pill sm" style={{ cursor: "pointer" }}>
           <select
@@ -40,6 +31,7 @@ export function TablePagination({ pager, className }: { pager: Pager; className?
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
             style={{
+              appearance: "none",
               border: 0,
               background: "transparent",
               font: "inherit",
@@ -61,7 +53,7 @@ export function TablePagination({ pager, className }: { pager: Pager; className?
         </label>
       </div>
       {pageCount > 1 ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div className="pager-btns">
           <button
             type="button"
             className="pg"

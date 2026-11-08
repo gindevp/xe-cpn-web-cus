@@ -1,4 +1,5 @@
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { TablePagination } from "@/components/TablePagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,11 @@ function statusLabel(status: HhvnCallStatus, result?: string | null) {
     case "completed":
       return "Nghe máy";
     case "failed":
-      return result === "error" ? "Lỗi tổng đài" : result === "send_error" ? "Gửi lỗi" : "Không nghe máy";
+      return result === "error"
+        ? "Lỗi tổng đài"
+        : result === "send_error"
+          ? "Gửi lỗi"
+          : "Không nghe máy";
     case "cancelled":
       return "Đã huỷ";
     case "calling":
@@ -134,8 +139,8 @@ function OrderLink({ code }: { code?: string }) {
 
 function useCancelCall(onDone: (call?: HhvnCall) => void) {
   const [busy, setBusy] = useState<string | null>(null);
-  const cancel = (call: HhvnCall) => {
-    if (!window.confirm(`Huỷ cuộc gọi tới ${call.phone}? Tổng đài sẽ không gọi số này nữa.`))
+  const cancel = async (call: HhvnCall) => {
+    if (!(await askConfirm(`Huỷ cuộc gọi tới ${call.phone}? Tổng đài sẽ không gọi số này nữa.`)))
       return;
     setBusy(call.callId);
     void (async () => {
@@ -186,7 +191,9 @@ export function CallDetailDialog({
               <HhvnStatusBadge status={call.status} result={call.result} />
               <span className="font-medium">Gọi {call.type === "hoan" ? "hoàn" : "giao"}</span>
               <span className="font-mono">{call.phone}</span>
-              <span className="text-muted-foreground">{phoneCarrierLabel(call.phone, call.carrierLabel)}</span>
+              <span className="text-muted-foreground">
+                {phoneCarrierLabel(call.phone, call.carrierLabel)}
+              </span>
               <span className="tabular-nums">
                 {formatVND(estimateAutoCallVnd(call.phone, call.duration, call.carrier, rates))}
               </span>
@@ -507,7 +514,12 @@ export function AutoCallCallsPanel({ provider = "HHVN" }: { provider?: "HHVN" | 
             placeholder="0912345678 hoặc vài số cuối"
           />
         </div>
-        <Button type="button" variant="secondary" onClick={searchPhone} disabled={loading || exporting}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={searchPhone}
+          disabled={loading || exporting}
+        >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Tìm
         </Button>
@@ -693,16 +705,16 @@ export function AutoCallTestPanel({
     };
   }, [hasPending, pollUntil, refresh]);
 
-  const send = () => {
+  const send = async () => {
     const p = phone.trim();
     if (!p) return toast.error("Nhập SĐT cần gọi thử");
     if (
       live &&
-      !window.confirm(
+      !(await askConfirm(
         vtech
           ? `Vtech sẽ GỌI THẬT tới ${p} theo kịch bản chiến dịch và tính phí.\n\nTiếp tục gọi thử?`
           : `Key đang dùng là LIVE: tổng đài sẽ GỌI THẬT tới ${p} và tính phí.\n\nTiếp tục gọi thử "${type === "hoan" ? "Gọi hoàn" : "Gọi giao"}"?`,
-      )
+      ))
     ) {
       return;
     }

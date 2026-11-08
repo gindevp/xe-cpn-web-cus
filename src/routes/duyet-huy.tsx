@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -14,13 +15,7 @@ import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { RowActionsMenu } from "@/components/RowActionsMenu";
-import {
-  formatVND,
-  formatMoney,
-  formatDateTime,
-  officeName,
-  COLLECT_FORMS,
-} from "@/lib/mock-data";
+import { formatVND, formatMoney, formatDateTime, officeName, COLLECT_FORMS } from "@/lib/mock-data";
 import { orderGoodsLabel } from "@/lib/package-label";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
@@ -82,9 +77,10 @@ function Page() {
         // Only orders already handed to driver (loaded on truck)
         return !!t && (t.loadedCodes ?? []).includes(o.code);
       })
-      .filter((o) =>
-        ["IN_TRANSIT", "WAITING", "AT_DEST"].includes(o.status) ||
-        !["DELIVERED", "CANCELLED", "RETURNED"].includes(o.status),
+      .filter(
+        (o) =>
+          ["IN_TRANSIT", "WAITING", "AT_DEST"].includes(o.status) ||
+          !["DELIVERED", "CANCELLED", "RETURNED"].includes(o.status),
       )
       .filter((o) => {
         if (
@@ -114,10 +110,7 @@ function Page() {
     const totalQuantity = rows.reduce((s, r) => s + (r.quantity ?? 1), 0);
     const totalWeight = rows.reduce((s, r) => s + (r.weightKg ?? 0), 0);
     const paid = rows.reduce((s, r) => s + (r.paidAmount ?? 0), 0);
-    const remain = rows.reduce(
-      (s, r) => s + Math.max(0, r.fare - (r.paidAmount ?? 0)),
-      0,
-    );
+    const remain = rows.reduce((s, r) => s + Math.max(0, r.fare - (r.paidAmount ?? 0)), 0);
     return {
       trips: tripSet.size,
       totalOrders,
@@ -168,12 +161,7 @@ function Page() {
     let ok = 0;
     let fail = 0;
     for (const code of codes) {
-      const res = transitionOrder(
-        code,
-        "AT_DEST",
-        "SCAN_IN",
-        "Nhập kho giao từ Hàng trên xe",
-      );
+      const res = transitionOrder(code, "AT_DEST", "SCAN_IN", "Nhập kho giao từ Hàng trên xe");
       if (res.ok) ok++;
       else fail++;
     }
@@ -210,9 +198,7 @@ function Page() {
             <Label className="text-xs">Văn phòng nhận</Label>
             <SearchableSelect
               value={receiverOffice || "__all__"}
-              onValueChange={(v) =>
-                setReceiverOffice(v === "__all__" ? "" : v)
-              }
+              onValueChange={(v) => setReceiverOffice(v === "__all__" ? "" : v)}
               className="w-[200px]"
               placeholder="Chọn văn phòng"
               options={[
@@ -243,19 +229,10 @@ function Page() {
             <span className="text-xs text-muted-foreground">
               {hasSelection ? `Đã chọn ${selected.size}` : "Chưa chọn đơn"}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!hasSelection}
-              onClick={doReturnToOrigin}
-            >
+            <Button variant="outline" size="sm" disabled={!hasSelection} onClick={doReturnToOrigin}>
               <Undo2 className="mr-2 h-4 w-4" /> Nhập lại kho gửi
             </Button>
-            <Button
-              size="sm"
-              disabled={!hasSelection}
-              onClick={doArriveDest}
-            >
+            <Button size="sm" disabled={!hasSelection} onClick={doArriveDest}>
               <Inbox className="mr-2 h-4 w-4" /> Nhập kho nhận
             </Button>
           </div>
@@ -296,16 +273,12 @@ function Page() {
                   const route = t?.route ?? `${r.fromOffice} → ${r.toOffice}`;
                   const goodsLabel = orderGoodsLabel(r);
                   const collectLabel =
-                    COLLECT_FORMS.find((c) => c.value === r.collectForm)
-                      ?.label ?? r.collectForm;
+                    COLLECT_FORMS.find((c) => c.value === r.collectForm)?.label ?? r.collectForm;
                   const paid = r.paidAmount ?? 0;
                   const remain = Math.max(0, r.fare - paid);
                   const isSel = selected.has(r.code);
                   return (
-                    <tr
-                      key={r.code}
-                      className="border-b last:border-0 align-top hover:bg-muted/40"
-                    >
+                    <tr key={r.code} className="border-b last:border-0 align-top hover:bg-muted/40">
                       <td className="py-2 pr-2">
                         <Checkbox
                           checked={isSel}
@@ -320,12 +293,12 @@ function Page() {
                       <td className="py-2 pr-4 whitespace-nowrap">
                         {t?.departAt ? formatDateTime(t.departAt) : "—"}
                       </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {t?.bks ?? "—"}
-                      </td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{t?.bks ?? "—"}</td>
                       <td className="py-2 pr-4">
                         <div>{r.quantity ?? 1} kiện</div>
-                        <div className="text-muted-foreground">{(r.weightKg ?? 0).toFixed(1)} kg</div>
+                        <div className="text-muted-foreground">
+                          {(r.weightKg ?? 0).toFixed(1)} kg
+                        </div>
                       </td>
                       <td className="py-2 pr-4">{goodsLabel}</td>
                       <td className="py-2 pr-4">
@@ -337,31 +310,25 @@ function Page() {
                             Chưa thu:{" "}
                             <span
                               className={
-                                remain > 0
-                                  ? "font-medium text-destructive"
-                                  : "text-success"
+                                remain > 0 ? "font-medium text-destructive" : "text-success"
                               }
                             >
-                            {formatMoney(remain)}
+                              {formatMoney(remain)}
+                            </span>
                           </span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-2 pr-4 text-right">
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4 text-right">
                         <div className="font-medium">{collectLabel}</div>
                       </td>
                       <td className="py-2 pr-4">
                         <div>{r.senderName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.senderPhone}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
                       </td>
                       <td className="py-2 pr-4">{officeName(r.fromOffice)}</td>
                       <td className="py-2 pr-4">
                         <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.receiverPhone}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
                       </td>
                       <td className="py-2 pr-4">{officeName(r.toOffice)}</td>
                       <td className="py-2 pr-2 text-right">
@@ -373,8 +340,8 @@ function Page() {
                             r.status !== "DELIVERED" &&
                             r.status !== "RETURNED"
                           }
-                          onCancel={() => {
-                            if (!confirm(`Huỷ đơn ${r.code}?`)) return;
+                          onCancel={async () => {
+                            if (!(await askConfirm(`Huỷ đơn ${r.code}?`))) return;
                             const res = transitionOrder(
                               r.code,
                               "CANCELLED",
@@ -412,30 +379,24 @@ function RowActions({
 }) {
   return (
     <RowActionsMenu title="Tác vụ đơn">
-        <DropdownMenuItem
-          onClick={() => toast.success(`Đã gửi SMS cho đơn ${code}`)}
-        >
-          <MessageSquare className="mr-2 h-4 w-4" /> Gửi SMS
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() =>
-            toast.message(
-              tripCode
-                ? `Phơi hàng chuyến ${tripCode}`
-                : `Đơn ${code} chưa có chuyến`,
-            )
-          }
-        >
-          <FileText className="mr-2 h-4 w-4" /> Xem phơi hàng
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={!canCancel}
-          onClick={onCancel}
-          className="text-destructive focus:text-destructive"
-        >
-          <Ban className="mr-2 h-4 w-4" /> Huỷ đơn
-        </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => toast.success(`Đã gửi SMS cho đơn ${code}`)}>
+        <MessageSquare className="mr-2 h-4 w-4" /> Gửi SMS
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() =>
+          toast.message(tripCode ? `Phơi hàng chuyến ${tripCode}` : `Đơn ${code} chưa có chuyến`)
+        }
+      >
+        <FileText className="mr-2 h-4 w-4" /> Xem phơi hàng
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={!canCancel}
+        onClick={onCancel}
+        className="text-destructive focus:text-destructive"
+      >
+        <Ban className="mr-2 h-4 w-4" /> Huỷ đơn
+      </DropdownMenuItem>
     </RowActionsMenu>
   );
 }
@@ -517,9 +478,7 @@ function StatsCards({ metrics }: { metrics: Metrics }) {
                 <div className="text-xs text-muted-foreground">{it.label}</div>
                 <div className="truncate text-lg font-semibold">
                   {it.value}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    {it.unit}
-                  </span>
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">{it.unit}</span>
                 </div>
               </div>
             </CardContent>

@@ -48,7 +48,9 @@ const KIND_OPTIONS: { value: RevenueKind; label: string }[] = [
   { value: "BACKLOG", label: "Đơn tồn" },
 ];
 
-const COST_COLS: { key: "shippingFee"; label: string }[] = [{ key: "shippingFee", label: "Phí giao" }];
+const COST_COLS: { key: "shippingFee"; label: string }[] = [
+  { key: "shippingFee", label: "Phí giao" },
+];
 
 function uniqueShippingFee(rows: RevenueRow[]) {
   const seen = new Set<string>();
@@ -72,7 +74,12 @@ const MONEY_COLS: { key: keyof RevenueReport["totals"]; label: string }[] = [
   { key: "total", label: "Tổng doanh thu" },
 ];
 
-const MIX_META: { key: keyof RevenueReport["totals"] | "shippingFee"; name: string; icon: string; minus?: boolean }[] = [
+const MIX_META: {
+  key: keyof RevenueReport["totals"] | "shippingFee";
+  name: string;
+  icon: string;
+  minus?: boolean;
+}[] = [
   { key: "goodsFare", name: "Cước giao hàng", icon: "local_shipping" },
   { key: "deliveryFee", name: "Giao tận nơi", icon: "home" },
   { key: "pickupFee", name: "Phí lấy hàng", icon: "move_to_inbox" },
@@ -117,8 +124,14 @@ function OfficeIll() {
       <rect className="ill-mid" x="26" y="26" width="84" height="70" rx="4" />
       <rect className="ill-main" x="20" y="12" width="96" height="18" rx="4" />
       <rect className="ill-paper" x="50" y="17" width="36" height="8" rx="4" />
-      <path className="ill-main" d="M26 30h14v7a7 7 0 0 1-14 0zM54 30h14v7a7 7 0 0 1-14 0zM82 30h14v7a7 7 0 0 1-14 0z" />
-      <path className="ill-paper" d="M40 30h14v7a7 7 0 0 1-14 0zM68 30h14v7a7 7 0 0 1-14 0zM96 30h14v7a7 7 0 0 1-14 0z" />
+      <path
+        className="ill-main"
+        d="M26 30h14v7a7 7 0 0 1-14 0zM54 30h14v7a7 7 0 0 1-14 0zM82 30h14v7a7 7 0 0 1-14 0z"
+      />
+      <path
+        className="ill-paper"
+        d="M40 30h14v7a7 7 0 0 1-14 0zM68 30h14v7a7 7 0 0 1-14 0zM96 30h14v7a7 7 0 0 1-14 0z"
+      />
       <rect className="ill-paper" x="36" y="54" width="28" height="22" rx="3" />
       <rect className="ill-main" x="74" y="54" width="24" height="42" rx="3" />
       <circle className="ill-paper" cx="93" cy="76" r="1.8" />
@@ -131,7 +144,10 @@ function OfficeIll() {
 
 type OfficeBar = { code: string; name: string; total: number; orders: number };
 
-function buildOfficeBars(offices: { code: string; name: string }[], rows: RevenueRow[]): OfficeBar[] {
+function buildOfficeBars(
+  offices: { code: string; name: string }[],
+  rows: RevenueRow[],
+): OfficeBar[] {
   const byCode = new Map<string, { total: number; orders: Set<string> }>();
   for (const r of rows) {
     const code = (r.officeCode || "").toUpperCase();
@@ -148,16 +164,22 @@ function buildOfficeBars(offices: { code: string; name: string }[], rows: Revenu
     if (!list.some((c) => c.code.toUpperCase() === code)) {
       list.push({
         code,
-        name: rows.find((r) => (r.officeCode || "").toUpperCase() === code)?.officeName || code || "Chưa rõ VP",
+        name:
+          rows.find((r) => (r.officeCode || "").toUpperCase() === code)?.officeName ||
+          code ||
+          "Chưa rõ VP",
         total: hit.total,
         orders: hit.orders.size,
       });
     }
   }
-  return list.filter((b) => b.total > 0).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "vi"));
+  return list
+    .filter((b) => b.total > 0)
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "vi"));
 }
 
-const sourceLabel = (r: RevenueRow) => (r.source === "RECEIPT" ? "Đã thu" : "Đơn tồn · còn phải thu");
+const sourceLabel = (r: RevenueRow) =>
+  r.source === "RECEIPT" ? "Đã thu" : "Đơn tồn · còn phải thu";
 
 function VpRevenueIntro() {
   const [show, setShow] = useState(false);
@@ -179,9 +201,10 @@ function VpRevenueIntro() {
       </div>
       {show ? (
         <div className="note">
-          Cùng cách tính với Báo cáo kinh doanh. Doanh thu = tổng cước các đơn tạo trong khoảng ngày (trừ đơn huỷ và đơn
-          còn chờ nhận, chờ lấy, đang lấy hàng), tính cho VP gửi. Không gồm tiền thu hộ COD. Cột Phí giao hiện một trong
-          ba: phí Ahamove/Grab, phí giao ngoài hoặc phí ship nội bộ, đã trừ khỏi tổng doanh thu.
+          Cùng cách tính với Báo cáo kinh doanh. Doanh thu = tổng cước các đơn tạo trong khoảng ngày
+          (trừ đơn huỷ và đơn còn chờ nhận, chờ lấy, đang lấy hàng), tính cho VP gửi. Không gồm tiền
+          thu hộ COD. Cột Phí giao hiện một trong ba: phí Ahamove/Grab, phí giao ngoài hoặc phí ship
+          nội bộ, đã trừ khỏi tổng doanh thu.
         </div>
       ) : null}
     </>
@@ -294,11 +317,19 @@ function Page() {
       ...MONEY_COLS.map((c) => Number(report.totals[c.key] ?? 0)),
       ...COST_COLS.map(() => uniqueShippingFee(rows)),
     ]);
-    downloadExcel(`bao-cao-doanh-thu-${from}_${to}${office ? `-${office}` : ""}`, headers, data, format);
+    downloadExcel(
+      `bao-cao-doanh-thu-${from}_${to}${office ? `-${office}` : ""}`,
+      headers,
+      data,
+      format,
+    );
   };
 
   const officeOptions = allScope
-    ? [{ value: "all", label: "Tất cả VP" }, ...offices.map((o) => ({ value: o.code, label: o.name }))]
+    ? [
+        { value: "all", label: "Tất cả VP" },
+        ...offices.map((o) => ({ value: o.code, label: o.name })),
+      ]
     : offices.filter((o) => o.code === ownOffice).map((o) => ({ value: o.code, label: o.name }));
 
   const pickOffice = (code: string) => {
@@ -316,20 +347,37 @@ function Page() {
           <h1 className="page-title">Báo cáo doanh thu</h1>
           <div className="lab muted">Doanh thu theo đơn</div>
         </div>
-        <ExportFormatButton className="btn tonal" variant="ghost" disabled={!rows.length} onExport={exportExcel} />
+        <ExportFormatButton
+          className="btn tonal"
+          variant="ghost"
+          disabled={!rows.length}
+          onExport={exportExcel}
+        />
       </div>
 
       <div className="filter-grid">
         <label className="field">
           <span className="l">Từ ngày</span>
           <span className="box input-box">
-            <input type="date" className="num" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+            <input
+              type="date"
+              className="num"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+            />
           </span>
         </label>
         <label className="field">
           <span className="l">Đến ngày</span>
           <span className="box input-box">
-            <input type="date" className="num" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+            <input
+              type="date"
+              className="num"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+            />
           </span>
         </label>
         <div className="field vp-field">
@@ -510,12 +558,17 @@ function Page() {
 
         {!rows.length ? (
           <div className="empty">
-            <h3 className="group-title">{loading ? "Đang tải…" : "Không có doanh thu trong khoảng lọc."}</h3>
+            <h3 className="group-title">
+              {loading ? "Đang tải…" : "Không có doanh thu trong khoảng lọc."}
+            </h3>
           </div>
         ) : (
           <>
             <div className="scroller">
-              <table className="tbl sticky-1 sticky-last" style={{ ["--tbl-min" as string]: "1360px" }}>
+              <table
+                className="tbl sticky-1 sticky-last"
+                style={{ ["--tbl-min" as string]: "1360px" }}
+              >
                 <thead>
                   <tr>
                     <th>Mã đơn</th>
@@ -563,9 +616,7 @@ function Page() {
                 </tbody>
               </table>
             </div>
-            <div className="pager">
-              <TablePagination pager={pager} />
-            </div>
+            <TablePagination pager={pager} />
           </>
         )}
       </section>

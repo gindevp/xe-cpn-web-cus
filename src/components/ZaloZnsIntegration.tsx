@@ -1,4 +1,3 @@
-import { Section } from "@/components/PageBits";
 import { SecretInput } from "@/components/SecretInput";
 import { TablePagination } from "@/components/TablePagination";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CfgActs, CfgField, CfgHeader, CfgInput, CfgUrl } from "@/components/m3/CfgKit";
 import { getApiBase, isApiEnabled } from "@/lib/api/client";
 import type { GaponeZnsLog } from "@/lib/api/finance-config-api";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
@@ -85,7 +85,8 @@ function seedTemplateData(paramsCsv?: string) {
   for (const p of paramsCsv.split(",")) {
     const key = p.trim();
     if (!key) continue;
-    obj[key] = key.toLowerCase().includes("otp") || key.toLowerCase().includes("pin") ? "123456" : "Test";
+    obj[key] =
+      key.toLowerCase().includes("otp") || key.toLowerCase().includes("pin") ? "123456" : "Test";
   }
   return JSON.stringify(obj, null, 2);
 }
@@ -139,7 +140,9 @@ export function ZaloZnsIntegration() {
   const [lastSend, setLastSend] = useState<{ messageId?: string; requestId?: string } | null>(null);
 
   const [autoEnabled, setAutoEnabled] = useState(integrations.gaponeAutocallZnsEnabled === true);
-  const [autoTemplateId, setAutoTemplateId] = useState(integrations.gaponeAutocallZnsTemplateId ?? "");
+  const [autoTemplateId, setAutoTemplateId] = useState(
+    integrations.gaponeAutocallZnsTemplateId ?? "",
+  );
   const [fieldMap, setFieldMap] = useState<Record<string, string>>(() =>
     parseFieldMap(integrations.gaponeAutocallZnsFieldMap),
   );
@@ -603,19 +606,21 @@ export function ZaloZnsIntegration() {
   };
 
   return (
-    <Section title="GapOne — Zalo ZNS">
-      <Tabs defaultValue="ket-noi">
-        <TabsList>
-          <TabsTrigger value="ket-noi">Kết nối</TabsTrigger>
-          <TabsTrigger value="tu-dong">Tự động</TabsTrigger>
-          <TabsTrigger value="otp-login">OTP đăng nhập</TabsTrigger>
-          <TabsTrigger value="gui-thu">Gửi thử</TabsTrigger>
-          <TabsTrigger value="nhat-ky">Nhật ký</TabsTrigger>
-        </TabsList>
+    <Tabs defaultValue="ket-noi" className="stack" style={{ gap: 16 }}>
+      <TabsList>
+        <TabsTrigger value="ket-noi">Kết nối</TabsTrigger>
+        <TabsTrigger value="tu-dong">Tự động</TabsTrigger>
+        <TabsTrigger value="otp-login">OTP đăng nhập</TabsTrigger>
+        <TabsTrigger value="gui-thu">Gửi thử</TabsTrigger>
+        <TabsTrigger value="nhat-ky">Nhật ký</TabsTrigger>
+      </TabsList>
 
-        <TabsContent value="ket-noi" className="space-y-4 pt-2">
-          <div className="space-y-1.5 text-xs text-muted-foreground">
-            <p>
+      <TabsContent value="ket-noi" className="card stack mt-0">
+        <CfgHeader
+          icon="chat"
+          title="GapOne - Zalo ZNS"
+          desc={
+            <>
               Theo{" "}
               <a
                 className="underline underline-offset-2"
@@ -634,578 +639,573 @@ export function ZaloZnsIntegration() {
               >
                 Cài đặt → Kết nối API
               </a>{" "}
-              lấy <strong>client_id</strong> + <strong>client_secret</strong>. JWT không cần dán — CPN
-              tự lấy token khi Test / Gửi thử.
-            </p>
-            <p>
-              <strong>Webhook</strong> cấu hình trên GapOne: dán URL bên dưới vào Webhook URL → lưu.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label={`1. Client ID (API key) ${integrations.gaponeClientId ? "· đã lưu" : ""}`}>
-              <Input
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                autoComplete="off"
-                placeholder="client_id từ Kết nối API"
-              />
-            </F>
-            <F
-              label={`2. Client Secret ${integrations.gaponeClientSecretConfigured ? "· đã lưu" : ""}`}
-            >
-              <SecretInput
-                placeholder={
-                  integrations.gaponeClientSecretConfigured
-                    ? "Để trống nếu giữ secret đã lưu"
-                    : "client_secret — không dán JWT"
-                }
-                value={clientSecret}
-                onChange={(e) => setClientSecret(e.target.value)}
-              />
-            </F>
-            <F label={`3. OA ID (Zalo sender) ${integrations.gaponeOaId ? "· đã lưu" : ""}`}>
-              <Input
-                value={oaId}
-                onChange={(e) => setOaId(e.target.value)}
-                placeholder="Lấy sau khi Test kết nối"
-                autoComplete="off"
-              />
-            </F>
-            <div className="sm:col-span-2">
-              <F label="URL webhook — copy sang GapOne">
-                {webhookUrl ? (
-                  <Input
-                    readOnly
-                    className="font-mono text-xs"
-                    value={webhookUrl}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                ) : (
-                  <p className="text-xs text-muted-foreground">Bấm Lưu để sinh URL webhook.</p>
-                )}
-              </F>
+              lấy client_id và client_secret. JWT không cần dán, hệ thống tự lấy token khi test hoặc
+              gửi thử. Webhook cấu hình trên GapOne: dán URL bên dưới vào Webhook URL rồi lưu.
+            </>
+          }
+        />
+        <div className="cfg-grid">
+          <CfgField label="Client ID (API key)" saved={!!integrations.gaponeClientId}>
+            <CfgInput
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              autoComplete="off"
+              placeholder="client_id từ Kết nối API"
+            />
+          </CfgField>
+          <CfgField label="Client Secret" saved={!!integrations.gaponeClientSecretConfigured}>
+            <SecretInput
+              placeholder={
+                integrations.gaponeClientSecretConfigured
+                  ? "Để trống nếu giữ secret đã lưu"
+                  : "client_secret — không dán JWT"
+              }
+              value={clientSecret}
+              onChange={(e) => setClientSecret(e.target.value)}
+            />
+          </CfgField>
+          <CfgField label="OA ID (Zalo sender)" saved={!!integrations.gaponeOaId}>
+            <CfgInput
+              value={oaId}
+              onChange={(e) => setOaId(e.target.value)}
+              placeholder="Lấy sau khi Test kết nối"
+              autoComplete="off"
+            />
+          </CfgField>
+          <CfgUrl
+            label="URL webhook - copy sang GapOne"
+            url={webhookUrl}
+            emptyText="Bấm Lưu để sinh URL webhook."
+            copiedText="Đã copy URL webhook"
+          />
+          {oas.length > 0 ? (
+            <div className="note cfg-wide stack" style={{ gap: 8 }}>
+              <div className="title-small" style={{ fontWeight: 600, color: "var(--on-surface)" }}>
+                OA đã liên kết (từ lần test gần nhất)
+              </div>
+              {oas.map((o) => (
+                <div
+                  key={o.oaId}
+                  style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}
+                >
+                  <span className="num" style={{ color: "var(--on-surface)" }}>
+                    {o.oaId}
+                  </span>
+                  <span>{o.oaName}</span>
+                  <button type="button" className="text-act" onClick={() => setOaId(o.oaId)}>
+                    Chọn
+                  </button>
+                </div>
+              ))}
+              <span>Chọn OA rồi bấm Lưu.</span>
             </div>
-          </div>
+          ) : null}
+        </div>
+        <CfgActs updatedAt={undefined}>
           {integrations.gaponeTokenExpiresAt ? (
-            <p className="text-xs text-muted-foreground">
+            <span className="lab muted num" style={{ alignSelf: "center" }}>
               Token hết hạn khoảng{" "}
               {new Date(integrations.gaponeTokenExpiresAt).toLocaleString("vi-VN")}
-            </p>
+            </span>
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={save} disabled={saving}>
-              {saving ? "Đang lưu…" : "Lưu"}
-            </Button>
-            <Button type="button" variant="secondary" onClick={test} disabled={testing}>
-              {testing ? "Đang test…" : "Test kết nối"}
-            </Button>
-          </div>
-          {oas.length > 0 ? (
-            <div className="rounded-md border p-3">
-              <div className="mb-2 text-sm font-medium">OA đã liên kết (từ lần test gần nhất)</div>
-              <ul className="space-y-1 text-sm">
-                {oas.map((o) => (
-                  <li key={o.oaId} className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs">{o.oaId}</span>
-                    <span className="text-muted-foreground">{o.oaName}</span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7"
-                      onClick={() => setOaId(o.oaId)}
-                    >
-                      Chọn
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-muted-foreground">Chọn OA rồi bấm Lưu.</p>
-            </div>
-          ) : null}
-        </TabsContent>
+          <button type="button" className="btn tonal" onClick={test} disabled={testing}>
+            {testing ? "Đang test…" : "Test kết nối"}
+          </button>
+          <button type="button" className="btn" onClick={save} disabled={saving}>
+            {saving ? "Đang lưu…" : "Lưu"}
+          </button>
+        </CfgActs>
+      </TabsContent>
 
-        <TabsContent value="tu-dong" className="space-y-4 pt-2">
-          <p className="text-xs text-muted-foreground">
-            Khi Auto Call hết vòng gọi <strong>ngày 1</strong> (mặc định 3 cuộc theo lịch{" "}
-            <code className="text-[11px]">60,120</code>) và kết quả là <strong>không nghe máy</strong>{" "}
-            hoặc <strong>đã huỷ</strong>, CPN gửi 1 tin ZNS tới SĐT người nhận. Cấu hình lịch gọi vẫn ở
-            tab Auto Call → Lịch gọi.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Switch id="gapone-ac-zns" checked={autoEnabled} onCheckedChange={setAutoEnabled} />
-            <Label htmlFor="gapone-ac-zns" className="text-sm">
-              Bật ZNS sau hết vòng gọi ngày 1 (không nghe / đã huỷ)
-            </Label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={loadTemplates} disabled={loadingTpl}>
-              {loadingTpl ? "Đang tải mẫu…" : "Tải mẫu ZNS"}
-            </Button>
-          </div>
-          {templates.length > 0 ? (
-            <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
-              {templates.map((t) => (
-                <li
-                  key={t.templateId}
-                  className="flex flex-wrap items-center gap-2 border-b border-border/60 py-1.5"
+      <TabsContent value="tu-dong" className="card stack mt-0">
+        <CfgHeader icon="chat" title="Tin ZNS sau khi gọi không thành công" />
+        <p className="text-xs text-muted-foreground">
+          Khi Auto Call hết vòng gọi <strong>ngày 1</strong> (mặc định 3 cuộc theo lịch{" "}
+          <code className="text-[11px]">60,120</code>) và kết quả là <strong>không nghe máy</strong>{" "}
+          hoặc <strong>đã huỷ</strong>, CPN gửi 1 tin ZNS tới SĐT người nhận. Cấu hình lịch gọi vẫn
+          ở tab Auto Call → Lịch gọi.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Switch id="gapone-ac-zns" checked={autoEnabled} onCheckedChange={setAutoEnabled} />
+          <Label htmlFor="gapone-ac-zns" className="text-sm">
+            Bật ZNS sau hết vòng gọi ngày 1 (không nghe / đã huỷ)
+          </Label>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={loadTemplates} disabled={loadingTpl}>
+            {loadingTpl ? "Đang tải mẫu…" : "Tải mẫu ZNS"}
+          </Button>
+        </div>
+        {templates.length > 0 ? (
+          <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+            {templates.map((t) => (
+              <li
+                key={t.templateId}
+                className="flex flex-wrap items-center gap-2 border-b border-border/60 py-1.5"
+              >
+                <span className="font-mono text-xs">{t.templateId}</span>
+                <span className="text-muted-foreground">{t.name}</span>
+                {t.params ? (
+                  <span className="text-[11px] text-muted-foreground">params: {t.params}</span>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  onClick={() => pickTemplateAuto(t)}
                 >
-                  <span className="font-mono text-xs">{t.templateId}</span>
-                  <span className="text-muted-foreground">{t.name}</span>
-                  {t.params ? (
-                    <span className="text-[11px] text-muted-foreground">params: {t.params}</span>
-                  ) : null}
+                  Chọn
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <F label="Template ID (mẫu gửi tự động)">
+          <Input
+            value={autoTemplateId}
+            onChange={(e) => setAutoTemplateId(e.target.value)}
+            placeholder="Tải mẫu rồi Chọn — hoặc dán tay"
+            autoComplete="off"
+          />
+        </F>
+        <div>
+          <div className="mb-2 text-sm font-medium">Map tham số mẫu → thông tin đơn</div>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Mỗi biến trong mẫu ZNS chọn nguồn dữ liệu từ đơn / cuộc gọi. Thêm dòng nếu mẫu có param
+            chưa liệt kê.
+          </p>
+          {autoParams.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Chọn mẫu có params, hoặc bấm Thêm biến bên dưới.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {autoParams.map((param) => (
+                <div key={param} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end">
+                  <F label="Biến mẫu">
+                    <Input
+                      value={param}
+                      readOnly={
+                        !!autoTemplate?.params
+                          ?.split(",")
+                          .map((s) => s.trim())
+                          .includes(param)
+                      }
+                      onChange={(e) => {
+                        const nextKey = e.target.value.trim();
+                        setFieldMap((prev) => {
+                          const n = { ...prev };
+                          const val = n[param] ?? "";
+                          delete n[param];
+                          if (nextKey) n[nextKey] = val;
+                          return n;
+                        });
+                      }}
+                    />
+                  </F>
+                  <F label="Nguồn dữ liệu">
+                    <select
+                      className={SELECT_CLASS}
+                      value={fieldMap[param] ?? ""}
+                      onChange={(e) =>
+                        setFieldMap((prev) => ({ ...prev, [param]: e.target.value }))
+                      }
+                    >
+                      <option value="">— Chọn —</option>
+                      {ORDER_FIELD_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label} ({o.value})
+                        </option>
+                      ))}
+                    </select>
+                  </F>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    className="h-7"
-                    onClick={() => pickTemplateAuto(t)}
+                    className="mb-0.5"
+                    onClick={() =>
+                      setFieldMap((prev) => {
+                        const n = { ...prev };
+                        delete n[param];
+                        return n;
+                      })
+                    }
                   >
-                    Chọn
+                    Xóa
                   </Button>
-                </li>
+                </div>
               ))}
-            </ul>
-          ) : null}
-          <F label="Template ID (mẫu gửi tự động)">
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() =>
+              setFieldMap((prev) => {
+                let i = 1;
+                let key = `param_${i}`;
+                while (prev[key] != null) {
+                  i += 1;
+                  key = `param_${i}`;
+                }
+                return { ...prev, [key]: "" };
+              })
+            }
+          >
+            Thêm biến
+          </Button>
+        </div>
+        <Button type="button" onClick={saveAuto} disabled={savingAuto}>
+          {savingAuto ? "Đang lưu…" : "Lưu cấu hình tự động"}
+        </Button>
+      </TabsContent>
+
+      <TabsContent value="otp-login" className="card stack mt-0">
+        <CfgHeader icon="chat" title="OTP đăng nhập" />
+        <p className="text-xs text-muted-foreground">
+          Khách đăng nhập trang <strong>cpn.xevietnam.com</strong> bằng SĐT: CPN sinh mã 6 số, gửi
+          qua mẫu ZNS bên dưới (hết hạn sau 5 phút, gửi lại sau 60 giây). SĐT test đăng nhập bằng mã
+          cố định, không gửi tin.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Switch id="gapone-login-otp" checked={otpEnabled} onCheckedChange={setOtpEnabled} />
+          <Label htmlFor="gapone-login-otp" className="text-sm">
+            Bật gửi OTP đăng nhập qua ZNS
+          </Label>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={loadTemplates} disabled={loadingTpl}>
+            {loadingTpl ? "Đang tải mẫu…" : "Tải mẫu ZNS"}
+          </Button>
+        </div>
+        {templates.length > 0 ? (
+          <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+            {templates.map((t) => (
+              <li
+                key={t.templateId}
+                className="flex flex-wrap items-center gap-2 border-b border-border/60 py-1.5"
+              >
+                <span className="font-mono text-xs">{t.templateId}</span>
+                <span className="text-muted-foreground">{t.name}</span>
+                {t.params ? (
+                  <span className="text-[11px] text-muted-foreground">params: {t.params}</span>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  onClick={() => pickTemplateOtp(t)}
+                >
+                  Chọn
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F label="Template ID (mẫu OTP)">
             <Input
-              value={autoTemplateId}
-              onChange={(e) => setAutoTemplateId(e.target.value)}
+              value={otpTemplateId}
+              onChange={(e) => setOtpTemplateId(e.target.value)}
               placeholder="Tải mẫu rồi Chọn — hoặc dán tay"
               autoComplete="off"
             />
           </F>
-          <div>
-            <div className="mb-2 text-sm font-medium">Map tham số mẫu → thông tin đơn</div>
-            <p className="mb-2 text-xs text-muted-foreground">
-              Mỗi biến trong mẫu ZNS chọn nguồn dữ liệu từ đơn / cuộc gọi. Thêm dòng nếu mẫu có param
-              chưa liệt kê.
-            </p>
-            {autoParams.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Chọn mẫu có params, hoặc bấm Thêm biến bên dưới.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {autoParams.map((param) => (
-                  <div key={param} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] items-end">
-                    <F label="Biến mẫu">
-                      <Input
-                        value={param}
-                        readOnly={!!autoTemplate?.params?.split(",").map((s) => s.trim()).includes(param)}
-                        onChange={(e) => {
-                          const nextKey = e.target.value.trim();
-                          setFieldMap((prev) => {
-                            const n = { ...prev };
-                            const val = n[param] ?? "";
-                            delete n[param];
-                            if (nextKey) n[nextKey] = val;
-                            return n;
-                          });
-                        }}
-                      />
-                    </F>
-                    <F label="Nguồn dữ liệu">
-                      <select
-                        className={SELECT_CLASS}
-                        value={fieldMap[param] ?? ""}
-                        onChange={(e) =>
-                          setFieldMap((prev) => ({ ...prev, [param]: e.target.value }))
-                        }
-                      >
-                        <option value="">— Chọn —</option>
-                        {ORDER_FIELD_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label} ({o.value})
-                          </option>
-                        ))}
-                      </select>
-                    </F>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="mb-0.5"
-                      onClick={() =>
-                        setFieldMap((prev) => {
-                          const n = { ...prev };
-                          delete n[param];
-                          return n;
-                        })
-                      }
-                    >
-                      Xóa
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
+          <F label="Tên biến mã OTP trong mẫu">
+            <Input
+              value={otpParam}
+              onChange={(e) => setOtpParam(e.target.value)}
+              placeholder="otp"
+              autoComplete="off"
+            />
+          </F>
+          <F label="SĐT test (phân cách dấu phẩy)">
+            <Input
+              value={otpTestPhones}
+              onChange={(e) => setOtpTestPhones(e.target.value)}
+              placeholder="0393883210"
+              inputMode="tel"
+              autoComplete="off"
+            />
+          </F>
+          <F label="Mã OTP cố định cho SĐT test">
+            <Input
+              value={otpTestCode}
+              onChange={(e) => setOtpTestCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="123456"
+              inputMode="numeric"
+              autoComplete="off"
+            />
+          </F>
+        </div>
+        <Button type="button" onClick={saveOtp} disabled={savingOtp}>
+          {savingOtp ? "Đang lưu…" : "Lưu cấu hình OTP"}
+        </Button>
+      </TabsContent>
+
+      <TabsContent value="gui-thu" className="card stack mt-0">
+        <CfgHeader icon="chat" title="Gửi thử" />
+        <p className="text-xs text-muted-foreground">
+          Gửi thử thủ công (có thể tốn phí). Không gắn đơn — dùng để kiểm tra template.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={loadTemplates} disabled={loadingTpl}>
+            {loadingTpl ? "Đang tải mẫu…" : "Tải mẫu ZNS"}
+          </Button>
+        </div>
+        {templates.length > 0 ? (
+          <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
+            {templates.map((t) => (
+              <li
+                key={t.templateId}
+                className="flex flex-wrap items-center gap-2 border-b border-border/60 py-1.5"
+              >
+                <span className="font-mono text-xs">{t.templateId}</span>
+                <span className="text-muted-foreground">{t.name}</span>
+                {t.params ? (
+                  <span className="text-[11px] text-muted-foreground">params: {t.params}</span>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  onClick={() => pickTemplateTrial(t)}
+                >
+                  Chọn
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F label="SĐT nhận thử">
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0912345678"
+              inputMode="tel"
+            />
+          </F>
+          <F label="Template ID (mã mẫu)">
+            <Input
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              placeholder="Tải mẫu rồi Chọn — hoặc dán tay"
+              autoComplete="off"
+            />
+          </F>
+          <div className="sm:col-span-2">
+            <F label="template_data (JSON)">
+              <textarea
+                className="min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
+                value={templateDataJson}
+                onChange={(e) => setTemplateDataJson(e.target.value)}
+                spellCheck={false}
+              />
+            </F>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={sendTrial} disabled={sending}>
+            {sending ? "Đang gửi…" : "Gửi thử"}
+          </Button>
+          {lastSend?.messageId ? (
+            <span className="font-mono text-xs text-muted-foreground">
+              message_id={lastSend.messageId}
+            </span>
+          ) : null}
+        </div>
+      </TabsContent>
+
+      <TabsContent value="nhat-ky" className="card stack mt-0">
+        <CfgHeader icon="chat" title="Nhật ký" />
+        <p className="text-xs text-muted-foreground">
+          <strong>SEND</strong> = gửi từ CPN (thử / Auto Call); <strong>CALLBACK</strong> = GapOne
+          webhook delivery. Lọc + xuất CSV theo bộ lọc.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Từ ngày</Label>
+            <Input
+              type="date"
+              value={logFrom}
+              max={logTo}
+              onChange={(e) => setFilter(setLogFrom)(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Đến ngày</Label>
+            <Input
+              type="date"
+              value={logTo}
+              min={logFrom}
+              onChange={(e) => setFilter(setLogTo)(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Loại</Label>
+            <select
+              className={SELECT_CLASS}
+              value={logKind}
+              onChange={(e) => setFilter(setLogKind)(e.target.value as KindFilter)}
+            >
+              <option value="">Tất cả</option>
+              <option value="SEND">SEND</option>
+              <option value="CALLBACK">CALLBACK</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Kết quả</Label>
+            <select
+              className={SELECT_CLASS}
+              value={logResult}
+              onChange={(e) => setFilter(setLogResult)(e.target.value as ResultFilter)}
+            >
+              <option value="">Tất cả</option>
+              <option value="OK">OK</option>
+              <option value="ERROR">ERROR</option>
+              <option value="PENDING">PENDING</option>
+            </select>
+          </div>
+          <div className="flex items-end gap-2">
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={() =>
-                setFieldMap((prev) => {
-                  let i = 1;
-                  let key = `param_${i}`;
-                  while (prev[key] != null) {
-                    i += 1;
-                    key = `param_${i}`;
-                  }
-                  return { ...prev, [key]: "" };
-                })
-              }
-            >
-              Thêm biến
-            </Button>
-          </div>
-          <Button type="button" onClick={saveAuto} disabled={savingAuto}>
-            {savingAuto ? "Đang lưu…" : "Lưu cấu hình tự động"}
-          </Button>
-        </TabsContent>
-
-        <TabsContent value="otp-login" className="space-y-4 pt-2">
-          <p className="text-xs text-muted-foreground">
-            Khách đăng nhập trang <strong>cpn.xevietnam.com</strong> bằng SĐT: CPN sinh mã 6 số, gửi qua
-            mẫu ZNS bên dưới (hết hạn sau 5 phút, gửi lại sau 60 giây). SĐT test đăng nhập bằng mã cố
-            định, không gửi tin.
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <Switch id="gapone-login-otp" checked={otpEnabled} onCheckedChange={setOtpEnabled} />
-            <Label htmlFor="gapone-login-otp" className="text-sm">
-              Bật gửi OTP đăng nhập qua ZNS
-            </Label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={loadTemplates} disabled={loadingTpl}>
-              {loadingTpl ? "Đang tải mẫu…" : "Tải mẫu ZNS"}
-            </Button>
-          </div>
-          {templates.length > 0 ? (
-            <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
-              {templates.map((t) => (
-                <li
-                  key={t.templateId}
-                  className="flex flex-wrap items-center gap-2 border-b border-border/60 py-1.5"
-                >
-                  <span className="font-mono text-xs">{t.templateId}</span>
-                  <span className="text-muted-foreground">{t.name}</span>
-                  {t.params ? (
-                    <span className="text-[11px] text-muted-foreground">params: {t.params}</span>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7"
-                    onClick={() => pickTemplateOtp(t)}
-                  >
-                    Chọn
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label="Template ID (mẫu OTP)">
-              <Input
-                value={otpTemplateId}
-                onChange={(e) => setOtpTemplateId(e.target.value)}
-                placeholder="Tải mẫu rồi Chọn — hoặc dán tay"
-                autoComplete="off"
-              />
-            </F>
-            <F label="Tên biến mã OTP trong mẫu">
-              <Input
-                value={otpParam}
-                onChange={(e) => setOtpParam(e.target.value)}
-                placeholder="otp"
-                autoComplete="off"
-              />
-            </F>
-            <F label="SĐT test (phân cách dấu phẩy)">
-              <Input
-                value={otpTestPhones}
-                onChange={(e) => setOtpTestPhones(e.target.value)}
-                placeholder="0393883210"
-                inputMode="tel"
-                autoComplete="off"
-              />
-            </F>
-            <F label="Mã OTP cố định cho SĐT test">
-              <Input
-                value={otpTestCode}
-                onChange={(e) => setOtpTestCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="123456"
-                inputMode="numeric"
-                autoComplete="off"
-              />
-            </F>
-          </div>
-          <Button type="button" onClick={saveOtp} disabled={savingOtp}>
-            {savingOtp ? "Đang lưu…" : "Lưu cấu hình OTP"}
-          </Button>
-        </TabsContent>
-
-        <TabsContent value="gui-thu" className="space-y-3 pt-2">
-          <p className="text-xs text-muted-foreground">
-            Gửi thử thủ công (có thể tốn phí). Không gắn đơn — dùng để kiểm tra template.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={loadTemplates} disabled={loadingTpl}>
-              {loadingTpl ? "Đang tải mẫu…" : "Tải mẫu ZNS"}
-            </Button>
-          </div>
-          {templates.length > 0 ? (
-            <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
-              {templates.map((t) => (
-                <li
-                  key={t.templateId}
-                  className="flex flex-wrap items-center gap-2 border-b border-border/60 py-1.5"
-                >
-                  <span className="font-mono text-xs">{t.templateId}</span>
-                  <span className="text-muted-foreground">{t.name}</span>
-                  {t.params ? (
-                    <span className="text-[11px] text-muted-foreground">params: {t.params}</span>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7"
-                    onClick={() => pickTemplateTrial(t)}
-                  >
-                    Chọn
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <F label="SĐT nhận thử">
-              <Input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="0912345678"
-                inputMode="tel"
-              />
-            </F>
-            <F label="Template ID (mã mẫu)">
-              <Input
-                value={templateId}
-                onChange={(e) => setTemplateId(e.target.value)}
-                placeholder="Tải mẫu rồi Chọn — hoặc dán tay"
-                autoComplete="off"
-              />
-            </F>
-            <div className="sm:col-span-2">
-              <F label="template_data (JSON)">
-                <textarea
-                  className="min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs"
-                  value={templateDataJson}
-                  onChange={(e) => setTemplateDataJson(e.target.value)}
-                  spellCheck={false}
-                />
-              </F>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={sendTrial} disabled={sending}>
-              {sending ? "Đang gửi…" : "Gửi thử"}
-            </Button>
-            {lastSend?.messageId ? (
-              <span className="font-mono text-xs text-muted-foreground">
-                message_id={lastSend.messageId}
-              </span>
-            ) : null}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="nhat-ky" className="space-y-3 pt-2">
-          <p className="text-xs text-muted-foreground">
-            <strong>SEND</strong> = gửi từ CPN (thử / Auto Call); <strong>CALLBACK</strong> = GapOne
-            webhook delivery. Lọc + xuất CSV theo bộ lọc.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Từ ngày</Label>
-              <Input
-                type="date"
-                value={logFrom}
-                max={logTo}
-                onChange={(e) => setFilter(setLogFrom)(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Đến ngày</Label>
-              <Input
-                type="date"
-                value={logTo}
-                min={logFrom}
-                onChange={(e) => setFilter(setLogTo)(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Loại</Label>
-              <select
-                className={SELECT_CLASS}
-                value={logKind}
-                onChange={(e) => setFilter(setLogKind)(e.target.value as KindFilter)}
-              >
-                <option value="">Tất cả</option>
-                <option value="SEND">SEND</option>
-                <option value="CALLBACK">CALLBACK</option>
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Kết quả</Label>
-              <select
-                className={SELECT_CLASS}
-                value={logResult}
-                onChange={(e) => setFilter(setLogResult)(e.target.value as ResultFilter)}
-              >
-                <option value="">Tất cả</option>
-                <option value="OK">OK</option>
-                <option value="ERROR">ERROR</option>
-                <option value="PENDING">PENDING</option>
-              </select>
-            </div>
-            <div className="flex items-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => refreshLogs()}
-                disabled={loadingLogs || exporting}
-              >
-                {loadingLogs ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {loadingLogs ? "Đang tải…" : "Tải lại"}
-              </Button>
-              <ExportFormatButton
-                variant="secondary"
-                busy={exporting}
-                disabled={loadingLogs}
-                title="Xuất theo bộ lọc đang chọn (tất cả trang)"
-                onExport={(format) => void exportCsv(format)}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-64 flex-1 space-y-1.5">
-              <Label className="text-xs">Tìm theo SĐT</Label>
-              <Input
-                value={phoneInput}
-                inputMode="tel"
-                onChange={(e) => setPhoneInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") searchPhone();
-                }}
-                placeholder="0912345678 hoặc vài số cuối"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={searchPhone}
+              className="flex-1"
+              onClick={() => refreshLogs()}
               disabled={loadingLogs || exporting}
             >
-              Tìm
+              {loadingLogs ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {loadingLogs ? "Đang tải…" : "Tải lại"}
             </Button>
-            {logPhone ? (
-              <Button type="button" variant="ghost" onClick={clearPhone} disabled={exporting}>
-                Bỏ lọc
-              </Button>
-            ) : null}
+            <ExportFormatButton
+              variant="secondary"
+              busy={exporting}
+              disabled={loadingLogs}
+              title="Xuất theo bộ lọc đang chọn (tất cả trang)"
+              onExport={(format) => void exportCsv(format)}
+            />
           </div>
-          {logError ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
-              {logError}
-            </div>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-64 flex-1 space-y-1.5">
+            <Label className="text-xs">Tìm theo SĐT</Label>
+            <Input
+              value={phoneInput}
+              inputMode="tel"
+              onChange={(e) => setPhoneInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") searchPhone();
+              }}
+              placeholder="0912345678 hoặc vài số cuối"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={searchPhone}
+            disabled={loadingLogs || exporting}
+          >
+            Tìm
+          </Button>
+          {logPhone ? (
+            <Button type="button" variant="ghost" onClick={clearPhone} disabled={exporting}>
+              Bỏ lọc
+            </Button>
           ) : null}
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Thời gian</th>
-                  <th className="px-3 py-2 text-left font-medium">Loại</th>
-                  <th className="px-3 py-2 text-left font-medium">Nguồn</th>
-                  <th className="px-3 py-2 text-left font-medium">Kết quả</th>
-                  <th className="px-3 py-2 text-left font-medium">SĐT / đơn / mẫu</th>
-                  <th className="px-3 py-2 text-left font-medium">message_id / trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs == null ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-3 text-center text-xs text-muted-foreground">
-                      Đang tải…
-                    </td>
-                  </tr>
-                ) : logs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-3 py-3 text-center text-xs text-muted-foreground">
-                      Không có nhật ký theo bộ lọc
-                    </td>
-                  </tr>
-                ) : (
-                  logs.map((l) => (
-                    <tr key={l.id} className="border-t align-top">
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">
-                        {l.createdAt ? new Date(l.createdAt).toLocaleString("vi-VN") : "—"}
-                      </td>
-                      <td className="px-3 py-2 text-xs font-medium">{l.kind}</td>
-                      <td className="px-3 py-2 font-mono text-[11px]">{l.source ?? "—"}</td>
-                      <td className="px-3 py-2 text-xs">
-                        <span
-                          className={
-                            l.result === "OK"
-                              ? "text-emerald-700"
-                              : l.result === "ERROR"
-                                ? "text-destructive"
-                                : "text-muted-foreground"
-                          }
-                        >
-                          {l.result}
-                        </span>
-                        {l.errorMessage ? (
-                          <div className="mt-0.5 max-w-xs text-[11px] text-destructive">
-                            {l.errorMessage}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {l.phone ?? "—"}
-                        {l.orderCode ? (
-                          <div className="text-muted-foreground">{l.orderCode}</div>
-                        ) : null}
-                        {l.templateId ? (
-                          <div className="text-muted-foreground">tpl {l.templateId}</div>
-                        ) : null}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {l.messageId ?? "—"}
-                        {l.deliveryDescription || l.deliveryStatus != null ? (
-                          <div className="text-muted-foreground">
-                            {l.deliveryStatus != null ? `${l.deliveryStatus}` : ""}
-                            {l.deliveryDescription ? ` ${l.deliveryDescription}` : ""}
-                          </div>
-                        ) : null}
-                        {l.requestId ? (
-                          <div className="text-[11px] text-muted-foreground">req {l.requestId}</div>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        </div>
+        {logError ? (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+            {logError}
           </div>
-          <TablePagination pager={logPager} />
-        </TabsContent>
-      </Tabs>
-    </Section>
+        ) : null}
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Thời gian</th>
+                <th className="px-3 py-2 text-left font-medium">Loại</th>
+                <th className="px-3 py-2 text-left font-medium">Nguồn</th>
+                <th className="px-3 py-2 text-left font-medium">Kết quả</th>
+                <th className="px-3 py-2 text-left font-medium">SĐT / đơn / mẫu</th>
+                <th className="px-3 py-2 text-left font-medium">message_id / trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs == null ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-3 text-center text-xs text-muted-foreground">
+                    Đang tải…
+                  </td>
+                </tr>
+              ) : logs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-3 py-3 text-center text-xs text-muted-foreground">
+                    Không có nhật ký theo bộ lọc
+                  </td>
+                </tr>
+              ) : (
+                logs.map((l) => (
+                  <tr key={l.id} className="border-t align-top">
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">
+                      {l.createdAt ? new Date(l.createdAt).toLocaleString("vi-VN") : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-xs font-medium">{l.kind}</td>
+                    <td className="px-3 py-2 font-mono text-[11px]">{l.source ?? "—"}</td>
+                    <td className="px-3 py-2 text-xs">
+                      <span
+                        className={
+                          l.result === "OK"
+                            ? "text-emerald-700"
+                            : l.result === "ERROR"
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                        }
+                      >
+                        {l.result}
+                      </span>
+                      {l.errorMessage ? (
+                        <div className="mt-0.5 max-w-xs text-[11px] text-destructive">
+                          {l.errorMessage}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {l.phone ?? "—"}
+                      {l.orderCode ? (
+                        <div className="text-muted-foreground">{l.orderCode}</div>
+                      ) : null}
+                      {l.templateId ? (
+                        <div className="text-muted-foreground">tpl {l.templateId}</div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {l.messageId ?? "—"}
+                      {l.deliveryDescription || l.deliveryStatus != null ? (
+                        <div className="text-muted-foreground">
+                          {l.deliveryStatus != null ? `${l.deliveryStatus}` : ""}
+                          {l.deliveryDescription ? ` ${l.deliveryDescription}` : ""}
+                        </div>
+                      ) : null}
+                      {l.requestId ? (
+                        <div className="text-[11px] text-muted-foreground">req {l.requestId}</div>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <TablePagination pager={logPager} />
+      </TabsContent>
+    </Tabs>
   );
 }
 

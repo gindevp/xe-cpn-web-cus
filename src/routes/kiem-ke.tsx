@@ -4,10 +4,7 @@ import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
-import { EmptyState } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
 import { StaffInfoPopover } from "@/components/StaffInfoPopover";
-import { Input } from "@/components/ui/input";
 import { InventoryCheckDetail, formatDay } from "@/components/InventoryCheckDetail";
 import { useAuth } from "@/lib/auth";
 import { useStore } from "@/lib/store";
@@ -19,16 +16,11 @@ import {
 } from "@/lib/office-scope";
 import { isApiEnabled } from "@/lib/api/client";
 import {
-  INVENTORY_STATUS_CLASS,
   INVENTORY_STATUS_LABEL,
   listInventoryChecks,
   type InventoryCheckRow,
 } from "@/lib/api/inventory-check-api";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { officeName } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
-import { AlertTriangle, CheckCircle2, Eye, Package, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/kiem-ke")({
@@ -46,20 +38,13 @@ export const Route = createFileRoute("/kiem-ke")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Thông tin kiểm kê" screen="kiem-ke">
+    <ProtectedPage title="Thông tin kiểm kê" screen="kiem-ke" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
     </ProtectedPage>
   ),
 });
-
-function initialOf(name: string) {
-  const t = name.trim();
-  if (!t) return "?";
-  const parts = t.split(/\s+/);
-  return (parts[parts.length - 1][0] || "?").toUpperCase();
-}
 
 function Page() {
   const { session } = useAuth();
@@ -118,79 +103,128 @@ function Page() {
   const { pageRows, pager } = usePagedRows(filtered, "kiem-ke");
 
   const latest = filtered.find((r) => r.status === "COMPLETED") ?? null;
-  const latestName = (latest?.checkedByName || latest?.checkedByUsername || "").toUpperCase();
-
   if (detail) return <InventoryCheckDetail check={detail} onBack={() => setDetail(null)} />;
 
+  const latestWho = latest?.checkedByName || latest?.checkedByUsername || "";
+  const donePct =
+    latest && latest.systemCount > 0
+      ? Math.min(100, (latest.checkedCount / latest.systemCount) * 100)
+      : 0;
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-end gap-4">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-          <Checkbox checked={showAbandoned} onCheckedChange={(v) => setShowAbandoned(v === true)} />
+    <div className="stack" style={{ gap: 20 }}>
+      <div className="title-row">
+        <div>
+          <h1 className="page-title">Thông tin kiểm kê</h1>
+          <div className="lab muted num">
+            {latest
+              ? `Kiểm kê gần nhất: ${formatDay(latest.checkedAt)}${latestWho ? ` · ${latestWho}` : ""}`
+              : loading
+                ? "Đang tải…"
+                : "Chưa có lần kiểm kho nào tại VP này"}
+          </div>
+        </div>
+        <label
+          className="lab"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            minHeight: 40,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            className="check"
+            type="checkbox"
+            checked={showAbandoned}
+            onChange={(e) => setShowAbandoned(e.target.checked)}
+          />
           Hiện phiên bỏ dở
         </label>
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Tìm mã đơn, SĐT..."
-          />
-        </div>
       </div>
 
-      {/* Kiểm kê gần nhất — 3 khối báo cáo */}
-      <div>
-        <div className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground">
-          {latest
-            ? `Kiểm kê gần nhất — ${formatDay(latest.checkedAt)}${latestName ? ` - ${latestName}` : ""}`
-            : "Kiểm kê gần nhất"}
-        </div>
-        {latest ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Kpi
-              icon={Package}
-              tone="blue"
-              label="Tổng số đơn"
-              value={String(latest.systemCount)}
-            />
-            <Kpi
-              icon={CheckCircle2}
-              tone="green"
-              label="Số đơn đã kiểm"
-              value={String(latest.checkedCount)}
-            />
-            <Kpi
-              icon={AlertTriangle}
-              tone="red"
-              label="Số đơn thiếu"
-              value={String(latest.missingCount)}
-            />
+      {latest ? (
+        <section className="sum-row num">
+          <div className="sum-lead">
+            <div style={{ minWidth: 0 }}>
+              <div className="rev-vp lab">
+                <span className="ms fill" aria-hidden="true">
+                  inventory
+                </span>
+                Tổng số đơn
+              </div>
+              <div className="sum-hero">{latest.systemCount}</div>
+            </div>
+            <InventoryIllustration />
           </div>
-        ) : (
-          <div className="rounded-xl border bg-white px-4 py-8 text-center text-sm text-muted-foreground">
-            {loading
-              ? "Đang tải…"
-              : "Chưa có lần kiểm kho nào tại VP này. Nhân viên hoàn tất Kiểm kho trên app để hiện lịch sử."}
+          <div className="rev-tile card-tile">
+            <svg
+              className="rev-donut sm"
+              viewBox="0 0 36 36"
+              role="img"
+              aria-label={`Đã kiểm ${latest.checkedCount} trên ${latest.systemCount} đơn`}
+            >
+              <circle className="donut-bg tint" cx="18" cy="18" r="15.5" pathLength="100" />
+              <circle
+                className="donut-val"
+                cx="18"
+                cy="18"
+                r="15.5"
+                pathLength="100"
+                strokeDasharray={`${donePct} 100`}
+              />
+            </svg>
+            <div>
+              <div className="small muted">Số đơn đã kiểm</div>
+              <div className="sum-val">{latest.checkedCount}</div>
+            </div>
           </div>
-        )}
-      </div>
+          <div
+            className={latest.missingCount > 0 ? "rev-tile card-tile bad" : "rev-tile card-tile"}
+          >
+            <span className="rev-ic" aria-hidden="true">
+              <span className="ms fill">report</span>
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div className="small muted">Số đơn thiếu</div>
+              <div className="sum-val">{latest.missingCount}</div>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
-      {/* Lịch sử kiểm kê */}
-      <div>
-        <div className="mb-3 text-sm font-semibold text-foreground">
-          Lịch sử kiểm kê ({filtered.length})
+      <section className="card stack">
+        <div className="title-row" style={{ alignItems: "center" }}>
+          <h2 className="group-title sec-title num">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">history</span>
+            </span>
+            Lịch sử kiểm kê ({filtered.length})
+          </h2>
+          <label className="box input-box" style={{ flex: "0 1 260px", width: "auto" }}>
+            <span className="ms muted" aria-hidden="true">
+              search
+            </span>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm người kiểm, mã đơn"
+              aria-label="Tìm người kiểm, mã đơn"
+            />
+          </label>
         </div>
         {filtered.length === 0 ? (
-          <EmptyState>{loading ? "Đang tải…" : "Không có lịch sử kiểm kê"}</EmptyState>
+          <div className="empty" style={{ padding: "48px 16px" }}>
+            <h2 className="group-title">{loading ? "Đang tải…" : "Không có lịch sử kiểm kê"}</h2>
+          </div>
         ) : (
-          <section className="card stack" style={{ gap: 0, padding: 0, overflow: "hidden" }}>
+          <>
             <div className="scroller">
-              <table className="tbl" style={{ ["--tbl-min" as string]: "960px" }}>
+              <table className="tbl" style={{ ["--tbl-min" as string]: "860px" }}>
                 <thead>
                   <tr>
-                    <th style={{ width: 48 }}>STT</th>
                     <th>Người kiểm kê</th>
                     <th>Văn phòng</th>
                     <th>Ngày kiểm</th>
@@ -202,72 +236,45 @@ function Page() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.map((r, i) => {
+                  {pageRows.map((r) => {
                     const name = r.checkedByName || r.checkedByUsername || "—";
                     return (
-                      <tr key={r.id} className="border-b last:border-0 hover:bg-muted/20">
-                        <td className="px-3 py-3 tabular-nums text-muted-foreground">
-                          {pager.start + i + 1}
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                              {initialOf(name)}
+                      <tr key={r.id}>
+                        <td style={{ fontWeight: 500 }}>
+                          <StaffInfoPopover staffKey={r.checkedByUsername}>{name}</StaffInfoPopover>
+                          {r.participants.length > 1 ? (
+                            <span className="sub">
+                              Cùng kiểm:{" "}
+                              {r.participants.map((p) => p.name || p.username).join(", ")}
                             </span>
-                            <div className="min-w-0">
-                              <StaffInfoPopover
-                                staffKey={r.checkedByUsername}
-                                className="font-medium"
-                              >
-                                {name}
-                              </StaffInfoPopover>
-                              {r.participants.length > 1 ? (
-                                <div className="text-xs text-muted-foreground">
-                                  Cùng kiểm:{" "}
-                                  {r.participants.map((p) => p.name || p.username).join(", ")}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 whitespace-nowrap text-muted-foreground">
-                          {r.officeCode ? officeName(r.officeCode) : "—"}
-                        </td>
-                        <td className="px-3 py-3">{formatDay(r.checkedAt)}</td>
-                        <td className="px-3 py-3">
-                          <Badge className={INVENTORY_STATUS_CLASS[r.status]}>
-                            {INVENTORY_STATUS_LABEL[r.status]}
-                          </Badge>
-                          {r.status === "OPEN" ? (
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {r.scanCount} kiện đã quét
-                            </div>
-                          ) : r.reopenedAt ? (
-                            <div className="mt-1 text-xs text-muted-foreground">Đã mở lại</div>
                           ) : null}
                         </td>
-                        <td className="px-3 py-3 text-right tabular-nums">{r.systemCount}</td>
-                        <td className="px-3 py-3 text-right tabular-nums font-semibold text-emerald-600">
-                          {r.checkedCount}
+                        <td>{r.officeCode ? officeName(r.officeCode) : "—"}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{formatDay(r.checkedAt)}</td>
+                        <td>
+                          <span className={STATUS_TAG[r.status]}>
+                            {INVENTORY_STATUS_LABEL[r.status]}
+                          </span>
+                          {r.status === "OPEN" ? (
+                            <span className="sub">{r.scanCount} kiện đã quét</span>
+                          ) : r.reopenedAt ? (
+                            <span className="sub">Đã mở lại</span>
+                          ) : null}
                         </td>
-                        <td className="px-3 py-3 text-right tabular-nums">
-                          {r.missingCount > 0 ? (
-                            <span className="font-semibold text-destructive">{r.missingCount}</span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-right">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            onClick={() => setDetail(r)}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            Xem chi tiết
-                          </Button>
+                        <td className="r">{r.systemCount}</td>
+                        <td className="r">{r.checkedCount}</td>
+                        <td className="r main">{r.missingCount}</td>
+                        <td>
+                          <div className="act">
+                            <button
+                              type="button"
+                              className="ok"
+                              aria-label={`Xem chi tiết phiên của ${name}`}
+                              onClick={() => setDetail(r)}
+                            >
+                              Xem chi tiết
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -275,40 +282,40 @@ function Page() {
                 </tbody>
               </table>
             </div>
-            <TablePagination pager={pager} className="px-3 pb-3" />
-          </section>
+            {filtered.length > 10 ? <TablePagination pager={pager} /> : null}
+          </>
         )}
-      </div>
+      </section>
     </div>
   );
 }
 
-function Kpi({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: typeof Package;
-  label: string;
-  value: string;
-  tone: "blue" | "green" | "red";
-}) {
-  const toneCls =
-    tone === "green"
-      ? "bg-emerald-50 text-emerald-600"
-      : tone === "red"
-        ? "bg-red-50 text-red-600"
-        : "bg-sky-50 text-sky-600";
+const STATUS_TAG: Record<InventoryCheckRow["status"], string> = {
+  OPEN: "tag info",
+  COMPLETED: "tag ok",
+  ABANDONED: "tag",
+};
+
+function InventoryIllustration() {
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-white p-4 shadow-sm">
-      <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", toneCls)}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <div className="text-sm text-muted-foreground">{label}</div>
-        <div className="text-2xl font-bold tabular-nums tracking-tight">{value}</div>
-      </div>
-    </div>
+    <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+      <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+      <rect className="ill-main" x="34" y="10" width="66" height="86" rx="7" />
+      <rect className="ill-paper" x="41" y="19" width="52" height="70" rx="3" />
+      <rect className="ill-mid" x="53" y="4" width="28" height="13" rx="4" />
+      <circle className="ill-main" cx="50" cy="32" r="4.5" />
+      <path className="ill-tick" d="M47.8 32l1.6 1.7 3-3.2" />
+      <rect className="ill-mid" x="59" y="29.5" width="28" height="5" rx="2.5" />
+      <circle className="ill-main" cx="50" cy="48" r="4.5" />
+      <path className="ill-tick" d="M47.8 48l1.6 1.7 3-3.2" />
+      <rect className="ill-mid" x="59" y="45.5" width="28" height="5" rx="2.5" />
+      <circle className="ill-main" cx="50" cy="64" r="4.5" />
+      <path className="ill-tick" d="M47.8 64l1.6 1.7 3-3.2" />
+      <rect className="ill-mid" x="59" y="61.5" width="28" height="5" rx="2.5" />
+      <rect className="ill-box" x="104" y="68" width="30" height="28" rx="3" />
+      <path className="ill-paper" d="M116 68h6v10h-6z" />
+      <circle className="ill-lens" cx="112" cy="40" r="13" />
+      <path className="ill-handle" d="M121 50l11 12" />
+    </svg>
   );
 }

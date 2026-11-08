@@ -10,6 +10,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { TaoDonDialog } from "@/components/TaoDonDialog";
 import { isNativeWebView } from "@/lib/native-shell";
 import { OrderHistoryProvider } from "@/components/OrderHistoryDialog";
+import { ConfirmHost } from "@/components/m3/askConfirm";
 import { getToken } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +67,9 @@ export function AppShell({
     return () => {
       document.documentElement.classList.remove("xe-scan-immersive");
       if (native) {
-        w.ReactNativeWebView?.postMessage(JSON.stringify({ type: "SCAN_LAYOUT", immersive: false }));
+        w.ReactNativeWebView?.postMessage(
+          JSON.stringify({ type: "SCAN_LAYOUT", immersive: false }),
+        );
       }
     };
   }, [scanImmersive]);
@@ -138,7 +141,9 @@ export function AppShell({
           </>
         ) : null}
 
-        <div className={cn("m3-page-body", scanImmersive && "m3-page-body-immersive")}>{children}</div>
+        <div className={cn("m3-page-body", scanImmersive && "m3-page-body-immersive")}>
+          {children}
+        </div>
       </main>
 
       {nativeShell && !scanImmersive ? (
@@ -148,6 +153,7 @@ export function AppShell({
         />
       ) : null}
       <TaoDonDialog open={openCreate} onOpenChange={setOpenCreate} />
+      <ConfirmHost />
     </div>
   );
 }

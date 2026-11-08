@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { Fragment, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -24,7 +25,11 @@ import {
   OrderFeeHeader,
 } from "@/components/OrderFeeCells";
 import { useStore, type OrderX } from "@/lib/store";
-import { AssignShipperDialog, type ExternalAssign, type InternalAssign } from "@/components/AssignShipperDialog";
+import {
+  AssignShipperDialog,
+  type ExternalAssign,
+  type InternalAssign,
+} from "@/components/AssignShipperDialog";
 import { AhamoveInfo } from "@/components/AhamoveInfo";
 import { useAuth } from "@/lib/auth";
 import { hasAllOfficeScope } from "@/lib/office-scope";
@@ -47,8 +52,7 @@ export const Route = createFileRoute("/cho-ban-giao")({
       { property: "og:title", content: "Chờ bàn giao — X.E" },
       {
         property: "og:description",
-        content:
-          "Theo dõi đơn lấy tận nơi và nhập kho để chuyển sang Đơn chờ gán xe.",
+        content: "Theo dõi đơn lấy tận nơi và nhập kho để chuyển sang Đơn chờ gán xe.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -120,7 +124,11 @@ function Page() {
   const inTab = (o: (typeof orders)[number], key: TabKey) => {
     // Chờ nhận hàng: qrDropOff (khách mang đến / quét QR). Legacy DRAFT drop-off vẫn hiện.
     if (key === "cho-nhan") {
-      return Boolean(o.qrDropOff) || (o.status === "DRAFT" && !o.homePickup) || (customerNotWarehouseReceived(o) && !o.homePickup);
+      return (
+        Boolean(o.qrDropOff) ||
+        (o.status === "DRAFT" && !o.homePickup) ||
+        (customerNotWarehouseReceived(o) && !o.homePickup)
+      );
     }
     if (!o.homePickup) return false;
     const picking = Boolean(o.pickupStaff || o.pickingAt);
@@ -129,13 +137,17 @@ function Page() {
 
   const base = useMemo(() => {
     const kw = q.trim().toLowerCase();
-    const inScope = pendingHandoverOrders(orders, { allOffices: scopeAll, office: session?.office });
+    const inScope = pendingHandoverOrders(orders, {
+      allOffices: scopeAll,
+      office: session?.office,
+    });
     return inScope.filter((o) => {
       if (from && new Date(o.createdAt) < new Date(from)) return false;
       if (to && new Date(o.createdAt) > new Date(to + "T23:59:59")) return false;
       if (senderOffice && o.fromOffice !== senderOffice) return false;
       if (kw) {
-        const hay = `${o.code} ${o.senderPhone} ${o.senderName ?? ""} ${o.receiverPhone} ${o.receiverName ?? ""} ${o.pickupAddress ?? ""}`.toLowerCase();
+        const hay =
+          `${o.code} ${o.senderPhone} ${o.senderName ?? ""} ${o.receiverPhone} ${o.receiverName ?? ""} ${o.pickupAddress ?? ""}`.toLowerCase();
         if (!hay.includes(kw)) return false;
       }
       return true;
@@ -151,17 +163,22 @@ function Page() {
     [base],
   );
 
-  useJumpToMatchingTab(q, tab, counts, TABS.map((t) => t.key), (k) => {
-    setTab(k);
-    setSelected(new Set());
-  });
+  useJumpToMatchingTab(
+    q,
+    tab,
+    counts,
+    TABS.map((t) => t.key),
+    (k) => {
+      setTab(k);
+      setSelected(new Set());
+    },
+  );
 
   const rows = useMemo(() => base.filter((o) => inTab(o, tab)), [base, tab]);
   const { pageRows, pager } = usePagedRows(rows, "cho-ban-giao");
 
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.code));
-  const toggleAll = (v: boolean) =>
-    setSelected(v ? new Set(rows.map((r) => r.code)) : new Set());
+  const toggleAll = (v: boolean) => setSelected(v ? new Set(rows.map((r) => r.code)) : new Set());
   const toggle = (code: string, v: boolean) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -170,13 +187,18 @@ function Page() {
       return next;
     });
 
-  const receiveToWarehouse = (codes: string[]) => {
+  const receiveToWarehouse = async (codes: string[]) => {
     if (!codes.length) return;
-    const st = useStore.getState();
     const transferred = codes.filter(
-      (c) => st.orders.find((x) => x.code === c || x.draftCode === c)?.transferPaidAt,
+      (c) =>
+        useStore.getState().orders.find((x) => x.code === c || x.draftCode === c)?.transferPaidAt,
     );
-    if (transferred.length && !window.confirm(`${transferPaidNotice(transferred)}.\n\nTiếp tục nhập kho?`)) return;
+    if (
+      transferred.length &&
+      !(await askConfirm(`${transferPaidNotice(transferred)}.\n\nTiếp tục nhập kho?`))
+    )
+      return;
+    const st = useStore.getState();
     const at = new Date().toISOString();
     let okCount = 0;
     for (const code of codes) {
@@ -185,7 +207,9 @@ function Page() {
       const base = o.homePickup
         ? `Đã lấy hàng tận nơi & nhập kho ${officeName(o.fromOffice)}`
         : `Đã nhận hàng tại bưu cục & nhập kho ${officeName(o.fromOffice)}`;
-      const detail = o.transferPaidAt ? `${base} · Khách đã chuyển khoản, không thu cước người gửi` : base;
+      const detail = o.transferPaidAt
+        ? `${base} · Khách đã chuyển khoản, không thu cước người gửi`
+        : base;
 
       st.updateOrder(
         o.code,
@@ -222,7 +246,10 @@ function Page() {
     st.updateOrder(
       o.code,
       { pickingAt: at, pickupStaff: who },
-      { eventAction: "PICKUP_STARTED", eventDetail: `Bàn giao lấy hàng cho ${who}${note ? ` — ${note}` : ""}` },
+      {
+        eventAction: "PICKUP_STARTED",
+        eventDetail: `Bàn giao lấy hàng cho ${who}${note ? ` — ${note}` : ""}`,
+      },
     );
     setSelected(new Set());
     setTab("dang-lay");
@@ -325,7 +352,11 @@ function Page() {
       <section className="card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {rows.length === 0 ? (
           <div className="empty">
-            <span className="ms" aria-hidden="true" style={{ fontSize: 40, color: "var(--on-surface-variant)" }}>
+            <span
+              className="ms"
+              aria-hidden="true"
+              style={{ fontSize: 40, color: "var(--on-surface-variant)" }}
+            >
               inbox
             </span>
             <h2 className="group-title" style={{ margin: "12px 0 4px" }}>
@@ -346,7 +377,9 @@ function Page() {
               }}
             >
               <div style={{ fontSize: 15, lineHeight: "22px", fontWeight: 600 }}>
-                {selected.size > 0 ? `Đã chọn ${selected.size} đơn` : `${activeTab.label} (${rows.length})`}
+                {selected.size > 0
+                  ? `Đã chọn ${selected.size} đơn`
+                  : `${activeTab.label} (${rows.length})`}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
                 {tab === "cho-lay" ? (
@@ -388,142 +421,151 @@ function Page() {
             </div>
 
             <div className="scroller">
-            <table className="tbl" style={{ ["--tbl-min" as string]: "1280px" }}>
-              <thead>
-                <tr>
-                  <th style={{ width: 18 }}>
-                    <input
-                      className="check"
-                      type="checkbox"
-                      checked={allChecked}
-                      onChange={(e) => toggleAll(e.target.checked)}
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                  <th>Mã đơn</th>
-                  <th>Người gửi</th>
-                  <th>Người nhận</th>
-                  <th>VP gửi → VP nhận</th>
-                  <OrderCargoHeader />
-                  <th>Ảnh</th>
-                  <OrderFeeHeader />
-                  <th className="r">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => (
-                  <Fragment key={r.code}>
-                    <tr className={cn(selected.has(r.code) && "sel")}>
-                      <td>
-                        <input
-                          className="check"
-                          type="checkbox"
-                          checked={selected.has(r.code)}
-                          onChange={(e) => toggle(r.code, e.target.checked)}
-                          aria-label={`Chọn ${r.code}`}
-                        />
-                      </td>
-                      <td>
-                        <OrderCodeLink code={r.code} className="code" />
-                        <button
-                          type="button"
-                          className="link"
-                          style={{ display: "block", marginTop: 2 }}
-                          title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                          onClick={() => toggleOrderPkgs(r.code)}
-                        >
-                          {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                        </button>
-                        <span className="sub">
-                          {r.qrDropOff
-                            ? "Quét QR tại bưu cục"
-                            : r.homePickup
-                              ? "Lấy tận nơi"
-                              : "Khách mang đến"}
-                        </span>
-                        <span className="sub">{formatDateTime(r.createdAt)}</span>
-                        <TransferPaidBadge order={r} />
-                        {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") && r.partnerOrderId ? (
-                          <AhamoveInfo order={r} />
-                        ) : null}
-                      </td>
-                      <td>
-                        <span className="main" style={{ fontWeight: 500 }}>
-                          {r.senderName ?? "-"}
-                        </span>
-                        <span className="sub">{r.senderPhone}</span>
-                        {!r.qrDropOff && (r.pickupAddress || r.address) ? (
-                          <span className="sub">{r.pickupAddress ?? r.address}</span>
-                        ) : null}
-                      </td>
-                      <td>
-                        <span className="main" style={{ fontWeight: 500 }}>
-                          {r.receiverName}
-                        </span>
-                        <span className="sub">{r.receiverPhone}</span>
-                      </td>
-                      <td>
-                        <OfficeRouteCell order={r} />
-                      </td>
-                      <OrderCargoCell order={r} />
-                      <td>
-                        {r.hasGoodsPhoto ? (
-                          <GoodsPhotoButton orderCode={r.code} />
-                        ) : (
-                          <span className="thumb" role="img" aria-label="Chưa có ảnh">
-                            <span className="ms" aria-hidden="true">
-                              image
-                            </span>
-                          </span>
-                        )}
-                      </td>
-                      <OrderFeeCell order={r} />
-                      <td>
-                        <div className="act">
-                          <StaffSenderTransferQrAction order={r} variant="button" />
-                          {tab === "cho-lay" ? (
-                            <button type="button" className="ok" onClick={() => setShipperCode(r.code)}>
-                              Bàn giao
-                            </button>
-                          ) : null}
-                          {canWarehouseIn ? (
-                            <button type="button" className="ok" onClick={() => receiveToWarehouse([r.code])}>
-                              {tab === "cho-nhan" ? "Nhập kho" : "Nhập kho"}
-                            </button>
-                          ) : null}
-                          {canCancelTab ? (
-                            <button
-                              type="button"
-                              className="no"
-                              aria-label="Huỷ đơn"
-                              title="Huỷ đơn"
-                              onClick={() => setCancelCodes([r.code])}
-                            >
-                              <span className="ms" aria-hidden="true">
-                                delete
-                              </span>
-                            </button>
-                          ) : null}
-                        </div>
-                        {tab !== "cho-nhan" && !r.qrDropOff ? (
-                          <span className="sub">NV: {r.pickupStaff ?? "Chưa phân công"}</span>
-                        ) : null}
-                      </td>
-                    </tr>
-                    {expandedOrders.has(r.code) && (
-                      <OrderPackageListRow
-                        order={r}
-                        layout="rows"
-                        leadingCols={1}
-                        feeCols={FEE_COL_COUNT + 1}
-                        onPrintPackage={(code, seq) => setPrintTarget({ code, packageSeq: seq })}
-                        {...(packagesEditable(r) ? packageActions.handlers : {})}
+              <table className="tbl" style={{ ["--tbl-min" as string]: "1280px" }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 18 }}>
+                      <input
+                        className="check"
+                        type="checkbox"
+                        checked={allChecked}
+                        onChange={(e) => toggleAll(e.target.checked)}
+                        aria-label="Chọn tất cả"
                       />
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
+                    </th>
+                    <th>Mã đơn</th>
+                    <th>Người gửi</th>
+                    <th>Người nhận</th>
+                    <th>VP gửi → VP nhận</th>
+                    <OrderCargoHeader />
+                    <th>Ảnh</th>
+                    <OrderFeeHeader />
+                    <th className="r">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => (
+                    <Fragment key={r.code}>
+                      <tr className={cn(selected.has(r.code) && "sel")}>
+                        <td>
+                          <input
+                            className="check"
+                            type="checkbox"
+                            checked={selected.has(r.code)}
+                            onChange={(e) => toggle(r.code, e.target.checked)}
+                            aria-label={`Chọn ${r.code}`}
+                          />
+                        </td>
+                        <td>
+                          <OrderCodeLink code={r.code} className="code" />
+                          <button
+                            type="button"
+                            className="link"
+                            style={{ display: "block", marginTop: 2 }}
+                            title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                            onClick={() => toggleOrderPkgs(r.code)}
+                          >
+                            {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                          </button>
+                          <span className="sub">
+                            {r.qrDropOff
+                              ? "Quét QR tại bưu cục"
+                              : r.homePickup
+                                ? "Lấy tận nơi"
+                                : "Khách mang đến"}
+                          </span>
+                          <span className="sub">{formatDateTime(r.createdAt)}</span>
+                          <TransferPaidBadge order={r} />
+                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") &&
+                          r.partnerOrderId ? (
+                            <AhamoveInfo order={r} />
+                          ) : null}
+                        </td>
+                        <td>
+                          <span className="main" style={{ fontWeight: 500 }}>
+                            {r.senderName ?? "-"}
+                          </span>
+                          <span className="sub">{r.senderPhone}</span>
+                          {!r.qrDropOff && (r.pickupAddress || r.address) ? (
+                            <span className="sub">{r.pickupAddress ?? r.address}</span>
+                          ) : null}
+                        </td>
+                        <td>
+                          <span className="main" style={{ fontWeight: 500 }}>
+                            {r.receiverName}
+                          </span>
+                          <span className="sub">{r.receiverPhone}</span>
+                        </td>
+                        <td>
+                          <OfficeRouteCell order={r} />
+                        </td>
+                        <OrderCargoCell order={r} />
+                        <td>
+                          {r.hasGoodsPhoto ? (
+                            <GoodsPhotoButton orderCode={r.code} />
+                          ) : (
+                            <span className="thumb" role="img" aria-label="Chưa có ảnh">
+                              <span className="ms" aria-hidden="true">
+                                image
+                              </span>
+                            </span>
+                          )}
+                        </td>
+                        <OrderFeeCell order={r} />
+                        <td>
+                          <div className="act">
+                            <StaffSenderTransferQrAction order={r} variant="button" />
+                            {tab === "cho-lay" ? (
+                              <button
+                                type="button"
+                                className="ok"
+                                onClick={() => setShipperCode(r.code)}
+                              >
+                                Bàn giao
+                              </button>
+                            ) : null}
+                            {canWarehouseIn ? (
+                              <button
+                                type="button"
+                                className="ok"
+                                onClick={() => receiveToWarehouse([r.code])}
+                              >
+                                {tab === "cho-nhan" ? "Nhập kho" : "Nhập kho"}
+                              </button>
+                            ) : null}
+                            {canCancelTab ? (
+                              <button
+                                type="button"
+                                className="no"
+                                aria-label="Huỷ đơn"
+                                title="Huỷ đơn"
+                                onClick={() => setCancelCodes([r.code])}
+                              >
+                                <span className="ms" aria-hidden="true">
+                                  delete
+                                </span>
+                              </button>
+                            ) : null}
+                          </div>
+                          {tab !== "cho-nhan" && !r.qrDropOff ? (
+                            <span className="sub">NV: {r.pickupStaff ?? "Chưa phân công"}</span>
+                          ) : null}
+                        </td>
+                      </tr>
+                      {expandedOrders.has(r.code) && (
+                        <OrderPackageListRow
+                          order={r}
+                          layout="rows"
+                          leadingCols={1}
+                          feeCols={FEE_COL_COUNT + 1}
+                          onPrintPackage={(code, seq) => setPrintTarget({ code, packageSeq: seq })}
+                          {...(packagesEditable(r) ? packageActions.handlers : {})}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
             </div>
             <TablePagination pager={pager} />
           </>

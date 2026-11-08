@@ -1,11 +1,21 @@
-import { Section } from "@/components/PageBits";
+import {
+  CfgActs,
+  CfgCard,
+  CfgField,
+  CfgHeader,
+  CfgInput,
+  CfgNote,
+  CfgSeg,
+  CfgToggle,
+  CfgUrl,
+  type CollectSub,
+} from "@/components/m3/CfgKit";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { SecretInput } from "@/components/SecretInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getApiBase, isApiEnabled } from "@/lib/api/client";
 import type {
   OnePayCallLog,
@@ -71,7 +81,7 @@ async function api() {
   return import("@/lib/api/onepay-api");
 }
 
-export function OnePayCollectionIntegration() {
+export function OnePayCollectionIntegration({ sub = "ket-noi" }: { sub?: CollectSub }) {
   const [cfg, setCfg] = useState<OnePayConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -91,53 +101,56 @@ export function OnePayCollectionIntegration() {
 
   if (!isApiEnabled()) {
     return (
-      <Section title="Thu hộ OnePay">
-        <p className="text-sm text-muted-foreground">
-          Cần kết nối API máy chủ để cấu hình thu hộ OnePay.
-        </p>
-      </Section>
+      <CfgCard
+        icon="payments"
+        title="Thu hộ OnePay"
+        desc="Cần kết nối API máy chủ để cấu hình thu hộ OnePay."
+      />
     );
   }
 
   return (
-    <Section
-      title="Thu hộ OnePay PayCollect (tài khoản ảo)"
-      right={
-        <div className="flex gap-1.5">
-          <Badge variant="secondary">Chế độ TEST · chỉ hoá đơn test</Badge>
-          {cfg ? (
-            <Badge variant={cfg.environment === "PRODUCTION" ? "default" : "outline"}>
-              {cfg.environment === "PRODUCTION" ? "Môi trường thật" : "Sandbox"}
-            </Badge>
-          ) : null}
-          {cfg ? (
-            cfg.enabled ? (
-              <Badge>Đang bật</Badge>
-            ) : (
-              <Badge variant="outline">Đang tắt</Badge>
-            )
-          ) : null}
+    <section className="card stack">
+      {sub === "ket-noi" ? (
+        <CfgHeader
+          icon="payments"
+          title="Thu hộ OnePay PayCollect (tài khoản ảo)"
+          tags={[
+            { label: "Chế độ TEST", tone: "warn" },
+            cfg
+              ? cfg.environment === "PRODUCTION"
+                ? { label: "Môi trường thật", tone: "err" }
+                : { label: "Sandbox", tone: "info" }
+              : null,
+            cfg
+              ? cfg.enabled
+                ? { label: "Đang bật", tone: "ok" }
+                : { label: "Đang tắt", tone: "warn" }
+              : null,
+          ]}
+          desc="Chế độ TEST chỉ ghi nhận tiền cho hoá đơn test, không đụng đơn hàng và phiếu thu thật."
+        />
+      ) : (
+        <CfgHeader
+          icon="payments"
+          title={sub === "hoa-don" ? "Hoá đơn test · OnePay" : "Nhật ký · OnePay"}
+        />
+      )}
+      {loadError ? (
+        <div className="lab" style={{ color: "var(--error)" }}>
+          {loadError}
         </div>
-      }
-    >
-      {loadError ? <p className="mb-2 text-sm text-destructive">{loadError}</p> : null}
-      <Tabs defaultValue="ket-noi">
-        <TabsList>
-          <TabsTrigger value="ket-noi">Kết nối</TabsTrigger>
-          <TabsTrigger value="hoa-don">Hoá đơn test</TabsTrigger>
-          <TabsTrigger value="nhat-ky">Nhật ký</TabsTrigger>
-        </TabsList>
-        <TabsContent value="ket-noi" className="pt-2">
-          {cfg ? <ConnectionPanel cfg={cfg} onSaved={setCfg} /> : null}
-        </TabsContent>
-        <TabsContent value="hoa-don" className="pt-2">
-          <InvoicesPanel cfg={cfg} />
-        </TabsContent>
-        <TabsContent value="nhat-ky" className="pt-2">
-          <LogsPanel />
-        </TabsContent>
-      </Tabs>
-    </Section>
+      ) : null}
+      {sub === "ket-noi" ? (
+        cfg ? (
+          <ConnectionPanel cfg={cfg} onSaved={setCfg} />
+        ) : null
+      ) : sub === "hoa-don" ? (
+        <InvoicesPanel cfg={cfg} />
+      ) : (
+        <LogsPanel />
+      )}
+    </section>
   );
 }
 
@@ -152,7 +165,9 @@ function ConnectionPanel({
   const [enabled, setEnabled] = useState(cfg.enabled);
   const [receiptCollectEnabled, setReceiptCollectEnabled] = useState(!!cfg.receiptCollectEnabled);
   const [orderCollectApp, setOrderCollectApp] = useState(cfg.orderCollectApp !== false);
-  const [orderCollectCustomer, setOrderCollectCustomer] = useState(cfg.orderCollectCustomer !== false);
+  const [orderCollectCustomer, setOrderCollectCustomer] = useState(
+    cfg.orderCollectCustomer !== false,
+  );
   const [orderCollectGuest, setOrderCollectGuest] = useState(cfg.orderCollectGuest !== false);
   const [environment, setEnvironment] = useState(cfg.environment);
   const [partnerId, setPartnerId] = useState(cfg.partnerId ?? "");
@@ -164,7 +179,7 @@ function ConnectionPanel({
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
-  const save = () => {
+  const save = async () => {
     const hours = Math.round(Number(ttl));
     if (!Number.isFinite(hours) || hours < 1)
       return toast.error("Thời hạn hoá đơn tối thiểu 1 giờ");
@@ -176,9 +191,9 @@ function ConnectionPanel({
     if (
       environment === "PRODUCTION" &&
       cfg.environment !== "PRODUCTION" &&
-      !window.confirm(
+      !(await askConfirm(
         "Chuyển sang môi trường thật onepay.vn? Tiền chuyển vào tài khoản ảo là tiền thật.",
-      )
+      ))
     )
       return;
     setSaving(true);
@@ -227,183 +242,125 @@ function ConnectionPanel({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Switch
-          id="onepay-enabled"
+    <>
+      <div className="cfg-grid">
+        <CfgToggle
+          label="Thu hộ OnePay"
           checked={enabled}
-          onCheckedChange={(v) => {
+          onChange={(v) => {
             setEnabled(v);
             if (!v) setReceiptCollectEnabled(false);
           }}
         />
-        <Label htmlFor="onepay-enabled" className="text-sm">
-          Thu hộ OnePay {cfg.enabled ? "· đang bật" : "· đang tắt"}
-        </Label>
-        <span className="text-xs text-muted-foreground">
-          Khi tắt, IPN OnePay gọi về bị từ chối và không tạo được hoá đơn. Chế độ TEST chỉ ghi nhận
-          tiền cho hoá đơn test, không đụng đơn hàng / phiếu thu thật.
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 rounded-md border border-sky-100 bg-sky-50/50 px-3 py-2.5">
-        <Switch
-          id="onepay-receipt-collect"
+        <CfgToggle
+          label="Bật thu hộ cho phiếu thu"
           checked={receiptCollectEnabled}
           disabled={!enabled}
-          onCheckedChange={setReceiptCollectEnabled}
+          onChange={setReceiptCollectEnabled}
         />
-        <div className="min-w-0 flex-1">
-          <Label htmlFor="onepay-receipt-collect" className="text-sm">
-            Bật thu hộ cho phiếu thu{" "}
-            {cfg.receiptCollectEnabled ? (
-              <span className="text-emerald-700">· đang bật</span>
-            ) : (
-              <span className="text-muted-foreground">· đang tắt</span>
-            )}
-          </Label>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Khi bật: QR phiếu thu (web + app Nộp tiền) ưu tiên VA OnePay — đủ tiền tự xác nhận. Tắt
-            hoặc OnePay lỗi: dùng QR TK nhận tiền nộp (Bảo trì → Nộp tiền). Đóng popup vẫn mở lại từ
-            Danh sách phiếu thu → QR thanh toán.
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2 rounded-md border border-sky-100 bg-sky-50/50 px-3 py-2.5">
-        <div className="text-sm font-medium">QR thu cước đơn hàng theo kênh</div>
-        <p className="text-xs text-muted-foreground">
-          Kênh tắt thì khách tạo đơn ở kênh đó không thấy QR, vẫn trả cước như luồng cũ (văn phòng / người
-          nhận). Đơn đã có QR trước khi tắt vẫn ghi nhận nếu khách chuyển tiền.
-        </p>
-        {(
-          [
-            ["onepay-order-app", "App khách hàng", orderCollectApp, setOrderCollectApp, cfg.orderCollectApp],
-            [
-              "onepay-order-customer",
-              "Web — khách đã đăng nhập",
-              orderCollectCustomer,
-              setOrderCollectCustomer,
-              cfg.orderCollectCustomer,
-            ],
-            ["onepay-order-guest", "Web — khách ẩn danh", orderCollectGuest, setOrderCollectGuest, cfg.orderCollectGuest],
-          ] as const
-        ).map(([id, label, checked, set, saved]) => (
-          <div key={id} className="flex items-center gap-3">
-            <Switch id={id} checked={checked} disabled={!enabled} onCheckedChange={set} />
-            <Label htmlFor={id} className="text-sm">
-              {label}{" "}
-              {saved !== false && cfg.enabled ? (
-                <span className="text-emerald-700">· đang bật</span>
-              ) : (
-                <span className="text-muted-foreground">· đang tắt</span>
-              )}
-            </Label>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-md border bg-muted/30 p-3 text-xs">
-        <div className="mb-1.5 font-medium">URL IPN gửi OnePay cấu hình</div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="select-all break-all font-mono">{ipnUrl || defaultIpn}</span>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-6"
-            onClick={() => copy(ipnUrl || defaultIpn)}
-          >
-            Copy
-          </Button>
-        </div>
-        <p className="mt-1.5 text-muted-foreground">
-          OnePay gọi <span className="font-mono">PUT {IPN_PATH}?id=…</span>, ký OWS1 bằng partner
-          key. CPN trả <span className="font-mono">{'{"error_code":"0"}'}</span> khi đã nhận; trả
-          lỗi thì OnePay gửi lại 3 lần, cách nhau 5 phút.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <F label="Môi trường">
-          <select
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
-            value={environment}
-            onChange={(e) => setEnvironment(e.target.value as OnePayConfig["environment"])}
-          >
-            <option value="SANDBOX">Sandbox · mtf.onepay.vn</option>
-            <option value="PRODUCTION">Thật · onepay.vn</option>
-          </select>
-        </F>
-        <F label="Partner ID (merchant_id)">
-          <Input
+        <CfgToggle
+          label="App khách hàng"
+          checked={orderCollectApp}
+          disabled={!enabled}
+          onChange={setOrderCollectApp}
+        />
+        <CfgToggle
+          label="Web - khách đã đăng nhập"
+          checked={orderCollectCustomer}
+          disabled={!enabled}
+          onChange={setOrderCollectCustomer}
+        />
+        <CfgToggle
+          label="Web - khách ẩn danh"
+          checked={orderCollectGuest}
+          disabled={!enabled}
+          onChange={setOrderCollectGuest}
+        />
+        <CfgNote>
+          Khi tắt OnePay, IPN gọi về bị từ chối và không tạo được hoá đơn. Thu hộ phiếu thu: QR
+          phiếu thu (web + app Nộp tiền) ưu tiên VA OnePay, đủ tiền tự xác nhận; tắt hoặc OnePay lỗi
+          thì dùng QR TK nhận tiền nộp (Bảo trì → Nộp tiền). Kênh QR thu cước tắt thì khách tạo đơn
+          ở kênh đó không thấy QR, vẫn trả cước như luồng cũ; đơn đã có QR trước khi tắt vẫn ghi
+          nhận nếu khách chuyển tiền.
+        </CfgNote>
+        <CfgSeg
+          label="Môi trường"
+          value={environment}
+          options={[
+            { value: "SANDBOX", label: "Test" },
+            { value: "PRODUCTION", label: "Thật" },
+          ]}
+          onChange={(v) => setEnvironment(v)}
+        />
+        <CfgField label="Partner ID (merchant_id)">
+          <CfgInput
             value={partnerId}
             onChange={(e) => setPartnerId(e.target.value)}
             placeholder="Sandbox: TESTPC1"
           />
-        </F>
-        <F label={`Partner key ${cfg.partnerKeyConfigured ? "· đã lưu" : ""}`}>
+        </CfgField>
+        <CfgField label="Partner key" saved={cfg.partnerKeyConfigured}>
           <SecretInput
             name="onepay-partner-key"
             value={partnerKey}
             onChange={(e) => setPartnerKey(e.target.value)}
             placeholder={cfg.partnerKeyConfigured ? "Nhập key mới để thay" : "OnePay cấp"}
           />
-        </F>
-        <F label="Thời hạn hoá đơn (giờ)">
-          <Input type="number" min={1} value={ttl} onChange={(e) => setTtl(e.target.value)} />
-        </F>
-      </div>
-
-      <F label="URL IPN đã đăng ký với OnePay (dùng để kiểm chữ ký — phải trùng URL OnePay gọi)">
-        <div className="flex gap-2">
-          <Input
-            value={ipnUrl}
-            onChange={(e) => setIpnUrl(e.target.value)}
-            placeholder={defaultIpn}
-            className="font-mono"
-          />
-          <Button type="button" variant="outline" onClick={() => setIpnUrl(defaultIpn)}>
-            Mặc định
-          </Button>
+        </CfgField>
+        <CfgField label="Thời hạn hoá đơn (giờ)">
+          <CfgInput type="number" min={1} value={ttl} onChange={(e) => setTtl(e.target.value)} />
+        </CfgField>
+        <CfgUrl
+          label="URL IPN gửi OnePay cấu hình"
+          url={ipnUrl || defaultIpn}
+          emptyText=""
+          copiedText="Đã copy URL IPN"
+        />
+        <CfgField
+          label="URL IPN đã đăng ký với OnePay (dùng để kiểm chữ ký — phải trùng URL OnePay gọi)"
+          wide
+        >
+          <span className="box input-box">
+            <input
+              className="num"
+              value={ipnUrl}
+              onChange={(e) => setIpnUrl(e.target.value)}
+              placeholder={defaultIpn}
+            />
+            <button type="button" className="text-act" onClick={() => setIpnUrl(defaultIpn)}>
+              Mặc định
+            </button>
+          </span>
+        </CfgField>
+        <div className="lab muted cfg-wide">
+          OnePay gọi <code>PUT {IPN_PATH}?id=…</code>, ký OWS1 bằng partner key. CPN trả{" "}
+          <code>{'{"error_code":"0"}'}</code> khi đã nhận; trả lỗi thì OnePay gửi lại 3 lần, cách
+          nhau 5 phút.
         </div>
-      </F>
-
-      <div className="flex flex-wrap gap-x-6 gap-y-2">
-        <div className="flex items-center gap-2">
-          <Switch
-            id="onepay-sig-required"
-            checked={signatureRequired}
-            onCheckedChange={setSignatureRequired}
-          />
-          <Label htmlFor="onepay-sig-required" className="text-sm">
-            Bắt buộc chữ ký IPN hợp lệ
-          </Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch id="onepay-insecure" checked={insecureSsl} onCheckedChange={setInsecureSsl} />
-          <Label htmlFor="onepay-insecure" className="text-sm">
-            Bỏ kiểm chứng chỉ SSL khi gọi OnePay
-          </Label>
-        </div>
-        <span className="text-xs text-muted-foreground">
+        <CfgToggle
+          label="Bắt buộc chữ ký IPN hợp lệ"
+          checked={signatureRequired}
+          onChange={setSignatureRequired}
+        />
+        <CfgToggle
+          label="Bỏ kiểm chứng chỉ SSL khi gọi OnePay"
+          checked={insecureSsl}
+          onChange={setInsecureSsl}
+        />
+        <div className="lab muted cfg-wide">
           Chỉ tắt chữ ký tạm thời khi dò lỗi ký với OnePay. Chỉ bật bỏ SSL khi máy chủ báo lỗi chứng
           chỉ (PKIX).
-        </span>
+        </div>
       </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" onClick={save} disabled={saving}>
-          {saving ? "Đang lưu…" : "Lưu cấu hình OnePay"}
-        </Button>
-        <Button type="button" variant="outline" onClick={test} disabled={testing}>
+      <CfgActs meta={`${cfg.baseUrl} · cập nhật ${when(cfg.updatedAt)}`}>
+        <button type="button" className="btn tonal" onClick={test} disabled={testing}>
           {testing ? "Đang thử…" : "Test kết nối"}
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          {cfg.baseUrl} · cập nhật {when(cfg.updatedAt)}
-        </span>
-      </div>
-    </div>
+        </button>
+        <button type="button" className="btn" onClick={save} disabled={saving}>
+          {saving ? "Đang lưu…" : "Lưu cấu hình OnePay"}
+        </button>
+      </CfgActs>
+    </>
   );
 }
 
@@ -618,11 +575,11 @@ function InvoicesPanel({ cfg }: { cfg: OnePayConfig | null }) {
       else toast.success(`Trạng thái: ${STATE_LABEL[r.state] ?? r.state}`);
     });
 
-  const refreshAll = () => {
+  const refreshAll = async () => {
     if (
-      !window.confirm(
+      !(await askConfirm(
         "Hỏi lại OnePay mọi hoá đơn còn chưa thanh toán (tối đa 100/lần)? Dùng khi IPN lệch domain hoặc mất callback.",
-      )
+      ))
     )
       return;
     act(async () => {
@@ -644,11 +601,13 @@ function InvoicesPanel({ cfg }: { cfg: OnePayConfig | null }) {
     });
   };
 
-  const toggleAccount = (inv: OnePayInvoice) => {
+  const toggleAccount = async (inv: OnePayInvoice) => {
     const active = inv.vaState !== "active";
     if (
       !active &&
-      !window.confirm(`Khoá tài khoản ảo ${inv.accountNumber}? Khách không chuyển vào được nữa.`)
+      !(await askConfirm(
+        `Khoá tài khoản ảo ${inv.accountNumber}? Khách không chuyển vào được nữa.`,
+      ))
     )
       return;
     act(async () => {
@@ -657,11 +616,11 @@ function InvoicesPanel({ cfg }: { cfg: OnePayConfig | null }) {
     });
   };
 
-  const remove = (inv: OnePayInvoice) => {
+  const remove = async (inv: OnePayInvoice) => {
     if (
-      !window.confirm(
+      !(await askConfirm(
         `Xoá hoá đơn test ${inv.invoiceReference} khỏi CPN? Tài khoản ảo bên OnePay vẫn còn — nên khoá trước.`,
-      )
+      ))
     )
       return;
     act(async () => {
@@ -738,7 +697,13 @@ function InvoicesPanel({ cfg }: { cfg: OnePayConfig | null }) {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => load(page)}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => load(page)}
+        >
           Làm mới trang
         </Button>
         <Button type="button" size="sm" disabled={busy || !cfg?.enabled} onClick={refreshAll}>
@@ -862,7 +827,13 @@ function InvoicesPanel({ cfg }: { cfg: OnePayConfig | null }) {
         </table>
       </div>
 
-      <PageBar page={page} size={PAGE_SIZE} total={total} busy={busy} onPage={(p) => void load(p)} />
+      <PageBar
+        page={page}
+        size={PAGE_SIZE}
+        total={total}
+        busy={busy}
+        onPage={(p) => void load(p)}
+      />
 
       {sample ? (
         <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-xs">
@@ -1133,13 +1104,7 @@ function LogsPanel() {
           </tbody>
         </table>
       </div>
-      <PageBar
-        page={page}
-        size={PAGE_SIZE}
-        total={total}
-        busy={loading}
-        onPage={(p) => load(p)}
-      />
+      <PageBar page={page} size={PAGE_SIZE} total={total} busy={loading} onPage={(p) => load(p)} />
       <p className="text-xs text-muted-foreground">Bấm vào dòng để xem request / response gốc.</p>
     </div>
   );

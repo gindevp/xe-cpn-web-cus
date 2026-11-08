@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -132,10 +133,7 @@ function Page() {
     const totalQuantity = rows.reduce((s, r) => s + (r.quantity ?? 1), 0);
     const totalWeight = rows.reduce((s, r) => s + (r.weightKg ?? 0), 0);
     const paid = rows.reduce((s, r) => s + (r.paidAmount ?? 0), 0);
-    const remain = rows.reduce(
-      (s, r) => s + Math.max(0, r.fare - (r.paidAmount ?? 0)),
-      0,
-    );
+    const remain = rows.reduce((s, r) => s + Math.max(0, r.fare - (r.paidAmount ?? 0)), 0);
     const stock = rows.filter((r) => isStock(r.updatedAt)).length;
     return { totalOrders, totalQuantity, totalWeight, paid, remain, stock };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -169,9 +167,7 @@ function Page() {
             <Label className="text-xs">Văn phòng nhận</Label>
             <SearchableSelect
               value={receiverOffice || "__all__"}
-              onValueChange={(v) =>
-                setReceiverOffice(v === "__all__" ? "" : v)
-              }
+              onValueChange={(v) => setReceiverOffice(v === "__all__" ? "" : v)}
               className="w-[200px]"
               placeholder="Chọn văn phòng"
               options={[
@@ -225,8 +221,7 @@ function Page() {
                   const route = t?.route ?? `${r.fromOffice} → ${r.toOffice}`;
                   const goodsLabel = orderGoodsLabel(r);
                   const collectLabel =
-                    COLLECT_FORMS.find((c) => c.value === r.collectForm)
-                      ?.label ?? r.collectForm;
+                    COLLECT_FORMS.find((c) => c.value === r.collectForm)?.label ?? r.collectForm;
                   const paid = r.paidAmount ?? 0;
                   const remain = Math.max(0, r.fare - paid);
                   const stock = isStock(r.updatedAt);
@@ -246,24 +241,28 @@ function Page() {
                         </div>
                       </td>
                       <td className="py-2 pr-4">{route}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {formatDateTime(r.updatedAt)}
-                      </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {t?.bks ?? "—"}
-                      </td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{formatDateTime(r.updatedAt)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{t?.bks ?? "—"}</td>
                       <td className="py-2 pr-4">
                         <div>{r.quantity ?? 1} kiện</div>
-                        <div className="text-muted-foreground">{(r.weightKg ?? 0).toFixed(1)} kg</div>
+                        <div className="text-muted-foreground">
+                          {(r.weightKg ?? 0).toFixed(1)} kg
+                        </div>
                       </td>
                       <td className="py-2 pr-4">{goodsLabel}</td>
                       <td className="py-2 pr-4">
                         {r.homeDelivery ? (
-                          <Badge className="gap-1 bg-info/15 text-info hover:bg-info/20 border-info/30" variant="outline">
+                          <Badge
+                            className="gap-1 bg-info/15 text-info hover:bg-info/20 border-info/30"
+                            variant="outline"
+                          >
                             <Truck className="h-3 w-3" /> Giao tận nơi
                           </Badge>
                         ) : (
-                          <Badge className="gap-1 bg-muted text-foreground hover:bg-muted" variant="outline">
+                          <Badge
+                            className="gap-1 bg-muted text-foreground hover:bg-muted"
+                            variant="outline"
+                          >
                             <Home className="h-3 w-3" /> Khách tự lấy
                           </Badge>
                         )}
@@ -277,31 +276,25 @@ function Page() {
                             Chưa thu:{" "}
                             <span
                               className={
-                                remain > 0
-                                  ? "font-medium text-destructive"
-                                  : "text-success"
+                                remain > 0 ? "font-medium text-destructive" : "text-success"
                               }
                             >
-                            {formatMoney(remain)}
+                              {formatMoney(remain)}
+                            </span>
                           </span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-2 pr-4 text-right">
+                        </div>
+                      </td>
+                      <td className="py-2 pr-4 text-right">
                         <div className="font-medium">{collectLabel}</div>
                       </td>
                       <td className="py-2 pr-4">
                         <div>{r.senderName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.senderPhone}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
                       </td>
                       <td className="py-2 pr-4">{officeName(r.fromOffice)}</td>
                       <td className="py-2 pr-4">
                         <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.receiverPhone}
-                        </div>
+                        <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
                       </td>
                       <td className="py-2 pr-4">{officeName(r.toOffice)}</td>
                       <td className="py-2 pr-2 text-right">
@@ -317,8 +310,8 @@ function Page() {
                           homeDelivery={!!r.homeDelivery}
                           onAssignShipper={() => setShipperOrder(r)}
                           onDeliver={() => setDeliverOrder(r)}
-                          onCancel={() => {
-                            if (!confirm(`Huỷ đơn ${r.code}?`)) return;
+                          onCancel={async () => {
+                            if (!(await askConfirm(`Huỷ đơn ${r.code}?`))) return;
                             const res = transitionOrder(
                               r.code,
                               "CANCELLED",
@@ -340,10 +333,7 @@ function Page() {
         )}
       </Section>
 
-      <AssignShipperDialog
-        order={shipperOrder}
-        onClose={() => setShipperOrder(null)}
-      />
+      <AssignShipperDialog order={shipperOrder} onClose={() => setShipperOrder(null)} />
       <DeliverDialog
         order={deliverOrder}
         onClose={() => setDeliverOrder(null)}
@@ -389,43 +379,31 @@ function RowActions({
 }) {
   return (
     <RowActionsMenu title="Tác vụ đơn" contentClassName="w-52">
-        <DropdownMenuItem
-          disabled={!canDeliver}
-          onClick={onAssignShipper}
-        >
-          <UserPlus className="mr-2 h-4 w-4" /> Gán shipper
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!canDeliver}
-          onClick={onDeliver}
-        >
-          <CheckCircle2 className="mr-2 h-4 w-4" /> Giao hàng
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => toast.success(`Đã gửi SMS cho đơn ${code}`)}
-        >
-          <MessageSquare className="mr-2 h-4 w-4" /> Gửi SMS
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() =>
-            toast.message(
-              tripCode
-                ? `Phơi hàng chuyến ${tripCode}`
-                : `Đơn ${code} chưa có chuyến`,
-            )
-          }
-        >
-          <FileText className="mr-2 h-4 w-4" /> Xem phơi hàng
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={!canCancel}
-          onClick={onCancel}
-          className="text-destructive focus:text-destructive"
-        >
-          <Ban className="mr-2 h-4 w-4" /> Huỷ đơn
-        </DropdownMenuItem>
+      <DropdownMenuItem disabled={!canDeliver} onClick={onAssignShipper}>
+        <UserPlus className="mr-2 h-4 w-4" /> Gán shipper
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={!canDeliver} onClick={onDeliver}>
+        <CheckCircle2 className="mr-2 h-4 w-4" /> Giao hàng
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => toast.success(`Đã gửi SMS cho đơn ${code}`)}>
+        <MessageSquare className="mr-2 h-4 w-4" /> Gửi SMS
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() =>
+          toast.message(tripCode ? `Phơi hàng chuyến ${tripCode}` : `Đơn ${code} chưa có chuyến`)
+        }
+      >
+        <FileText className="mr-2 h-4 w-4" /> Xem phơi hàng
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={!canCancel}
+        onClick={onCancel}
+        className="text-destructive focus:text-destructive"
+      >
+        <Ban className="mr-2 h-4 w-4" /> Huỷ đơn
+      </DropdownMenuItem>
     </RowActionsMenu>
   );
 }
@@ -526,9 +504,7 @@ function StatsCards({ metrics }: { metrics: Metrics }) {
                   className={`truncate text-lg font-semibold ${it.highlight ? "text-[var(--on-warning-container)]" : ""}`}
                 >
                   {it.value}
-                  <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    {it.unit}
-                  </span>
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">{it.unit}</span>
                 </div>
               </div>
             </CardContent>
@@ -546,7 +522,9 @@ function OrderInfoBlock({ order }: { order: Order }) {
   return (
     <div className="rounded-lg border bg-muted/30 p-3 text-sm">
       <div className="mb-2 flex items-center justify-between">
-        <div className="font-semibold"><OrderCodeLink code={order.code} /></div>
+        <div className="font-semibold">
+          <OrderCodeLink code={order.code} />
+        </div>
         <Badge variant="outline">{collectLabel}</Badge>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
@@ -575,13 +553,7 @@ function OrderInfoBlock({ order }: { order: Order }) {
   );
 }
 
-function AssignShipperDialog({
-  order,
-  onClose,
-}: {
-  order: Order | null;
-  onClose: () => void;
-}) {
+function AssignShipperDialog({ order, onClose }: { order: Order | null; onClose: () => void }) {
   const [choice, setChoice] = useState<string>("2H");
   if (!order) return null;
   const selected = SHIPPER_OPTIONS.find((s) => s.id === choice);
@@ -592,9 +564,7 @@ function AssignShipperDialog({
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" /> Gán shipper giao hàng
           </DialogTitle>
-          <DialogDescription>
-            Chọn hình thức chuyển phát cho đơn hàng bên dưới.
-          </DialogDescription>
+          <DialogDescription>Chọn hình thức chuyển phát cho đơn hàng bên dưới.</DialogDescription>
         </DialogHeader>
 
         <OrderInfoBlock order={order} />
@@ -690,9 +660,7 @@ function DeliverDialog({
             </div>
             <div className="flex justify-between border-t pt-1.5">
               <span className="font-semibold">Cần thu</span>
-              <span
-                className={`font-bold ${remain > 0 ? "text-destructive" : "text-success"}`}
-              >
+              <span className={`font-bold ${remain > 0 ? "text-destructive" : "text-success"}`}>
                 {formatVND(remain)}
               </span>
             </div>
@@ -713,9 +681,7 @@ function DeliverDialog({
                 onClick={() => setCollected((v) => !v)}
               >
                 <Banknote className="h-4 w-4" />
-                {collected
-                  ? `Đã thu ${formatVND(remain)}`
-                  : `Thu ${formatVND(remain)}`}
+                {collected ? `Đã thu ${formatVND(remain)}` : `Thu ${formatVND(remain)}`}
               </Button>
             </div>
           ) : (
@@ -731,7 +697,9 @@ function DeliverDialog({
           </Button>
           <Button
             disabled={!canDeliver}
-            onClick={() => onConfirm(order, needCollect ? payMethod : undefined, needCollect ? remain : 0)}
+            onClick={() =>
+              onConfirm(order, needCollect ? payMethod : undefined, needCollect ? remain : 0)
+            }
           >
             <CheckCircle2 className="mr-1 h-4 w-4" /> Xác nhận giao hàng
           </Button>
@@ -740,4 +708,3 @@ function DeliverDialog({
     </Dialog>
   );
 }
-

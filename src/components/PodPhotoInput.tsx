@@ -53,6 +53,8 @@ export function PodPhotoInput({
   allowGallery = false,
   allowPaste = true,
   label = "Chụp ảnh",
+  variant = "tiles",
+  title,
 }: {
   photos: string[];
   onChange: (next: string[]) => void;
@@ -64,6 +66,9 @@ export function PodPhotoInput({
   /** Ctrl+V / dán ảnh từ clipboard (mặc định bật trên web). */
   allowPaste?: boolean;
   label?: string;
+  /** "upload" = hàng `.upload` M3 (ô cấu hình 1 ảnh). */
+  variant?: "tiles" | "upload";
+  title?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -118,6 +123,64 @@ export function PodPhotoInput({
     return () => window.removeEventListener("paste", onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- addImageFile dùng photosRef
   }, [allowPaste, disabled, max, onChange]);
+
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/*"
+      {...(allowGallery ? {} : { capture: "environment" as const })}
+      className="hidden"
+      onChange={(e) => void addImageFile(e.target.files?.[0])}
+    />
+  );
+
+  if (variant === "upload") {
+    return (
+      <div ref={rootRef} className="upload cfg-wide">
+        {photos[0] ? (
+          <img
+            src={photos[0]}
+            alt={title ?? label}
+            style={{ width: 96, height: 54, objectFit: "cover", borderRadius: 8 }}
+          />
+        ) : (
+          <span className="ms muted" aria-hidden="true">
+            add_photo_alternate
+          </span>
+        )}
+        <div style={{ flex: "1 1 200px" }}>
+          <div style={{ fontWeight: 500 }}>{title ?? label}</div>
+          {allowPaste && !disabled ? (
+            <div className="muted" style={{ fontSize: 12, lineHeight: "16px" }}>
+              Có thể Ctrl+V để dán ảnh.
+            </div>
+          ) : null}
+        </div>
+        {photos.length > 0 ? (
+          <button
+            type="button"
+            className="text-act danger"
+            disabled={disabled}
+            onClick={() => onChange([])}
+          >
+            Xoá ảnh
+          </button>
+        ) : null}
+        {photos.length < max || max === 1 ? (
+          <button
+            type="button"
+            className="btn tonal"
+            disabled={disabled || busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            {busy ? "Đang xử lý" : label}
+          </button>
+        ) : null}
+        {fileInput}
+      </div>
+    );
+  }
 
   return (
     <div ref={rootRef} className="space-y-1.5">
@@ -174,14 +237,7 @@ export function PodPhotoInput({
           </button>
         )}
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          {...(allowGallery ? {} : { capture: "environment" as const })}
-          className="hidden"
-          onChange={(e) => void addImageFile(e.target.files?.[0])}
-        />
+        {fileInput}
       </div>
       {allowPaste && photos.length < max ? (
         <p className="text-[11px] text-muted-foreground">
@@ -192,7 +248,8 @@ export function PodPhotoInput({
       ) : allowPaste && max === 1 && !disabled ? (
         <p className="text-[11px] text-muted-foreground">
           <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">Ctrl</kbd>+
-          <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">V</kbd> để thay bằng ảnh khác.
+          <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">V</kbd> để thay bằng
+          ảnh khác.
         </p>
       ) : null}
     </div>

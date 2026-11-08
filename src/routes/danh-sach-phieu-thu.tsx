@@ -590,37 +590,11 @@ function Page() {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
-      <p className="lab muted" style={{ margin: 0 }}>
-        {scopeHint}
-      </p>
-
-      <section className="sum-row num">
-        <div className="sum-lead">
-          <div style={{ minWidth: 0 }}>
-            <div className="rev-vp lab">
-              <span className="ms fill" aria-hidden="true">
-                account_balance_wallet
-              </span>
-              Tổng tiền
-            </div>
-            <div className="sum-hero">
-              {formatVND(total).replace(/\s*₫?$/, "")} <span className="sum-unit">VNĐ</span>
-            </div>
-          </div>
+      <div className="title-row">
+        <div>
+          <h1 className="page-title">Danh sách phiếu thu</h1>
+          <div className="lab muted">{scopeHint}</div>
         </div>
-        <div className="rev-tile card-tile">
-          <span className="rev-ic" aria-hidden="true">
-            <span className="ms fill">receipt_long</span>
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="small muted">Số phiếu thu</div>
-            <div className="sum-val">{rowCount.toLocaleString("vi-VN")}</div>
-          </div>
-        </div>
-      </section>
-
-      <div className="title-row" style={{ marginTop: 0 }}>
-        <div />
         <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
@@ -643,6 +617,52 @@ function Page() {
           />
         </div>
       </div>
+
+      <section className="sum-row num">
+        <div className="sum-lead">
+          <div style={{ minWidth: 0 }}>
+            <div className="rev-vp lab">
+              <span className="ms fill" aria-hidden="true">
+                account_balance_wallet
+              </span>
+              Tổng tiền
+            </div>
+            <div className="sum-hero">
+              {formatVND(total).replace(/\s*₫?$/, "")} <span className="sum-unit">VNĐ</span>
+            </div>
+          </div>
+          <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+            <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+            <rect
+              className="ill-mid"
+              x="28"
+              y="24"
+              width="60"
+              height="70"
+              rx="5"
+              transform="rotate(-8 58 59)"
+            />
+            <rect className="ill-main" x="44" y="14" width="62" height="80" rx="5" />
+            <rect className="ill-paper" x="50" y="21" width="50" height="66" rx="3" />
+            <rect className="ill-main" x="56" y="29" width="24" height="5" rx="2.5" />
+            <rect className="ill-mid" x="56" y="41" width="38" height="5" rx="2.5" />
+            <rect className="ill-mid" x="56" y="52" width="38" height="5" rx="2.5" />
+            <rect className="ill-mid" x="56" y="63" width="38" height="5" rx="2.5" />
+            <rect className="ill-box" x="88" y="62" width="50" height="30" rx="5" />
+            <circle className="ill-paper" cx="113" cy="77" r="8" />
+            <circle className="ill-box2" cx="113" cy="77" r="4" />
+          </svg>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">receipt_long</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Số phiếu thu</div>
+            <div className="sum-val">{rowCount.toLocaleString("vi-VN")}</div>
+          </div>
+        </div>
+      </section>
 
       <div className="filter-grid">
         <label className="field">

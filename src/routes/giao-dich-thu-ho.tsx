@@ -227,7 +227,9 @@ function Page() {
 
   const totalAmount = server.meta?.totalAmount ?? 0;
   const rows = server.pageRows;
-  const sumText = formatVND(totalAmount).replace(/\s*₫?$/, "").trim();
+  const sumText = formatVND(totalAmount)
+    .replace(/\s*₫?$/, "")
+    .trim();
 
   return (
     <div className="stack" style={{ gap: 16 }}>
@@ -265,7 +267,9 @@ function Page() {
           </span>
           <div style={{ minWidth: 0 }}>
             <div className="small muted">Số giao dịch</div>
-            <div className="sum-val">{server.loading ? "…" : server.total.toLocaleString("vi-VN")}</div>
+            <div className="sum-val">
+              {server.loading ? "…" : server.total.toLocaleString("vi-VN")}
+            </div>
           </div>
         </div>
       </section>
@@ -274,18 +278,35 @@ function Page() {
         <label className="field">
           <span className="l">Từ ngày</span>
           <span className="box input-box">
-            <input type="date" className="num" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+            <input
+              type="date"
+              className="num"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+            />
           </span>
         </label>
         <label className="field">
           <span className="l">Đến ngày</span>
           <span className="box input-box">
-            <input type="date" className="num" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+            <input
+              type="date"
+              className="num"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+            />
           </span>
         </label>
         <div className="field">
           <span className="l">Thu hộ</span>
-          <SearchableSelect value={provider} onValueChange={setProvider} options={PROVIDER_OPTIONS} placeholder="Tất cả" />
+          <SearchableSelect
+            value={provider}
+            onValueChange={setProvider}
+            options={PROVIDER_OPTIONS}
+            placeholder="Tất cả"
+          />
         </div>
         <div className="field">
           <span className="l">Loại</span>
@@ -360,13 +381,19 @@ function Page() {
                   {rows.map((r) => (
                     <tr key={r.id}>
                       <td>
-                        <span className={providerTagClass(r.provider)}>{r.providerLabel || r.provider}</span>
+                        <span className={providerTagClass(r.provider)}>
+                          {r.providerLabel || r.provider}
+                        </span>
                       </td>
                       <td style={{ whiteSpace: "nowrap" }}>{r.targetTypeLabel || r.targetType}</td>
                       <td>
                         {r.refCode ? (
                           r.targetType === "RECEIPT" ? (
-                            <Link to="/danh-sach-phieu-thu" search={{ code: r.refCode }} className="code">
+                            <Link
+                              to="/danh-sach-phieu-thu"
+                              search={{ code: r.refCode }}
+                              className="code"
+                            >
                               {r.refCode}
                             </Link>
                           ) : (
@@ -399,9 +426,7 @@ function Page() {
                 </tbody>
               </table>
             </div>
-            <div className="pager">
-              <TablePagination pager={server.pager} />
-            </div>
+            <TablePagination pager={server.pager} />
           </div>
         )}
       </section>

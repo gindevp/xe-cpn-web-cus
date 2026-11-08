@@ -260,7 +260,7 @@ function Page() {
   const [branch, setBranch] = useState(ALL);
   const [status, setStatus] = useState<"" | Punctuality>("");
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<Tab>("CHUYEN");
+  const [tab, setTab] = useState<Tab>("CHAM");
   const [showRule, setShowRule] = useState(false);
   const [route, setRoute] = useState("");
   const [events, setEvents] = useState<Ev[] | null>(null);

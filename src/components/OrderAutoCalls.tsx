@@ -1,4 +1,5 @@
 import { Section } from "@/components/PageBits";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiRequest, isApiEnabled } from "@/lib/api/client";
@@ -164,11 +165,11 @@ export function OrderAutoCalls({ orderCode }: { orderCode: string }) {
     })();
   };
 
-  const cancel = (c: AutoCallView) => {
+  const cancel = async (c: AutoCallView) => {
     if (
-      !window.confirm(
+      !(await askConfirm(
         `Huỷ cuộc gọi tới ${c.phone ?? "người nhận"}? Tổng đài sẽ không gọi số này nữa.`,
-      )
+      ))
     )
       return;
     setCancelling(c.id);
@@ -188,8 +189,8 @@ export function OrderAutoCalls({ orderCode }: { orderCode: string }) {
     })();
   };
 
-  const stopRetry = (c: AutoCallView) => {
-    if (!window.confirm("Dừng gọi lại cho đơn này?")) return;
+  const stopRetry = async (c: AutoCallView) => {
+    if (!(await askConfirm("Dừng gọi lại cho đơn này?"))) return;
     setCancelling(c.id);
     void (async () => {
       try {

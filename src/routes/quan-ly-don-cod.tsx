@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -45,7 +45,12 @@ import { orderTabStatusLabel } from "@/lib/customer-track-status";
 import { isApiEnabled } from "@/lib/api/client";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
 import { downloadExcelRows, type ExportFormat } from "@/lib/csv";
-import { guestBillPayLabel, printHtmlDocument, printImageBlob, renderGuestBillPng } from "@/lib/guest-bill-image";
+import {
+  guestBillPayLabel,
+  printHtmlDocument,
+  printImageBlob,
+  renderGuestBillPng,
+} from "@/lib/guest-bill-image";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
 import { canWrite } from "@/lib/rbac";
@@ -82,7 +87,7 @@ export const Route = createFileRoute("/quan-ly-don-cod")({
     ],
   }),
   component: () => (
-    <ProtectedPage title="Quản lý đơn COD" screen="quan-ly-don-cod">
+    <ProtectedPage title="Quản lý đơn COD" screen="quan-ly-don-cod" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -119,7 +124,9 @@ function processedAt(iso?: string) {
 
 function moneyCell(n?: number) {
   if (n == null || !Number.isFinite(n)) return "—";
-  return formatVND(n).replace(/\s*VNĐ$/i, "").trim();
+  return formatVND(n)
+    .replace(/\s*VNĐ$/i, "")
+    .trim();
 }
 
 /** Cước vận chuyển = cước hàng (không gồm phí thu hộ — phí đó là cột riêng). Đơn cũ chưa tách thì vẫn là fare. */
@@ -323,7 +330,13 @@ function Page() {
       setRows((prev) =>
         prev.map((r) =>
           r.code === order.code
-            ? { ...r, codExportedAt: at, codExportedBy: by, codExportedByName: undefined, hasCodBillPhoto: hasPhoto }
+            ? {
+                ...r,
+                codExportedAt: at,
+                codExportedBy: by,
+                codExportedByName: undefined,
+                hasCodBillPhoto: hasPhoto,
+              }
             : r,
         ),
       );
@@ -373,7 +386,9 @@ function Page() {
       const res = await uploadCodBillPhotos(uploadTarget.code, uploadPhotos);
       setRows((prev) =>
         prev.map((r) =>
-          r.code === uploadTarget.code ? { ...r, hasCodBillPhoto: res.hasCodBillPhoto !== false } : r,
+          r.code === uploadTarget.code
+            ? { ...r, hasCodBillPhoto: res.hasCodBillPhoto !== false }
+            : r,
         ),
       );
       toast.success(`Đã upload ${uploadPhotos.length} ảnh bill · ${uploadTarget.code}`);
@@ -451,6 +466,20 @@ function Page() {
               {shown.length} <span className="sum-unit">đơn</span>
             </div>
           </div>
+          <svg className="rev-ill" viewBox="0 0 150 104" aria-hidden="true">
+            <ellipse className="ill-soft" cx="75" cy="97" rx="68" ry="6" />
+            <rect className="ill-box" x="26" y="42" width="62" height="54" rx="4" />
+            <path className="ill-box2" d="M26 46a4 4 0 0 1 4-4h54a4 4 0 0 1 4 4v10H26z" />
+            <path className="ill-paper" d="M51 42h12v22l-6-4-6 4z" />
+            <circle className="ill-main" cx="110" cy="62" r="24" />
+            <circle className="ill-mid" cx="110" cy="62" r="17" />
+            <path
+              className="ill-handle"
+              d="M110 52v20M104 57c0-3 3-5 6-5s6 2 6 5-3 5-6 5-6 2-6 5 3 5 6 5 6-2 6-5"
+            />
+            <rect className="ill-main" x="44" y="14" width="30" height="20" rx="4" />
+            <circle className="ill-paper" cx="59" cy="24" r="5" />
+          </svg>
         </div>
       </section>
 
@@ -475,7 +504,10 @@ function Page() {
               setItinerary("");
             }}
             placeholder="Tất cả"
-            options={[{ value: "", label: "Tất cả" }, ...branchNames.map((r) => ({ value: r, label: r }))]}
+            options={[
+              { value: "", label: "Tất cả" },
+              ...branchNames.map((r) => ({ value: r, label: r })),
+            ]}
           />
         </div>
         <div className="field">
@@ -484,7 +516,10 @@ function Page() {
             value={itinerary}
             onValueChange={setItinerary}
             placeholder="Tất cả"
-            options={[{ value: "", label: "Tất cả" }, ...itineraryOpts.map((it) => ({ value: it, label: it }))]}
+            options={[
+              { value: "", label: "Tất cả" },
+              ...itineraryOpts.map((it) => ({ value: it, label: it })),
+            ]}
           />
         </div>
         <div className="field">
@@ -496,7 +531,10 @@ function Page() {
               setPage(1);
             }}
             placeholder="Tất cả"
-            options={[{ value: "", label: "Tất cả" }, ...statusOptions.map((s) => ({ value: s, label: s }))]}
+            options={[
+              { value: "", label: "Tất cả" },
+              ...statusOptions.map((s) => ({ value: s, label: s })),
+            ]}
           />
         </div>
         <div className="field">
@@ -559,7 +597,9 @@ function Page() {
                     <tr key={o.code}>
                       <td>
                         <OrderCodeLink code={o.code} className="code" />
-                        {(o.codFeeRefund ?? 0) > 0 ? <span className="sub">Hoàn phí COD</span> : null}
+                        {(o.codFeeRefund ?? 0) > 0 ? (
+                          <span className="sub">Hoàn phí COD</span>
+                        ) : null}
                       </td>
                       <td>
                         <span style={{ fontWeight: 500 }}>{o.senderName || "—"}</span>
@@ -599,7 +639,10 @@ function Page() {
                         )}
                       </td>
                       <td>
-                        <div className="act" style={{ flexDirection: "column", alignItems: "flex-start" }}>
+                        <div
+                          className="act"
+                          style={{ flexDirection: "column", alignItems: "flex-start" }}
+                        >
                           <button
                             type="button"
                             className="text-act"
@@ -617,7 +660,12 @@ function Page() {
                             {docBusy === `dntt:${o.code}` ? "Đang in…" : "In đề nghị thanh toán"}
                           </button>
                           {canMark && exported ? (
-                            <button type="button" className="text-act" disabled={!!uploading} onClick={() => openUpload(o)}>
+                            <button
+                              type="button"
+                              className="text-act"
+                              disabled={!!uploading}
+                              onClick={() => openUpload(o)}
+                            >
                               Upload thêm ảnh bill
                             </button>
                           ) : null}
@@ -640,7 +688,9 @@ function Page() {
                             {o.codExportedByName || o.codExportedBy ? (
                               <span className="sub">
                                 bởi {o.codExportedByName || o.codExportedBy}
-                                {o.codExportedByName && o.codExportedBy ? ` (${o.codExportedBy})` : ""}
+                                {o.codExportedByName && o.codExportedBy
+                                  ? ` (${o.codExportedBy})`
+                                  : ""}
                               </span>
                             ) : null}
                             <span className="sub">lúc {processedAt(o.codExportedAt)}</span>
@@ -709,7 +759,11 @@ function Page() {
             >
               Hủy
             </Button>
-            <Button type="button" disabled={uploading || !uploadPhotos.length} onClick={() => void saveUpload()}>
+            <Button
+              type="button"
+              disabled={uploading || !uploadPhotos.length}
+              onClick={() => void saveUpload()}
+            >
               {uploading ? (
                 <>
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Đang lưu…
@@ -780,13 +834,19 @@ function Page() {
               <div className="flex min-w-0 items-start gap-2.5">
                 <User className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 break-words font-medium">
-                  {[confirmTarget.senderName, confirmTarget.senderPhone].filter(Boolean).join(" - ") || "—"}
+                  {[confirmTarget.senderName, confirmTarget.senderPhone]
+                    .filter(Boolean)
+                    .join(" - ") || "—"}
                 </div>
               </div>
               <div className="flex min-w-0 items-start gap-2.5">
                 <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 break-all font-medium">
-                  {[confirmTarget.bankName, confirmTarget.bankAccountNo, confirmTarget.bankAccountName]
+                  {[
+                    confirmTarget.bankName,
+                    confirmTarget.bankAccountNo,
+                    confirmTarget.bankAccountName,
+                  ]
                     .filter(Boolean)
                     .join(" - ") || "—"}
                 </div>

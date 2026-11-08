@@ -5,11 +5,14 @@ import { cn } from "@/lib/utils";
 /** Khối nội dung bảng/form — khớp design `.card` + toolbar tiêu đề. */
 export function Section({
   title,
+  icon,
   right,
   children,
   className,
 }: {
   title?: ReactNode;
+  /** Material Symbol — hiện `.sec-title` có `.sec-ic` như design. */
+  icon?: string;
   right?: ReactNode;
   children: ReactNode;
   className?: string;
@@ -32,7 +35,14 @@ export function Section({
             minHeight: 40,
           }}
         >
-          {title != null ? (
+          {title != null && icon ? (
+            <h2 className="group-title sec-title">
+              <span className="sec-ic" aria-hidden="true">
+                <span className="ms">{icon}</span>
+              </span>
+              {title}
+            </h2>
+          ) : title != null ? (
             <div style={{ fontSize: 15, lineHeight: "22px", fontWeight: 600 }}>{title}</div>
           ) : (
             <span />

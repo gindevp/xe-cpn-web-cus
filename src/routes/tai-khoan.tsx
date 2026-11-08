@@ -1,14 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ProtectedPage } from "@/components/AppShell";
-import { M3PageHeader } from "@/components/M3Page";
-import { EmptyState, Section } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
 import { StaffInfoPopover } from "@/components/StaffInfoPopover";
 import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { M3Confirm } from "@/components/m3/M3Confirm";
+import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   ROLE_LABELS,
@@ -41,7 +38,10 @@ const ALL_ROLES: Role[] = ["AD", "DH", "KT"];
 
 function officeOfUser(u: UserRec, offices: OfficeRec[]): OfficeRec | undefined {
   if (u.office === "ALL") return undefined;
-  return (u.officeId != null ? offices.find((o) => o.id === u.officeId) : undefined) ?? offices.find((o) => o.code === u.office);
+  return (
+    (u.officeId != null ? offices.find((o) => o.id === u.officeId) : undefined) ??
+    offices.find((o) => o.code === u.office)
+  );
 }
 
 /** Nhóm quyền đang gắn tài khoản (chức danh); không có thì dùng role nền. */
@@ -60,6 +60,7 @@ function Page() {
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [removing, setRemoving] = useState<UserRec | null>(null);
 
   useEffect(() => {
     if (!isApiEnabled()) return;
@@ -92,7 +93,9 @@ function Page() {
     return users.filter((u) => {
       if (roleFilter && userRoleCode(u) !== roleFilter) return false;
       if (!kw) return true;
-      const hay = `${u.username} ${u.staffCode ?? ""} ${u.displayName ?? ""}`.toLocaleLowerCase("vi-VN");
+      const hay = `${u.username} ${u.staffCode ?? ""} ${u.displayName ?? ""}`.toLocaleLowerCase(
+        "vi-VN",
+      );
       return hay.includes(kw);
     });
   }, [users, q, roleFilter]);
@@ -105,42 +108,46 @@ function Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, roleFilter]);
 
+  const isSelf = (u: UserRec) => session?.username?.toLowerCase() === u.username.toLowerCase();
+
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader
-        title="Tài khoản"
-        description="Quản lý người dùng và phân quyền."
-        actions={
-          <button
-            type="button"
-            className="btn"
-            onClick={() => {
-              setIsNew(true);
-              setEditing({
-                username: "",
-                role: "DH",
-                office: offices[0]?.code ?? "",
-                officeId: offices[0]?.id,
-                active: true,
-                allowedOfficeIds: [],
-              });
-            }}
-          >
-            <span className="ms" aria-hidden="true">
-              person_add
-            </span>
-            Tạo tài khoản
-          </button>
-        }
-      />
-      <Section
-        title={`Người dùng (${filtered.length}${filtered.length !== users.length ? ` / ${users.length}` : ""})`}
-      >
-      <div className="filter-grid">
-        <label className="field" style={{ gridColumn: "span 2" }}>
+      <div className="title-row">
+        <div>
+          <h1 className="page-title">Tài khoản</h1>
+          <div className="lab muted num">
+            {filtered.length !== users.length
+              ? `${filtered.length} / ${users.length} người dùng`
+              : `${users.length} người dùng`}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setIsNew(true);
+            setEditing({
+              username: "",
+              role: "DH",
+              office: offices[0]?.code ?? "",
+              officeId: offices[0]?.id,
+              active: true,
+              allowedOfficeIds: [],
+            });
+          }}
+        >
+          <span className="ms" aria-hidden="true">
+            add
+          </span>
+          Tạo tài khoản
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+        <label className="field" style={{ flex: "1 1 320px", maxWidth: 480 }}>
           <span className="l">Tìm kiếm</span>
           <span className="box input-box">
-            <span className="ms" aria-hidden="true">
+            <span className="ms muted" aria-hidden="true">
               search
             </span>
             <input
@@ -163,119 +170,142 @@ function Page() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState>Không có tài khoản khớp bộ lọc</EmptyState>
-      ) : (
-        <div className="scroller">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Tài khoản</th>
-                <th>Mã NV</th>
-                <th>Tên nhân viên</th>
-                <th>Nhóm quyền</th>
-                <th>VP</th>
-                <th>Trạng thái</th>
-                <th className="r">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((u) => (
-                <tr key={u.username} className="border-b last:border-0">
-                  <td className="py-2 pr-4 font-medium">
-                    <StaffInfoPopover staffKey={u.username} />
-                  </td>
-                  <td className="py-2 pr-4 font-mono text-xs">{u.staffCode || "—"}</td>
-                  <td className="py-2 pr-4">{u.displayName || "—"}</td>
-                  <td className="py-2 pr-4">
-                    {groups.find((g) => g.code === userRoleCode(u))?.name ?? (userRoleCode(u) || "—")}
-                  </td>
-                  <td className="py-2 pr-4">
-                    {u.office === "ALL"
-                      ? "Toàn hệ thống"
-                      : (() => {
-                          const o = officeOfUser(u, offices);
-                          const extra = (u.allowedOfficeIds ?? [])
-                            .map((id) => offices.find((x) => x.id === id))
-                            .filter((x): x is OfficeRec => !!x);
-                          return (
-                            <>
-                              {o ? officeSelectLabel(o) : u.office}
-                              {extra.length > 0 && (
-                                <span
-                                  className="ml-1.5 text-xs text-muted-foreground"
-                                  title={`Được chuyển sang: ${extra.map(officeSelectLabel).join(", ")}`}
-                                >
-                                  +{extra.length} VP
-                                </span>
-                              )}
-                            </>
-                          );
-                        })()}
-                  </td>
-                  <td className="py-2 pr-4">
-                    <Badge
-                      variant="outline"
-                      className={
-                        u.active
-                          ? "border-success/40 bg-success/15 text-success"
-                          : "border-muted text-muted-foreground"
-                      }
-                    >
-                      {u.active ? "Hoạt động" : "Khóa"}
-                    </Badge>
-                  </td>
-                  <td className="py-2 pr-4">
-                    <div className="flex flex-wrap gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setIsNew(false);
-                          setEditing(u);
-                        }}
-                      >
-                        Sửa
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          upsertUser({ ...u, active: !u.active });
-                          toast.success(u.active ? "Đã khóa" : "Đã mở khóa");
-                        }}
-                      >
-                        {u.active ? "Khóa" : "Mở"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive"
-                        disabled={session?.username?.toLowerCase() === u.username.toLowerCase()}
-                        onClick={() => {
-                          if (
-                            !confirm(
-                              `Xóa tài khoản "${u.username}"?\nThao tác không hoàn tác.`,
-                            )
-                          )
-                            return;
-                          void removeUser(u.username).then((r) => {
-                            if (!r.ok) return toast.error(r.error);
-                            toast.success("Đã xóa tài khoản");
-                          });
-                        }}
-                      >
-                        Xóa
-                      </Button>
-                    </div>
-                  </td>
+      <section className="card stack">
+        {filtered.length === 0 ? (
+          <div className="empty" style={{ padding: "48px 16px" }}>
+            <h2 className="group-title">Không có tài khoản khớp bộ lọc</h2>
+          </div>
+        ) : (
+          <div className="scroller">
+            <table className="tbl" style={{ ["--tbl-min" as string]: "880px" }}>
+              <thead>
+                <tr>
+                  <th>Tài khoản</th>
+                  <th>Mã NV</th>
+                  <th>Tên nhân viên</th>
+                  <th>Nhóm quyền</th>
+                  <th>VP</th>
+                  <th>Trạng thái</th>
+                  <th className="r">Thao tác</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {filtered.length > 0 ? <TablePagination pager={pager} /> : null}
+              </thead>
+              <tbody>
+                {pageRows.map((u) => (
+                  <tr key={u.username}>
+                    <td className="main">
+                      <StaffInfoPopover staffKey={u.username} />
+                    </td>
+                    <td className="muted">{u.staffCode || "—"}</td>
+                    <td>
+                      <span className="who">
+                        <span className="rev-ic sm" aria-hidden="true">
+                          <span className="ms fill">person</span>
+                        </span>
+                        {u.displayName || "—"}
+                      </span>
+                    </td>
+                    <td>
+                      {groups.find((g) => g.code === userRoleCode(u))?.name ??
+                        (userRoleCode(u) || "—")}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {u.office === "ALL"
+                        ? "Toàn hệ thống"
+                        : (() => {
+                            const o = officeOfUser(u, offices);
+                            const extra = (u.allowedOfficeIds ?? [])
+                              .map((id) => offices.find((x) => x.id === id))
+                              .filter((x): x is OfficeRec => !!x);
+                            return (
+                              <>
+                                {o ? officeSelectLabel(o) : u.office}
+                                {extra.length > 0 && (
+                                  <span
+                                    className="sub"
+                                    title={`Được chuyển sang: ${extra.map(officeSelectLabel).join(", ")}`}
+                                  >
+                                    +{extra.length} VP
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
+                    </td>
+                    <td>
+                      <span className={u.active ? "tag ok" : "tag warn"}>
+                        {u.active ? "Hoạt động" : "Đã khoá"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="act">
+                        <button
+                          type="button"
+                          className="no"
+                          title="Sửa"
+                          aria-label={`Sửa tài khoản ${u.username}`}
+                          onClick={() => {
+                            setIsNew(false);
+                            setEditing(u);
+                          }}
+                        >
+                          <span className="ms" aria-hidden="true">
+                            edit
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="no"
+                          title={u.active ? "Khoá" : "Mở khoá"}
+                          aria-label={`${u.active ? "Khoá" : "Mở khoá"} tài khoản ${u.username}`}
+                          onClick={() => {
+                            upsertUser({ ...u, active: !u.active });
+                            toast.success(u.active ? "Đã khóa" : "Đã mở khóa");
+                          }}
+                        >
+                          <span className="ms" aria-hidden="true">
+                            {u.active ? "lock" : "lock_open"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="no"
+                          title={isSelf(u) ? "Không xoá được tài khoản đang đăng nhập" : "Xoá"}
+                          aria-label={`Xoá tài khoản ${u.username}`}
+                          disabled={isSelf(u)}
+                          style={isSelf(u) ? { opacity: 0.38 } : undefined}
+                          onClick={() => setRemoving(u)}
+                        >
+                          <span className="ms" aria-hidden="true">
+                            delete
+                          </span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {filtered.length > 10 ? <TablePagination pager={pager} /> : null}
+      </section>
+
+      <M3Confirm
+        open={removing != null}
+        onOpenChange={(v) => !v && setRemoving(null)}
+        title={`Xoá tài khoản ${removing?.username ?? ""}?`}
+        body="Tài khoản sẽ không đăng nhập được nữa. Nếu chỉ muốn tạm ngừng, bạn nên khoá tài khoản."
+        confirmLabel="Xoá tài khoản"
+        confirmDanger
+        onConfirm={() => {
+          const u = removing;
+          if (!u) return;
+          void removeUser(u.username).then((r) => {
+            if (!r.ok) return toast.error(r.error);
+            toast.success("Đã xóa tài khoản");
+          });
+        }}
+      />
 
       {editing && (
         <UserDialog
@@ -293,7 +323,6 @@ function Page() {
           }}
         />
       )}
-    </Section>
     </div>
   );
 }
@@ -321,7 +350,8 @@ function UserDialog({
   const submit = () => {
     if (!f.username) return toast.error("Nhập tài khoản");
     if (isNew && !password) return toast.error("Nhập mật khẩu");
-    if (isNew && existing.some((x) => x.username === f.username)) return toast.error("Trùng username");
+    if (isNew && existing.some((x) => x.username === f.username))
+      return toast.error("Trùng username");
     const code = f.staffCode?.trim().toUpperCase();
     const dup = code
       ? existing.find((x) => x.username !== f.username && x.staffCode?.toUpperCase() === code)
@@ -346,126 +376,128 @@ function UserDialog({
   const homeOffice = officeOfUser(f, offices);
 
   return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isNew ? "Tạo tài khoản" : "Sửa tài khoản"}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <F label="Tài khoản *">
-            <Input
-              value={f.username}
-              autoComplete="off"
-              disabled={!isNew}
-              onChange={(e) => setF({ ...f, username: e.target.value })}
-            />
-          </F>
-          <F label={isNew ? "Mật khẩu *" : "Đổi mật khẩu (bỏ trống để giữ)"}>
-            <Input
-              type="password"
-              name="new-account-password"
-              autoComplete="new-password"
-              placeholder={isNew ? "" : "Bỏ trống để giữ mật khẩu"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </F>
-          <F label="Mã nhân viên">
-            <Input
-              value={f.staffCode ?? ""}
-              maxLength={30}
-              autoComplete="off"
-              placeholder={isNew ? "Bỏ trống = theo tài khoản" : ""}
-              onChange={(e) => setF({ ...f, staffCode: e.target.value })}
-            />
-          </F>
-          <F label="Tên nhân viên">
-            <NameInput
-              preserveCase
-              value={f.displayName ?? ""}
-              maxLength={100}
-              onChange={(displayName) => setF({ ...f, displayName })}
-            />
-          </F>
-          <F label="Nhóm quyền (chức danh)">
+    <M3Sheet open onOpenChange={(v) => !v && onClose()} variant="form-sheet">
+      <M3SheetTitle>{isNew ? "Tạo tài khoản" : "Sửa tài khoản"}</M3SheetTitle>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F label="Tài khoản *">
+          <Input
+            value={f.username}
+            autoComplete="off"
+            disabled={!isNew}
+            onChange={(e) => setF({ ...f, username: e.target.value })}
+          />
+        </F>
+        <F label={isNew ? "Mật khẩu *" : "Đổi mật khẩu (bỏ trống để giữ)"}>
+          <Input
+            type="password"
+            name="new-account-password"
+            autoComplete="new-password"
+            placeholder={isNew ? "" : "Bỏ trống để giữ mật khẩu"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </F>
+        <F label="Mã nhân viên">
+          <Input
+            value={f.staffCode ?? ""}
+            maxLength={30}
+            autoComplete="off"
+            placeholder={isNew ? "Bỏ trống = theo tài khoản" : ""}
+            onChange={(e) => setF({ ...f, staffCode: e.target.value })}
+          />
+        </F>
+        <F label="Tên nhân viên">
+          <NameInput
+            preserveCase
+            value={f.displayName ?? ""}
+            maxLength={100}
+            onChange={(displayName) => setF({ ...f, displayName })}
+          />
+        </F>
+        <F label="Nhóm quyền (chức danh)">
+          <SearchableSelect
+            value={f.roleGroup ?? f.role}
+            onValueChange={(v) => {
+              const g = groups.find((x) => x.code === v);
+              setF({
+                ...f,
+                roleGroup: v,
+                role: (g?.baseRoleCode as Role) ?? (v as Role) ?? f.role,
+              });
+            }}
+            options={
+              groups.length
+                ? groups.map((g) => ({
+                    value: g.code,
+                    label: `${g.name} (${g.code})`,
+                    keywords: g.code,
+                  }))
+                : ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))
+            }
+          />
+        </F>
+        <F label="Trạng thái">
+          <SearchableSelect
+            value={f.active ? "1" : "0"}
+            onValueChange={(v) => setF({ ...f, active: v === "1" })}
+            options={[
+              { value: "1", label: "Hoạt động" },
+              { value: "0", label: "Khóa" },
+            ]}
+          />
+        </F>
+        <div className="sm:col-span-2">
+          <F label="VP đang dùng">
             <SearchableSelect
-              value={f.roleGroup ?? f.role}
+              value={(() => {
+                if (f.office === "ALL") return "ALL";
+                return homeOffice ? officeOptionValue(homeOffice) : f.office;
+              })()}
               onValueChange={(v) => {
-                const g = groups.find((x) => x.code === v);
+                if (v === "ALL") {
+                  setF({ ...f, office: "ALL", officeId: undefined, allowedOfficeIds: [] });
+                  return;
+                }
+                const o = findOfficeByToken(v, offices);
+                const nextHomeId = o?.id;
                 setF({
                   ...f,
-                  roleGroup: v,
-                  role: (g?.baseRoleCode as Role) ?? (v as Role) ?? f.role,
+                  office: o?.code ?? v,
+                  officeId: nextHomeId,
+                  allowedOfficeIds: (f.allowedOfficeIds ?? []).filter((id) => id !== nextHomeId),
                 });
               }}
-              options={
-                groups.length
-                  ? groups.map((g) => ({ value: g.code, label: `${g.name} (${g.code})`, keywords: g.code }))
-                  : ALL_ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))
-              }
-            />
-          </F>
-          <F label="Trạng thái">
-            <SearchableSelect
-              value={f.active ? "1" : "0"}
-              onValueChange={(v) => setF({ ...f, active: v === "1" })}
               options={[
-                { value: "1", label: "Hoạt động" },
-                { value: "0", label: "Khóa" },
+                { value: "ALL", label: "Toàn hệ thống" },
+                ...offices.map(officeSelectOption),
               ]}
             />
           </F>
-          <div className="sm:col-span-2">
-            <F label="VP đang dùng">
-              <SearchableSelect
-                value={(() => {
-                  if (f.office === "ALL") return "ALL";
-                  return homeOffice ? officeOptionValue(homeOffice) : f.office;
-                })()}
-                onValueChange={(v) => {
-                  if (v === "ALL") {
-                    setF({ ...f, office: "ALL", officeId: undefined, allowedOfficeIds: [] });
-                    return;
-                  }
-                  const o = findOfficeByToken(v, offices);
-                  const nextHomeId = o?.id;
-                  setF({
-                    ...f,
-                    office: o?.code ?? v,
-                    officeId: nextHomeId,
-                    allowedOfficeIds: (f.allowedOfficeIds ?? []).filter((id) => id !== nextHomeId),
-                  });
-                }}
-                options={[
-                  { value: "ALL", label: "Toàn hệ thống" },
-                  ...offices.map(officeSelectOption),
-                ]}
-              />
-            </F>
-          </div>
-          {f.office !== "ALL" ? (
-            <div className="sm:col-span-2">
-              <AllowedOfficesField
-                offices={offices}
-                homeId={homeOffice?.id}
-                value={f.allowedOfficeIds ?? []}
-                onChange={(ids) => setF({ ...f, allowedOfficeIds: ids })}
-              />
-            </div>
-          ) : (
-            <p className="sm:col-span-2 text-xs text-muted-foreground">
-              Tài khoản toàn hệ thống chọn VP xem ở đầu trang — không cần gán VP chuyển thêm.
-            </p>
-          )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button onClick={submit}>{isNew ? "Tạo" : "Lưu"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {f.office !== "ALL" ? (
+          <div className="sm:col-span-2">
+            <AllowedOfficesField
+              offices={offices}
+              homeId={homeOffice?.id}
+              value={f.allowedOfficeIds ?? []}
+              onChange={(ids) => setF({ ...f, allowedOfficeIds: ids })}
+            />
+          </div>
+        ) : (
+          <p className="lab muted sm:col-span-2" style={{ margin: 0 }}>
+            Tài khoản toàn hệ thống chọn VP xem ở đầu trang — không cần gán VP chuyển thêm.
+          </p>
+        )}
+      </div>
+      <M3ConfirmActions>
+        <button type="button" className="btn ghost" onClick={onClose}>
+          Đóng
+        </button>
+        <button type="button" className="btn" onClick={submit}>
+          {isNew ? "Tạo" : "Lưu"}
+        </button>
+      </M3ConfirmActions>
+    </M3Sheet>
   );
 }
 
@@ -484,13 +516,15 @@ function AllowedOfficesField({
   const pickedOffices = picked
     .map((id) => offices.find((o) => o.id === id))
     .filter((o): o is OfficeRec => !!o);
-  const candidates = offices.filter((o) => o.id != null && o.id !== homeId && !picked.includes(o.id));
+  const candidates = offices.filter(
+    (o) => o.id != null && o.id !== homeId && !picked.includes(o.id),
+  );
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">VP được chuyển sang thêm</Label>
-      <p className="text-xs text-muted-foreground">
-        Nhân viên tự chuyển giữa VP ở trên và các VP này. Mỗi lúc chỉ làm việc ở một VP, mọi danh sách,
-        quét và thu tiền tính theo VP đang chọn.
+    <div className="field cfg-field">
+      <span className="l">VP được chuyển sang thêm</span>
+      <p className="lab muted" style={{ margin: 0 }}>
+        Nhân viên tự chuyển giữa VP ở trên và các VP này. Mỗi lúc chỉ làm việc ở một VP, mọi danh
+        sách, quét và thu tiền tính theo VP đang chọn.
       </p>
       {pickedOffices.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
@@ -526,8 +560,8 @@ function AllowedOfficesField({
 
 function F({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+    <div className="field cfg-field">
+      <span className="l">{label}</span>
       {children}
     </div>
   );

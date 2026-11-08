@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,12 @@ export function OfficeWifiDialog({
   };
 
   const remove = async (row: OfficeNetwork) => {
-    if (!confirm(`Xóa IP ${row.ipAddress}? Nhân viên sẽ không chấm công được từ mạng này nữa.`)) return;
+    if (
+      !(await askConfirm(
+        `Xóa IP ${row.ipAddress}? Nhân viên sẽ không chấm công được từ mạng này nữa.`,
+      ))
+    )
+      return;
     try {
       await deleteOfficeNetwork(officeId, row.id);
       setRows((prev) => prev.filter((r) => r.id !== row.id));
@@ -89,9 +95,9 @@ export function OfficeWifiDialog({
           <DialogTitle>Wifi chấm công — {officeName}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Nhân viên chỉ chấm công được khi điện thoại dùng wifi có IP công cộng nằm trong danh sách. Mở trang này trên
-          máy đang dùng wifi văn phòng rồi bấm <b>Lấy IP máy này</b>. Nên dùng IP tĩnh từ nhà mạng — IP động đổi thì
-          phải cập nhật lại.
+          Nhân viên chỉ chấm công được khi điện thoại dùng wifi có IP công cộng nằm trong danh sách.
+          Mở trang này trên máy đang dùng wifi văn phòng rồi bấm <b>Lấy IP máy này</b>. Nên dùng IP
+          tĩnh từ nhà mạng — IP động đổi thì phải cập nhật lại.
         </p>
 
         <div className="mt-2 rounded-md border">
@@ -111,7 +117,12 @@ export function OfficeWifiDialog({
                   </div>
                 </div>
                 {writable && (
-                  <Button size="icon" variant="ghost" onClick={() => void remove(r)} aria-label="Xóa IP">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => void remove(r)}
+                    aria-label="Xóa IP"
+                  >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 )}
@@ -125,7 +136,11 @@ export function OfficeWifiDialog({
             <div className="grid gap-1.5">
               <Label>IP công cộng</Label>
               <div className="flex gap-2">
-                <Input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="VD: 113.160.12.34" />
+                <Input
+                  value={ip}
+                  onChange={(e) => setIp(e.target.value)}
+                  placeholder="VD: 113.160.12.34"
+                />
                 <Button type="button" variant="outline" onClick={() => void fillMyIp()}>
                   Lấy IP máy này
                 </Button>
@@ -133,7 +148,11 @@ export function OfficeWifiDialog({
             </div>
             <div className="grid gap-1.5">
               <Label>Ghi chú</Label>
-              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="VD: Wifi tầng 1 - Viettel" />
+              <Input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="VD: Wifi tầng 1 - Viettel"
+              />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={onClose}>

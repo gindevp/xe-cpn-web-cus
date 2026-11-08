@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { askConfirm } from "@/components/m3/askConfirm";
 import { useEffect, useState } from "react";
 import { changeActiveOffice, useAuth } from "@/lib/auth";
 import { useAllowedOffices } from "@/lib/allowed-offices";
@@ -67,14 +68,16 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
     const id = Number(token.replace(/^id:/, ""));
     if (!Number.isFinite(id) || id === activeOfficeId) return;
     if (pendingOffline > 0) {
-      toast.error(`Còn ${pendingOffline} thao tác chưa gửi lên máy chủ — chờ có mạng rồi hãy chuyển VP`);
+      toast.error(
+        `Còn ${pendingOffline} thao tác chưa gửi lên máy chủ — chờ có mạng rồi hãy chuyển VP`,
+      );
       return;
     }
     const target = allowed.find((o) => o.id === id);
     if (
-      !confirm(
+      !(await askConfirm(
         `Chuyển sang làm việc tại ${target?.name ?? "VP này"}?\nTrang sẽ tải lại, chỉ hiện đơn của VP này.`,
-      )
+      ))
     ) {
       return;
     }
@@ -166,7 +169,11 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="m3-user-chip" title={`${session.username} · ${roleLabel}`}>
+            <button
+              type="button"
+              className="m3-user-chip"
+              title={`${session.username} · ${roleLabel}`}
+            >
               <div className="m3-user-text">
                 <div className="m3-user-name">{session.username}</div>
                 <div className="muted m3-user-role">{roleLabel}</div>
