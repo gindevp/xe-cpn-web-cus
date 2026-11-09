@@ -51,6 +51,7 @@ import {
   dimsLabel,
   displayOrderNote,
   driverSignsForEvents,
+  effectiveReturnContact,
   goodsLabelOf,
   type PackageDims,
   packageCode,
@@ -333,9 +334,15 @@ function formFromOrder(o: OrderX, offices: OfficeRec[] = []): EditForm {
     address: o.address ?? "",
     homePickup: Boolean(o.homePickup),
     homeDelivery: Boolean(o.homeDelivery),
-    returnName: meta.returnName || o.senderName || "",
-    returnPhone: meta.returnPhone || o.senderPhone || "",
-    returnAddress: meta.returnAddress || o.pickupAddress || "",
+    // Không mặc định copy người gửi — tránh sửa đơn thường lại ghi [RETURN] → hiện «Người nhận hàng hoàn».
+    ...(() => {
+      const ret = effectiveReturnContact(meta, o);
+      return {
+        returnName: ret.returnName,
+        returnPhone: ret.returnPhone,
+        returnAddress: ret.returnAddress,
+      };
+    })(),
     declaredValueDirty: valuesKnown,
     packages: pkgs.map((p) => ({
       seq: p.seq,
@@ -744,7 +751,10 @@ export function OrderHistoryDialog({
     () => (o ? moneyOf(o, editing ? form : null, previewDelivery) : null),
     [o, editing, form, previewDelivery],
   );
-  const returnMeta = useMemo(() => (o ? parseOrderNoteMeta(o.note) : null), [o]);
+  const returnMeta = useMemo(() => {
+    if (!o) return null;
+    return effectiveReturnContact(parseOrderNoteMeta(o.note), o);
+  }, [o]);
   const autoCalls = useLatestAutoCalls(open ? o?.code : null, o?.senderPhone, o?.receiverPhone);
 
   const headerMeta = o
@@ -821,16 +831,22 @@ export function OrderHistoryDialog({
         : (o.weightKg ?? 0);
       const quantity = Math.max(1, pkgsToSave.length);
       const prevMeta = parseOrderNoteMeta(o.note);
+      const prevReturn = effectiveReturnContact(prevMeta, o);
       const noteBody = fields.note ? form.note.trim() || prevMeta.body : prevMeta.body;
       const returnName = fields.returnContact
         ? toUpperName(form.returnName)
-        : prevMeta.returnName;
-      const returnPhone = fields.returnContact ? form.returnPhone.trim() : prevMeta.returnPhone;
+        : prevReturn.returnName;
+      const returnPhone = fields.returnContact ? form.returnPhone.trim() : prevReturn.returnPhone;
       const returnAddress = fields.returnContact
         ? form.returnAddress.trim()
-        : prevMeta.returnAddress;
+        : prevReturn.returnAddress;
+      const stripSpuriousReturn =
+        !!(prevMeta.returnName || prevMeta.returnPhone || prevMeta.returnAddress) &&
+        !returnName &&
+        !returnPhone &&
+        !returnAddress;
       let note = o.note;
-      if (pkgsEdited || fields.note || fields.returnContact) {
+      if (pkgsEdited || fields.note || fields.returnContact || stripSpuriousReturn) {
         note = buildOrderNote({
           ...prevMeta,
           goodsKinds: pkgsEdited ? pkgsToSave.map((p) => p.kind) : prevMeta.goodsKinds,
@@ -867,7 +883,7 @@ export function OrderHistoryDialog({
       const receiverPhone = fields.receiver ? form.receiverPhone.trim() : o.receiverPhone;
 
       const patch: Partial<OrderX> = {};
-      if (pkgsEdited || fields.note || fields.returnContact) {
+      if (pkgsEdited || fields.note || fields.returnContact || stripSpuriousReturn) {
         patch.note = note;
       }
       if (pkgsEdited) {

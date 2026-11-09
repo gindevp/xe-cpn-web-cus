@@ -219,6 +219,55 @@ export function parseOrderNoteMeta(note?: string): OrderNoteMeta {
   };
 }
 
+type ReturnContactOrder = {
+  senderName?: string | null;
+  senderPhone?: string | null;
+  pickupAddress?: string | null;
+  status?: string | null;
+};
+
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
+}
+
+/**
+ * Tag [RETURN] bị ghi nhầm khi sửa đơn thường: form cũ mặc định copy người gửi / địa chỉ lấy.
+ * Đơn đang/đã hoàn thì giữ nguyên (có thể nhận hoàn đúng là người gửi).
+ */
+export function isSpuriousReturnContact(
+  meta: Pick<OrderNoteMeta, "returnName" | "returnPhone" | "returnAddress">,
+  o: ReturnContactOrder,
+): boolean {
+  const rn = (meta.returnName ?? "").trim();
+  const rp = (meta.returnPhone ?? "").trim();
+  const ra = (meta.returnAddress ?? "").trim();
+  if (!rn && !rp && !ra) return false;
+  const st = String(o.status ?? "").toUpperCase();
+  if (st === "RETURNING" || st === "RETURNED") return false;
+  const senderName = (o.senderName ?? "").trim().toUpperCase();
+  const senderPhone = digitsOnly(o.senderPhone ?? "");
+  const pickup = (o.pickupAddress ?? "").trim().toUpperCase();
+  const sameName = !!rn && rn.toUpperCase() === senderName;
+  const samePhone = !!digitsOnly(rp) && digitsOnly(rp) === senderPhone;
+  const sameAddr = !ra || ra.toUpperCase() === pickup;
+  return sameName && samePhone && sameAddr;
+}
+
+/** Liên hệ hoàn hiệu lực để hiện / lưu — bỏ bản copy người gửi do sửa đơn. */
+export function effectiveReturnContact(
+  meta: Pick<OrderNoteMeta, "returnName" | "returnPhone" | "returnAddress">,
+  o: ReturnContactOrder,
+): Pick<OrderNoteMeta, "returnName" | "returnPhone" | "returnAddress"> {
+  if (isSpuriousReturnContact(meta, o)) {
+    return { returnName: "", returnPhone: "", returnAddress: "" };
+  }
+  return {
+    returnName: (meta.returnName ?? "").trim(),
+    returnPhone: (meta.returnPhone ?? "").trim(),
+    returnAddress: (meta.returnAddress ?? "").trim(),
+  };
+}
+
 export function buildOrderNote(meta: {
   goodsKinds?: string[];
   goodsName?: string;
