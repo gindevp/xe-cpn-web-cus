@@ -7,10 +7,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { DialogDescription } from "@/components/ui/dialog";
 import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
-import { StaffInfoPopover } from "@/components/StaffInfoPopover";
+import { OrderEventLog } from "@/components/OrderEventLog";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ChangePaymentTermDialog, canChangePayTerm } from "@/components/ChangePaymentTermDialog";
 import { ChangeDestOfficeDialog, canRerouteDest } from "@/components/ChangeDestOfficeDialog";
@@ -22,7 +21,6 @@ import {
   COLLECT_FORMS,
   OTHER_GOODS,
   isOtherGoodsGroup,
-  formatDateTime,
   formatVND,
   officeName,
   orderReceiverOffice,
@@ -38,11 +36,9 @@ import { isApiEnabled } from "@/lib/api/client";
 import { getOrder } from "@/lib/api/domain-api";
 import {
   customerCollectDue,
-  orderEventContent,
   isVisibleOrderEvent,
   senderFareTreatedCollected,
 } from "@/lib/finance-debt";
-import { GoodsPhotoButton } from "@/components/GoodsPhotoButton";
 import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
 import { TransferPaidBadge } from "@/components/TransferPaidBadge";
 import { canStaffSenderTransferQr } from "@/components/StaffSenderTransferQrAction";
@@ -161,37 +157,7 @@ export function OrderCodeLink({
   );
 }
 
-type OrderEvent = { at: string; by?: string; action: string; detail?: string };
-
-/** Detail BE: `mã phiếu · số tiền` — mã phiếu mở Danh sách phiếu thu lọc sẵn phiếu đó. */
-function ReceiptEventContent({
-  detail,
-  onOpen,
-  label = "Lập phiếu thu",
-}: {
-  detail: string;
-  onOpen: () => void;
-  label?: string;
-}) {
-  const navigate = useNavigate();
-  const [receiptCode, ...rest] = detail.split(" · ");
-  return (
-    <>
-      {label}{" "}
-      <button
-        type="button"
-        className="font-semibold text-primary underline-offset-2 hover:underline"
-        onClick={() => {
-          onOpen();
-          void navigate({ to: "/danh-sach-phieu-thu", search: { code: receiptCode.trim() } });
-        }}
-      >
-        {receiptCode.trim()}
-      </button>
-      {rest.length ? ` · ${rest.join(" · ")}` : null}
-    </>
-  );
-}
+type OrderEvent = { at: string; by?: string; byStaffCode?: string; byName?: string; action: string; detail?: string };
 
 type EditPkg = {
   seq: number;
@@ -233,7 +199,7 @@ type EditForm = {
 };
 
 /** Cước kiện: giống EditPackageDialog — giá SP × SL, không thì theo cân/tuyến. */
-/** "tài khoản - mã NV - họ tên"; sự kiện vừa thao tác (chưa đồng bộ) tra theo danh sách tài khoản. */
+/** "tài khoản · mã NV · họ tên"; sự kiện vừa thao tác (chưa đồng bộ) tra theo danh sách tài khoản. */
 function actorLabel(
   e: { by?: string; byStaffCode?: string; byName?: string },
   users: { username: string; staffCode?: string; displayName?: string }[],
@@ -244,7 +210,7 @@ function actorLabel(
   const code = (e.byStaffCode ?? u?.staffCode ?? "").trim();
   const rawName = (e.byName ?? u?.displayName ?? "").trim();
   const name = rawName.toLowerCase() === login.toLowerCase() ? "" : rawName;
-  return [login, code, name].filter(Boolean).join(" - ");
+  return [login, code, name].filter(Boolean).join(" · ");
 }
 
 function computePackageFare(opts: {
@@ -1479,78 +1445,13 @@ export function OrderHistoryDialog({
                 ))}
               </section>
 
-              <section className="order-box stack">
-                <SecTitle icon="history">Lịch sử tác động</SecTitle>
-                {shownEvents.length === 0 ? (
-                  <p className="py-3 text-center text-sm text-muted-foreground">
-                    Chưa có lịch sử tác động
-                  </p>
-                ) : (
-                  <ol className="relative ml-1.5 space-y-0 border-l border-[#D8DEE8] pl-5">
-                    {(() => {
-                      const visible = shownEvents;
-                      const signs = driverSignsForEvents(order, visible);
-                      return visible.map((e, i, list) => {
-                      const last = i === list.length - 1;
-                      return (
-                        <li key={`${e.at}-${e.action}-${i}`} className="relative pb-3.5 last:pb-0">
-                          <span
-                            className={cn(
-                              "absolute -left-[1.35rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 bg-white",
-                              last ? "border-primary bg-primary" : "border-[#B8C2D1]",
-                            )}
-                          />
-                          <div className="text-sm font-medium text-foreground">
-                            {e.action === "RECEIPT_CREATE" && e.detail ? (
-                              <ReceiptEventContent
-                                detail={e.detail}
-                                onOpen={() => onOpenChange(false)}
-                              />
-                            ) : e.action === "RECEIPT_CONFIRM" && e.detail ? (
-                              <ReceiptEventContent
-                                detail={e.detail}
-                                onOpen={() => onOpenChange(false)}
-                                label="Xác nhận đã thu"
-                              />
-                            ) : (
-                              orderEventContent(e.action, e.detail)
-                            )}
-                          </div>
-                          {e.action === "GOODS_PHOTO" && order ? (
-                            <GoodsPhotoButton orderCode={order.code} className="mt-1.5" />
-                          ) : null}
-                          {(() => {
-                            const sign = signs[i];
-                            if (!sign) return null;
-                            return (
-                              <div className="mt-2 overflow-hidden rounded-md border border-[#E5EAF2] bg-[#FAFBFD] p-2">
-                                <img
-                                  src={sign}
-                                  alt="Chữ ký tài xế"
-                                  className="mx-auto h-16 w-auto max-w-full object-contain"
-                                />
-                              </div>
-                            );
-                          })()}
-                          <div className="mt-0.5 text-xs text-muted-foreground">
-                            {formatDateTime(e.at)}
-                            {(() => {
-                              const who = actorLabel(e, users);
-                              return who ? (
-                                <>
-                                  {" · "}
-                                  <StaffInfoPopover staffKey={e.by}>{who}</StaffInfoPopover>
-                                </>
-                              ) : null;
-                            })()}
-                          </div>
-                        </li>
-                      );
-                    });
-                    })()}
-                  </ol>
-                )}
-              </section>
+              <OrderEventLog
+                events={shownEvents}
+                signs={driverSignsForEvents(order, shownEvents)}
+                orderCode={order?.code}
+                actorOf={(e) => actorLabel(e, users)}
+                onLeave={() => onOpenChange(false)}
+              />
             </div>
 
             {/* RIGHT */}
@@ -1573,7 +1474,15 @@ export function OrderHistoryDialog({
                 onOpenChange={setPayTermOpen}
                 onChanged={() => void reload(o.code)}
               />
-              <PrintLabelDialog code={o.code} batchPackages open={printOpen} onOpenChange={setPrintOpen} />
+              <PrintLabelDialog
+                code={o.code}
+                batchPackages
+                open={printOpen}
+                onOpenChange={(v) => {
+                  setPrintOpen(v);
+                  if (!v) void reload(o.code);
+                }}
+              />
               <OrderTransferQrDialog
                 open={transferQrOpen}
                 orderCode={o.code}

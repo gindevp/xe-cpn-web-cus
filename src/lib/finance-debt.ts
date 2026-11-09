@@ -387,7 +387,8 @@ function translateDetail(detail: string): string {
     .trim();
 }
 
-export function orderEventContent(action?: string, detail?: string): string {
+/** Tên thao tác + nội dung tách riêng; `null` nếu dòng kỹ thuật cần ẩn. */
+export function orderEventParts(action?: string, detail?: string): { title: string; detail: string } | null {
   const key = String(action ?? "").trim().toUpperCase();
   const rawDetail = (detail ?? "").trim();
   // PATCH chỉ ghi chú kỹ thuật (kiện lên xe) — không hiện như "điều phối sửa đơn".
@@ -397,7 +398,7 @@ export function orderEventContent(action?: string, detail?: string): string {
       /^order fields updated$/i.test(rawDetail) ||
       /^cập nhật thông tin đơn$/i.test(rawDetail))
   ) {
-    return "";
+    return null;
   }
   let base = EVENT_LABELS[key];
   if (!base) {
@@ -411,12 +412,18 @@ export function orderEventContent(action?: string, detail?: string): string {
     }
   }
   const d = translateDetail(detail ?? "");
-  if (!d) return base;
-  if (d.toLowerCase() === base.toLowerCase()) return base;
-  if (key === "ASSIGN_TRIP" || key === "SCAN_OUT" || key === "SCAN_REMOVE" || key === "HANDOVER" || key === "KY_BAN_GIAO_TAI_XE" || key === "HANDOVER_DRIVER") {
-    return `${base} ${d}`.trim();
-  }
-  return `${base} · ${d}`;
+  if (!d || d.toLowerCase() === base.toLowerCase()) return { title: base, detail: "" };
+  return { title: base, detail: d };
+}
+
+const INLINE_DETAIL_ACTIONS = new Set(["ASSIGN_TRIP", "SCAN_OUT", "SCAN_REMOVE", "HANDOVER", "KY_BAN_GIAO_TAI_XE", "HANDOVER_DRIVER"]);
+
+export function orderEventContent(action?: string, detail?: string): string {
+  const parts = orderEventParts(action, detail);
+  if (!parts) return "";
+  if (!parts.detail) return parts.title;
+  const key = String(action ?? "").trim().toUpperCase();
+  return INLINE_DETAIL_ACTIONS.has(key) ? `${parts.title} ${parts.detail}`.trim() : `${parts.title} · ${parts.detail}`;
 }
 
 /** Ẩn dòng lịch sử kỹ thuật / rỗng (vd. PATCH mặc định lúc quét kiện). */
