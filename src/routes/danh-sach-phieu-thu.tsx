@@ -170,21 +170,11 @@ function ConfirmCell({
 
   if (confirmed) {
     return (
-      <div className="flex min-w-[200px] flex-col gap-2">
+      <div className="flex min-w-[140px] flex-col gap-2">
         <span className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-emerald-800">
           <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
           Đã thu
         </span>
-        <div className="text-[11px] leading-snug text-muted-foreground">
-          {receipt.confirmedBy ?? "—"}
-          <span className="mx-1 opacity-50">·</span>
-          {receipt.confirmedAt ? fmtDateTime(receipt.confirmedAt) : "—"}
-        </div>
-        {receipt.confirmNote ? (
-          <div className="max-w-[260px] whitespace-pre-wrap break-words rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] leading-snug text-amber-900">
-            {receipt.confirmNote}
-          </div>
-        ) : null}
         {canConfirm && undoOk ? (
           <Button
             type="button"
@@ -743,7 +733,7 @@ function Page() {
         ) : (
           <>
             <div className="scroller">
-              <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1120px" }}>
+              <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1380px" }}>
                 <thead>
                   <tr>
                     <th>Mã phiếu thu</th>
@@ -755,6 +745,8 @@ function Page() {
                     <th className="r">Tổng tiền</th>
                     <th>Ảnh giao dịch</th>
                     <th>Trạng thái thu</th>
+                    <th className="r">Đã thu</th>
+                    <th>Mã giao dịch</th>
                     {isAdmin ? <th className="r">Thao tác</th> : null}
                   </tr>
                 </thead>
@@ -837,6 +829,46 @@ function Page() {
                               QR thanh toán
                             </button>
                           ) : null}
+                        </td>
+                        <td className="r">
+                          {r.confirmedAt ? (
+                            <div className="min-w-[120px]">
+                              <div className="main">{formatVND(r.total)}</div>
+                              <div className="sub" style={{ whiteSpace: "nowrap" }}>
+                                {r.confirmedBy ?? "—"}
+                                <span style={{ margin: "0 4px", opacity: 0.5 }}>·</span>
+                                {fmtDateTime(r.confirmedAt)}
+                              </div>
+                              {r.confirmNote ? (
+                                <div
+                                  className="sub"
+                                  style={{
+                                    marginTop: 4,
+                                    maxWidth: 220,
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {r.confirmNote}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {(() => {
+                            const txn =
+                              r.paidTransId?.trim() || paidTransIdFromNote(r.confirmNote) || "";
+                            return txn ? (
+                              <span className="num" style={{ wordBreak: "break-all" }}>
+                                {txn}
+                              </span>
+                            ) : (
+                              <span className="muted">—</span>
+                            );
+                          })()}
                         </td>
                         {isAdmin ? (
                           <td>
