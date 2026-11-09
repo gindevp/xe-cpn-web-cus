@@ -14,9 +14,9 @@ jobs:
     if: github.repository_owner == 'gindevp'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -69,13 +69,24 @@ jobs:
             fi
             mv /opt/cpn-web-cus/.output.next /opt/cpn-web-cus/.output
             docker rm -f cpn-web-cus >/dev/null 2>&1 || true
+            # Cùng major Node với CI build (22); tránh image 20 lệch runtime.
             docker run -d --name cpn-web-cus --restart unless-stopped --memory 512m \
               -p 8089:3000 \
               -v /opt/cpn-web-cus/.output:/app \
               -w /app \
               -e PORT=3000 \
               -e HOST=0.0.0.0 \
-              node:20-bookworm-slim \
+              node:22-bookworm-slim \
               node server/index.mjs
-            sleep 3
-            curl -fsS -o /dev/null http://127.0.0.1:8089/ || { docker logs --tail 80 cpn-web-cus; exit 1; }
+            ok=0
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              sleep 2
+              if curl -fsS -o /dev/null http://127.0.0.1:8089/; then
+                ok=1
+                break
+              fi
+            done
+            if [ "$ok" != 1 ]; then
+              docker logs --tail 120 cpn-web-cus || true
+              exit 1
+            fi
