@@ -216,6 +216,7 @@ function Page() {
         "TK ảo",
         "Ngân hàng",
         "Mã HĐ OnePay",
+        "note",
       ];
       const data = rows.map((r, i) => [
         i + 1,
@@ -232,6 +233,7 @@ function Page() {
         r.accountNumber ?? "",
         r.bankName ?? "",
         r.invoiceReference ?? "",
+        r.note ?? "",
       ]);
       data.push([
         "",
@@ -242,6 +244,7 @@ function Page() {
         "",
         "",
         Number(res.totalAmount ?? 0),
+        "",
         "",
         "",
         "",

@@ -1680,6 +1680,8 @@ export type CollectionTransactionRow = {
    * Kênh nộp tiền: `Nhân viên chuyển · mã NV · tên VP` hoặc `Khách chuyển · SĐT`.
    */
   payChannel?: string | null;
+  /** Note COD: `mãVP phíCOD tiềnCOD mãĐơn` (nhiều đơn cách nhau bằng dấu phẩy). */
+  note?: string | null;
   payerName?: string | null;
   accountNumber?: string | null;
   bankName?: string | null;
