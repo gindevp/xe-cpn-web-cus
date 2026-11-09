@@ -1694,10 +1694,10 @@ export type CollectionTransactionRow = {
   purpose?: string | null;
   /** Nội dung CK gửi OnePay khi tạo VA. */
   description?: string | null;
-  /**
-   * Kênh nộp tiền: `Nhân viên chuyển · mã NV · tên VP` hoặc `Khách chuyển · SĐT`.
-   */
-  payChannel?: string | null;
+  /** Mã NV (phiếu thu) hoặc SĐT khách (thu cước đơn). */
+  payerRef?: string | null;
+  /** Văn phòng nộp: VP phiếu hoặc VP gửi (doanh thu). */
+  payOffice?: string | null;
   /** Note COD: `mãVP phíCOD tiềnCOD mãĐơn` (nhiều đơn cách nhau bằng dấu phẩy). */
   note?: string | null;
   payerName?: string | null;

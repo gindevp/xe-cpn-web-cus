@@ -89,36 +89,6 @@ function providerTagClass(provider: string) {
   return "tag";
 }
 
-/** Tách «Nhân viên chuyển / Khách chuyển» ra khỏi chi tiết (mã NV · VP / SĐT). */
-function splitPayChannel(raw?: string | null): { kind: string; detail: string } | null {
-  const s = raw?.trim();
-  if (!s) return null;
-  const sep = " · ";
-  const i = s.indexOf(sep);
-  if (i > 0) {
-    return { kind: s.slice(0, i), detail: s.slice(i + sep.length) };
-  }
-  return { kind: s, detail: "" };
-}
-
-function PayChannelCell({ value }: { value?: string | null }) {
-  const parts = splitPayChannel(value);
-  if (!parts) return <span className="muted">—</span>;
-  const staff = parts.kind.toLowerCase().includes("nhân viên");
-  const customer = parts.kind.toLowerCase().includes("khách");
-  const tagClass = staff ? "tag ok" : customer ? "tag info" : "tag";
-  return (
-    <div style={{ minWidth: 140 }}>
-      <span className={tagClass}>{parts.kind}</span>
-      {parts.detail ? (
-        <div className="muted" style={{ marginTop: 4, whiteSpace: "normal", wordBreak: "break-word" }}>
-          {parts.detail}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /** Minh họa ví tiền — design GiaoDichThuHo `.rev-ill`. */
 function WalletIll() {
   return (
@@ -206,7 +176,8 @@ function Page() {
         "Thu hộ",
         "Loại",
         "Mã đơn / phiếu",
-        "Kênh nộp tiền",
+        "Mã NV / SĐT",
+        "Văn phòng nộp",
         "Nội dung CK",
         "Mã GD",
         "Số tiền",
@@ -223,7 +194,8 @@ function Page() {
         r.providerLabel || r.provider,
         r.targetTypeLabel || r.targetType,
         r.refCode ?? "",
-        r.payChannel ?? "",
+        r.payerRef ?? "",
+        r.payOffice ?? "",
         r.description ?? "",
         r.transId,
         Number(r.amount ?? 0),
@@ -238,6 +210,7 @@ function Page() {
       data.push([
         "",
         "Tổng",
+        "",
         "",
         "",
         "",
@@ -402,7 +375,8 @@ function Page() {
                     <th>Thu hộ</th>
                     <th>Loại</th>
                     <th>Mã đơn / phiếu</th>
-                    <th>Kênh nộp tiền</th>
+                    <th>Mã NV / SĐT</th>
+                    <th>Văn phòng nộp</th>
                     <th>Nội dung CK</th>
                     <th>Mã GD</th>
                     <th className="r">Số tiền</th>
@@ -436,8 +410,11 @@ function Page() {
                           "—"
                         )}
                       </td>
-                      <td>
-                        <PayChannelCell value={r.payChannel} />
+                      <td className="num" style={{ whiteSpace: "nowrap" }}>
+                        {r.payerRef?.trim() || "—"}
+                      </td>
+                      <td style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
+                        {r.payOffice?.trim() || "—"}
                       </td>
                       <td style={{ minWidth: 160, maxWidth: 280, whiteSpace: "normal", wordBreak: "break-word" }}>
                         {r.description?.trim() || "—"}
