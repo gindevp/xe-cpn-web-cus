@@ -80,7 +80,6 @@ import {
   orderEditableFields,
   canEditReceiverOffice,
 } from "@/lib/order-edit-policy";
-import { isPendingHandover } from "@/lib/pending-handover";
 import { NameInput } from "@/components/NameInput";
 import { PhoneInput } from "@/components/PhoneInput";
 import { MoneyInput } from "@/components/MoneyInput";
@@ -808,7 +807,8 @@ export function OrderHistoryDialog({
       const goodsFare = pkgsToSave.reduce((s, p) => s + (Number(p.fare) || 0), 0);
       const pickup = fields.homePickup && !form.homePickup ? 0 : (o.pickupFee ?? 0);
       const delivery = previewDelivery != null ? previewDelivery : (o.deliveryFee ?? 0);
-      const canEditPkgValue = isPendingHandover(o);
+      // Cùng lúc được sửa kiện (Chờ bàn giao / nhập kho gửi / …) — không chỉ lúc chờ bàn giao.
+      const canEditPkgValue = fields.packages;
       const declared =
         pkgsEdited && canEditPkgValue && form.declaredValueDirty
           ? calcDeclaredValueFee(pkgsToSave.reduce((s, p) => s + (Number(p.value) || 0), 0))
@@ -999,7 +999,8 @@ export function OrderHistoryDialog({
   const removePkg = (seq: number) =>
     setPkgList((list) => (list.length <= 1 ? list : list.filter((p) => p.seq !== seq)));
 
-  const canEditPkgValue = !!o && isPendingHandover(o);
+  /** Sửa giá trị hàng / phí khai giá khi ma trận cho sửa kiện (không khóa sau nhập kho gửi). */
+  const canEditPkgValue = !!o && editFields.packages;
 
   const patchPkg = (seq: number, patch: Partial<EditPkg>) => {
     setForm((prev) => {
@@ -1463,7 +1464,7 @@ export function OrderHistoryDialog({
                         <ViewValue value={formatVND(p.fare)} />
                       </FieldShell>
                       {editing && editFields.packages && canEditPkgValue ? (
-                        <FieldShell label="Giá trị hàng">
+                        <FieldShell label="Giá trị hàng (tính phí khai giá)">
                           <MoneyInput
                             value={Number(p.value) || 0}
                             onChange={(value) => patchPkg(p.seq, { value: Math.max(0, Math.round(value) || 0) })}
@@ -1472,6 +1473,10 @@ export function OrderHistoryDialog({
                       ) : (Number(p.value) || 0) > 0 ? (
                         <FieldShell label="Giá trị hàng">
                           <ViewValue value={formatVND(p.value)} />
+                        </FieldShell>
+                      ) : (o.declaredFee ?? 0) > 0 && p.seq === 1 ? (
+                        <FieldShell label="Giá trị hàng">
+                          <ViewValue value={`Đã tính phí khai giá ${formatVND(o.declaredFee)} (chưa lưu chi tiết từng kiện)`} />
                         </FieldShell>
                       ) : null}
                     </div>
