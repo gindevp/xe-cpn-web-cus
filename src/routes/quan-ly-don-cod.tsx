@@ -639,13 +639,11 @@ function Page() {
                         )}
                       </td>
                       <td>
-                        <div
-                          className="act"
-                          style={{ flexDirection: "column", alignItems: "flex-start" }}
-                        >
+                        <div className="stack" style={{ gap: 4 }}>
                           <button
                             type="button"
-                            className="text-act"
+                            className="link"
+                            style={{ display: "block", whiteSpace: "nowrap" }}
                             disabled={!!docBusy}
                             onClick={() => void printReceipt(o)}
                           >
@@ -653,7 +651,8 @@ function Page() {
                           </button>
                           <button
                             type="button"
-                            className="text-act"
+                            className="link"
+                            style={{ display: "block", whiteSpace: "nowrap" }}
                             disabled={!!docBusy}
                             onClick={() => void printPaymentRequest(o)}
                           >
@@ -662,7 +661,8 @@ function Page() {
                           {canMark && exported ? (
                             <button
                               type="button"
-                              className="text-act"
+                              className="link"
+                              style={{ display: "block", whiteSpace: "nowrap" }}
                               disabled={!!uploading}
                               onClick={() => openUpload(o)}
                             >
@@ -672,7 +672,8 @@ function Page() {
                           {o.hasCodBillPhoto ? (
                             <button
                               type="button"
-                              className="text-act"
+                              className="link"
+                              style={{ display: "block", whiteSpace: "nowrap" }}
                               disabled={viewBusy === o.code}
                               onClick={() => void viewBillPhotos(o)}
                             >

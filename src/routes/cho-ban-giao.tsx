@@ -304,9 +304,9 @@ function Page() {
 
   const activeTab = TABS.find((t) => t.key === tab)!;
   const tabIcons: Record<TabKey, string> = {
-    "cho-nhan": "storefront",
-    "cho-lay": "local_shipping",
-    "dang-lay": "directions_bike",
+    "cho-nhan": "qr_code_scanner",
+    "cho-lay": "pending_actions",
+    "dang-lay": "delivery_dining",
   };
 
   return (

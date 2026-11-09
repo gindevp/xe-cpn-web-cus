@@ -949,7 +949,7 @@ function Page() {
         {(
           [
             ["CHAM", "departure_board", "Chấm xe đến/đi"],
-            ["TONG_QUAN", "insights", "Tổng quan"],
+            ["TONG_QUAN", "dashboard", "Tổng quan"],
             ["CHUYEN", "local_shipping", "Theo xe tại VP"],
             ["NHAT_KY", "history", "Nhật ký báo"],
           ] as const

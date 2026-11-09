@@ -1769,8 +1769,10 @@ export function TaoDonDialog({
               </div>
 
               {/* Items — design `.pack` / `.pack-grid` */}
-              <Section title={`Danh sách hàng hoá (${items.length} kiện)`} msIcon="inventory_2">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: -8 }}>
+              <Section
+                title={`Danh sách hàng hoá (${items.length} kiện)`}
+                msIcon="inventory_2"
+                action={
                   <button
                     type="button"
                     className="btn tonal"
@@ -1782,7 +1784,8 @@ export function TaoDonDialog({
                     </span>
                     Thêm kiện
                   </button>
-                </div>
+                }
+              >
                 <div className="stack">
                   {items.map((it, idx) => {
                     const group = resolveGroup(it);
@@ -2221,14 +2224,17 @@ function Section({
   children,
   msIcon,
   bare,
+  action,
 }: {
   title: string;
   children: React.ReactNode;
   msIcon: string;
   /** Không bọc `.order-box` (khi parent đã là order-box). */
   bare?: boolean;
+  /** Nút cùng hàng với tiêu đề (căn phải). */
+  action?: React.ReactNode;
 }) {
-  const head = (
+  const h2 = (
     <h2 className="group-title sec-title">
       <span className="sec-ic" aria-hidden="true">
         <span className="ms" aria-hidden="true">
@@ -2237,6 +2243,14 @@ function Section({
       </span>
       {title}
     </h2>
+  );
+  const head = action ? (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      {h2}
+      {action}
+    </div>
+  ) : (
+    h2
   );
   if (bare) {
     return (

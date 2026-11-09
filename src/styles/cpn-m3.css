@@ -5,7 +5,10 @@
 --primary:#b2c5ff;--on-primary:#002c72;--primary-container:#174295;--on-primary-container:#dae2ff;--secondary:#c0c6dd;--secondary-container:#404659;--on-secondary-container:#dce2f9;
 --inverse-surface:#e2e2e9;--inverse-on-surface:#2f3036;--inverse-primary:#274ea1;--warning-container:#594400;--on-warning-container:#ffdf92;--error-container:#93000a;--on-error-container:#ffdad6;--error:#ffb4ab;--success-container:#1e511e;--on-success-container:#b8f1ad;--on-surface:#e2e2e9;--on-surface-variant:#c5c6d0;--lowest:#1e1f25;--low:#121318;--high:#33343a;--outline:#8f9099;--outline-variant:#45464f}
 body{margin:0}
-button,input{font-family:inherit;color:inherit}
+/* Không gắn color:inherit lên button — rule unlayered sẽ đè Tailwind text-* của shadcn Button
+   (nền primary xanh đậm mà chữ vẫn đen). Input vẫn inherit màu form. */
+button,input{font-family:inherit}
+input{color:inherit}
 button{cursor:pointer}
 button:focus-visible,a:focus-visible{outline:3px solid var(--secondary);outline-offset:2px}
 /* Khớp design-ref cpn.css — không khóa box/overflow (glyph Material Symbols dễ lệch/cắt). */
@@ -58,6 +61,16 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--secondary);outline-
 .search input:disabled,.search input:disabled::placeholder{color:rgb(from var(--on-surface) r g b / .38);cursor:not-allowed}
 .card{border-radius:28px;background:var(--lowest);padding:24px;box-sizing:border-box;min-width:0}
 .btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 20px;border:0;border-radius:9999px;background:var(--primary);color:var(--on-primary);font-size:13px;font-weight:500;white-space:nowrap}
+/* shadcn Button — màu chữ unlayered (đồng bộ .btn) */
+.m3-btn-fill{color:var(--on-primary,#fff)}
+.m3-btn-fill:disabled,.m3-btn-fill[disabled]{color:rgb(from var(--on-surface) r g b / .38)}
+.m3-btn-fill-danger{color:var(--lowest,#fff)}
+.m3-btn-fill-danger:disabled,.m3-btn-fill-danger[disabled]{color:rgb(from var(--on-surface) r g b / .38)}
+.m3-btn-tonal{color:var(--on-secondary-container)}
+.m3-btn-tonal:disabled,.m3-btn-tonal[disabled]{color:rgb(from var(--on-surface) r g b / .38)}
+.m3-btn-ghost{color:var(--on-surface-variant)}
+.m3-btn-ghost:disabled,.m3-btn-ghost[disabled]{color:rgb(from var(--on-surface) r g b / .38)}
+.m3-btn-link{color:var(--primary)}
 .btn.text{padding:0 12px;background:none;color:var(--error)}
 .btn.text:hover{background:rgb(from var(--on-surface) r g b / .08)}
 .btn[disabled]{background:rgb(from var(--on-surface) r g b / .12);color:rgb(from var(--on-surface) r g b / .38);cursor:not-allowed}

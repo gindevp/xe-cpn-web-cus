@@ -301,10 +301,10 @@ function Page() {
   }, [selected, rows]);
 
   const tabIcons: Partial<Record<Tab, string>> = {
-    EXCEPTION: "warning",
+    EXCEPTION: "report",
     LOST: "search_off",
     DAMAGED: "broken_image",
-    CANCEL_REQUEST: "hourglass_top",
+    CANCEL_REQUEST: "contract_delete",
     CANCELLED: "cancel",
   };
 

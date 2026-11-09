@@ -9,17 +9,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        /* m3-btn-* = màu chữ unlayered (cpn-m3.css) — tránh chữ đen trên nền primary */
         default:
-          "bg-[var(--primary)] text-[var(--on-primary,#fff)] hover:shadow-[0_1px_3px_1px_rgba(0,0,0,.15),0_1px_2px_rgba(0,0,0,.3)] disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38",
+          "m3-btn-fill bg-[var(--primary)] text-[var(--on-primary,#fff)] hover:shadow-[0_1px_3px_1px_rgba(0,0,0,.15),0_1px_2px_rgba(0,0,0,.3)] disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38 disabled:shadow-none",
         destructive:
-          "bg-[var(--error)] text-[var(--lowest,#fff)] hover:shadow-[0_1px_3px_1px_rgba(0,0,0,.15),0_1px_2px_rgba(0,0,0,.3)] disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38",
+          "m3-btn-fill-danger bg-[var(--error)] text-[var(--lowest,#fff)] hover:shadow-[0_1px_3px_1px_rgba(0,0,0,.15),0_1px_2px_rgba(0,0,0,.3)] disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38 disabled:shadow-none",
         outline:
-          "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] hover:brightness-95 disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38",
+          "m3-btn-tonal bg-[var(--secondary-container)] text-[var(--on-secondary-container)] hover:brightness-95 disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38",
         secondary:
-          "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] hover:brightness-95 disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38",
+          "m3-btn-tonal bg-[var(--secondary-container)] text-[var(--on-secondary-container)] hover:brightness-95 disabled:bg-[var(--on-surface)]/12 disabled:text-[var(--on-surface)]/38",
         ghost:
-          "bg-transparent text-[var(--on-surface-variant)] hover:bg-[var(--on-surface)]/8 disabled:text-[var(--on-surface)]/38",
-        link: "text-[var(--primary)] underline-offset-4 hover:underline disabled:opacity-50",
+          "m3-btn-ghost bg-transparent text-[var(--on-surface-variant)] hover:bg-[var(--on-surface)]/8 disabled:text-[var(--on-surface)]/38",
+        link: "m3-btn-link text-[var(--primary)] underline-offset-4 hover:underline disabled:opacity-50",
       },
       size: {
         default: "h-10 px-5",
