@@ -69,7 +69,6 @@ import {
   sumPackageChargeKg,
 } from "@/lib/pricing";
 import { useOrderFareRoutes } from "@/lib/use-order-fare-routes";
-import { TransitTag } from "@/components/OfficeRouteCell";
 import { estimatePickupKm } from "@/lib/api/ahamove-api";
 import { isShortGoogleMapsLink, latLngFromGoogleMapsLink, resolveGoogleMapsLink } from "@/lib/google-maps-link";
 import { toUpperName } from "@/lib/vn-name";
@@ -490,7 +489,7 @@ function moneyOf(o: OrderX, form?: EditForm | null, deliveryOverride?: number | 
           ? "Cước vận chuyển còn lại"
           : codGoods > 0
             ? "Thu hộ COD từ người nhận"
-            : "Không có khoản nào cần thu thêm";
+            : "";
   return {
     goodsFare,
     pickup,
@@ -1112,13 +1111,6 @@ export function OrderHistoryDialog({
               <div className="party-grid">
                 <section className="order-box stack">
                   <SecTitle icon="person">Người gửi</SecTitle>
-                  <FieldShell label="Tuyến">
-                    <ViewValue value={routeShortLabel(o)} />
-                    {o.hubOffice ? <TransitTag hubOffice={o.hubOffice} className="mt-1" /> : null}
-                  </FieldShell>
-                  <FieldShell label="BKS xe">
-                    <ViewValue value={o.vehiclePlate || "—"} />
-                  </FieldShell>
                   <FieldShell label="SĐT người gửi">
                     {editing && form && editFields.sender ? (
                       <PhoneInput
@@ -1799,13 +1791,7 @@ export function OrderHistoryDialog({
                       {saving ? "Đang lưu…" : "Lưu thay đổi"}
                     </button>
                   </div>
-                ) : (
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button type="button" className="btn ghost" onClick={() => onOpenChange(false)}>
-                      Đóng
-                    </button>
-                  </div>
-                )}
+                ) : null}
               </div>
             </aside>
           </div>
