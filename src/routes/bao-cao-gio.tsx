@@ -436,7 +436,7 @@ function Page() {
         </button>
       </div>
 
-      {tab === "GIO" ? <BaoCaoGioPanel tick={tick} /> : <TonKhoPanel embedded />}
+      {tab === "GIO" ? <BaoCaoGioPanel tick={tick} /> : <TonKhoPanel />}
     </div>
   );
 }
