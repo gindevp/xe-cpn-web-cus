@@ -43,8 +43,13 @@ function Page() {
 
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader title="Bảng giá" description="Phí vận chuyển và giá theo sản phẩm." />
-      <div className="seg" role="tablist" aria-label="Loại bảng giá" style={{ alignSelf: "flex-start" }}>
+      <M3PageHeader title="Bảng giá" />
+      <div
+        className="seg"
+        role="tablist"
+        aria-label="Loại bảng giá"
+        style={{ alignSelf: "flex-start" }}
+      >
         <button
           type="button"
           role="tab"
@@ -65,13 +70,13 @@ function Page() {
           <span className="count num">{products.length}</span>
         </button>
       </div>
-      <section className="card stack" style={{ gap: 16 }}>
-        {tab === "rules" ? (
-          <FreightPricing writable={writable} />
-        ) : (
+      {tab === "rules" ? (
+        <FreightPricing writable={writable} />
+      ) : (
+        <section className="card stack" style={{ gap: 16 }}>
           <ProductPricing writable={writable} />
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
@@ -117,9 +122,9 @@ const BASIS_UI: Record<
 > = {
   KG: {
     title: "Giá theo cân nặng",
-    minLabel: "Cân tối thiểu (KG)",
-    maxLabel: "Cân tối đa (KG)",
-    stepLabel: "Tăng thêm (KG)",
+    minLabel: "Cân tối thiểu (kg)",
+    maxLabel: "Cân tối đa (kg)",
+    stepLabel: "Tăng thêm (kg)",
     unitName: "KG",
     fmt: fmtKg,
     toStep: toStepGram,
@@ -142,7 +147,8 @@ function FreightPricing({ writable }: { writable: boolean }) {
 
   useEffect(() => {
     if (!tuyen && tuyenOptions[0]) setTuyen(tuyenOptions[0]);
-    else if (tuyen && tuyenOptions.length && !tuyenOptions.includes(tuyen)) setTuyen(tuyenOptions[0] ?? "");
+    else if (tuyen && tuyenOptions.length && !tuyenOptions.includes(tuyen))
+      setTuyen(tuyenOptions[0] ?? "");
   }, [tuyen, tuyenOptions]);
 
   const kgRows = rules
@@ -171,7 +177,9 @@ function FreightPricing({ writable }: { writable: boolean }) {
     if (!copyTargets.length) return toast.error("Chọn ít nhất một tuyến đích");
     setCopying(true);
     try {
-      const result = await copyPricingToRoutes(tuyen, copyTargets, { replaceExisting: copyReplace });
+      const result = await copyPricingToRoutes(tuyen, copyTargets, {
+        replaceExisting: copyReplace,
+      });
       if (result.copiedTo.length) {
         toast.success(
           `Đã copy ${kgRows.length} mức sang ${result.copiedTo.length} tuyến: ${result.copiedTo.join(", ")}`,
@@ -215,16 +223,21 @@ function FreightPricing({ writable }: { writable: boolean }) {
             Copy sang tuyến khác
           </button>
         )}
-        {!writable && <span className="muted" style={{ fontSize: 12 }}>Chế độ chỉ xem</span>}
+        {!writable && (
+          <span className="muted" style={{ fontSize: 12 }}>
+            Chế độ chỉ xem
+          </span>
+        )}
       </div>
 
       <BandTable basis="KG" tuyen={tuyen} rows={kgRows} writable={writable}>
-        Một bảng giá cho tuyến, dùng cả hai chiều. Cân tính cước = cân lớn hơn giữa cân thật và khối lượng quy đổi
-        Dài × Rộng × Cao / 5000 (làm tròn lên 0,1 kg), rồi lấy mức giá theo cân. Mức mới bắt đầu trên mức cũ 1 KG
-        (0–3, 4–6, 7–10…); cân lẻ nằm giữa hai mức — ví dụ <strong>3,5 KG</strong> — tính theo mức trên (4–6). Phí TC
-        là giá cố định trong khoảng (VNĐ). Vượt max mức cuối: số bước = làm tròn lên (KG vượt / Tăng thêm), tiền = Phí
-        TC + số bước × Cộng thêm — để Tăng thêm = 0 thì Cộng thêm lưu 0 và không tính thêm tiền vượt cân. Đang set
-        tăng thêm thì không thêm khoảng giá khác.
+        Một bảng giá cho tuyến, dùng cả hai chiều. Cân tính cước = cân lớn hơn giữa cân thật và khối
+        lượng quy đổi Dài × Rộng × Cao / 5000 (làm tròn lên 0,1 kg), rồi lấy mức giá theo cân. Mức
+        mới bắt đầu trên mức cũ 1 KG (0–3, 4–6, 7–10…); cân lẻ nằm giữa hai mức — ví dụ{" "}
+        <strong>3,5 KG</strong> — tính theo mức trên (4–6). Phí TC là giá cố định trong khoảng
+        (VNĐ). Vượt max mức cuối: số bước = làm tròn lên (KG vượt / Tăng thêm), tiền = Phí TC + số
+        bước × Cộng thêm — để Tăng thêm = 0 thì Cộng thêm lưu 0 và không tính thêm tiền vượt cân.
+        Đang set tăng thêm thì không thêm khoảng giá khác.
       </BandTable>
 
       <Dialog
@@ -238,8 +251,8 @@ function FreightPricing({ writable }: { writable: boolean }) {
             <DialogTitle>Copy bảng giá sang tuyến khác</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Nguồn: <strong>{tuyen}</strong> ({kgRows.length} mức cân). Chọn tuyến
-            đích để áp dụng cùng các khoảng / phí.
+            Nguồn: <strong>{tuyen}</strong> ({kgRows.length} mức cân). Chọn tuyến đích để áp dụng
+            cùng các khoảng / phí.
           </p>
           <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-2">
             {otherTuyens.map((name) => {
@@ -256,7 +269,9 @@ function FreightPricing({ writable }: { writable: boolean }) {
                   />
                   <span className="flex-1 text-sm">{name}</span>
                   {hasPrice && (
-                    <span className="text-[11px] text-amber-700 dark:text-amber-400">đã có giá</span>
+                    <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                      đã có giá
+                    </span>
                   )}
                 </label>
               );
@@ -276,9 +291,14 @@ function FreightPricing({ writable }: { writable: boolean }) {
             </Button>
           </div>
           <label className="flex items-start gap-2 text-sm">
-            <Checkbox checked={copyReplace} onCheckedChange={(v) => setCopyReplace(v === true)} className="mt-0.5" />
+            <Checkbox
+              checked={copyReplace}
+              onCheckedChange={(v) => setCopyReplace(v === true)}
+              className="mt-0.5"
+            />
             <span>
-              Ghi đè nếu tuyến đích đã có bảng giá (xóa mức cũ rồi copy). Bỏ chọn = bỏ qua tuyến đã có giá.
+              Ghi đè nếu tuyến đích đã có bảng giá (xóa mức cũ rồi copy). Bỏ chọn = bỏ qua tuyến đã
+              có giá.
             </span>
           </label>
           <DialogFooter>
@@ -332,7 +352,9 @@ function BandTable({
       return;
     }
     if (overageLocked) {
-      toast.error("Đang dùng Tăng thêm / Cộng thêm. Xóa hai trường đó ở mức cuối trước khi thêm khoảng giá.");
+      toast.error(
+        "Đang dùng Tăng thêm / Cộng thêm. Xóa hai trường đó ở mức cuối trước khi thêm khoảng giá.",
+      );
       return;
     }
     setEditing(null);
@@ -407,7 +429,7 @@ function BandTable({
   };
 
   return (
-    <div className="stack" style={{ gap: 12 }}>
+    <section className="card stack" style={{ gap: 12 }}>
       <div className="title-row" style={{ alignItems: "center" }}>
         <h2 className="group-title sec-title" style={{ margin: 0 }}>
           <span className="sec-ic" aria-hidden="true">
@@ -473,7 +495,13 @@ function BandTable({
                 <td>
                   {writable ? (
                     <div className="act">
-                      <button type="button" className="no" title="Sửa mức" aria-label="Sửa mức" onClick={() => openEdit(r)}>
+                      <button
+                        type="button"
+                        className="no"
+                        title="Sửa mức"
+                        aria-label="Sửa mức"
+                        onClick={() => openEdit(r)}
+                      >
                         <span className="ms" aria-hidden="true">
                           edit
                         </span>
@@ -519,7 +547,10 @@ function BandTable({
               />
               {!editing && (
                 <p className="text-[11px] text-muted-foreground">
-                  {last ? `Nối tiếp mức cuối (${ui.fmt(last.maxKg)} ${ui.unitName})` : "Mức đầu tiên"} — không sửa
+                  {last
+                    ? `Nối tiếp mức cuối (${ui.fmt(last.maxKg)} ${ui.unitName})`
+                    : "Mức đầu tiên"}{" "}
+                  — không sửa
                 </p>
               )}
             </div>
@@ -536,7 +567,10 @@ function BandTable({
             </div>
             <div className="space-y-1 col-span-2">
               <Label>Phí TC (VNĐ)</Label>
-              <MoneyInput value={draft.unit} onChange={(unit) => setDraft((d) => ({ ...d, unit }))} />
+              <MoneyInput
+                value={draft.unit}
+                onChange={(unit) => setDraft((d) => ({ ...d, unit }))}
+              />
             </div>
             {allowOverage && (
               <>
@@ -551,7 +585,10 @@ function BandTable({
                 </div>
                 <div className="space-y-1">
                   <Label>Cộng thêm (VNĐ)</Label>
-                  <MoneyInput value={draft.addFee} onChange={(addFee) => setDraft((d) => ({ ...d, addFee }))} />
+                  <MoneyInput
+                    value={draft.addFee}
+                    onChange={(addFee) => setDraft((d) => ({ ...d, addFee }))}
+                  />
                   {draft.stepKg <= 0 && (
                     <p className="text-[11px] text-muted-foreground">
                       Tăng thêm = 0 → Cộng thêm lưu 0.
@@ -593,7 +630,7 @@ function BandTable({
           })();
         }}
       />
-    </div>
+    </section>
   );
 }
 
@@ -611,7 +648,10 @@ function ProductPricing({ writable }: { writable: boolean }) {
   const [deleteTarget, setDeleteTarget] = useState<ProductPriceRule | null>(null);
 
   const list = products.filter(
-    (p) => !q || p.name.toLowerCase().includes(q.toLowerCase()) || p.group.toLowerCase().includes(q.toLowerCase()),
+    (p) =>
+      !q ||
+      p.name.toLowerCase().includes(q.toLowerCase()) ||
+      p.group.toLowerCase().includes(q.toLowerCase()),
   );
   const groups = Array.from(new Set(list.map((p) => p.group)));
 
@@ -692,7 +732,9 @@ function ProductPricing({ writable }: { writable: boolean }) {
             {groups.map((g, gi) => {
               const rows = list.filter((p) => p.group === g);
               return rows.map((p, i) => {
-                const pct = p.currentPrice ? ((p.price - p.currentPrice) / p.currentPrice) * 100 : 0;
+                const pct = p.currentPrice
+                  ? ((p.price - p.currentPrice) / p.currentPrice) * 100
+                  : 0;
                 return (
                   <tr key={p.id}>
                     {i === 0 && (
@@ -716,7 +758,12 @@ function ProductPricing({ writable }: { writable: boolean }) {
                       className="num"
                       style={{
                         textAlign: "right",
-                        color: pct < 0 ? "var(--on-success-container)" : pct > 0 ? "var(--error)" : undefined,
+                        color:
+                          pct < 0
+                            ? "var(--on-success-container)"
+                            : pct > 0
+                              ? "var(--error)"
+                              : undefined,
                       }}
                     >
                       {pct.toFixed(2)}%
@@ -724,12 +771,24 @@ function ProductPricing({ writable }: { writable: boolean }) {
                     <td>
                       {writable ? (
                         <div className="act">
-                          <button type="button" className="no" title="Sửa" aria-label="Sửa" onClick={() => openEdit(p)}>
+                          <button
+                            type="button"
+                            className="no"
+                            title="Sửa"
+                            aria-label="Sửa"
+                            onClick={() => openEdit(p)}
+                          >
                             <span className="ms" aria-hidden="true">
                               edit
                             </span>
                           </button>
-                          <button type="button" className="no" title="Xóa" aria-label="Xóa" onClick={() => setDeleteTarget(p)}>
+                          <button
+                            type="button"
+                            className="no"
+                            title="Xóa"
+                            aria-label="Xóa"
+                            onClick={() => setDeleteTarget(p)}
+                          >
                             <span className="ms" aria-hidden="true">
                               delete
                             </span>
@@ -745,7 +804,8 @@ function ProductPricing({ writable }: { writable: boolean }) {
         </table>
       </div>
       <div className="note">
-        Tab này chưa áp vào giá lúc tạo đơn hàng. Cước đơn đang lấy từ tab Phí vận chuyển theo tuyến.
+        Tab này chưa áp vào giá lúc tạo đơn hàng. Cước đơn đang lấy từ tab Phí vận chuyển theo
+        tuyến.
       </div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
@@ -761,7 +821,9 @@ function ProductPricing({ writable }: { writable: boolean }) {
                 onChange={(e) => setGroup(e.target.value)}
                 placeholder="VD: Điện tử, Thực phẩm"
               />
-              <p className="text-[11px] text-muted-foreground">Không dùng tên Khác — loại đó đã có lúc tạo đơn để nhập theo tên.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Không dùng tên Khác — loại đó đã có lúc tạo đơn để nhập theo tên.
+              </p>
             </div>
             <div className="space-y-1">
               <Label>Tên hàng hóa</Label>

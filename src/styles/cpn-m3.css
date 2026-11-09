@@ -310,6 +310,10 @@ dc-import{display:contents}
 .detail-scrim{z-index:40}
 .code{cursor:pointer}
 .code:hover{text-decoration:underline}
+.kk-thumb{position:relative;display:block;width:48px;height:48px;padding:0;overflow:hidden;border:1px solid var(--outline-variant);border-radius:8px;background:var(--low);cursor:pointer}
+.kk-thumb:hover{border-color:var(--primary)}
+.kk-thumb img{width:100%;height:100%;object-fit:cover}
+.kk-thumb span{position:absolute;right:0;bottom:0;padding:0 4px;border-top-left-radius:6px;background:rgb(0 0 0 / .6);color:#fff;font-size:10px;line-height:14px}
 .detail-top{z-index:42}
 .sheet.tem-sheet{width:min(100%,880px)}
 .tem-scroll{flex:1;min-height:0;overflow:auto;padding:16px;border-radius:16px;background:var(--low)}

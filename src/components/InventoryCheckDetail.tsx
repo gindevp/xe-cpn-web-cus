@@ -1,26 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
-import { EmptyState } from "@/components/PageBits";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { isApiEnabled } from "@/lib/api/client";
+import { useStore } from "@/lib/store";
 import {
   fetchInventoryCheckPhotos,
   fetchInventoryCheckScans,
   fetchInventoryCheckThumbnails,
-  INVENTORY_STATUS_CLASS,
   INVENTORY_STATUS_LABEL,
   type InventoryCheckPhoto,
   type InventoryCheckRow,
@@ -30,21 +20,26 @@ import { ExportFormatButton } from "@/components/ExportFormatButton";
 import { downloadExcelRows, type ExportFormat } from "@/lib/csv";
 import { officeName } from "@/lib/mock-data";
 import { packageCode } from "@/lib/package-label";
-import { ChevronLeft, Search } from "lucide-react";
 import { toast } from "sonner";
 
 type RowStatus = "checked" | "missing" | "extra";
 
 const STATUS_LABEL: Record<RowStatus, string> = {
-  checked: "Đã kiểm kê",
+  checked: "Đã kiểm",
   missing: "Thiếu hàng",
   extra: "Kiểm dư",
 };
 
-const STATUS_CLASS: Record<RowStatus, string> = {
-  checked: "border-transparent bg-emerald-50 text-emerald-700 hover:bg-emerald-50",
-  missing: "border-transparent bg-red-50 text-red-600 hover:bg-red-50",
-  extra: "border-transparent bg-amber-50 text-amber-700 hover:bg-amber-50",
+const ROW_TAG: Record<RowStatus, string> = {
+  checked: "tag ok",
+  missing: "tag warn",
+  extra: "tag info",
+};
+
+const SESSION_TAG: Record<InventoryCheckRow["status"], string> = {
+  OPEN: "tag info",
+  COMPLETED: "tag ok",
+  ABANDONED: "tag",
 };
 
 const STATUS_ORDER: Record<RowStatus, number> = { missing: 0, extra: 1, checked: 2 };
@@ -140,6 +135,9 @@ export function InventoryCheckDetail({
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | RowStatus>("all");
   const [photoOrder, setPhotoOrder] = useState<string | null>(null);
+  const offices = useStore((s) => s.offices);
+  const officeLabel =
+    offices.find((o) => o.code === check.officeCode)?.name ?? officeName(check.officeCode);
 
   useEffect(() => {
     setScans({});
@@ -216,148 +214,196 @@ export function InventoryCheckDetail({
     );
   };
 
+  const meta = [
+    officeLabel || check.officeCode,
+    check.status === "COMPLETED"
+      ? `Người hoàn tất: ${check.checkedByName || check.checkedByUsername || "—"} · ${formatDateTime(check.checkedAt)}`
+      : null,
+    check.openedAt
+      ? `Mở phiên: ${check.openedByName || "—"} · ${formatDateTime(check.openedAt)}`
+      : null,
+    check.reopenedAt ? `Mở lại: ${formatDateTime(check.reopenedAt)}` : null,
+    check.participants.length
+      ? `Người kiểm: ${check.participants
+          .map((p) => `${p.name || p.username} (${p.scanCount} kiện)`)
+          .join(", ")}`
+      : null,
+    `Mã phiên: ${sessionLabel(check)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const filterTabs: ["all" | RowStatus, string, number][] = [
+    ["all", "Tất cả", allRows.length],
+    ["checked", STATUS_LABEL.checked, counts.checked],
+    ["missing", STATUS_LABEL.missing, counts.missing],
+    ["extra", STATUS_LABEL.extra, counts.extra],
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" size="sm" className="gap-1" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4" />
-          Quay lại
-        </Button>
-        <h1 className="text-lg font-semibold tracking-tight">
-          Chi tiết phiên kiểm kê - {sessionLabel(check)}
-        </h1>
-        <Badge className={INVENTORY_STATUS_CLASS[check.status]}>
-          {INVENTORY_STATUS_LABEL[check.status]}
-        </Badge>
-      </div>
-      <div className="-mt-2 text-sm text-muted-foreground">
-        {officeName(check.officeCode) || check.officeCode}
-        {check.status === "COMPLETED" ? (
-          <>
-            {" "}
-            · Người hoàn tất: {check.checkedByName || check.checkedByUsername || "—"} ·{" "}
-            {formatDateTime(check.checkedAt)}
-          </>
-        ) : null}
-        {check.openedAt ? (
-          <>
-            {" "}
-            · Mở phiên: {check.openedByName || "—"} · {formatDateTime(check.openedAt)}
-          </>
-        ) : null}
-        {check.reopenedAt ? <> · Mở lại: {formatDateTime(check.reopenedAt)}</> : null}
-        {check.participants.length ? (
-          <>
-            {" "}
-            · Người kiểm:{" "}
-            {check.participants
-              .map((p) => `${p.name || p.username} (${p.scanCount} kiện)`)
-              .join(", ")}
-          </>
-        ) : null}
-      </div>
-
-      <div className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-3">
-        <div>
-          Tổng đơn đã kiểm:{" "}
-          <span className="font-semibold text-primary">{counts.checked + counts.extra} đơn</span>
-        </div>
-        <div>
-          Số đơn chưa kiểm: <span className="font-semibold text-primary">{counts.missing} đơn</span>
-        </div>
-        <div>
-          Số đơn kiểm dư: <span className="font-semibold text-primary">{counts.extra} đơn</span>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full max-w-[220px]">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Nhập mã đơn"
-          />
-        </div>
-        <Select value={status} onValueChange={(v) => setStatus(v as "all" | RowStatus)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả</SelectItem>
-            <SelectItem value="checked">Đã kiểm kê</SelectItem>
-            <SelectItem value="missing">Thiếu hàng</SelectItem>
-            <SelectItem value="extra">Kiểm dư</SelectItem>
-          </SelectContent>
-        </Select>
-        <ExportFormatButton className="sm:ml-auto" label="Tải về danh sách" onExport={exportRows} />
-      </div>
-
-      {rows.length === 0 ? (
-        <EmptyState>Không có đơn phù hợp.</EmptyState>
-      ) : (
-        <div className="overflow-hidden rounded-xl border bg-white">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead>
-                <tr className="border-b bg-slate-50/90 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3">Mã đơn</th>
-                  <th className="w-[180px] px-4 py-3 text-center">Hình ảnh</th>
-                  <th className="w-[160px] px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Thông tin kiểm kê</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const thumb = thumbs[r.code];
-                  return (
-                    <tr key={r.code} className="border-b last:border-0 hover:bg-muted/20">
-                      <td className="px-4 py-3 align-middle">
-                        <OrderCodeLink code={r.code} className="font-medium" />
-                      </td>
-                      <td className="border-x px-4 py-2 text-center align-middle">
-                        {r.photoCount > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => setPhotoOrder(r.code)}
-                            title={`Xem ${r.photoCount} ảnh kiện`}
-                            className="relative mx-auto block h-14 w-14 overflow-hidden rounded-md border bg-muted hover:border-primary"
-                          >
-                            {thumb ? (
-                              <img
-                                src={thumb}
-                                alt={`Ảnh ${r.code}`}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : null}
-                            {r.photoCount > 1 ? (
-                              <span className="absolute bottom-0 right-0 rounded-tl bg-black/60 px-1 text-[10px] text-white">
-                                {r.photoCount}
-                              </span>
-                            ) : null}
-                          </button>
-                        ) : (
-                          <span className="text-muted-foreground">Không có hình ảnh</span>
-                        )}
-                      </td>
-                      <td className="border-r px-4 py-3 align-middle">
-                        <Badge className={STATUS_CLASS[r.status]}>{STATUS_LABEL[r.status]}</Badge>
-                      </td>
-                      <td className="px-4 py-3 align-middle leading-relaxed">
-                        <div>Người kiểm kê cuối: {r.checker}</div>
-                        <div>Thời gian kiểm kê: {formatDateTime(r.checkedAt)}</div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+    <div className="stack" style={{ gap: 20 }}>
+      <div className="title-row">
+        <div style={{ minWidth: 0, flex: "1 1 480px" }}>
+          <button
+            type="button"
+            className="text-act"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              margin: "0 0 8px -10px",
+            }}
+            onClick={onBack}
+          >
+            <span className="ms" aria-hidden="true" style={{ fontSize: 18 }}>
+              arrow_back
+            </span>
+            Quay lại
+          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 12px" }}>
+            <h1 className="page-title">Chi tiết phiên kiểm kê</h1>
+            <span className={SESSION_TAG[check.status]}>
+              {INVENTORY_STATUS_LABEL[check.status]}
+            </span>
           </div>
-          <TablePagination pager={pager} className="px-3 pb-3" />
+          <div className="lab muted num">{meta}</div>
         </div>
-      )}
+        <ExportFormatButton label="Tải về danh sách" onExport={exportRows} />
+      </div>
+
+      <section className="sum-row tiles num">
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">fact_check</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Tổng đơn đã kiểm</div>
+            <div className="sum-val">
+              {counts.checked + counts.extra} <span className="sum-unit">đơn</span>
+            </div>
+          </div>
+        </div>
+        <div className="rev-tile card-tile bad">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">report</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Số đơn thiếu hàng</div>
+            <div className="sum-val">
+              {counts.missing} <span className="sum-unit">đơn</span>
+            </div>
+          </div>
+        </div>
+        <div className="rev-tile card-tile">
+          <span className="rev-ic" aria-hidden="true">
+            <span className="ms fill">library_add</span>
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div className="small muted">Số đơn kiểm dư</div>
+            <div className="sum-val">
+              {counts.extra} <span className="sum-unit">đơn</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="card stack">
+        <div className="title-row" style={{ alignItems: "center" }}>
+          <div
+            className="seg"
+            role="tablist"
+            aria-label="Lọc đơn"
+            style={{ background: "var(--low)" }}
+          >
+            {filterTabs.map(([id, label, n]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                className={status === id ? "on" : undefined}
+                aria-selected={status === id}
+                onClick={() => setStatus(id)}
+              >
+                {label}
+                <span className="count num">{n}</span>
+              </button>
+            ))}
+          </div>
+          <label className="box input-box" style={{ flex: "0 1 260px", width: "auto" }}>
+            <span className="ms muted" aria-hidden="true">
+              search
+            </span>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Nhập mã đơn"
+              aria-label="Nhập mã đơn"
+            />
+          </label>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="empty" style={{ padding: "48px 16px" }}>
+            <h2 className="group-title">Không có đơn phù hợp</h2>
+          </div>
+        ) : (
+          <div className="stack">
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "720px" }}>
+                <thead>
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Hình ảnh</th>
+                    <th>Trạng thái</th>
+                    <th>Thông tin kiểm kê</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const thumb = thumbs[r.code];
+                    return (
+                      <tr key={r.code}>
+                        <td>
+                          <OrderCodeLink code={r.code} />
+                        </td>
+                        <td className="muted">
+                          {r.photoCount > 0 ? (
+                            <button
+                              type="button"
+                              className="kk-thumb"
+                              onClick={() => setPhotoOrder(r.code)}
+                              title={`Xem ${r.photoCount} ảnh kiện`}
+                              aria-label={`Xem ${r.photoCount} ảnh kiện của ${r.code}`}
+                            >
+                              {thumb ? <img src={thumb} alt="" loading="lazy" /> : null}
+                              {r.photoCount > 1 ? (
+                                <span className="num">{r.photoCount}</span>
+                              ) : null}
+                            </button>
+                          ) : (
+                            "Không có hình ảnh"
+                          )}
+                        </td>
+                        <td>
+                          <span className={ROW_TAG[r.status]}>{STATUS_LABEL[r.status]}</span>
+                        </td>
+                        <td>
+                          Người kiểm kê cuối: {r.checker}
+                          <span className="sub">
+                            Thời gian kiểm kê: {formatDateTime(r.checkedAt)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination pager={pager} />
+          </div>
+        )}
+      </section>
 
       <InventoryPhotoDialog
         checkId={check.id}

@@ -378,6 +378,9 @@ html.xe-scan-immersive main {
   font-weight: 500 !important;
   max-width: 12rem;
 }
+.m3-scope-pill .m3-scope-select > .ms {
+  display: none;
+}
 .m3-scope-pill > .ms {
   position: absolute;
   right: 10px;

@@ -1598,7 +1598,7 @@ function Page() {
 
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader title="Nhập kho - Luân chuyển" description={activeTab.hint} />
+      <M3PageHeader title={activeTab.label} description={activeTab.hint} />
 
       <StageTabRow>
         {TABS.map((t) => (

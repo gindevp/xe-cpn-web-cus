@@ -49,6 +49,8 @@ export const Route = createFileRoute("/kiem-ke")({
 function Page() {
   const { session } = useAuth();
   const viewOfficeRaw = useStore((s) => s.viewOffice);
+  const offices = useStore((s) => s.offices);
+  const officeNames = useMemo(() => new Map(offices.map((o) => [o.code, o.name])), [offices]);
   const scopeAll = hasAllOfficeScope(session);
   const officeCode = assignedOfficeCode(resolveViewOffice(session, viewOfficeRaw));
 
@@ -180,9 +182,7 @@ function Page() {
               <div className="sum-val">{latest.checkedCount}</div>
             </div>
           </div>
-          <div
-            className={latest.missingCount > 0 ? "rev-tile card-tile bad" : "rev-tile card-tile"}
-          >
+          <div className="rev-tile card-tile bad">
             <span className="rev-ic" aria-hidden="true">
               <span className="ms fill">report</span>
             </span>
@@ -249,7 +249,11 @@ function Page() {
                             </span>
                           ) : null}
                         </td>
-                        <td>{r.officeCode ? officeName(r.officeCode) : "—"}</td>
+                        <td>
+                          {r.officeCode
+                            ? (officeNames.get(r.officeCode) ?? officeName(r.officeCode))
+                            : "—"}
+                        </td>
                         <td style={{ whiteSpace: "nowrap" }}>{formatDay(r.checkedAt)}</td>
                         <td>
                           <span className={STATUS_TAG[r.status]}>

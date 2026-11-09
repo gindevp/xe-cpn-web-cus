@@ -311,7 +311,7 @@ function Page() {
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
       <M3PageHeader
-        title="Ngoại lệ"
+        title={activeTab.label}
         description={activeTab.hint}
         actions={
           tab !== "CANCELLED" && tab !== "CANCEL_REQUEST" ? (
