@@ -370,6 +370,10 @@ body>*:not(#tem-print-root){display:none!important}
 .view-field{gap:2px}
 .field.view-field span.l{font-size:12px;line-height:16px;font-weight:400;color:var(--on-surface-variant)}
 .view-val{font-size:14px;line-height:20px;font-weight:500;overflow-wrap:anywhere}
+.field.only-label{gap:2px}
+.pack-grid > .field{width:100%}
+.order-side > .field,.order-side .view-opt > .field{width:100%}
+.party-grid .order-box > .field{width:100%}
 .view-nest{margin-left:2px;padding-left:12px;border-left:2px solid var(--outline-variant)}
 .view-opt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .opt-sum.plain{padding:0;background:none;border-radius:0}

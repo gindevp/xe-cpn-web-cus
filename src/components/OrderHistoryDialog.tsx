@@ -10,8 +10,6 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { DialogDescription } from "@/components/ui/dialog";
 import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { StaffInfoPopover } from "@/components/StaffInfoPopover";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ChangePaymentTermDialog, canChangePayTerm } from "@/components/ChangePaymentTermDialog";
@@ -88,19 +86,6 @@ import { PhoneInput } from "@/components/PhoneInput";
 import { MoneyInput } from "@/components/MoneyInput";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import {
-  AlertTriangle,
-  Copy,
-  CreditCard,
-  LayoutGrid,
-  Mail,
-  MapPin,
-  Pencil,
-  Plus,
-  Clock,
-  Trash2,
-  User,
-} from "lucide-react";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 
 type HistoryCtx = {
@@ -379,24 +364,18 @@ function FieldShell({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("min-w-0 space-y-1", className)}>
-      <div className="flex items-center justify-between gap-1 text-[11px] font-medium text-muted-foreground">
-        <span className="truncate whitespace-nowrap" title={label}>
-          {label}
-        </span>
+    <div className={cn("field cfg-field view-field", className)}>
+      <span className="l" title={label} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        {label}
         {action}
-      </div>
+      </span>
       {children}
     </div>
   );
 }
 
 function ViewValue({ value }: { value: string }) {
-  return (
-    <div className="flex h-9 items-center rounded-md border border-[#D8DEE8] bg-white px-2.5 text-sm">
-      <span className="truncate">{value || "—"}</span>
-    </div>
-  );
+  return <div className="view-val">{value || "—"}</div>;
 }
 
 /** Ô đang sửa mở hộp thoại đổi riêng (VP nhận chuyển tay, hình thức thanh toán). */
@@ -414,10 +393,13 @@ function EditPickButton({
       type="button"
       title={title}
       onClick={onClick}
-      className="flex h-9 w-full items-center gap-2 rounded-md border border-primary/40 bg-white px-2.5 text-left text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/5"
+      className="box input-box"
+      style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
     >
       <span className="flex min-w-0 flex-1 items-center gap-2 truncate">{children}</span>
-      <Pencil className="h-3.5 w-3.5 shrink-0 text-primary" />
+      <span className="ms" aria-hidden="true" style={{ color: "var(--primary)" }}>
+        edit
+      </span>
     </button>
   );
 }
@@ -425,10 +407,21 @@ function EditPickButton({
 function FeeRow({ label, amount, hideZero }: { label: string; amount: number; hideZero?: boolean }) {
   if (hideZero && !(amount > 0)) return null;
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium tabular-nums">{formatVND(amount)}</span>
+    <div className="fee-line num">
+      <span>{label}</span>
+      <span>{formatVND(amount)}</span>
     </div>
+  );
+}
+
+function SecTitle({ icon, children }: { icon: string; children: ReactNode }) {
+  return (
+    <h2 className="group-title sec-title">
+      <span className="sec-ic" aria-hidden="true">
+        <span className="ms">{icon}</span>
+      </span>
+      {children}
+    </h2>
   );
 }
 
@@ -1039,58 +1032,51 @@ export function OrderHistoryDialog({
       variant="order-sheet"
       alignTop
     >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-            <div className="min-w-0 flex-1">
-              <M3SheetTitle className="page-title" style={{ fontSize: 22, lineHeight: "28px", margin: 0 }}>
-                <span className="num">{code || "—"}</span>
-                {headerMeta ? (
-                  <span className="lab muted" style={{ fontWeight: 400 }}>
-                    {" "}
-                    · {headerMeta}
-                  </span>
-                ) : null}
+          <div className="dlg-head" style={{ flexWrap: "wrap" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 12px", minWidth: 0 }}>
+              <M3SheetTitle
+                id="od-title"
+                className="page-title num"
+                style={{ fontSize: 24, lineHeight: "32px", margin: 0 }}
+              >
+                {code || "—"}
               </M3SheetTitle>
+              {o && !editing ? <OrderStatusBadge status={o.status} issue={o.issue} order={o} /> : null}
+              {headerMeta ? <span className="lab muted num">{headerMeta}</span> : null}
               <DialogDescription className="sr-only">
                 Thông tin đơn hàng, thanh toán và lịch sử tác động
               </DialogDescription>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {editing ? (
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              {!editing && o ? (
                 <>
-                  <button type="button" className="btn ghost" disabled={saving} onClick={cancelEdit}>
-                    Hủy
-                  </button>
-                  <button type="button" className="btn" disabled={saving} onClick={saveEdit}>
-                    {saving ? "Đang lưu…" : "Lưu"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  {o ? <OrderStatusBadge status={o.status} issue={o.issue} order={o} /> : null}
-                  {o ? (
-                    <button type="button" className="btn tonal" style={{ height: 36 }} onClick={() => setPrintOpen(true)}>
-                      In đơn
+                  {canEdit ? (
+                    <button type="button" className="btn tonal" onClick={startEdit}>
+                      <span className="ms" aria-hidden="true">
+                        edit
+                      </span>
+                      Sửa đơn
                     </button>
                   ) : null}
-                  {o && canEditRole && canStaffSenderTransferQr(o) ? (
+                  <button type="button" className="btn" onClick={() => setPrintOpen(true)}>
+                    <span className="ms" aria-hidden="true">
+                      print
+                    </span>
+                    In đơn
+                  </button>
+                  {canEditRole && canStaffSenderTransferQr(o) ? (
                     <button
                       type="button"
                       className="btn tonal"
-                      style={{ height: 36 }}
                       onClick={() => setTransferQrOpen(true)}
                       title="Tạo QR chuyển khoản OnePay"
                     >
                       QR CK
                     </button>
                   ) : null}
-                  {o?.transferPaidAt ? <TransferPaidBadge order={o} /> : null}
-                  {canEdit && o ? (
-                    <button type="button" className="btn tonal" style={{ height: 36 }} onClick={startEdit}>
-                      Sửa đơn
-                    </button>
-                  ) : null}
+                  {o.transferPaidAt ? <TransferPaidBadge order={o} /> : null}
                 </>
-              )}
+              ) : null}
               <M3SheetClose />
             </div>
           </div>
@@ -1107,26 +1093,20 @@ export function OrderHistoryDialog({
           <div className="order-layout">
             {/* LEFT */}
             <div className="stack" style={{ minWidth: 0 }}>
-              <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#E5EAF2] bg-white p-3">
-                <FieldShell label="Tuyến">
-                  <ViewValue value={routeShortLabel(o)} />
-                  {o.hubOffice ? <TransitTag hubOffice={o.hubOffice} className="mt-1" /> : null}
-                </FieldShell>
-                <FieldShell label="BKS xe">
-                  <ViewValue value={o.vehiclePlate || "—"} />
-                </FieldShell>
-              </div>
-
-              <section className="rounded-xl border border-[#E5EAF2] bg-white p-3.5">
-                <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-primary">
-                  <User className="h-4 w-4" />
-                  Người gửi
-                </div>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <div className="party-grid">
+                <section className="order-box stack">
+                  <SecTitle icon="person">Người gửi</SecTitle>
+                  <FieldShell label="Tuyến">
+                    <ViewValue value={routeShortLabel(o)} />
+                    {o.hubOffice ? <TransitTag hubOffice={o.hubOffice} className="mt-1" /> : null}
+                  </FieldShell>
+                  <FieldShell label="BKS xe">
+                    <ViewValue value={o.vehiclePlate || "—"} />
+                  </FieldShell>
                   <FieldShell label="SĐT người gửi">
                     {editing && form && editFields.sender ? (
                       <PhoneInput
-                        className="h-9"
+                        className="h-10"
                         value={form.senderPhone}
                         onChange={(v) => setForm({ ...form, senderPhone: v })}
                       />
@@ -1137,7 +1117,7 @@ export function OrderHistoryDialog({
                   <FieldShell label="Tên người gửi">
                     {editing && form && editFields.sender ? (
                       <NameInput
-                        className="h-9"
+                        className="h-10"
                         value={form.senderName}
                         onChange={(v) => setForm({ ...form, senderName: v })}
                       />
@@ -1148,55 +1128,57 @@ export function OrderHistoryDialog({
                   <FieldShell label="VP gửi">
                     <ViewValue value={officeName(o.fromOffice)} />
                   </FieldShell>
-                </div>
-                {(editing && editFields.senderAddress) || o.pickupAddress || o.homePickup ? (
-                  <div className="mt-2.5 space-y-2">
-                    {(editing && editFields.senderAddress) || o.pickupAddress ? (
-                      <FieldShell label="Địa chỉ lấy hàng">
-                        {editing && form && editFields.senderAddress ? (
-                          <Input
-                            className="h-9"
-                            value={form.pickupAddress}
-                            onChange={(e) => setForm({ ...form, pickupAddress: e.target.value })}
-                          />
-                        ) : (
-                          <ViewValue value={o.pickupAddress ?? ""} />
-                        )}
-                      </FieldShell>
-                    ) : null}
-                    {editing && form && editFields.homePickup ? (
-                      <div className="flex items-center justify-between rounded-md bg-[#EAF3FF] px-3 py-2 text-sm text-[#1D4F91]">
-                        <span className="inline-flex items-center gap-2">
-                          <MapPin className="h-4 w-4 shrink-0" />
-                          Lấy tận nơi
-                        </span>
-                        <Switch
-                          checked={form.homePickup}
-                          onCheckedChange={(v) => setForm({ ...form, homePickup: v })}
+                  {(editing && editFields.senderAddress) || o.pickupAddress ? (
+                    <FieldShell label="Địa chỉ lấy hàng">
+                      {editing && form && editFields.senderAddress ? (
+                        <Input
+                          className="h-10"
+                          value={form.pickupAddress}
+                          onChange={(e) => setForm({ ...form, pickupAddress: e.target.value })}
                         />
-                      </div>
-                    ) : o.homePickup ? (
-                      <div className="flex items-center gap-2 rounded-md bg-[#EAF3FF] px-3 py-2 text-sm text-[#1D4F91]">
-                        <MapPin className="h-4 w-4 shrink-0" />
-                        Lấy tận nơi
-                        {money.pickup > 0 ? ` · ${formatVND(money.pickup)}` : ""}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                <AutoCallMini call={autoCalls.sender} />
-              </section>
+                      ) : (
+                        <ViewValue value={o.pickupAddress ?? ""} />
+                      )}
+                    </FieldShell>
+                  ) : null}
+                  {editing && form && editFields.homePickup ? (
+                    <label
+                      className="lab"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        minHeight: 40,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span className="ms" aria-hidden="true">
+                        location_on
+                      </span>
+                      Lấy tận nơi
+                      <Switch
+                        checked={form.homePickup}
+                        onCheckedChange={(v) => setForm({ ...form, homePickup: v })}
+                      />
+                    </label>
+                  ) : o.homePickup ? (
+                    <div className="view-val" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span className="ms" aria-hidden="true">
+                        location_on
+                      </span>
+                      Lấy tận nơi
+                      {money.pickup > 0 ? ` · ${formatVND(money.pickup)}` : ""}
+                    </div>
+                  ) : null}
+                  <AutoCallMini call={autoCalls.sender} />
+                </section>
 
-              <section className="rounded-xl border border-[#E5EAF2] bg-white p-3.5">
-                <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-primary">
-                  <Mail className="h-4 w-4" />
-                  Người nhận
-                </div>
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <section className="order-box stack">
+                  <SecTitle icon="person_pin_circle">Người nhận</SecTitle>
                   <FieldShell label="SĐT người nhận">
                     {editing && form && editFields.receiver ? (
                       <PhoneInput
-                        className="h-9"
+                        className="h-10"
                         value={form.receiverPhone}
                         onChange={(v) => setForm({ ...form, receiverPhone: v })}
                       />
@@ -1207,7 +1189,7 @@ export function OrderHistoryDialog({
                   <FieldShell label="Tên người nhận">
                     {editing && form && editFields.receiver ? (
                       <NameInput
-                        className="h-9"
+                        className="h-10"
                         value={form.receiverName}
                         onChange={(v) => setForm({ ...form, receiverName: v })}
                       />
@@ -1220,7 +1202,7 @@ export function OrderHistoryDialog({
                       <SearchableSelect
                         value={form.toOffice}
                         onValueChange={(v) => setForm({ ...form, toOffice: v })}
-                        className="h-9"
+                        className="h-10"
                         placeholder="Chọn VP nhận"
                         options={officeOptions}
                       />
@@ -1238,270 +1220,259 @@ export function OrderHistoryDialog({
                       onChanged={() => void reload(o.code)}
                     />
                   </FieldShell>
-                </div>
-                {(editing && (editFields.receiverAddress || editFields.homeDelivery)) ||
-                o.address ||
-                o.homeDelivery ? (
-                  <div className="mt-2.5 space-y-2">
-                    {(editing && editFields.receiverAddress) || o.address ? (
-                      <FieldShell label="Địa chỉ giao hàng">
-                        {editing && form && editFields.receiverAddress ? (
-                          <Input
-                            className="h-9"
-                            value={form.address}
-                            placeholder="Địa chỉ hoặc link Google Maps"
-                            onChange={(e) => setForm({ ...form, address: e.target.value })}
-                          />
-                        ) : (
-                          <ViewValue value={o.address ?? ""} />
-                        )}
-                      </FieldShell>
-                    ) : null}
-                    {editing && form && editFields.homeDelivery ? (
-                      <div className="flex items-center justify-between rounded-md bg-[#EAF3FF] px-3 py-2 text-sm text-[#1D4F91]">
-                        <span className="inline-flex items-center gap-2">
-                          <MapPin className="h-4 w-4 shrink-0" />
-                          Giao tận nơi
-                        </span>
-                        <Switch
-                          checked={form.homeDelivery}
-                          onCheckedChange={(v) => setForm({ ...form, homeDelivery: v })}
+                  {(editing && editFields.receiverAddress) || o.address ? (
+                    <FieldShell label="Địa chỉ giao hàng">
+                      {editing && form && editFields.receiverAddress ? (
+                        <Input
+                          className="h-10"
+                          value={form.address}
+                          placeholder="Địa chỉ hoặc link Google Maps"
+                          onChange={(e) => setForm({ ...form, address: e.target.value })}
                         />
-                      </div>
-                    ) : o.homeDelivery ? (
-                      <div className="flex items-center gap-2 rounded-md bg-[#EAF3FF] px-3 py-2 text-sm text-[#1D4F91]">
-                        <MapPin className="h-4 w-4 shrink-0" />
-                        Giao tận nơi
-                        {money.delivery > 0 ? ` · ${formatVND(money.delivery)}` : ""}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                <AutoCallMini call={autoCalls.receiver} />
-              </section>
+                      ) : (
+                        <ViewValue value={o.address ?? ""} />
+                      )}
+                    </FieldShell>
+                  ) : null}
+                  {editing && form && editFields.homeDelivery ? (
+                    <label
+                      className="lab"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        minHeight: 40,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span className="ms" aria-hidden="true">
+                        location_on
+                      </span>
+                      Giao tận nơi
+                      <Switch
+                        checked={form.homeDelivery}
+                        onCheckedChange={(v) => setForm({ ...form, homeDelivery: v })}
+                      />
+                    </label>
+                  ) : o.homeDelivery ? (
+                    <div className="view-val" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span className="ms" aria-hidden="true">
+                        location_on
+                      </span>
+                      Giao tận nơi
+                      {money.delivery > 0 ? ` · ${formatVND(money.delivery)}` : ""}
+                    </div>
+                  ) : null}
+                  <AutoCallMini call={autoCalls.receiver} />
+                </section>
+              </div>
 
               {(editing && editFields.returnContact) ||
               returnMeta?.returnName ||
               returnMeta?.returnPhone ||
               returnMeta?.returnAddress ? (
-                <section className="rounded-xl border border-[#E5EAF2] bg-white p-3.5">
-                  <div className="mb-2.5 text-sm font-semibold text-primary">Người nhận hàng hoàn</div>
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                    <FieldShell label="SĐT nhận hoàn">
-                      {editing && form && editFields.returnContact ? (
-                        <PhoneInput
-                          className="h-9"
-                          value={form.returnPhone}
-                          onChange={(v) => setForm({ ...form, returnPhone: v })}
-                        />
-                      ) : (
-                        <ViewValue value={returnMeta?.returnPhone ?? ""} />
-                      )}
-                    </FieldShell>
-                    <FieldShell label="Tên nhận hoàn">
-                      {editing && form && editFields.returnContact ? (
-                        <NameInput
-                          className="h-9"
-                          value={form.returnName}
-                          onChange={(v) => setForm({ ...form, returnName: v })}
-                        />
-                      ) : (
-                        <ViewValue value={returnMeta?.returnName ?? ""} />
-                      )}
-                    </FieldShell>
-                    <FieldShell label="Địa chỉ trả hàng" className="sm:col-span-3">
-                      {editing && form && editFields.returnContact ? (
-                        <Input
-                          className="h-9"
-                          value={form.returnAddress}
-                          onChange={(e) => setForm({ ...form, returnAddress: e.target.value })}
-                        />
-                      ) : (
-                        <ViewValue value={returnMeta?.returnAddress ?? ""} />
-                      )}
-                    </FieldShell>
-                  </div>
+                <section className="order-box stack">
+                  <SecTitle icon="undo">Người nhận hàng hoàn</SecTitle>
+                  <FieldShell label="SĐT nhận hoàn">
+                    {editing && form && editFields.returnContact ? (
+                      <PhoneInput
+                        className="h-10"
+                        value={form.returnPhone}
+                        onChange={(v) => setForm({ ...form, returnPhone: v })}
+                      />
+                    ) : (
+                      <ViewValue value={returnMeta?.returnPhone ?? ""} />
+                    )}
+                  </FieldShell>
+                  <FieldShell label="Tên nhận hoàn">
+                    {editing && form && editFields.returnContact ? (
+                      <NameInput
+                        className="h-10"
+                        value={form.returnName}
+                        onChange={(v) => setForm({ ...form, returnName: v })}
+                      />
+                    ) : (
+                      <ViewValue value={returnMeta?.returnName ?? ""} />
+                    )}
+                  </FieldShell>
+                  <FieldShell label="Địa chỉ trả hàng">
+                    {editing && form && editFields.returnContact ? (
+                      <Input
+                        className="h-10"
+                        value={form.returnAddress}
+                        onChange={(e) => setForm({ ...form, returnAddress: e.target.value })}
+                      />
+                    ) : (
+                      <ViewValue value={returnMeta?.returnAddress ?? ""} />
+                    )}
+                  </FieldShell>
                 </section>
               ) : null}
 
-              <section className="rounded-xl border border-[#E5EAF2] bg-white p-3.5">
-                <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-primary">
-                  <LayoutGrid className="h-4 w-4" />
-                  Danh sách hàng hóa
+              <section className="order-box stack">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <SecTitle icon="inventory_2">
+                    <span>Danh sách hàng hoá ({pkgs.length} kiện)</span>
+                  </SecTitle>
+                  {editing && editFields.packages ? (
+                    <button type="button" className="btn tonal" style={{ height: 36 }} onClick={addPkg}>
+                      <span className="ms" aria-hidden="true">
+                        add
+                      </span>
+                      Thêm kiện
+                    </button>
+                  ) : null}
                 </div>
-                <div className="space-y-2.5">
-                  {pkgs.map((p) => (
-                    <div key={p.seq} className="rounded-lg border border-[#E5EAF2] p-3">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-sm font-semibold">KIỆN {p.seq}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {packageCode(o.code, p.seq)}
-                          </span>
-                          {!showPkgInbound ? null : p.inboundStatus === "IN" ? (
-                            <Badge
-                              title="Kiện đã được quét nhập tại VP nhận"
-                              className="border border-emerald-300 bg-emerald-50 font-normal text-emerald-700 hover:bg-emerald-50"
-                            >
-                              Đã nhập kho giao
-                            </Badge>
-                          ) : o.status === "IN_TRANSIT" ? (
-                            <Badge
-                              title="Kiện đang vận chuyển, chưa quét nhập tại VP nhận"
-                              className="border border-sky-300 bg-sky-50 font-normal text-sky-700 hover:bg-sky-50"
-                            >
-                              Còn trên xe
-                            </Badge>
-                          ) : (
-                            <Badge
-                              title="Đơn đã tới VP nhận nhưng kiện này chưa được quét nhập"
-                              className="border border-amber-300 bg-amber-50 font-normal text-amber-700 hover:bg-amber-50"
-                            >
-                              Chưa quét nhập kho giao
-                            </Badge>
-                          )}
-                          {editing && editFields.packages ? (
-                            <>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                title="Nhân bản kiện"
-                                onClick={() => duplicatePkg(p.seq)}
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive hover:text-destructive"
-                                title={pkgs.length <= 1 ? "Đơn phải còn ít nhất 1 kiện" : "Xóa kiện"}
-                                disabled={pkgs.length <= 1}
-                                onClick={() => removePkg(p.seq)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          ) : null}
-                        </div>
+                {pkgs.map((p) => (
+                  <div key={p.seq} className="pack">
+                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <div className="title-small" style={{ fontWeight: 600 }}>
+                        Kiện {p.seq}
+                        <span className="lab muted num" style={{ marginLeft: 8, fontWeight: 400 }}>
+                          {packageCode(o.code, p.seq)}
+                        </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                        <FieldShell label="Loại hàng">
-                          {editing && editFields.packages ? (
-                            <SearchableSelect
-                              value={p.kind}
-                              onValueChange={(v) =>
-                                patchPkg(p.seq, { kind: v, goodsName: isOtherGoodsGroup(v) ? p.goodsName : "" })
-                              }
-                              options={kindOptionsFor(p.kind)}
-                              placeholder="Chọn loại hàng"
-                            />
-                          ) : (
-                            <ViewValue value={goodsLabelOf(p.kind, p.goodsName)} />
-                          )}
-                        </FieldShell>
-                        <FieldShell label="Số lượng">
-                          {editing && editFields.packages ? (
-                            <Input
-                              className="h-9"
-                              inputMode="numeric"
-                              value={String(p.itemQty)}
-                              onChange={(e) =>
-                                patchPkg(p.seq, {
-                                  itemQty: Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1),
-                                })
-                              }
-                            />
-                          ) : (
-                            <ViewValue value={String(p.itemQty)} />
-                          )}
-                        </FieldShell>
-                        {editing && editFields.packages && isOtherGoodsGroup(p.kind) ? (
-                          <FieldShell label="Tên hàng">
-                            <Input
-                              className="h-9"
-                              value={p.goodsName}
-                              onChange={(e) => patchPkg(p.seq, { goodsName: e.target.value })}
-                            />
-                          </FieldShell>
-                        ) : null}
-                        <FieldShell label="Cân nặng (KG)">
-                          {editing && editFields.packages ? (
-                            <Input
-                              className="h-9"
-                              inputMode="decimal"
-                              value={String(p.weightKg)}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(",", ".");
-                                const n = Number(raw);
-                                patchPkg(p.seq, {
-                                  weightKg: Number.isFinite(n) ? n : 0,
-                                });
-                              }}
-                            />
-                          ) : (
-                            <ViewValue
-                              value={p.weightKg != null ? Number(p.weightKg).toFixed(1) : "—"}
-                            />
-                          )}
-                        </FieldShell>
-                        <FieldShell label="Kích thước D×R×C (cm)">
-                          {editing && editFields.packages ? (
-                            <div className="flex items-center gap-1">
-                              {(["d", "r", "c"] as const).map((k) => (
-                                <Input
-                                  key={k}
-                                  className="h-9 px-2"
-                                  inputMode="decimal"
-                                  placeholder={k === "d" ? "D" : k === "r" ? "R" : "C"}
-                                  value={p.dims?.[k] ? String(p.dims[k]) : ""}
-                                  onChange={(e) => {
-                                    const n = Number(e.target.value.replace(",", "."));
-                                    const base = p.dims ?? { d: 0, r: 0, c: 0 };
-                                    patchPkg(p.seq, {
-                                      dims: { ...base, [k]: Number.isFinite(n) && n > 0 ? n : 0 },
-                                    });
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          ) : (
-                            <ViewValue value={dimsLabel(p.dims) || "—"} />
-                          )}
-                        </FieldShell>
-                        <FieldShell label="Cước hàng">
-                          <ViewValue value={formatVND(p.fare)} />
-                        </FieldShell>
-                        {editing && editFields.packages && canEditPkgValue ? (
-                          <FieldShell label="Giá trị hàng">
-                            <MoneyInput
-                              value={Number(p.value) || 0}
-                              onChange={(value) => patchPkg(p.seq, { value: Math.max(0, Math.round(value) || 0) })}
-                            />
-                          </FieldShell>
-                        ) : (Number(p.value) || 0) > 0 ? (
-                          <FieldShell label="Giá trị hàng">
-                            <ViewValue value={formatVND(p.value)} />
-                          </FieldShell>
+                      <div className="act">
+                        {!showPkgInbound ? null : p.inboundStatus === "IN" ? (
+                          <span className="tag ok">Đã nhập kho giao</span>
+                        ) : o.status === "IN_TRANSIT" ? (
+                          <span className="tag info">Còn trên xe</span>
+                        ) : (
+                          <span className="tag warn">Chưa quét nhập kho giao</span>
+                        )}
+                        {editing && editFields.packages ? (
+                          <>
+                            <button type="button" className="text-act" onClick={() => duplicatePkg(p.seq)}>
+                              Nhân bản
+                            </button>
+                            <button
+                              type="button"
+                              className="no"
+                              aria-label={`Xoá kiện ${p.seq}`}
+                              title={pkgs.length <= 1 ? "Đơn phải còn ít nhất 1 kiện" : "Xóa kiện"}
+                              disabled={pkgs.length <= 1}
+                              onClick={() => removePkg(p.seq)}
+                            >
+                              <span className="ms" aria-hidden="true">
+                                delete
+                              </span>
+                            </button>
+                          </>
                         ) : null}
                       </div>
                     </div>
-                  ))}
-                  {editing && editFields.packages ? (
-                    <Button type="button" variant="outline" size="sm" className="gap-1" onClick={addPkg}>
-                      <Plus className="h-4 w-4" /> Thêm kiện
-                    </Button>
-                  ) : null}
-                </div>
+                    <div className="pack-grid">
+                      <FieldShell label="Loại hàng">
+                        {editing && editFields.packages ? (
+                          <SearchableSelect
+                            value={p.kind}
+                            onValueChange={(v) =>
+                              patchPkg(p.seq, { kind: v, goodsName: isOtherGoodsGroup(v) ? p.goodsName : "" })
+                            }
+                            options={kindOptionsFor(p.kind)}
+                            placeholder="Chọn loại hàng"
+                          />
+                        ) : (
+                          <ViewValue value={goodsLabelOf(p.kind, p.goodsName)} />
+                        )}
+                      </FieldShell>
+                      <FieldShell label="Số lượng">
+                        {editing && editFields.packages ? (
+                          <Input
+                            className="h-10"
+                            inputMode="numeric"
+                            value={String(p.itemQty)}
+                            onChange={(e) =>
+                              patchPkg(p.seq, {
+                                itemQty: Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1),
+                              })
+                            }
+                          />
+                        ) : (
+                          <ViewValue value={String(p.itemQty)} />
+                        )}
+                      </FieldShell>
+                      {editing && editFields.packages && isOtherGoodsGroup(p.kind) ? (
+                        <FieldShell label="Tên hàng" className="pack-wide">
+                          <Input
+                            className="h-10"
+                            value={p.goodsName}
+                            onChange={(e) => patchPkg(p.seq, { goodsName: e.target.value })}
+                          />
+                        </FieldShell>
+                      ) : null}
+                      <FieldShell label="Cân nặng (kg)">
+                        {editing && editFields.packages ? (
+                          <Input
+                            className="h-10"
+                            inputMode="decimal"
+                            value={String(p.weightKg)}
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(",", ".");
+                              const n = Number(raw);
+                              patchPkg(p.seq, {
+                                weightKg: Number.isFinite(n) ? n : 0,
+                              });
+                            }}
+                          />
+                        ) : (
+                          <ViewValue value={p.weightKg != null ? Number(p.weightKg).toFixed(1) : "—"} />
+                        )}
+                      </FieldShell>
+                      <FieldShell label="Kích thước D×R×C (cm)">
+                        {editing && editFields.packages ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {(["d", "r", "c"] as const).map((k) => (
+                              <Input
+                                key={k}
+                                className="h-10 px-2"
+                                inputMode="decimal"
+                                placeholder={k === "d" ? "D" : k === "r" ? "R" : "C"}
+                                value={p.dims?.[k] ? String(p.dims[k]) : ""}
+                                onChange={(e) => {
+                                  const n = Number(e.target.value.replace(",", "."));
+                                  const base = p.dims ?? { d: 0, r: 0, c: 0 };
+                                  patchPkg(p.seq, {
+                                    dims: { ...base, [k]: Number.isFinite(n) && n > 0 ? n : 0 },
+                                  });
+                                }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <ViewValue value={dimsLabel(p.dims) || "—"} />
+                        )}
+                      </FieldShell>
+                      <FieldShell label="Cước hàng">
+                        <ViewValue value={formatVND(p.fare)} />
+                      </FieldShell>
+                      {editing && editFields.packages && canEditPkgValue ? (
+                        <FieldShell label="Giá trị hàng">
+                          <MoneyInput
+                            value={Number(p.value) || 0}
+                            onChange={(value) => patchPkg(p.seq, { value: Math.max(0, Math.round(value) || 0) })}
+                          />
+                        </FieldShell>
+                      ) : (Number(p.value) || 0) > 0 ? (
+                        <FieldShell label="Giá trị hàng">
+                          <ViewValue value={formatVND(p.value)} />
+                        </FieldShell>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
               </section>
 
-              <section className="rounded-xl border border-[#E5EAF2] bg-white p-3.5">
-                <div className="mb-2.5 flex items-center gap-2 text-sm font-semibold text-primary">
-                  <Clock className="h-4 w-4" />
-                  Lịch sử tác động
-                </div>
+              <section className="order-box stack">
+                <SecTitle icon="history">Lịch sử tác động</SecTitle>
                 {shownEvents.length === 0 ? (
                   <p className="py-3 text-center text-sm text-muted-foreground">
                     Chưa có lịch sử tác động
@@ -1576,145 +1547,194 @@ export function OrderHistoryDialog({
 
             {/* RIGHT */}
             <aside className="order-box stack order-side">
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5 sm:p-4">
-                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                  <CreditCard className="h-4 w-4" />
-                  Thanh toán & ghi chú
-                </div>
+              <SecTitle icon="payments">Thanh toán và ghi chú</SecTitle>
 
-                <div>
-                  <div className="mb-1 text-[11px] font-medium text-muted-foreground">Hình thức thanh toán</div>
-                  {editing && canPayTerm ? (
-                    <EditPickButton onClick={() => setPayTermOpen(true)} title="Bấm để đổi hình thức thanh toán">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                      {payMethodLabel(o)}
-                    </EditPickButton>
-                  ) : (
-                    <div className="flex h-9 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50/70 px-2.5 text-sm font-medium text-emerald-800">
-                      <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
-                      {payMethodLabel(o)}
-                    </div>
-                  )}
-                  <ChangePaymentTermDialog
-                    order={o}
-                    role={session?.role}
-                    open={payTermOpen}
-                    onOpenChange={setPayTermOpen}
-                    onChanged={() => void reload(o.code)}
-                  />
-                  <PrintLabelDialog code={o.code} batchPackages open={printOpen} onOpenChange={setPrintOpen} />
-                  <OrderTransferQrDialog
-                    open={transferQrOpen}
-                    orderCode={o.code}
-                    onOpenChange={setTransferQrOpen}
-                    onPaid={() => {
-                      void getOrder(o.code).then((fresh) => {
-                        setOrder(fresh);
-                        useStore.setState((st) => ({
-                          orders: [fresh, ...st.orders.filter((x) => x.code !== fresh.code)],
-                        }));
-                      });
-                    }}
-                  />
-                </div>
+              <FieldShell label="Hình thức thanh toán">
+                {editing && canPayTerm ? (
+                  <EditPickButton onClick={() => setPayTermOpen(true)} title="Bấm để đổi hình thức thanh toán">
+                    {payMethodLabel(o)}
+                  </EditPickButton>
+                ) : (
+                  <ViewValue value={payMethodLabel(o)} />
+                )}
+              </FieldShell>
+              <ChangePaymentTermDialog
+                order={o}
+                role={session?.role}
+                open={payTermOpen}
+                onOpenChange={setPayTermOpen}
+                onChanged={() => void reload(o.code)}
+              />
+              <PrintLabelDialog code={o.code} batchPackages open={printOpen} onOpenChange={setPrintOpen} />
+              <OrderTransferQrDialog
+                open={transferQrOpen}
+                orderCode={o.code}
+                onOpenChange={setTransferQrOpen}
+                onPaid={() => {
+                  void getOrder(o.code).then((fresh) => {
+                    setOrder(fresh);
+                    useStore.setState((st) => ({
+                      orders: [fresh, ...st.orders.filter((x) => x.code !== fresh.code)],
+                    }));
+                  });
+                }}
+              />
 
-                {(editing ? (form?.codAmount ?? 0) > 0 || editFields.cod : money.codGoods > 0) ||
-                (editing && editFields.cod) ? (
-                  <div className="rounded-lg border border-amber-300 bg-[#FFF8E8] p-3">
-                    <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-800">
-                      <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                      Thu hộ COD
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-amber-900/80">Tiền hàng thu của người nhận</span>
-                        {editing && form && editFields.cod ? (
-                          <Input
-                            className="h-8 w-32 text-right"
-                            inputMode="numeric"
-                            value={String(form.codAmount)}
-                            onChange={(e) => {
-                              const codAmount = Math.max(
-                                0,
-                                Number(e.target.value.replace(/\D/g, "")) || 0,
-                              );
-                              const cfg = useStore.getState().surcharges?.cod;
-                              setForm({
-                                ...form,
-                                codAmount,
-                                codFee: codAmount > 0 ? calcCodFee(codAmount, cfg) : 0,
-                              });
-                            }}
-                          />
-                        ) : (
-                          <span className="font-semibold tabular-nums text-amber-950">
-                            {formatVND(money.codGoods)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-amber-900/80">Phí thu hộ</span>
-                        <span className="font-semibold tabular-nums text-amber-950">
-                          {formatVND(editing && form && editFields.cod ? form.codFee : money.codFee)}
-                        </span>
-                      </div>
-                      <div className="space-y-1 border-t border-amber-200 pt-2">
-                        <div className="text-xs font-semibold text-amber-800">
-                          Tài khoản nhận tiền thu hộ
-                        </div>
-                        {o.bankName || o.bankAccountNo || o.bankAccountName ? (
-                          [
-                            ["Ngân hàng", o.bankName],
-                            ["Số tài khoản", o.bankAccountNo],
-                            ["Chủ tài khoản", o.bankAccountName],
-                          ].map(([label, value]) => (
-                            <div key={label} className="flex items-center justify-between gap-2">
-                              <span className="text-amber-900/80">{label}</span>
-                              <span className="select-all font-semibold text-amber-950">
-                                {value || "—"}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-xs text-amber-900/70">
-                            Chưa nhập — người gửi nhận tiền mặt hoặc chưa cung cấp tài khoản.
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              {(editing ? (form?.codAmount ?? 0) > 0 || editFields.cod : money.codGoods > 0) ||
+              (editing && editFields.cod) ? (
+                <div className="view-opt">
+                  <div className="field view-field only-label">
+                    <span className="l l-ic">
+                      <span className="ms" aria-hidden="true">
+                        account_balance
+                      </span>
+                      Nhận tiền COD qua tài khoản
+                    </span>
                   </div>
-                ) : null}
-
-                <div>
-                  <div className="mb-1 text-[11px] font-medium text-muted-foreground">
-                    Ghi chú đơn hàng
-                  </div>
-                  {editing && form && editFields.note ? (
-                    <Textarea
-                      className="min-h-[72px] resize-none bg-[#F3F6FA]"
-                      value={form.note}
-                      onChange={(e) => setForm({ ...form, note: e.target.value })}
-                    />
-                  ) : (
-                    <div className="min-h-[72px] rounded-md border border-[#D8DEE8] bg-[#F3F6FA] px-2.5 py-2 text-sm">
-                      {displayOrderNote(o.note) || "—"}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  <div
-                    className={cn(
-                      "text-[11px] font-bold uppercase tracking-wide",
-                      money.shippingPaid ? "text-emerald-700" : "text-foreground",
+                  <FieldShell label="Tiền hàng thu hộ">
+                    {editing && form && editFields.cod ? (
+                      <Input
+                        className="h-10 text-right"
+                        inputMode="numeric"
+                        value={String(form.codAmount)}
+                        onChange={(e) => {
+                          const codAmount = Math.max(0, Number(e.target.value.replace(/\D/g, "")) || 0);
+                          const cfg = useStore.getState().surcharges?.cod;
+                          setForm({
+                            ...form,
+                            codAmount,
+                            codFee: codAmount > 0 ? calcCodFee(codAmount, cfg) : 0,
+                          });
+                        }}
+                      />
+                    ) : (
+                      <ViewValue value={formatVND(money.codGoods)} />
                     )}
-                  >
-                    Chi phí vận chuyển
-                    {money.shippingPaid ? (
-                      <span className="font-semibold normal-case"> ({money.paidByLabel})</span>
-                    ) : null}
+                  </FieldShell>
+                  <FieldShell label="Phí thu hộ">
+                    <ViewValue
+                      value={formatVND(editing && form && editFields.cod ? form.codFee : money.codFee)}
+                    />
+                  </FieldShell>
+                  {o.bankName || o.bankAccountNo || o.bankAccountName ? (
+                    <>
+                      <FieldShell label="Ngân hàng">
+                        <ViewValue value={o.bankName || "—"} />
+                      </FieldShell>
+                      <FieldShell label="Số tài khoản">
+                        <ViewValue value={o.bankAccountNo || "—"} />
+                      </FieldShell>
+                      <FieldShell label="Chủ tài khoản">
+                        <ViewValue value={o.bankAccountName || "—"} />
+                      </FieldShell>
+                    </>
+                  ) : (
+                    <div className="lab muted">
+                      Chưa nhập — người gửi nhận tiền mặt hoặc chưa cung cấp tài khoản.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="view-opt">
+                  <div className="field view-field only-label">
+                    <span className="l l-ic">
+                      <span className="ms" aria-hidden="true">
+                        account_balance
+                      </span>
+                      Nhận tiền COD qua tài khoản
+                    </span>
+                    <div className="view-val">Không</div>
                   </div>
-                  <div className="space-y-1.5 rounded-lg border border-[#E5EAF2] bg-[#FAFBFD] p-2.5">
+                </div>
+              )}
+
+              <FieldShell label="Ghi chú đơn hàng">
+                {editing && form && editFields.note ? (
+                  <Textarea
+                    className="area"
+                    style={{ minHeight: 80 }}
+                    value={form.note}
+                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                  />
+                ) : (
+                  <ViewValue value={displayOrderNote(o.note) || "—"} />
+                )}
+              </FieldShell>
+
+              {editing && form?.homeDelivery && needDoorQuote ? (
+                <p className={`lab ${doorQuote.error ? "err-sum" : "muted"}`}>
+                  {!form.address.trim()
+                    ? "Nhập địa chỉ hoặc dán link Google Maps để hỏi giá Ahamove."
+                    : doorQuote.loading
+                      ? "Đang hỏi giá Ahamove…"
+                      : doorQuote.km != null
+                        ? `Theo bảng phí tận nơi · ${doorQuote.km.toFixed(2)} km (khoảng cách Ahamove)`
+                        : doorQuote.error
+                          ? `${doorQuote.error} — tạm ${VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ`
+                          : `Chưa ra km — tạm ${VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ`}
+                </p>
+              ) : null}
+
+              {isApiEnabled() ? (
+                <OrderInvoicePanel
+                  order={o}
+                  canIssue={canIssueInvoice}
+                  canEditInfo={canEditRole || canIssueInvoice}
+                  onChanged={() => void reload(o.code)}
+                />
+              ) : o.invoiceRequested ? (
+                <div className="view-opt">
+                  <div className="field view-field only-label">
+                    <span className="l l-ic">
+                      <span className="ms" aria-hidden="true">
+                        receipt_long
+                      </span>
+                      Xuất hoá đơn
+                    </span>
+                  </div>
+                  <FieldShell label="Người">
+                    <ViewValue value={o.invoiceBuyerName || "—"} />
+                  </FieldShell>
+                  {o.invoiceBuyerIdNumber ? (
+                    <FieldShell label="CCCD">
+                      <ViewValue value={o.invoiceBuyerIdNumber} />
+                    </FieldShell>
+                  ) : null}
+                  {o.invoiceBuyerPhone ? (
+                    <FieldShell label="SĐT HĐ">
+                      <ViewValue value={o.invoiceBuyerPhone} />
+                    </FieldShell>
+                  ) : null}
+                  <FieldShell label="MST">
+                    <ViewValue value={o.invoiceTaxCode || "—"} />
+                  </FieldShell>
+                  <FieldShell label="Công ty">
+                    <ViewValue value={o.invoiceCompanyName || "—"} />
+                  </FieldShell>
+                  <FieldShell label="Email">
+                    <ViewValue value={o.invoiceEmail || "—"} />
+                  </FieldShell>
+                  <FieldShell label="Địa chỉ">
+                    <ViewValue value={o.invoiceCompanyAddress || "—"} />
+                  </FieldShell>
+                </div>
+              ) : (
+                <div className="view-opt">
+                  <div className="field view-field only-label">
+                    <span className="l l-ic">
+                      <span className="ms" aria-hidden="true">
+                        receipt_long
+                      </span>
+                      Xuất hoá đơn
+                    </span>
+                    <div className="view-val">Không</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="side-foot stack">
+                <div className="total-box num">
+                  <div className="fee-lines lab" style={{ marginBottom: 8 }}>
                     <FeeRow label="Cước hàng" amount={money.goodsFare} />
                     <FeeRow label="Cước lấy tận nơi" amount={money.pickup} hideZero />
                     <FeeRow
@@ -1722,19 +1742,6 @@ export function OrderHistoryDialog({
                       amount={money.delivery}
                       hideZero={!(editing && form?.homeDelivery)}
                     />
-                    {editing && form?.homeDelivery && needDoorQuote ? (
-                      <p className={`text-[11px] ${doorQuote.error ? "text-destructive" : "text-muted-foreground"}`}>
-                        {!form.address.trim()
-                          ? "Nhập địa chỉ hoặc dán link Google Maps để hỏi giá Ahamove."
-                          : doorQuote.loading
-                            ? "Đang hỏi giá Ahamove…"
-                            : doorQuote.km != null
-                              ? `Theo bảng phí tận nơi · ${doorQuote.km.toFixed(2)} km (khoảng cách Ahamove)`
-                              : doorQuote.error
-                                ? `${doorQuote.error} — tạm ${VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ`
-                                : `Chưa ra km — tạm ${VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ`}
-                      </p>
-                    ) : null}
                     {(o.codFeeRefund ?? 0) > 0 ? (
                       <FeeRow label="Tiền hoàn phí COD" amount={o.codFeeRefund || money.codFee} />
                     ) : (
@@ -1746,97 +1753,43 @@ export function OrderHistoryDialog({
                     <FeeRow label="Phí khai giá" amount={money.declared} hideZero />
                     <FeeRow label="Phí tồn kho giao" amount={money.storage} hideZero />
                     <FeeRow label="Phí hoàn đơn" amount={money.returnFee} hideZero />
-                    {money.discount > 0 ? (
-                      <FeeRow label="Giảm giá" amount={-money.discount} />
-                    ) : null}
+                    {money.discount > 0 ? <FeeRow label="Giảm giá" amount={-money.discount} /> : null}
                     {money.paid > 0 ? (
-                      <div
-                        className={cn(
-                          "flex justify-between gap-2 border-t border-[#E5EAF2] pt-2 text-sm font-semibold",
-                          money.shippingPaid ? "text-emerald-700" : "text-foreground",
-                        )}
-                      >
-                        <span>{money.shippingPaid ? "Tổng đã thu" : "Đã thu"}</span>
-                        <span className="tabular-nums">{formatVND(money.paid)}</span>
-                      </div>
+                      <FeeRow
+                        label={money.shippingPaid ? `Tổng đã thu (${money.paidByLabel})` : "Đã thu"}
+                        amount={money.paid}
+                      />
                     ) : null}
                   </div>
-                </div>
-
-                {isApiEnabled() ? (
-                  <OrderInvoicePanel
-                    order={o}
-                    canIssue={canIssueInvoice}
-                    canEditInfo={canEditRole || canIssueInvoice}
-                    onChanged={() => void reload(o.code)}
-                  />
-                ) : o.invoiceRequested ? (
-                  <div className="rounded-md border border-sky-200 bg-sky-50/70 p-2.5 text-sm">
-                    <div className="mb-1.5 text-[11px] font-semibold text-sky-800">Xuất hoá đơn</div>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Người</span>
-                        <span className="text-right font-medium">{o.invoiceBuyerName || "—"}</span>
-                      </div>
-                      {o.invoiceBuyerIdNumber ? (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">CCCD</span>
-                          <span className="font-medium">{o.invoiceBuyerIdNumber}</span>
-                        </div>
-                      ) : null}
-                      {o.invoiceBuyerPhone ? (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">SĐT HĐ</span>
-                          <span className="font-medium">{o.invoiceBuyerPhone}</span>
-                        </div>
-                      ) : null}
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">MST</span>
-                        <span className="font-medium">{o.invoiceTaxCode || "—"}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Công ty</span>
-                        <span className="text-right font-medium">{o.invoiceCompanyName || "—"}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="text-right font-medium">{o.invoiceEmail || "—"}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Địa chỉ</span>
-                        <span className="text-right font-medium">{o.invoiceCompanyAddress || "—"}</span>
-                      </div>
-                    </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span className="lab">Tổng phải thu</span>
+                    <span className="kpi-val" style={{ fontSize: 24 }}>
+                      {formatVND(money.remaining)}{" "}
+                      <span style={{ fontSize: 12, fontWeight: 400 }}>VNĐ</span>
+                    </span>
                   </div>
-                ) : null}
-              </div>
-
-              <div className="shrink-0 p-3 sm:p-4">
-                <div
-                  className={cn(
-                    "rounded-lg border-2 p-3",
-                    money.remaining > 0
-                      ? "border-amber-400 bg-[#FFF8E8]"
-                      : "border-[#E5EAF2] bg-[#F3F6FA]",
-                  )}
-                >
-                  <div className="flex items-end justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-bold text-foreground">Còn phải thu</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {money.remainingHint}
-                      </div>
+                  {money.remainingHint ? (
+                    <div className="lab" style={{ marginTop: 4, opacity: 0.9 }}>
+                      {money.remainingHint}
                     </div>
-                    <div
-                      className={cn(
-                        "text-xl font-bold tabular-nums",
-                        money.remaining > 0 ? "text-[#E67E22]" : "text-foreground",
-                      )}
-                    >
-                      {formatVND(money.remaining)}
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
+                {editing ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 8 }}>
+                    <button type="button" className="btn ghost" disabled={saving} onClick={cancelEdit}>
+                      Huỷ sửa
+                    </button>
+                    <button type="button" className="btn" disabled={saving} onClick={saveEdit}>
+                      {saving ? "Đang lưu…" : "Lưu thay đổi"}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button type="button" className="btn ghost" onClick={() => onOpenChange(false)}>
+                      Đóng
+                    </button>
+                  </div>
+                )}
               </div>
             </aside>
           </div>
