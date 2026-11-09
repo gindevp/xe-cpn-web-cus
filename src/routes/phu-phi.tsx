@@ -863,7 +863,12 @@ function DoorFeeTable({
       </div>
       <div
         className="card stack"
-        style={{ gap: 12, padding: 12, background: "var(--low)" }}
+        style={{
+          gap: 12,
+          padding: 12,
+          background: extraBand.enabled ? "var(--primary-container)" : "var(--low)",
+          boxShadow: extraBand.enabled ? "inset 0 0 0 2px var(--primary)" : undefined,
+        }}
       >
         <div
           style={{
@@ -882,14 +887,20 @@ function DoorFeeTable({
               {kind === "PICKUP" ? "lấy" : "giao"} tận nơi.
             </div>
           </div>
-          <input
-            type="checkbox"
-            checked={!!extraBand.enabled}
-            disabled={disabled}
-            aria-label="Bật phí áp dụng thêm"
-            onChange={(e) => onExtra(side, { enabled: e.target.checked })}
-            style={{ marginTop: 6 }}
-          />
+          <label className="toggle" style={{ flex: "none", marginTop: 2 }}>
+            <span className={extraBand.enabled ? "tag ok" : "tag"} aria-hidden="true">
+              {extraBand.enabled ? "Đang bật" : "Đang tắt"}
+            </span>
+            <input
+              className="switch"
+              type="checkbox"
+              checked={!!extraBand.enabled}
+              disabled={disabled}
+              aria-label="Bật phí áp dụng thêm"
+              title={extraBand.enabled ? "Đang bật" : "Đang tắt"}
+              onChange={(e) => onExtra(side, { enabled: e.target.checked })}
+            />
+          </label>
         </div>
         {extraBand.enabled ? (
           <div className="sentence num">
