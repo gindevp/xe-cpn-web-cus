@@ -89,6 +89,41 @@ function providerTagClass(provider: string) {
   return "tag";
 }
 
+/** Note BE: {@code mãVP phíCOD tiềnCOD mãĐơn}, nhiều đơn cách nhau dấu phẩy. */
+function parseCodNoteSegments(note?: string | null): Array<{
+  officeCode: string;
+  codFee: string;
+  codAmount: string;
+  orderCode: string;
+}> {
+  const raw = note?.trim() ?? "";
+  if (!raw) return [];
+  return raw.split(/\s*,\s*/).flatMap((seg) => {
+    const parts = seg.trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 4) {
+      return [
+        {
+          officeCode: parts[0] ?? "",
+          codFee: parts[1] ?? "",
+          codAmount: parts[2] ?? "",
+          orderCode: parts.slice(3).join(" "),
+        },
+      ];
+    }
+    if (parts.length === 3) {
+      return [
+        {
+          officeCode: "",
+          codFee: parts[0] ?? "",
+          codAmount: parts[1] ?? "",
+          orderCode: parts[2] ?? "",
+        },
+      ];
+    }
+    return [];
+  });
+}
+
 /** Minh họa ví tiền — design GiaoDichThuHo `.rev-ill`. */
 function WalletIll() {
   return (
@@ -187,26 +222,39 @@ function Page() {
         "TK ảo",
         "Ngân hàng",
         "Mã HĐ OnePay",
-        "note",
+        "Mã VP",
+        "Phí COD",
+        "Tiền COD",
+        "Mã đơn COD",
       ];
-      const data = rows.map((r, i) => [
-        i + 1,
-        r.providerLabel || r.provider,
-        r.targetTypeLabel || r.targetType,
-        r.refCode ?? "",
-        r.payerRef ?? "",
-        r.payOffice ?? "",
-        r.description ?? "",
-        r.transId,
-        Number(r.amount ?? 0),
-        fmtTransDate(r.transDate),
-        fmtDateTime(r.createdAt),
-        r.payerName ?? "",
-        r.accountNumber ?? "",
-        r.bankName ?? "",
-        r.invoiceReference ?? "",
-        r.note ?? "",
-      ]);
+      const data: (string | number)[][] = [];
+      rows.forEach((r, i) => {
+        const base: (string | number)[] = [
+          i + 1,
+          r.providerLabel || r.provider,
+          r.targetTypeLabel || r.targetType,
+          r.refCode ?? "",
+          r.payerRef ?? "",
+          r.payOffice ?? "",
+          r.description ?? "",
+          r.transId,
+          Number(r.amount ?? 0),
+          fmtTransDate(r.transDate),
+          fmtDateTime(r.createdAt),
+          r.payerName ?? "",
+          r.accountNumber ?? "",
+          r.bankName ?? "",
+          r.invoiceReference ?? "",
+        ];
+        const segs = parseCodNoteSegments(r.note);
+        if (!segs.length) {
+          data.push([...base, "", "", "", ""]);
+          return;
+        }
+        for (const s of segs) {
+          data.push([...base, s.officeCode, s.codFee, s.codAmount, s.orderCode]);
+        }
+      });
       data.push([
         "",
         "Tổng",
@@ -217,6 +265,9 @@ function Page() {
         "",
         "",
         Number(res.totalAmount ?? 0),
+        "",
+        "",
+        "",
         "",
         "",
         "",
