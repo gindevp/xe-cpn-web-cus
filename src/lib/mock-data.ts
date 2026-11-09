@@ -1024,9 +1024,24 @@ export function formatKg(n: number | null | undefined, digits = 3) {
   return `${s} KG`;
 }
 
+const VN_TZ = "Asia/Ho_Chi_Minh";
+
+/** dd/MM/yyyy HH:mm:ss giờ VN — cố định để CSV/Excel không lệch ngày↔tháng theo locale. */
 export function formatDateTime(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleString("vi-VN", { hour12: false });
+  if (Number.isNaN(d.getTime())) return String(iso ?? "");
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: VN_TZ,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
 export function officeName(code: string) {

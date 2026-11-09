@@ -6,8 +6,14 @@ export type ExportFormat = "csv" | "excel";
 
 function csvEscape(v: unknown): string {
   const s = String(v ?? "");
-  // SĐT / MST / số dài: ép Excel mở CSV vẫn giữ dạng chữ → ô dạng ="0xxx"
-  if (s !== "" && (/^0\d/.test(s) || /^\d{10,}$/.test(s))) {
+  // SĐT / MST / số dài / ngày giờ: ép Excel mở CSV giữ dạng chữ → ="..."
+  // (ngày ≤12 Excel hay đảo MM/DD nếu để auto-parse).
+  if (
+    s !== "" &&
+    (/^0\d/.test(s) ||
+      /^\d{10,}$/.test(s) ||
+      /^\d{1,2}\/\d{1,2}\/\d{4}(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?$/.test(s))
+  ) {
     return `"=""${s.replace(/"/g, '""')}"""`;
   }
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
