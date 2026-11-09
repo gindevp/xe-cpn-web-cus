@@ -10,6 +10,7 @@ import {
   type DoorFeeRule,
   type CodFeeTier,
   type DoorOverageSide,
+  type DoorExtraSide,
 } from "@/lib/store";
 import { formatVND, parseVndInput } from "@/lib/mock-data";
 import { MoneyInput } from "@/components/MoneyInput";
@@ -335,6 +336,10 @@ function normalizeSurcharge(raw?: SurchargeConfig | null): SurchargeConfig {
         ...(raw?.doorOverage?.delivery ?? {}),
       },
     },
+    doorExtra: {
+      pickup: { ...DEFAULT_SURCHARGES.doorExtra.pickup, ...(raw?.doorExtra?.pickup ?? {}) },
+      delivery: { ...DEFAULT_SURCHARGES.doorExtra.delivery, ...(raw?.doorExtra?.delivery ?? {}) },
+    },
   };
 }
 
@@ -425,6 +430,10 @@ function Page() {
           pickup: { ...DEFAULT_SURCHARGES.doorOverage.pickup, ...overageRef.current?.pickup },
           delivery: { ...DEFAULT_SURCHARGES.doorOverage.delivery, ...overageRef.current?.delivery },
         },
+        doorExtra: {
+          pickup: { ...DEFAULT_SURCHARGES.doorExtra.pickup, ...(f.doorExtra?.pickup ?? {}) },
+          delivery: { ...DEFAULT_SURCHARGES.doorExtra.delivery, ...(f.doorExtra?.delivery ?? {}) },
+        },
       };
       const prevDoors = useStore.getState().doorFees ?? [];
       const saved = await putSurchargePolicy(payload);
@@ -446,7 +455,13 @@ function Page() {
       const doors = await persistDoorFeeRules(doorDraft, prevDoors);
       useStore.setState({ surcharges: saved, doorFees: doors });
       overageRef.current = saved.doorOverage ?? payload.doorOverage;
-      setF(normalizeSurcharge({ ...saved, doorOverage: overageRef.current }));
+      setF(
+        normalizeSurcharge({
+          ...saved,
+          doorOverage: overageRef.current,
+          doorExtra: saved.doorExtra ?? payload.doorExtra,
+        }),
+      );
       setDoorDraft(doors.map((r) => ({ ...r })));
       toast.success("Đã lưu cài đặt phụ phí");
     } catch (e: any) {
@@ -615,6 +630,15 @@ function Page() {
           overageRef.current = next;
           patch("doorOverage", next);
         }}
+        extra={f.doorExtra ?? DEFAULT_SURCHARGES.doorExtra}
+        onExtra={(side, p) => {
+          const next = {
+            pickup: { ...DEFAULT_SURCHARGES.doorExtra.pickup, ...(f.doorExtra?.pickup ?? {}) },
+            delivery: { ...DEFAULT_SURCHARGES.doorExtra.delivery, ...(f.doorExtra?.delivery ?? {}) },
+          };
+          next[side] = { ...next[side], ...p };
+          patch("doorExtra", next);
+        }}
         disabled={!writable || loading || saving}
       />
     </div>
@@ -627,17 +651,22 @@ function DoorFeeTable({
   onChange,
   overage,
   onOverage,
+  extra,
+  onExtra,
   disabled,
 }: {
   rows: DoorFeeRule[];
   onChange: (rows: DoorFeeRule[]) => void;
   overage: { pickup: DoorOverageSide; delivery: DoorOverageSide };
   onOverage: (side: "pickup" | "delivery", p: Partial<DoorOverageSide>) => void;
+  extra: { pickup: DoorExtraSide; delivery: DoorExtraSide };
+  onExtra: (side: "pickup" | "delivery", p: Partial<DoorExtraSide>) => void;
   disabled?: boolean;
 }) {
   const [kind, setKind] = useState<"PICKUP" | "DELIVERY">("PICKUP");
   const side = kind === "DELIVERY" ? "delivery" : "pickup";
   const band = overage[side];
+  const extraBand = extra[side];
   const rows = doorFees.filter((r) => r.kind === kind);
 
   const patchRow = (id: string, p: Partial<DoorFeeRule>) =>
@@ -832,9 +861,56 @@ function DoorFeeTable({
           VND
         </div>
       </div>
+      <div
+        className="card stack"
+        style={{ gap: 12, padding: 12, background: "var(--low)" }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div className="lab" style={{ fontWeight: 600 }}>
+              Phí áp dụng thêm
+            </div>
+            <div className="lab muted">
+              Mưa gió, thời tiết xấu hoặc sự kiện — bật thì cộng vào cước{" "}
+              {kind === "PICKUP" ? "lấy" : "giao"} tận nơi.
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={!!extraBand.enabled}
+            disabled={disabled}
+            aria-label="Bật phí áp dụng thêm"
+            onChange={(e) => onExtra(side, { enabled: e.target.checked })}
+            style={{ marginTop: 6 }}
+          />
+        </div>
+        {extraBand.enabled ? (
+          <div className="sentence num">
+            Cộng thêm
+            <MoneyInput
+              className="w-32"
+              suffix=""
+              aria-label="Số tiền phí áp dụng thêm"
+              value={extraBand.amount}
+              onChange={(v) => onExtra(side, { amount: v })}
+              disabled={disabled}
+            />
+            VND vào mỗi đơn {kind === "PICKUP" ? "lấy" : "giao"} tận nơi
+          </div>
+        ) : (
+          <div className="lab muted">Đang tắt — không cộng thêm.</div>
+        )}
+      </div>
       <div className="note">
-        Khớp đúng khoảng cân và km thì lấy phí dòng đó. Vượt bậc cuối chỉ áp dụng cho tab đang chọn.
-        Bước bằng 0 thì không cộng. Lưu cùng nút Lưu cài đặt.
+        Khớp đúng khoảng cân và km thì lấy phí dòng đó. Vượt bậc cuối và phí áp dụng thêm chỉ áp dụng
+        cho tab đang chọn. Bước bằng 0 thì không cộng. Lưu cùng nút Lưu cài đặt.
       </div>
     </section>
   );

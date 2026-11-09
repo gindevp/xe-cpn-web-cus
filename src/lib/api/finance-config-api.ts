@@ -342,6 +342,10 @@ type SurchargeDTO = {
   doorDeliveryOverKgFee?: number;
   doorDeliveryOverKmStep?: number;
   doorDeliveryOverKmFee?: number;
+  doorPickupExtraEnabled?: boolean;
+  doorPickupExtraAmount?: number;
+  doorDeliveryExtraEnabled?: boolean;
+  doorDeliveryExtraAmount?: number;
   updatedAt?: string;
 };
 
@@ -407,6 +411,16 @@ export function mapSurcharge(dto: SurchargeDTO | null | undefined): SurchargeCon
         kmFee: Number(dto.doorDeliveryOverKmFee ?? dto.doorOverKmFee ?? 0),
       },
     },
+    doorExtra: {
+      pickup: {
+        enabled: !!dto.doorPickupExtraEnabled,
+        amount: Number(dto.doorPickupExtraAmount ?? 0),
+      },
+      delivery: {
+        enabled: !!dto.doorDeliveryExtraEnabled,
+        amount: Number(dto.doorDeliveryExtraAmount ?? 0),
+      },
+    },
     updatedAt: dto.updatedAt,
   };
 }
@@ -436,6 +450,10 @@ export function surchargeToDto(cfg: SurchargeConfig): SurchargeDTO {
     doorDeliveryOverKgFee: cfg.doorOverage?.delivery?.kgFee ?? 0,
     doorDeliveryOverKmStep: cfg.doorOverage?.delivery?.kmStep ?? 0,
     doorDeliveryOverKmFee: cfg.doorOverage?.delivery?.kmFee ?? 0,
+    doorPickupExtraEnabled: !!cfg.doorExtra?.pickup?.enabled,
+    doorPickupExtraAmount: Number(cfg.doorExtra?.pickup?.amount ?? 0),
+    doorDeliveryExtraEnabled: !!cfg.doorExtra?.delivery?.enabled,
+    doorDeliveryExtraAmount: Number(cfg.doorExtra?.delivery?.amount ?? 0),
   };
 }
 

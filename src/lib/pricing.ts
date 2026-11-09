@@ -320,13 +320,16 @@ export function calcDoorFee(kind: "PICKUP" | "DELIVERY", chargeKg: number, km: n
     exact ??
     [...weightRows].sort((a, b) => a.maxKm - b.maxKm).find((r) => useKm <= r.maxKm + 0.001) ??
     [...weightRows].sort((a, b) => b.maxKm - a.maxKm)[0];
+  const extraSide = kind === "DELIVERY" ? st.surcharges?.doorExtra?.delivery : st.surcharges?.doorExtra?.pickup;
+  const weatherExtra =
+    extraSide?.enabled && Number(extraSide.amount) > 0 ? Math.round(Number(extraSide.amount)) : 0;
   if (row?.fee == null || !Number.isFinite(Number(row.fee))) {
-    return Math.round(Number(st.surcharges?.homeDelivery?.amount) || 0);
+    return Math.round(Number(st.surcharges?.homeDelivery?.amount) || 0) + weatherExtra;
   }
   const over = kind === "DELIVERY" ? st.surcharges?.doorOverage?.delivery : st.surcharges?.doorOverage?.pickup;
   const kgExtra = stepMoney(kg, row.maxKg, over?.kgStep ?? 0, over?.kgFee ?? 0);
   const kmExtra = stepMoney(useKm, row.maxKm, over?.kmStep ?? 0, over?.kmFee ?? 0);
-  return Math.round(Number(row.fee) + kgExtra + kmExtra);
+  return Math.round(Number(row.fee) + kgExtra + kmExtra + weatherExtra);
 }
 
 function stepMoney(value: number, max: number, step: number, fee: number) {
