@@ -1677,7 +1677,7 @@ export type CollectionTransactionRow = {
   /** Nội dung CK gửi OnePay khi tạo VA. */
   description?: string | null;
   /**
-   * Kênh nộp tiền: NV → `mã NV · VP`; khách ĐN → SĐT TK; khách ẩn danh → SĐT người gửi.
+   * Kênh nộp tiền: `Nhân viên chuyển · mã NV · tên VP` hoặc `Khách chuyển · SĐT`.
    */
   payChannel?: string | null;
   payerName?: string | null;

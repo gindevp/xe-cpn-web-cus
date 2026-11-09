@@ -89,6 +89,36 @@ function providerTagClass(provider: string) {
   return "tag";
 }
 
+/** Tách «Nhân viên chuyển / Khách chuyển» ra khỏi chi tiết (mã NV · VP / SĐT). */
+function splitPayChannel(raw?: string | null): { kind: string; detail: string } | null {
+  const s = raw?.trim();
+  if (!s) return null;
+  const sep = " · ";
+  const i = s.indexOf(sep);
+  if (i > 0) {
+    return { kind: s.slice(0, i), detail: s.slice(i + sep.length) };
+  }
+  return { kind: s, detail: "" };
+}
+
+function PayChannelCell({ value }: { value?: string | null }) {
+  const parts = splitPayChannel(value);
+  if (!parts) return <span className="muted">—</span>;
+  const staff = parts.kind.toLowerCase().includes("nhân viên");
+  const customer = parts.kind.toLowerCase().includes("khách");
+  const tagClass = staff ? "tag ok" : customer ? "tag info" : "tag";
+  return (
+    <div style={{ minWidth: 140 }}>
+      <span className={tagClass}>{parts.kind}</span>
+      {parts.detail ? (
+        <div className="muted" style={{ marginTop: 4, whiteSpace: "normal", wordBreak: "break-word" }}>
+          {parts.detail}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Minh họa ví tiền — design GiaoDichThuHo `.rev-ill`. */
 function WalletIll() {
   return (
@@ -363,7 +393,7 @@ function Page() {
         ) : (
           <div className="stack">
             <div className="scroller">
-              <table className="tbl compact sticky-1" style={{ ["--tbl-min" as string]: "1100px" }}>
+              <table className="tbl compact sticky-1" style={{ ["--tbl-min" as string]: "1280px" }}>
                 <thead>
                   <tr>
                     <th>Thu hộ</th>
@@ -403,8 +433,10 @@ function Page() {
                           "—"
                         )}
                       </td>
-                      <td style={{ whiteSpace: "nowrap" }}>{r.payChannel?.trim() || "—"}</td>
-                      <td className="muted" style={{ whiteSpace: "nowrap" }}>
+                      <td>
+                        <PayChannelCell value={r.payChannel} />
+                      </td>
+                      <td style={{ minWidth: 160, maxWidth: 280, whiteSpace: "normal", wordBreak: "break-word" }}>
                         {r.description?.trim() || "—"}
                       </td>
                       <td className="num" style={{ whiteSpace: "nowrap" }}>
