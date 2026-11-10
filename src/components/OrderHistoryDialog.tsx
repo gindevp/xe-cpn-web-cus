@@ -452,7 +452,7 @@ function moneyOf(o: OrderX, form?: EditForm | null, deliveryOverride?: number | 
       : fareDue > 0 && storageUnpaid > 0 && storageUnpaid >= fareDue
         ? "Phí tồn kho giao — người nhận trả khi nhận hàng"
         : fareDue > 0
-          ? "Cước vận chuyển còn lại"
+          ? ""
           : codGoods > 0
             ? "Thu hộ COD từ người nhận"
             : "";
