@@ -18,6 +18,12 @@ const PKGNOTE_RE = /\[PKGNOTE\]([\s\S]*?)\[\/PKGNOTE\]/;
 /** Giá trị hàng khai báo từng kiện (VND), ngăn `,`. */
 const PKGVAL_RE = /\[PKGVAL\]([\d,\s]*)\[\/PKGVAL\]/;
 const RETURN_RE = /\[RETURN\]([\s\S]*?)\[\/RETURN\]/;
+/** Nhóm hàng (Bảng giá) từng kiện lúc tạo đơn, ngăn `|`. */
+const NHOM_RE = /\[NHOM\]([\s\S]*?)\[\/NHOM\]/;
+/** Km Ahamove lúc tạo đơn: "lấy|giao", trống nếu không tận nơi. */
+const KM_RE = /\[KM\]([\d.]*)\|([\d.]*)\[\/KM\]/;
+/** Khách có nhu cầu chuyển khoản lúc tạo đơn. */
+const CKREQ_RE = /\[CKREQ\]1\[\/CKREQ\]/;
 /** Chữ ký tài xế (data-URI SVG) — app Lên hàng ghi mỗi lần ký một tag, `t` = epoch ms lúc ký. */
 const DRVSIGN_RE = /\[DRVSIGN(?: t=(\d+))?\]([\s\S]*?)\[\/DRVSIGN\]/g;
 
@@ -95,8 +101,18 @@ export type OrderNoteMeta = {
   driverSigns: DriverSign[];
   /** Kiện đã xác nhận lên xe (app). */
   warehouseOutSeqs: number[];
+  /** Nhóm hàng từng kiện — 1 phần tử / kiện. */
+  packageGroups: string[];
+  pickupKm: number | null;
+  deliveryKm: number | null;
+  senderTransferRequested: boolean;
   body: string;
 };
+
+function kmOf(raw: string | undefined): number | null {
+  const n = Number(raw);
+  return raw && Number.isFinite(n) && n > 0 ? n : null;
+}
 
 export type PackageDims = { d: number; r: number; c: number };
 
@@ -184,6 +200,8 @@ export function parseOrderNoteMeta(note?: string): OrderNoteMeta {
         .filter((n) => Number.isInteger(n) && n > 0),
     ),
   ].sort((a, b) => a - b);
+  const packageGroups = splitPipe(raw.match(NHOM_RE)?.[1] ?? "");
+  const km = raw.match(KM_RE);
   const body = raw
     .replace(KIEN_RE, "")
     .replace(LOAI_RE, "")
@@ -198,6 +216,9 @@ export function parseOrderNoteMeta(note?: string): OrderNoteMeta {
     .replace(PKGVAL_RE, "")
     .replace(RETURN_RE, "")
     .replace(DRVSIGN_RE, "")
+    .replace(NHOM_RE, "")
+    .replace(KM_RE, "")
+    .replace(CKREQ_RE, "")
     .trim();
   return {
     goodsKinds,
@@ -215,6 +236,10 @@ export function parseOrderNoteMeta(note?: string): OrderNoteMeta {
     returnAddress,
     driverSigns,
     warehouseOutSeqs,
+    packageGroups,
+    pickupKm: kmOf(km?.[1]),
+    deliveryKm: kmOf(km?.[2]),
+    senderTransferRequested: CKREQ_RE.test(raw),
     body,
   };
 }
@@ -284,6 +309,10 @@ export function buildOrderNote(meta: {
   returnPhone?: string;
   returnAddress?: string;
   driverSigns?: DriverSign[];
+  packageGroups?: string[];
+  pickupKm?: number | null;
+  deliveryKm?: number | null;
+  senderTransferRequested?: boolean;
   body?: string;
 }): string | undefined {
   const parts: string[] = [];
@@ -317,6 +346,13 @@ export function buildOrderNote(meta: {
   const rp = sanitizeListValue(meta.returnPhone ?? "");
   const ra = sanitizeListValue(meta.returnAddress ?? "");
   if (rn || rp || ra) parts.push(`[RETURN]${[rn, rp, ra].join("|")}[/RETURN]`);
+  const groups = (meta.packageGroups ?? []).map(sanitizeListValue);
+  if (groups.some(Boolean)) parts.push(`[NHOM]${groups.join("|")}[/NHOM]`);
+  const kmText = (v?: number | null) => (v != null && Number.isFinite(v) && v > 0 ? String(Number(v.toFixed(2))) : "");
+  const pk = kmText(meta.pickupKm);
+  const dk = kmText(meta.deliveryKm);
+  if (pk || dk) parts.push(`[KM]${pk}|${dk}[/KM]`);
+  if (meta.senderTransferRequested) parts.push("[CKREQ]1[/CKREQ]");
   for (const s of meta.driverSigns ?? []) {
     const uri = s.uri?.trim();
     if (uri) parts.push(`[DRVSIGN${s.at ? ` t=${s.at}` : ""}]${uri}[/DRVSIGN]`);
@@ -379,6 +415,14 @@ export function embedPackageNotes(note: string | undefined, notes: string[] | un
 
 export function embedPackageValues(note: string | undefined, values: number[] | undefined): string | undefined {
   return rebuildNote(note, { packageValues: values ?? [] });
+}
+
+/** Thông tin lúc tạo đơn chỉ để hiện lại trên chi tiết đơn (không tính tiền). */
+export function embedCreateInfo(
+  note: string | undefined,
+  info: Pick<OrderNoteMeta, "packageGroups" | "pickupKm" | "deliveryKm" | "senderTransferRequested">,
+): string | undefined {
+  return rebuildNote(note, info);
 }
 
 /** Ghi chú in trên tem: kiện → ghi chú kiện đó; cả đơn → gộp ghi chú các kiện (bỏ trùng). */
@@ -517,6 +561,8 @@ export type PackageRow = {
   value: number;
   /** Ghi chú riêng của kiện. */
   note: string;
+  /** Nhóm hàng (Bảng giá) lúc tạo đơn; trống với đơn cũ. */
+  group: string;
   inboundStatus: PackageInboundStatus;
 };
 
@@ -585,6 +631,7 @@ export function packageRows(order: Order): PackageRow[] {
       fare: fares[seq - 1] ?? 0,
       value: values[seq - 1] ?? 0,
       note: meta.packageNotes[seq - 1] ?? "",
+      group: meta.packageGroups[seq - 1] ?? "",
       inboundStatus: inSet.has(seq) ? "IN" : "MISSING",
     };
   });
@@ -726,6 +773,10 @@ function persistPackageRows(
   if (prevVals.length) {
     const nextVals = rows.map((_, i) => Math.max(0, Math.round(Number(prevVals[i]) || 0)));
     note = embedPackageValues(note, nextVals);
+  }
+  const prevGroups = parseOrderNoteMeta(order.note).packageGroups;
+  if (prevGroups.length) {
+    note = rebuildNote(note, { packageGroups: rows.map((_, i) => prevGroups[i] ?? "") });
   }
   note = embedWarehouseInSeqs(note, whin);
 

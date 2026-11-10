@@ -106,6 +106,7 @@ export type OrderSummary = {
   invoiceBuyerName?: string;
   invoiceBuyerIdNumber?: string;
   invoiceBuyerPhone?: string;
+  senderIdNumber?: string;
   invoiceRefId?: string;
   invoiceStatus?: string;
   invoiceType?: string;
@@ -330,6 +331,7 @@ export function mapOrder(dto: OrderSummary): OrderX {
     invoiceCompanyAddress: dto.invoiceCompanyAddress,
     invoiceBuyerName: dto.invoiceBuyerName,
     invoiceBuyerIdNumber: dto.invoiceBuyerIdNumber,
+    senderIdNumber: dto.senderIdNumber,
     invoiceBuyerPhone: dto.invoiceBuyerPhone,
     invoiceRefId: dto.invoiceRefId,
     invoiceStatus: dto.invoiceStatus,

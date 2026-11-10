@@ -699,6 +699,7 @@ function Page() {
           code: eo.code,
           senderPhone: eo.senderPhone,
           senderName: eo.senderName ?? "",
+          idNumber: eo.senderIdNumber ?? "",
           fromOffice: eo.fromOffice,
           homePickup: !!eo.homePickup,
           pickupAddr: eo.homePickup ? eo.pickupAddress ?? "" : "",
@@ -730,6 +731,7 @@ function Page() {
           items: pkgs.map((p) => ({
             id: `${eo.code}-${p.seq}`,
             sl: p.itemQty,
+            group: p.group,
             kind: p.kind,
             name: p.goodsName,
             weight: p.weightKg ?? eo.weightKg ?? 0,

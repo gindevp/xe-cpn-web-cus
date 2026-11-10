@@ -65,6 +65,7 @@ import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
 import type { GuestCollect } from "@/lib/api/domain-api";
 import {
+  embedCreateInfo,
   embedPackageDims,
   embedPackageFares,
   embedPackageGoods,
@@ -72,6 +73,7 @@ import {
   embedPackageValues,
   embedPackageWeightsKg,
   embedWarehouseInSeqs,
+  parseOrderNoteMeta,
   splitMoney,
   warehouseInSeqs,
 } from "@/lib/package-label";
@@ -233,7 +235,12 @@ function faresPerPackage(items: Item[], goodsFare: number): number[] {
   return goods.map((g, i) => g + (restParts[i] ?? 0));
 }
 
-function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFare: number) {
+function orderNoteWithPackages(
+  body: string | undefined,
+  items: Item[],
+  goodsFare: number,
+  info: Parameters<typeof embedCreateInfo>[1],
+) {
   const qtys = items.map((i) => Math.max(1, Number(i.sl) || 1));
   const weights = items.map((i) => Math.max(0, Number(i.weight) || 0));
   const { goodsKinds, goodsNames } = packagesFromItems(items);
@@ -249,7 +256,7 @@ function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFar
     note,
     items.map((i) => Math.max(0, Math.round(Number(i.value) || 0))),
   );
-  return note;
+  return embedCreateInfo(note, info);
 }
 
 /** Mỗi dòng hàng = 1 kiện; SL = số lượng SP trong kiện (khai báo). */
@@ -1315,6 +1322,7 @@ export function TaoDonDialog({
         const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
         const { packageCount } = packagesFromItems(items);
         const prev = useStore.getState().orders.find((o) => o.code === initial.code);
+        const prevMeta = parseOrderNoteMeta(prev?.note);
         const nextSender = toUpperName(senderName);
         const nextReceiver = toUpperName(receiverName) || "—";
         const detailParts = [
@@ -1362,9 +1370,15 @@ export function TaoDonDialog({
             toOffice: toCode,
             finalToOffice: toCode,
             note: embedWarehouseInSeqs(
-              orderNoteWithPackages(orderNote, items, goodsFare),
+              orderNoteWithPackages(orderNote, items, goodsFare, {
+                packageGroups: items.map(resolveGroup),
+                pickupKm: homePickup ? (pickupKm ?? prevMeta.pickupKm) : null,
+                deliveryKm: homeDeliver ? (deliverKm ?? prevMeta.deliveryKm) : null,
+                senderTransferRequested: prevMeta.senderTransferRequested,
+              }),
               warehouseInSeqs(prev ?? { note: undefined }),
             ),
+            senderIdNumber: idNumber.trim(),
             weightKg: totalWeight,
             quantity: packageCount,
             fare: totalFare,
@@ -1440,7 +1454,13 @@ export function TaoDonDialog({
         status: "CONFIRMED",
         createdAt: now,
         updatedAt: now,
-        note: orderNoteWithPackages(orderNote, items, goodsFare),
+        note: orderNoteWithPackages(orderNote, items, goodsFare, {
+          packageGroups: items.map(resolveGroup),
+          pickupKm: homePickup ? pickupKm : null,
+          deliveryKm: homeDeliver ? deliverKm : null,
+          senderTransferRequested: requestSenderTransfer && payMethod === "Người gửi thanh toán",
+        }),
+        senderIdNumber: idNumber.trim() || undefined,
         homeDelivery: homeDeliver,
         homePickup,
         paidAmount: paidNow,

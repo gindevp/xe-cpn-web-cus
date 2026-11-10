@@ -9,7 +9,7 @@ import {
 } from "react";
 import { DialogDescription } from "@/components/ui/dialog";
 import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
-import { OrderEventLog } from "@/components/OrderEventLog";
+import { GoodsPhotoTile, OrderEventLog } from "@/components/OrderEventLog";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { ChangePaymentTermDialog, canChangePayTerm } from "@/components/ChangePaymentTermDialog";
 import { ChangeDestOfficeDialog, canRerouteDest } from "@/components/ChangeDestOfficeDialog";
@@ -720,6 +720,21 @@ export function OrderHistoryDialog({
     if (!o) return null;
     return effectiveReturnContact(parseOrderNoteMeta(o.note), o);
   }, [o]);
+  const createInfo = useMemo(() => parseOrderNoteMeta(o?.note), [o?.note]);
+  /** Nhóm hàng đã lưu lúc tạo; đơn cũ suy từ Bảng giá theo tên SP. */
+  const groupOfPkg = (seq: number, kind: string) => {
+    const saved = createInfo.packageGroups[seq - 1]?.trim();
+    if (saved) return saved;
+    if (isOtherGoodsGroup(kind)) return OTHER_GOODS;
+    const k = kind.trim().toLowerCase();
+    return productPricing.find((p) => p.name.trim().toLowerCase() === k)?.group.trim() ?? "";
+  };
+  const doorLabel = (on: boolean | undefined, fee: number, km: number | null | undefined) =>
+    on
+      ? ["Có", fee > 0 ? formatVND(fee) : "", km != null && km > 0 ? `${km.toFixed(1)} km` : ""]
+          .filter(Boolean)
+          .join(" · ")
+      : "Không";
   const autoCalls = useLatestAutoCalls(open ? o?.code : null, o?.senderPhone, o?.receiverPhone);
 
   const headerMeta = o
@@ -1107,10 +1122,13 @@ export function OrderHistoryDialog({
                       <ViewValue value={o.senderName ?? ""} />
                     )}
                   </FieldShell>
+                  <FieldShell label="CMND/Passport">
+                    <ViewValue value={o.senderIdNumber ?? ""} />
+                  </FieldShell>
                   <FieldShell label="VP gửi">
                     <ViewValue value={officeName(o.fromOffice)} />
                   </FieldShell>
-                  {(editing && editFields.senderAddress) || o.pickupAddress ? (
+                  {!editing || editFields.senderAddress || o.pickupAddress ? (
                     <FieldShell label="Địa chỉ lấy hàng">
                       {editing && form && editFields.senderAddress ? (
                         <Input
@@ -1143,15 +1161,13 @@ export function OrderHistoryDialog({
                         onCheckedChange={(v) => setForm({ ...form, homePickup: v })}
                       />
                     </label>
-                  ) : o.homePickup ? (
-                    <div className="view-val" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span className="ms" aria-hidden="true">
-                        location_on
-                      </span>
-                      Lấy tận nơi
-                      {money.pickup > 0 ? ` · ${formatVND(money.pickup)}` : ""}
-                    </div>
-                  ) : null}
+                  ) : (
+                    <FieldShell label="Lấy tận nơi">
+                      <ViewValue
+                        value={doorLabel(o.homePickup, money.pickup, createInfo.pickupKm ?? o.pickupKm)}
+                      />
+                    </FieldShell>
+                  )}
                   <AutoCallMini call={autoCalls.sender} />
                 </section>
 
@@ -1202,7 +1218,7 @@ export function OrderHistoryDialog({
                       onChanged={() => void reload(o.code)}
                     />
                   </FieldShell>
-                  {(editing && editFields.receiverAddress) || o.address ? (
+                  {!editing || editFields.receiverAddress || o.address ? (
                     <FieldShell label="Địa chỉ giao hàng">
                       {editing && form && editFields.receiverAddress ? (
                         <Input
@@ -1236,15 +1252,13 @@ export function OrderHistoryDialog({
                         onCheckedChange={(v) => setForm({ ...form, homeDelivery: v })}
                       />
                     </label>
-                  ) : o.homeDelivery ? (
-                    <div className="view-val" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span className="ms" aria-hidden="true">
-                        location_on
-                      </span>
-                      Giao tận nơi
-                      {money.delivery > 0 ? ` · ${formatVND(money.delivery)}` : ""}
-                    </div>
-                  ) : null}
+                  ) : (
+                    <FieldShell label="Giao tận nơi">
+                      <ViewValue
+                        value={doorLabel(o.homeDelivery, money.delivery, createInfo.deliveryKm ?? o.deliveryKm)}
+                      />
+                    </FieldShell>
+                  )}
                   <AutoCallMini call={autoCalls.receiver} />
                 </section>
               </div>
@@ -1352,8 +1366,8 @@ export function OrderHistoryDialog({
                       </div>
                     </div>
                     <div className="pack-grid">
-                      <FieldShell label="Loại hàng">
-                        {editing && editFields.packages ? (
+                      {editing && editFields.packages ? (
+                        <FieldShell label="Loại hàng">
                           <SearchableSelect
                             value={p.kind}
                             onValueChange={(v) =>
@@ -1362,10 +1376,19 @@ export function OrderHistoryDialog({
                             options={kindOptionsFor(p.kind)}
                             placeholder="Chọn loại hàng"
                           />
-                        ) : (
-                          <ViewValue value={goodsLabelOf(p.kind, p.goodsName)} />
-                        )}
-                      </FieldShell>
+                        </FieldShell>
+                      ) : (
+                        <>
+                          <FieldShell label="Nhóm hàng">
+                            <ViewValue value={groupOfPkg(p.seq, p.kind)} />
+                          </FieldShell>
+                          <FieldShell label="Tên hàng">
+                            <ViewValue
+                              value={isOtherGoodsGroup(p.kind) ? p.goodsName : p.kind || goodsLabelOf(p.kind, p.goodsName)}
+                            />
+                          </FieldShell>
+                        </>
+                      )}
                       <FieldShell label="Số lượng">
                         {editing && editFields.packages ? (
                           <Input
@@ -1443,14 +1466,17 @@ export function OrderHistoryDialog({
                             onChange={(value) => patchPkg(p.seq, { value: Math.max(0, Math.round(value) || 0) })}
                           />
                         </FieldShell>
-                      ) : (Number(p.value) || 0) > 0 ? (
+                      ) : (
                         <FieldShell label="Giá trị hàng">
-                          <ViewValue value={formatVND(p.value)} />
+                          <ViewValue value={formatVND(Number(p.value) || 0)} />
                         </FieldShell>
-                      ) : null}
+                      )}
                     </div>
                   </div>
                 ))}
+                <FieldShell label="Ảnh đơn hàng">
+                  {o.hasGoodsPhoto ? <GoodsPhotoTile orderCode={o.code} /> : <ViewValue value="Không có" />}
+                </FieldShell>
               </section>
 
               <OrderEventLog
@@ -1474,6 +1500,9 @@ export function OrderHistoryDialog({
                 ) : (
                   <ViewValue value={payMethodLabel(o)} />
                 )}
+              </FieldShell>
+              <FieldShell label="Khách có nhu cầu chuyển khoản">
+                <ViewValue value={createInfo.senderTransferRequested ? "Có" : "Không"} />
               </FieldShell>
               <ChangePaymentTermDialog
                 order={o}
@@ -1570,6 +1599,19 @@ export function OrderHistoryDialog({
                     </span>
                     <div className="view-val">Không</div>
                   </div>
+                  {o.bankName || o.bankAccountNo || o.bankAccountName ? (
+                    <>
+                      <FieldShell label="Ngân hàng">
+                        <ViewValue value={o.bankName || "—"} />
+                      </FieldShell>
+                      <FieldShell label="Số tài khoản">
+                        <ViewValue value={o.bankAccountNo || "—"} />
+                      </FieldShell>
+                      <FieldShell label="Chủ tài khoản">
+                        <ViewValue value={o.bankAccountName || "—"} />
+                      </FieldShell>
+                    </>
+                  ) : null}
                 </div>
               )}
 
@@ -1661,30 +1703,24 @@ export function OrderHistoryDialog({
                 <div className="total-box num">
                   <div className="fee-lines lab" style={{ marginBottom: 8 }}>
                     <FeeRow label="Cước hàng" amount={money.goodsFare} />
-                    <FeeRow label="Cước lấy tận nơi" amount={money.pickup} hideZero />
-                    <FeeRow
-                      label="Cước giao tận nơi"
-                      amount={money.delivery}
-                      hideZero={!(editing && form?.homeDelivery)}
-                    />
+                    <FeeRow label="Cước lấy tận nơi" amount={money.pickup} />
+                    <FeeRow label="Cước giao tận nơi" amount={money.delivery} />
                     {(o.codFeeRefund ?? 0) > 0 ? (
                       <FeeRow label="Tiền hoàn phí COD" amount={o.codFeeRefund || money.codFee} />
                     ) : (
-                      <FeeRow label="Phí thu hộ COD" amount={money.codFee} hideZero />
+                      <FeeRow label="Phí thu hộ COD" amount={money.codFee} />
                     )}
                     {(o.codFeeRefund ?? 0) > 0 && money.codFee > 0 ? (
                       <FeeRow label="Phí thu hộ (cần hoàn)" amount={money.codFee} />
                     ) : null}
-                    <FeeRow label="Phí khai giá" amount={money.declared} hideZero />
+                    <FeeRow label="Phí khai giá" amount={money.declared} />
                     <FeeRow label="Phí tồn kho giao" amount={money.storage} hideZero />
                     <FeeRow label="Phí hoàn đơn" amount={money.returnFee} hideZero />
                     {money.discount > 0 ? <FeeRow label="Giảm giá" amount={-money.discount} /> : null}
-                    {money.paid > 0 ? (
-                      <FeeRow
-                        label={money.shippingPaid ? `Tổng đã thu (${money.paidByLabel})` : "Đã thu"}
-                        amount={money.paid}
-                      />
-                    ) : null}
+                    <FeeRow
+                      label={money.paid > 0 && money.shippingPaid ? `Tổng đã thu (${money.paidByLabel})` : "Đã thu"}
+                      amount={money.paid}
+                    />
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <span className="lab">Tổng phải thu</span>

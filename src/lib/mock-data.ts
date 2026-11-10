@@ -620,6 +620,8 @@ export type Order = {
   invoiceBuyerName?: string;
   /** CCCD/CMND trên hóa đơn (không bắt buộc). */
   invoiceBuyerIdNumber?: string;
+  /** CMND/Passport người gửi nhập lúc tạo đơn (không bắt buộc). */
+  senderIdNumber?: string;
   /** SĐT trên hóa đơn (không bắt buộc). */
   invoiceBuyerPhone?: string;
   invoiceRefId?: string;

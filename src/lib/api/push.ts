@@ -69,6 +69,7 @@ function patchBodyFromOrderPatch(patch: Partial<OrderX>, opts?: OrderPatchOpts):
   const body: Record<string, unknown> = {};
   if (patch.senderName !== undefined) body.senderName = patch.senderName;
   if (patch.senderPhone !== undefined) body.senderPhone = patch.senderPhone;
+  if (patch.senderIdNumber !== undefined) body.senderIdNumber = patch.senderIdNumber;
   if (patch.receiverName !== undefined) body.receiverName = patch.receiverName;
   if (patch.receiverPhone !== undefined) body.receiverPhone = patch.receiverPhone;
   if (patch.note !== undefined) body.note = patch.note;

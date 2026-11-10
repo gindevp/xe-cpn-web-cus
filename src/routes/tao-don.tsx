@@ -14,7 +14,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { M3Page } from "@/components/M3Page";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,6 +63,7 @@ import {
   embedPackageDims,
   embedPackageItemQtys,
   embedPackageValues,
+  embedCreateInfo,
   embedPackageWeightsKg,
   packageRows,
   splitMoney,
@@ -771,6 +772,12 @@ export function PublicOrderForm({
       }
       const fare = goodsFare + (homePickup ? quotedPickup : 0) + (homeDelivery ? quotedDelivery : 0) + codFee + declaredFee;
       const paidForOrder = 0;
+      const noteFull = embedCreateInfo(noteBody, {
+        packageGroups: items.map((i) => i.group ?? ""),
+        pickupKm: homePickup ? quotedPickupKm : null,
+        deliveryKm: homeDelivery ? quotedDeliveryKm : null,
+        senderTransferRequested: false,
+      });
 
       let orderCode: string;
       if (!isApiEnabled()) {
@@ -798,7 +805,7 @@ export function PublicOrderForm({
           branchCode: branchCodeOf(route) || undefined,
           routeLabel: route || undefined,
           itineraryLabel: itinerary || undefined,
-          note: noteBody || undefined,
+          note: noteFull || undefined,
           fareAmount: fare,
           quantity: packageCount,
           goodsFareAmount: goodsFare,
@@ -833,7 +840,7 @@ export function PublicOrderForm({
             discountAmount: discountVND,
             codAmount: codAmount > 0 ? codAmount : 0,
             codFeeAmount: codAmount > 0 ? codFee : 0,
-            note: noteBody || undefined,
+            note: noteFull || undefined,
             eventAction: "GUEST_FARE_SYNC",
             eventDetail: "Đồng bộ cước theo kiện từ tạo đơn KH",
           });
@@ -884,7 +891,7 @@ export function PublicOrderForm({
         status: "CONFIRMED",
         createdAt: now,
         updatedAt: now,
-        note: noteBody,
+        note: noteFull,
         paidAmount: paidForOrder,
         codAmount: codAmount > 0 ? codAmount : 0,
         codFee: codAmount > 0 ? codFee : 0,

@@ -176,7 +176,7 @@ function PhotoTile({ label, src, onOpen }: { label: string; src?: string; onOpen
   );
 }
 
-function GoodsPhotoTile({ orderCode }: { orderCode: string }) {
+export function GoodsPhotoTile({ orderCode }: { orderCode: string }) {
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const open = async () => {

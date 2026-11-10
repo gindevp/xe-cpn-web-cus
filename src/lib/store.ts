@@ -981,6 +981,7 @@ export const useStore = create<Store>()(
             invoiceBuyerName: o.invoiceBuyerName,
             invoiceBuyerIdNumber: o.invoiceBuyerIdNumber,
             invoiceBuyerPhone: o.invoiceBuyerPhone,
+            senderIdNumber: o.senderIdNumber,
             routeLabel: o.route,
             itineraryLabel: o.itinerary,
             confirmDailyOverflow: opts?.confirmDailyOverflow ?? false,
@@ -1059,6 +1060,7 @@ export const useStore = create<Store>()(
             invoiceBuyerName: o.invoiceBuyerName ?? afterPay.invoiceBuyerName,
             invoiceBuyerIdNumber: o.invoiceBuyerIdNumber ?? afterPay.invoiceBuyerIdNumber,
             invoiceBuyerPhone: o.invoiceBuyerPhone ?? afterPay.invoiceBuyerPhone,
+            senderIdNumber: o.senderIdNumber ?? afterPay.senderIdNumber,
             paidAmount: afterPay.paidAmount ?? o.paidAmount,
           };
           set((st) => ({ orders: [saved, ...st.orders.filter((x) => x.code !== o.code)] }));
