@@ -1384,6 +1384,7 @@ export type OfficeDTO = {
   latitude?: number | null;
   longitude?: number | null;
   itineraryPoint?: string | null;
+  customerVisible?: boolean | null;
   active?: boolean;
 };
 export type VehicleDTO = {

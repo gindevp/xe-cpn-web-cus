@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NameInput } from "@/components/NameInput";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -212,7 +213,7 @@ function Page() {
             </div>
             <Table
               minWidth={960}
-              headers={["ID", "Mã VP", "Tên VP", "Địa chỉ", "Điểm lộ trình", "Toạ độ", "Tác vụ"]}
+              headers={["ID", "Mã VP", "Tên VP", "Địa chỉ", "Điểm lộ trình", "Toạ độ", "Khách chọn", "Tác vụ"]}
               rightLast
             >
               {listedOffices.map((o) => (
@@ -227,6 +228,7 @@ function Page() {
                       ? `${Number(o.latitude).toFixed(5)}, ${Number(o.longitude).toFixed(5)}`
                       : "Chưa có"}
                   </td>
+                  <td className="muted">{o.customerVisible === false ? "Ẩn" : "Hiện"}</td>
                   <td>
                     <div className="act">
                       {o.id != null && isApiEnabled() ? (
@@ -805,6 +807,7 @@ function VpDialog({
       latitude?: number | null;
       longitude?: number | null;
       itineraryPoint?: string;
+      customerVisible?: boolean;
     },
   ) => void;
 }) {
@@ -824,6 +827,7 @@ function VpDialog({
     initial?.sourceId != null ? String(initial.sourceId) : "",
   );
   const [pinning, setPinning] = useState(false);
+  const [customerVisible, setCustomerVisible] = useState(initial?.customerVisible !== false);
 
   /** Chọn địa chỉ (V1/V2 như tạo đơn) → geocode OSM → pin map. */
   const onAddressPicked = async (full: string) => {
@@ -965,6 +969,15 @@ function VpDialog({
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
           </div>
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-md border px-3 py-2.5">
+            <span className="space-y-0.5">
+              <span className="block text-sm font-medium">Hiện cho khách chọn</span>
+              <span className="block text-xs text-muted-foreground">
+                Tắt thì VP không có trong danh sách chọn VP gửi / nhận khi khách tự tạo đơn.
+              </span>
+            </span>
+            <Switch checked={customerVisible} onCheckedChange={setCustomerVisible} />
+          </label>
         </div>
         <DialogFooter className="shrink-0 border-t px-6 py-4">
           <Button variant="outline" onClick={onClose}>
@@ -1000,11 +1013,13 @@ function VpDialog({
                 latitude?: number | null;
                 longitude?: number | null;
                 itineraryPoint?: string;
+                customerVisible?: boolean;
               } = {
                 address: address.trim(),
                 latitude: lat,
                 longitude: lng,
                 itineraryPoint: [itineraryPoint, secondaryPoint].filter(Boolean).join(","),
+                customerVisible,
               };
               if (sourceIdText) extras.sourceId = Number(sourceIdText);
               onSave(code, name, extras);

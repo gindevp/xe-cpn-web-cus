@@ -229,6 +229,8 @@ export type OfficeRec = {
   longitude?: number;
   /** Điểm lộ trình: ND TB YB PT TC VT (tỉnh) hoặc BC GA HD PHOCO (Hà Nội). */
   itineraryPoint?: string;
+  /** Hiện trong danh sách chọn VP gửi / nhận của khách; false = ẩn. */
+  customerVisible?: boolean;
 };
 
 let officeDirectory: OfficeRec[] = [];

@@ -25,6 +25,7 @@ export async function syncMasterFromApi() {
     latitude: o.latitude != null ? Number(o.latitude) : undefined,
     longitude: o.longitude != null ? Number(o.longitude) : undefined,
     itineraryPoint: o.itineraryPoint ?? undefined,
+    customerVisible: o.customerVisible !== false,
   }));
   const vehicles = domain.asArray(vehiclesRaw).map((v) => ({
     id: v.id,
@@ -275,6 +276,7 @@ export async function syncPublicOfficesFromApi() {
           latitude: o.latitude != null ? Number(o.latitude) : undefined,
           longitude: o.longitude != null ? Number(o.longitude) : undefined,
           itineraryPoint: o.itineraryPoint ?? undefined,
+          customerVisible: o.customerVisible !== false,
         }));
       setOfficeDirectory(offices);
       useStore.setState({ offices });

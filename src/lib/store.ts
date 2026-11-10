@@ -635,6 +635,7 @@ type Actions = {
       latitude?: number | null;
       longitude?: number | null;
       itineraryPoint?: string;
+      customerVisible?: boolean;
     },
   ) => void;
   updateOffice: (
@@ -647,6 +648,7 @@ type Actions = {
       latitude?: number | null;
       longitude?: number | null;
       itineraryPoint?: string;
+      customerVisible?: boolean;
     },
   ) => void;
   removeOffice: (current: OfficeRec) => void;
@@ -2029,6 +2031,7 @@ export const useStore = create<Store>()(
               latitude: extras?.latitude ?? undefined,
               longitude: extras?.longitude ?? undefined,
               itineraryPoint: extras?.itineraryPoint,
+              customerVisible: extras?.customerVisible !== false,
             },
           ],
         }));
@@ -2050,6 +2053,7 @@ export const useStore = create<Store>()(
                 latitude: extras?.latitude ?? null,
                 longitude: extras?.longitude ?? null,
                 itineraryPoint: extras?.itineraryPoint ?? null,
+                customerVisible: extras?.customerVisible !== false,
               },
             });
             const { syncMasterFromApi } = await import("./api/sync");
@@ -2090,6 +2094,8 @@ export const useStore = create<Store>()(
                     patch.longitude !== undefined ? (patch.longitude ?? undefined) : o.longitude,
                   itineraryPoint:
                     patch.itineraryPoint !== undefined ? patch.itineraryPoint : o.itineraryPoint,
+                  customerVisible:
+                    patch.customerVisible !== undefined ? patch.customerVisible : o.customerVisible,
                 }
               : o,
           ),
@@ -2126,6 +2132,8 @@ export const useStore = create<Store>()(
                   patch.itineraryPoint !== undefined
                     ? patch.itineraryPoint
                     : (row.itineraryPoint ?? null),
+                customerVisible:
+                  patch.customerVisible !== undefined ? patch.customerVisible : row.customerVisible !== false,
               },
             });
             const { syncMasterFromApi } = await import("./api/sync");

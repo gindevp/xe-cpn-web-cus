@@ -459,19 +459,20 @@ export function PublicOrderForm({
    * VP nhận có lộ trình từ VP gửi. VP gửi là VP tỉnh thì cộng thêm mọi VP tỉnh
    * (tỉnh đi tỉnh không phải lúc nào cũng có lộ trình thẳng); VP Hà Nội chỉ các VP có lộ trình.
    */
+  const pickableOffices = useMemo(() => offices.filter((o) => o.customerVisible !== false), [offices]);
   const toOfficeList = useMemo(() => {
-    if (!fromOfficeRec) return offices;
+    if (!fromOfficeRec) return pickableOffices;
     const province = isProvinceOffice(fromOfficeRec)
-      ? offices.filter((o) => isProvinceOffice(o) && o.code !== fromOfficeRec.code)
+      ? pickableOffices.filter((o) => isProvinceOffice(o) && o.code !== fromOfficeRec.code)
       : [];
-    const routed = offices.filter(
+    const routed = pickableOffices.filter(
       (o) => o.code !== fromOfficeRec.code && resolvePair(fromOfficeRec, o) != null,
     );
     const byCode = new Map<string, OfficeRec>();
     for (const o of [...routed, ...province]) byCode.set(o.code, o);
     return [...byCode.values()];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromOfficeRec, offices, itineraries, officeItineraries]);
+  }, [fromOfficeRec, pickableOffices, itineraries, officeItineraries]);
 
   useEffect(() => {
     if (!toOffice || masterLoading) return;
@@ -1000,7 +1001,7 @@ export function PublicOrderForm({
                     <OfficePickerSheet
                       value={fromOffice}
                       onChange={setFromOffice}
-                      offices={offices}
+                      offices={pickableOffices}
                       title="Chọn VP gửi"
                       placeholder={masterLoading ? "Đang tải…" : "Chọn văn phòng gửi"}
                       className={pickerClass}
@@ -1398,7 +1399,7 @@ export function PublicOrderForm({
                     <OfficePickerSheet
                       value={fromOffice}
                       onChange={setFromOffice}
-                      offices={offices}
+                      offices={pickableOffices}
                       title="Chọn VP gửi"
                       placeholder={masterLoading ? "Đang tải…" : "Chọn VP gửi"}
                       className={officePickerClass}
