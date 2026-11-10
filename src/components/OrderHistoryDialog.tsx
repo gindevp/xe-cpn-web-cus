@@ -1701,27 +1701,29 @@ export function OrderHistoryDialog({
 
               <div className="side-foot stack">
                 <div className="total-box num">
-                  <div className="fee-lines lab" style={{ marginBottom: 8 }}>
-                    <FeeRow label="Cước hàng" amount={money.goodsFare} />
-                    <FeeRow label="Cước lấy tận nơi" amount={money.pickup} />
-                    <FeeRow label="Cước giao tận nơi" amount={money.delivery} />
+                  <div className="fee-lines lab">
+                    <FeeRow label="Cước hàng" amount={money.goodsFare} hideZero />
+                    <FeeRow label="Cước lấy tận nơi" amount={money.pickup} hideZero />
+                    <FeeRow label="Cước giao tận nơi" amount={money.delivery} hideZero />
                     {(o.codFeeRefund ?? 0) > 0 ? (
                       <FeeRow label="Tiền hoàn phí COD" amount={o.codFeeRefund || money.codFee} />
                     ) : (
-                      <FeeRow label="Phí thu hộ COD" amount={money.codFee} />
+                      <FeeRow label="Phí thu hộ COD" amount={money.codFee} hideZero />
                     )}
                     {(o.codFeeRefund ?? 0) > 0 && money.codFee > 0 ? (
                       <FeeRow label="Phí thu hộ (cần hoàn)" amount={money.codFee} />
                     ) : null}
-                    <FeeRow label="Phí khai giá" amount={money.declared} />
+                    <FeeRow label="Phí khai giá" amount={money.declared} hideZero />
                     <FeeRow label="Phí tồn kho giao" amount={money.storage} hideZero />
                     <FeeRow label="Phí hoàn đơn" amount={money.returnFee} hideZero />
                     {money.discount > 0 ? <FeeRow label="Giảm giá" amount={-money.discount} /> : null}
                     <FeeRow
                       label={money.paid > 0 && money.shippingPaid ? `Tổng đã thu (${money.paidByLabel})` : "Đã thu"}
                       amount={money.paid}
+                      hideZero
                     />
                   </div>
+                  <div className="fee-sep" aria-hidden="true" />
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <span className="lab">Tổng phải thu</span>
                     <span className="kpi-val" style={{ fontSize: 24 }}>

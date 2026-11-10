@@ -2135,8 +2135,8 @@ export function TaoDonDialog({
                   {/* design: .side-foot > .total-box + actions (không dùng Tailwind summary) */}
                   <div className="side-foot stack">
                     <div className="total-box num">
-                      <div className="fee-lines lab" style={{ marginBottom: 8 }}>
-                        <FeeLine label="Cước hàng" value={goodsFare} always />
+                      <div className="fee-lines lab">
+                        <FeeLine label="Cước hàng" value={goodsFare} />
                         <FeeLine label="Cước lấy hàng tận nơi" value={pickupFeeVal} />
                         <FeeLine label="Cước giao hàng tận nơi" value={deliverFeeVal} />
                         <FeeLine label="Phí thu hộ COD" value={codFee} />
@@ -2144,6 +2144,7 @@ export function TaoDonDialog({
                         {discountVND ? <FeeLine label="Giảm giá" value={-discountVND} always /> : null}
                         <FeeLine label="Đã thu" value={paidNow} />
                       </div>
+                      <div className="fee-sep" aria-hidden="true" />
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                         <span className="lab">Tổng phải thu</span>
                         <span className="kpi-val" style={{ fontSize: 24 }}>
