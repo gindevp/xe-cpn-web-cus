@@ -139,6 +139,8 @@ export type OrderEditableFields = {
   homePickup: boolean;
   homeDelivery: boolean;
   returnContact: boolean;
+  /** Giá trị hàng của kiện (phí khai giá) — mở ở mọi bước trước giao thành công, kể cả khi kiện khóa. */
+  declaredValue: boolean;
 };
 
 const NONE: OrderEditableFields = {
@@ -152,6 +154,7 @@ const NONE: OrderEditableFields = {
   homePickup: false,
   homeDelivery: false,
   returnContact: false,
+  declaredValue: false,
 };
 
 const FULL_PRE: OrderEditableFields = {
@@ -165,6 +168,7 @@ const FULL_PRE: OrderEditableFields = {
   homePickup: true,
   homeDelivery: true,
   returnContact: true,
+  declaredValue: true,
 };
 
 /** Ship đang lấy — sheet: không sửa bên gửi / địa chỉ gửi / lấy tận nơi. */
@@ -179,6 +183,7 @@ const PICKING: OrderEditableFields = {
   homePickup: false,
   homeDelivery: true,
   returnContact: true,
+  declaredValue: true,
 };
 
 /** Sau nhập kho / pipeline tới chờ giao lại. Kiện khóa — trừ admin ở nhập kho giao. */
@@ -193,6 +198,7 @@ const POST_WH: OrderEditableFields = {
   homePickup: false,
   homeDelivery: true,
   returnContact: true,
+  declaredValue: true,
 };
 
 /** Nằm ở kho gửi, chưa gán xe: sửa thêm được kiện (loại / tên hàng, SL, KL, kích thước). */
@@ -206,6 +212,7 @@ const RETURN_ONLY: OrderEditableFields = {
   ...NONE,
   returnContact: true,
   note: true,
+  declaredValue: true,
 };
 
 /** Đơn đang ngoại lệ chưa xử lý: khóa field nghiệp vụ, vẫn cho sửa ghi chú. */
@@ -255,7 +262,7 @@ function fieldsByStatus(
   if (o.issue && !o.issue.resolvedAt) return ISSUE_NOTE_ONLY;
 
   // Hoàn fail: liên hệ hoàn + ghi chú
-  if (o.returnStage === "RT_FAILED") return RETURN_ONLY;
+  if (o.returnStage === "RT_FAILED") return { ...RETURN_ONLY, declaredValue: false };
   // Các giai đoạn hoàn khác: không sửa
   if (o.returnStage || o.status === "RETURNING") return NONE;
 

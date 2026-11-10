@@ -268,6 +268,7 @@ const EVENT_LABELS: Record<string, string> = {
   KY_BAN_GIAO_TAI_XE: "Ký bàn giao tài xế",
   PAYMENT_TERM_CHANGE: "Đổi hình thức thanh toán",
   COD_FEE_REFUND: "Hoàn phí COD",
+  DECLARED_FEE_KEEP: "Giảm phí khai giá",
   RECEIPT_CREATE: "Lập phiếu thu",
   RECEIPT_CONFIRM: "Xác nhận đã thu",
   RECEIPT_CONFIRM_ONEPAY: "OnePay xác nhận đã thu",

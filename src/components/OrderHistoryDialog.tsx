@@ -76,7 +76,7 @@ import {
   orderEditableFields,
   canEditReceiverOffice,
 } from "@/lib/order-edit-policy";
-import { isPendingHandover } from "@/lib/pending-handover";
+import { senderPaidFull } from "@/lib/extra-fare-payer";
 import { NameInput } from "@/components/NameInput";
 import { PhoneInput } from "@/components/PhoneInput";
 import { MoneyInput } from "@/components/MoneyInput";
@@ -774,11 +774,10 @@ export function OrderHistoryDialog({
       const goodsFare = pkgsToSave.reduce((s, p) => s + (Number(p.fare) || 0), 0);
       const pickup = fields.homePickup && !form.homePickup ? 0 : (o.pickupFee ?? 0);
       const delivery = previewDelivery != null ? previewDelivery : (o.deliveryFee ?? 0);
-      const canEditPkgValue = isPendingHandover(o);
-      const declared =
-        pkgsEdited && canEditPkgValue && form.declaredValueDirty
-          ? calcDeclaredValueFee(pkgsToSave.reduce((s, p) => s + (Number(p.value) || 0), 0))
-          : (o.declaredFee ?? 0);
+      const valueEdited = fields.declaredValue && form.declaredValueDirty;
+      const declared = valueEdited
+        ? calcDeclaredValueFee(form.packages.reduce((s, p) => s + (Number(p.value) || 0), 0))
+        : (o.declaredFee ?? 0);
       const discount = o.discountAmount ?? 0;
       const storage = o.storageFee ?? 0;
       const returnFee = o.returnFee ?? 0;
@@ -811,7 +810,7 @@ export function OrderHistoryDialog({
         !returnPhone &&
         !returnAddress;
       let note = o.note;
-      if (pkgsEdited || fields.note || fields.returnContact || stripSpuriousReturn) {
+      if (pkgsEdited || valueEdited || fields.note || fields.returnContact || stripSpuriousReturn) {
         note = buildOrderNote({
           ...prevMeta,
           goodsKinds: pkgsEdited ? pkgsToSave.map((p) => p.kind) : prevMeta.goodsKinds,
@@ -832,10 +831,9 @@ export function OrderHistoryDialog({
           packageDims: pkgsEdited ? pkgsToSave.map((p) => p.dims) : prevMeta.packageDims,
           // Không còn nhập ghi chú kiện trên UI — giữ tag cũ nếu có.
           packageNotes: prevMeta.packageNotes,
-          packageValues:
-            pkgsEdited && canEditPkgValue && form.declaredValueDirty
-              ? pkgsToSave.map((p) => Math.max(0, Math.round(Number(p.value) || 0)))
-              : prevMeta.packageValues,
+          packageValues: valueEdited
+            ? form.packages.map((p) => Math.max(0, Math.round(Number(p.value) || 0)))
+            : prevMeta.packageValues,
           returnName,
           returnPhone,
           returnAddress,
@@ -848,18 +846,17 @@ export function OrderHistoryDialog({
       const receiverPhone = fields.receiver ? form.receiverPhone.trim() : o.receiverPhone;
 
       const patch: Partial<OrderX> = {};
-      if (pkgsEdited || fields.note || fields.returnContact || stripSpuriousReturn) {
+      if (pkgsEdited || valueEdited || fields.note || fields.returnContact || stripSpuriousReturn) {
         patch.note = note;
       }
+      if (valueEdited) patch.declaredFee = declared;
       if (pkgsEdited) {
         patch.weightKg = totalWeight;
         patch.quantity = quantity;
         patch.fare = totalFare;
         patch.goodsFare = goodsFare;
-        if (canEditPkgValue && form.declaredValueDirty) {
-          patch.declaredFee = declared;
-        }
       } else if (
+        valueEdited ||
         fields.cod ||
         doorChanged ||
         (form.homeDelivery && Math.round(delivery) !== Math.round(Number(o.deliveryFee) || 0))
@@ -907,9 +904,20 @@ export function OrderHistoryDialog({
         patch.finalToOffice = toCode;
       }
 
+      const declaredRise = declared - (o.declaredFee ?? 0);
+      const fareRise = (patch.fare ?? o.fare ?? 0) - (o.fare ?? 0);
+      // Chỉ phí khai giá làm cước tăng mà người gửi đã trả đủ → người nhận trả phần chênh, không hỏi.
+      const declaredOnlyRise =
+        valueEdited &&
+        declaredRise > 0 &&
+        fareRise <= declaredRise &&
+        !patch.homePickup &&
+        !patch.homeDelivery &&
+        senderPaidFull(o);
       const saved = await updateOrder(o.code, patch, {
         eventAction: "ORDER_EDIT",
         eventDetail: "Sửa trong popup thông tin đơn",
+        ...(declaredOnlyRise ? { extraFarePayer: "RECEIVER" as const } : {}),
       });
       if (!saved) {
         await reload(o.code);
@@ -965,7 +973,7 @@ export function OrderHistoryDialog({
   const removePkg = (seq: number) =>
     setPkgList((list) => (list.length <= 1 ? list : list.filter((p) => p.seq !== seq)));
 
-  const canEditPkgValue = !!o && isPendingHandover(o);
+  const canEditPkgValue = editFields.declaredValue;
 
   const patchPkg = (seq: number, patch: Partial<EditPkg>) => {
     setForm((prev) => {
@@ -1428,7 +1436,7 @@ export function OrderHistoryDialog({
                       <FieldShell label="Cước hàng">
                         <ViewValue value={formatVND(p.fare)} />
                       </FieldShell>
-                      {editing && editFields.packages && canEditPkgValue ? (
+                      {editing && canEditPkgValue ? (
                         <FieldShell label="Giá trị hàng">
                           <MoneyInput
                             value={Number(p.value) || 0}
