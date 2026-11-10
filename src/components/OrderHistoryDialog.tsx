@@ -1548,7 +1548,7 @@ export function OrderHistoryDialog({
                   <FieldShell label="Tiền hàng thu hộ">
                     {editing && form && editFields.cod ? (
                       <Input
-                        className="h-10 text-right"
+                        className="h-10"
                         inputMode="numeric"
                         value={String(form.codAmount)}
                         onChange={(e) => {

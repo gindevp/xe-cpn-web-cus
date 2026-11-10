@@ -31,7 +31,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
           disabled={disabled}
           readOnly={readOnly}
           className={cn(
-            "h-9 w-full text-right tabular-nums",
+            "h-9 w-full text-left tabular-nums",
             showSuffix && "pr-12",
             (disabled || readOnly) && "bg-muted/40",
           )}
