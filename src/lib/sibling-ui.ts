@@ -1,9 +1,9 @@
 /** Bản FE này = M3/cus → sibling mặc định = FE cũ. */
-const DEFAULT_SIBLING = "https://xe-cpn-web.vercel.app";
+const DEFAULT_SIBLING = "https://cpn.xevietnam.com";
 
 /**
  * URL bản FE kia (Pixel Perfect).
- * Ưu tiên VITE_SIBLING_UI_URL; không set thì đoán DEV/docker/Vercel; cuối cùng dùng mặc định (luôn có nút).
+ * Ưu tiên VITE_SIBLING_UI_URL; không set thì đoán DEV/docker/domain; cuối cùng dùng mặc định.
  */
 export function siblingUiBaseUrl(): string {
   const fromEnv = ((import.meta.env.VITE_SIBLING_UI_URL as string | undefined) ?? "").trim().replace(/\/$/, "");
@@ -23,6 +23,10 @@ export function siblingUiBaseUrl(): string {
   if (port === "8089") return `${protocol}//${hostname}:8088`;
   if (port === "8088") return `${protocol}//${hostname}:8089`;
 
+  // cus.cpn.xevietnam.com → cpn.xevietnam.com
+  if (host === "cus.cpn.xevietnam.com" || host.startsWith("cus.")) {
+    return `${protocol}//${host.replace(/^cus\./, "")}`;
+  }
   if (host.includes("xe-cpn-web-cus")) {
     return `${protocol}//${host.replace("xe-cpn-web-cus", "xe-cpn-web")}`;
   }
