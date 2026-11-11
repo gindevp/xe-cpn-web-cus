@@ -38,7 +38,6 @@ import {
   orderReceiverOffice,
 } from "@/lib/mock-data";
 import { OrderStatusBadge } from "@/components/StatusBadge";
-import { packageCount } from "@/lib/package-label";
 import { useStore, type OrderX } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { hasAllOfficeScope } from "@/lib/office-scope";
@@ -427,17 +426,25 @@ function Page() {
                                 />
                               </td>
                               <td>
-                                <OrderCodeLink code={r.code} className="code" />
-                                <button
-                                  type="button"
-                                  className="link"
-                                  style={{ display: "block", marginTop: 2 }}
-                                  onClick={() => toggleOrderPkgs(r.code)}
-                                >
-                                  {expandedOrders.has(r.code)
-                                    ? "Ẩn kiện"
-                                    : `Xem ${packageCount(r)} kiện`}
-                                </button>
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <button
+                                    type="button"
+                                    className="link"
+                                    style={{ display: "inline-flex", padding: 0, textDecoration: "none" }}
+                                    title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                                    aria-expanded={expandedOrders.has(r.code)}
+                                    onClick={() => toggleOrderPkgs(r.code)}
+                                  >
+                                    <ChevronDown
+                                      className={cn(
+                                        "h-4 w-4 shrink-0 transition-transform",
+                                        expandedOrders.has(r.code) && "rotate-180",
+                                      )}
+                                      style={{ color: "var(--on-surface-variant)" }}
+                                    />
+                                  </button>
+                                  <OrderCodeLink code={r.code} className="code" />
+                                </span>
                                 <span className="sub">
                                   {TABS.find((t) => t.key === tabOf(r))?.label}
                                 </span>

@@ -29,12 +29,14 @@ import { useAuth } from "@/lib/auth";
 import { getOrder, listOrdersPage } from "@/lib/api/domain-api";
 import { isApiEnabled } from "@/lib/api/client";
 import { assignedOfficeCode, hasAllOfficeScope, resolveViewOffice } from "@/lib/office-scope";
-import { orderGoodsLabel, packageCount, packageRows } from "@/lib/package-label";
+import { orderGoodsLabel, packageRows } from "@/lib/package-label";
 import { useActivityFilters } from "@/lib/activity-filters";
 import { ImageLightbox, isViewableImageUrl } from "@/components/ImageLightbox";
 import { podMomentLabel } from "@/lib/ahamove";
 import { INVOICE_STATE_LABEL, INVOICE_STATE_TAG_CLASS, invoiceStateOf } from "@/lib/invoice-policy";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
 
 function podSlides(photos: OrderX["podPhotos"]): { urls: string[]; labels: string[] } {
   const urls: string[] = [];
@@ -427,7 +429,6 @@ function SuccessOrderTable({
               <tbody>
                 {pageRows.map((r) => {
                   const ret = isReturned(r);
-                  const pkgs = packageCount(r);
                   const open = expanded === r.code;
                   const shipper = successBy(r) === "SHIPPER";
                   const photoLabel = ret ? "Xem ảnh hoàn" : "Xem POD";
@@ -437,18 +438,26 @@ function SuccessOrderTable({
                     <Fragment key={r.code}>
                       <tr>
                         <td>
-                          <div className="flex flex-wrap items-center gap-2">
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <button
+                              type="button"
+                              className="link"
+                              style={{ display: "inline-flex", padding: 0, textDecoration: "none" }}
+                              title={open ? "Ẩn kiện" : "Xem kiện"}
+                              aria-expanded={open}
+                              onClick={() => setExpanded(open ? null : r.code)}
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  "h-4 w-4 shrink-0 transition-transform",
+                                  open && "rotate-180",
+                                )}
+                                style={{ color: "var(--on-surface-variant)" }}
+                              />
+                            </button>
                             <OrderCodeLink code={r.code} className="code" />
                             {ret ? <span className="tag warn">HOÀN</span> : null}
-                          </div>
-                          <button
-                            type="button"
-                            className="link"
-                            style={{ display: "block", marginTop: 2 }}
-                            onClick={() => setExpanded(open ? null : r.code)}
-                          >
-                            {open ? "Ẩn kiện" : `Xem ${pkgs} kiện`}
-                          </button>
+                          </span>
                         </td>
                         <td>
                           <button
