@@ -91,6 +91,7 @@ type CandidateMeta = {
   portion?: ReceiptPortion;
   collectedAt?: string;
   shipDebtSubstitute?: boolean;
+  feeKind?: string;
 };
 
 type DueOrder = Order & {
@@ -105,12 +106,21 @@ type DueOrder = Order & {
   shipDebtSubstitute?: boolean;
   /** Đã CK thu hộ OnePay — còn thu 0đ. */
   onePayCollected?: boolean;
+  /** Dòng PARTNER_FEE: AHAMOVE / GRAB / CANCEL_REFUND. */
+  feeKind?: string;
 };
 
 const PORTION_LABEL: Record<ReceiptPortion, string> = {
   SENDER: "Thu phía gửi",
   DELIVERY: "Thu khi giao",
   PARTNER_FEE: "Phí Ahamove đã trả tài xế",
+};
+
+const portionLabel = (o: { portion?: ReceiptPortion; feeKind?: string }) => {
+  if (!o.portion) return "";
+  if (o.portion === "PARTNER_FEE" && o.feeKind === "CANCEL_REFUND") return "Hoàn khách đơn huỷ (đã ứng)";
+  if (o.portion === "PARTNER_FEE" && o.feeKind === "GRAB") return "Phí Grab đã trả tài xế";
+  return PORTION_LABEL[o.portion];
 };
 
 const isFeeRow = (o: { portion?: ReceiptPortion }) => o.portion === "PARTNER_FEE";
@@ -208,6 +218,7 @@ function Page() {
                   : undefined,
             shipDebtSubstitute: r.shipDebtSubstitute === true,
             onePayCollected: r.onePayCollected === true,
+            feeKind: r.feeKind ?? undefined,
           });
         }
         setCandidates(m);
@@ -308,6 +319,7 @@ function Page() {
           portion: meta.portion,
           shipDebtSubstitute: meta.shipDebtSubstitute,
           onePayCollected: meta.onePayCollected,
+          feeKind: meta.feeKind,
         });
       }
       // Cùng người chịu cả 2 phần → 1 dòng (phiếu thu không cho trùng đơn).
@@ -772,7 +784,7 @@ function WaiveDialog({
                 {o.code}
                 {o.portion ? (
                   <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    {PORTION_LABEL[o.portion]}
+                    {portionLabel(o)}
                   </span>
                 ) : null}
               </span>
@@ -1152,7 +1164,7 @@ function ReceiptDialog({
                     <OrderCodeLink code={o.code} />
                     {o.portion ? (
                       <div className="text-xs font-normal text-muted-foreground">
-                        {PORTION_LABEL[o.portion]}
+                        {portionLabel(o)}
                       </div>
                     ) : null}
                     {o.onePayCollected ? (

@@ -316,6 +316,7 @@ const EVENT_LABELS: Record<string, string> = {
   REDELIVER_WAIT: "Chờ giao lại",
   REDELIVER_IN: "Nhập kho giao lại",
   CANCEL: "Huỷ đơn",
+  CANCEL_HANDBACK: "Đã trả khách",
   STALE_DEST: "Giao không thành công",
   STALE_DEST_REVERT: "Nhập kho giao",
   ISSUE_EXCEPTION: "Ghi nhận ngoại lệ",

@@ -140,6 +140,8 @@ export async function listReceiptCandidates(officeCode?: string, keyword?: strin
       shipDebtSubstitute?: boolean;
       /** Đã CK thu hộ OnePay — còn thu 0đ, chờ NV lập phiếu ghi nhận. */
       onePayCollected?: boolean;
+      /** Dòng PARTNER_FEE: AHAMOVE / GRAB / CANCEL_REFUND (ĐP ứng hoàn khách đơn huỷ). */
+      feeKind?: string;
     }>
   >(`/api/receipts/candidates?${q}`);
 }
