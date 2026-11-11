@@ -41,6 +41,7 @@ import { usePackageActions } from "@/components/PackageActions";
 import { useRefreshOrdersOnMount, refreshOrdersNow } from "@/lib/use-orders-poll";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ChevronDown } from "lucide-react";
 export const Route = createFileRoute("/cho-ban-giao")({
   head: () => ({
     meta: [
@@ -458,16 +459,25 @@ function Page() {
                           />
                         </td>
                         <td>
-                          <OrderCodeLink code={r.code} className="code" />
-                          <button
-                            type="button"
-                            className="link"
-                            style={{ display: "block", marginTop: 2 }}
-                            title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                            onClick={() => toggleOrderPkgs(r.code)}
-                          >
-                            {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                          </button>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <button
+                              type="button"
+                              className="link"
+                              style={{ display: "inline-flex", padding: 0, textDecoration: "none" }}
+                              title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                              aria-expanded={expandedOrders.has(r.code)}
+                              onClick={() => toggleOrderPkgs(r.code)}
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  "h-4 w-4 shrink-0 transition-transform",
+                                  expandedOrders.has(r.code) && "rotate-180",
+                                )}
+                                style={{ color: "var(--on-surface-variant)" }}
+                              />
+                            </button>
+                            <OrderCodeLink code={r.code} className="code" />
+                          </span>
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
                             <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
                             <TransferPaidBadge order={r} className="ml-0" />
