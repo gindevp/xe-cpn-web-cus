@@ -363,7 +363,9 @@ html.xe-scan-immersive main {
 .m3-hero .hero-links {
   display: flex;
   gap: 8px;
-  flex: 1 1 auto;
+  /* Co lại + cuộn ngang thay vì đẩy khối VP/user xuống hàng dưới */
+  flex: 1 1 0;
+  min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -372,13 +374,15 @@ html.xe-scan-immersive main {
   align-items: center;
   gap: 12px;
   margin-left: auto;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 .m3-scope-pill {
   position: relative;
   padding-right: 36px;
   max-width: min(100%, 16rem);
+  flex-shrink: 0;
 }
 .m3-scope-pill .m3-scope-select {
   height: auto !important;
@@ -651,6 +655,12 @@ button.no:hover {
   border: 0;
   box-shadow: none;
 }
+@media (min-width: 761px) {
+  /* Desktop: search + pills + VP/user luôn một hàng */
+  .m3-hero {
+    flex-wrap: nowrap;
+  }
+}
 @media (max-width: 760px) {
   .m3-hero-search {
     max-width: none;
@@ -659,6 +669,12 @@ button.no:hover {
   .m3-hero .hero-links {
     order: 3;
     flex-basis: 100%;
+  }
+  .m3-hero-right {
+    /* Mobile: VP/user ngay dưới ô tìm, không bị pills đẩy xuống cuối */
+    order: 2;
+    flex-basis: auto;
+    margin-left: auto;
   }
   .m3-user-text {
     display: none;
