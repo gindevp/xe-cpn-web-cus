@@ -197,7 +197,7 @@ function Page() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1600px] text-sm">
-              <thead className="text-left text-xs uppercase text-muted-foreground">
+              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 pr-4">Mã đơn</th>
                   <th className="py-2 pr-4">Lộ trình</th>

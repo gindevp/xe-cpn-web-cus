@@ -516,7 +516,7 @@ function Page() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1400px] text-sm">
-              <thead className="text-left text-xs uppercase text-muted-foreground">
+              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
                 <tr className="border-b">
                   <th className="w-8 py-2 pr-2">
                     <Checkbox
@@ -1246,7 +1246,7 @@ function AssignToVehicleDialog({
             </Label>
             <div className="max-h-[200px] overflow-auto rounded-md border">
               <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                <thead className="bg-muted/50 text-left text-sm font-bold uppercase text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">Mã vận đơn</th>
                     <th className="px-3 py-2">Đơn hàng</th>

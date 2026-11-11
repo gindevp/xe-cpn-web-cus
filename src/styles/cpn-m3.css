@@ -76,7 +76,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--secondary);outline-
 .btn[disabled]{background:rgb(from var(--on-surface) r g b / .12);color:rgb(from var(--on-surface) r g b / .38);cursor:not-allowed}
 .btn.text[disabled]{background:none}
 .tbl{width:100%;min-width:var(--tbl-min,1040px);border-collapse:separate;border-spacing:0;font-size:13px;line-height:18px;font-variant-numeric:tabular-nums}
-.tbl th{padding:10px 12px;background:var(--low);text-align:left;font-size:12px;line-height:16px;font-weight:500;color:var(--on-surface-variant);white-space:nowrap}
+.tbl th{padding:10px 12px;background:var(--low);text-align:left;font-size:14px;line-height:20px;font-weight:700;color:var(--on-surface-variant);white-space:nowrap}
 .tbl th:first-child{border-radius:12px 0 0 12px}.tbl th:last-child{border-radius:0 12px 12px 0}
 .tbl td{padding:12px;border-bottom:1px solid var(--low);vertical-align:top}
 .tbl tbody tr:hover td,.tbl tbody tr.sel td{background:var(--low)}

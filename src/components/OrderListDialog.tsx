@@ -99,7 +99,7 @@ export function OrderListDialog({
         <div className="max-h-[60vh] overflow-auto rounded-md border">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="sticky top-0 bg-background">
-              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+              <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
                 <th className="w-12 px-2 py-2">STT</th>
                 <th className="px-2 py-2">Mã đơn</th>
                 <th className="px-2 py-2">Trạng thái</th>

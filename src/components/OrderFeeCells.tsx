@@ -26,15 +26,24 @@ export function OrderCargoCell({
   className,
 }: {
   order: Order;
-  /** Tiến độ kiện (nhập kho). Không truyền thì hiện tổng số kiện. */
+  /** Tiến độ kiện (nhập kho). Không truyền thì hiện tổng số kiện + cân. */
   count?: ReactNode;
   className?: string;
 }) {
   const goods = orderGoodsLabel(order);
-  const pack = count ?? `${packageCount(order)} kiện · ${(order.weightKg ?? 0).toFixed(1).replace(".", ",")} kg`;
+  const weightLabel = `${(order.weightKg ?? 0).toFixed(1).replace(".", ",")} kg`;
   return (
     <td className={className}>
-      <span style={{ fontWeight: 500 }}>{pack}</span>
+      {count != null ? (
+        <>
+          <div style={{ fontWeight: 500 }}>{count}</div>
+          <span className="sub">{weightLabel}</span>
+        </>
+      ) : (
+        <span style={{ fontWeight: 500 }}>
+          {packageCount(order)} kiện · {weightLabel}
+        </span>
+      )}
       {goods && goods !== "—" ? <span className="sub">{goods}</span> : null}
     </td>
   );

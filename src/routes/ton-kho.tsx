@@ -243,7 +243,7 @@ export function TonKhoPanel() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-sm">
             <thead>
-              <tr className="border-b bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr className="border-b bg-muted/40 text-left text-sm font-bold uppercase text-muted-foreground">
                 <th className="px-3 py-2 w-56">Bưu cục</th>
                 <th className="px-3 py-2 w-56">Loại</th>
                 {BUCKETS.map((b) => (

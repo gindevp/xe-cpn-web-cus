@@ -149,7 +149,7 @@ type Stage =
   | "FAILED"
   | "REDELIVER_WAIT";
 
-const TH_MUTED = "px-2 py-2 font-semibold text-slate-500";
+const TH_MUTED = "px-2 py-2 text-[14px] font-bold text-slate-500";
 
 /** Chuyến xuất phát gần nhất lên trước; xe chưa có giờ xuất phát xếp cuối, cùng giờ thì theo BKS. */
 function byDepartThenPlate(
@@ -2181,16 +2181,25 @@ function Page() {
                           />
                         </td>
                         <td>
-                          <OrderCodeLink code={r.code} className="code" />
-                          <button
-                            type="button"
-                            className="link"
-                            style={{ display: "block", marginTop: 2 }}
-                            title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                            onClick={() => toggleOrderPkgs(r.code)}
-                          >
-                            {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                          </button>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <button
+                              type="button"
+                              className="link"
+                              style={{ display: "inline-flex", padding: 0, textDecoration: "none" }}
+                              title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                              aria-expanded={expandedOrders.has(r.code)}
+                              onClick={() => toggleOrderPkgs(r.code)}
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  "h-4 w-4 shrink-0 transition-transform",
+                                  expandedOrders.has(r.code) && "rotate-180",
+                                )}
+                                style={{ color: "var(--on-surface-variant)" }}
+                              />
+                            </button>
+                            <OrderCodeLink code={r.code} className="code" />
+                          </span>
                           <TransferPaidBadge order={r} />
                           <StageTime order={r} tab={tab} />
                           {isReturnFlow(r) ? <span className="sub">HOÀN</span> : null}
@@ -2400,7 +2409,7 @@ function Page() {
             <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+                  <tr className="border-b bg-muted/40 text-left text-sm font-bold uppercase text-muted-foreground">
                     <th className="px-3 py-2">BKS</th>
                     <th className="px-3 py-2">Tài xế</th>
                     <th className="px-3 py-2 whitespace-nowrap">Xuất phát</th>
@@ -2497,7 +2506,7 @@ function Page() {
               <div className="mt-2 max-h-[200px] overflow-auto rounded-md border">
                 <table className="w-full min-w-[980px] text-sm">
                   <thead>
-                    <tr className="border-b bg-slate-50/80 text-left text-xs uppercase tracking-wide">
+                    <tr className="border-b bg-slate-50/80 text-left text-sm font-bold uppercase tracking-wide">
                       <th className={`${TH_MUTED} pl-4`}>Mã đơn</th>
                       <th className={TH_MUTED}>Người gửi</th>
                       <th className={TH_MUTED}>Người nhận</th>

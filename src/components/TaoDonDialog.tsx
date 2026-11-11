@@ -2187,11 +2187,11 @@ export function TaoDonDialog({
                           <button type="button" className="btn ghost" onClick={clear} disabled={saving}>
                             Xoá
                           </button>
-                          <button type="button" className="btn tonal" onClick={() => void submit("print")} disabled={saving}>
-                            {saving ? "Đang lưu…" : "Tạo và in"}
-                          </button>
-                          <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
+                          <button type="button" className="btn tonal" onClick={() => void submit("save")} disabled={saving}>
                             {saving ? "Đang lưu…" : "Tạo đơn"}
+                          </button>
+                          <button type="button" className="btn" onClick={() => void submit("print")} disabled={saving}>
+                            {saving ? "Đang lưu…" : "Tạo và in"}
                           </button>
                         </>
                       )}

@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -893,7 +893,7 @@ function HistorySection({ reloadKey }: { reloadKey: number }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+              <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
                 <th className="px-2 py-2">Thời gian</th>
                 <th className="px-2 py-2">Người thao tác</th>
                 <th className="px-2 py-2">Thao tác</th>
@@ -1135,7 +1135,7 @@ function ReceiptDialog({
         <div className="max-h-[50vh] overflow-y-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-background">
-              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+              <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
                 <th className="w-10 px-2 py-2">
                   <Checkbox
                     checked={allChecked}
