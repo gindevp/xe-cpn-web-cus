@@ -1709,6 +1709,10 @@ function OfficeOrdersChart({
             </span>
             Số lượng đơn hàng theo ngày
           </h2>
+          <div className="small muted" style={{ maxWidth: 640, marginTop: 4 }}>
+            Đơn gửi: tạo quầy (NV) hoặc nhập kho gửi; đơn khách chỉ khi đã nhập kho gửi. Đơn nhận: nhập kho giao.
+            Doanh thu trên báo cáo vẫn theo ngày tạo — không đổi khi sửa đếm gửi/nhận.
+          </div>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
           <button
