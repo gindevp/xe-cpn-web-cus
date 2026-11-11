@@ -138,3 +138,42 @@ function pipelineTabOfStage(o: Pick<Order, "note" | "quantity">, stage: string):
   }
   return PIPELINE_TAB_LABEL[stage] ?? null;
 }
+
+/**
+ * Key màu badge trạng thái vận hành (tab nhập kho / chờ bàn giao / terminal).
+ * Tách riêng từng bước pipeline để không dùng chung 1 màu như theo OrderStatus.
+ */
+export function orderTabStatusToneKey(
+  o: TrackLike &
+    Pick<Order, "note" | "quantity" | "updatedAt" | "createdAt"> & {
+      issue?: { type: OrderIssueType; resolvedAt?: string } | null;
+    },
+): string {
+  const issue = openIssueType(o.issue);
+  if (issue) return `ISSUE_${issue}`;
+  if (isAutoException(o)) return "ISSUE_EXCEPTION";
+  if (o.status === "DELIVERED") return "DELIVERED";
+  if (o.status === "RETURNED") return "RETURNED";
+  if (o.status === "CANCELLED") return "CANCELLED";
+
+  if (o.status === "RETURNING") {
+    const stage = o.stage ?? "RETURNING";
+    const effective =
+      stage === "TRANSFERRING" && warehouseInSeqs(o).length >= packageCount(o) ? "DEST_WH_IN" : stage;
+    return `RETURN_${effective}`;
+  }
+
+  const pending = pendingHandoverTabLabel(o);
+  if (pending === "Chờ nhận hàng") return "PENDING_RECEIVE";
+  if (pending === "Đang lấy hàng") return "PICKING";
+  if (pending === "Chờ lấy hàng") return "PENDING_PICKUP";
+
+  let stage: string | null | undefined = o.stage;
+  if (o.status === "FAILED_DELIVERY") stage = "FAILED";
+  else if (o.status === "OUT_FOR_DELIVERY" && stage !== "DELIVERING") stage = "DELIVERING";
+  else stage = stage ?? derivePipelineStage(o);
+
+  if (stage === "TRANSFERRING" && warehouseInSeqs(o).length >= packageCount(o)) stage = "DEST_WH_IN";
+  if (stage) return stage;
+  return o.status;
+}

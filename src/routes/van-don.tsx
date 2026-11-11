@@ -588,7 +588,7 @@ function Page() {
                         </button>
                       </td>
                       <td className="py-2 pr-4">
-                        <OrderStatusBadge status={r.status} issue={r.issue} />
+                        <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
                       </td>
                       <td className="py-2 pr-4">
                         <div className="uppercase">{goodsName}</div>
@@ -1304,7 +1304,7 @@ function AssignToVehicleDialog({
                             {formatMoney(r.fare)}
                           </td>
                           <td className="px-3 py-2">
-                            <OrderStatusBadge status={r.status} issue={r.issue} />
+                            <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
                           </td>
                         </tr>
                       );
