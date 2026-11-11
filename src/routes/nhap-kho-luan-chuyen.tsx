@@ -2216,7 +2216,7 @@ function Page() {
                           ) : null}
                         </td>
                         <td>
-                          <OfficeRouteCell order={r} />
+                          <OfficeRouteCell order={r} hideAddress />
                         </td>
                         <OrderCargoCell
                           order={r}
@@ -2515,7 +2515,7 @@ function Page() {
                         <td className="px-2 py-2">{r.senderName ?? r.senderPhone}</td>
                         <td className="px-2 py-2">{r.receiverName}</td>
                         <td className="px-2 py-2 whitespace-nowrap">
-                          <OfficeRouteCell order={r} />
+                          <OfficeRouteCell order={r} hideAddress />
                         </td>
                         <OrderCargoCell order={r} />
                         <OrderFeeCell order={r} />

@@ -7,6 +7,7 @@ export function OfficeRouteCell({
   toOffice,
   order,
   className,
+  hideAddress,
 }: {
   fromOffice?: string | null;
   toOffice?: string | null;
@@ -15,11 +16,17 @@ export function OfficeRouteCell({
     hubOffice?: string;
   };
   className?: string;
+  /** Ẩn địa chỉ giao tận nơi (đã hiện ở cột người nhận). */
+  hideAddress?: boolean;
 }) {
   const from = officeName(order?.fromOffice ?? fromOffice ?? "") || "—";
   const to =
     officeName(order ? orderReceiverOffice(order) : (toOffice ?? "")) || "—";
-  const door = order?.homeDelivery === false ? "" : order?.address?.trim() ?? "";
+  const door = hideAddress
+    ? ""
+    : order?.homeDelivery === false
+      ? ""
+      : (order?.address?.trim() ?? "");
   const hub = order?.hubOffice?.trim() ?? "";
   return (
     <>
