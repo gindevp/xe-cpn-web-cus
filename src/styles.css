@@ -323,10 +323,18 @@ html.xe-scan-immersive main {
   min-width: 0;
 }
 .m3-hero {
+  /* Cố định trong vùng cuộn của .m3-main (desktop) / shell (mobile) */
+  position: sticky;
+  top: 0;
+  z-index: 12;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+  margin: -16px -24px 0;
+  padding: 16px 24px 12px;
+  background: var(--low);
+  box-shadow: 0 1px 0 var(--outline-variant);
   color: var(--on-surface);
   font-size: 14px;
   line-height: 20px;
