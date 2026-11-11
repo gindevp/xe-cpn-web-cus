@@ -55,9 +55,12 @@ export function ThemeMenuItems() {
               <Moon className="mr-2 h-4 w-4" /> Tối
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="system">
-              <Monitor className="mr-2 h-4 w-4" /> Theo hệ thống
+              <Monitor className="mr-2 h-4 w-4" /> Theo máy (chỉ NV)
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
+          <p className="px-2 pb-1.5 pt-1 text-[11px] text-muted-foreground">
+            Lưu theo tài khoản · không áp dụng màn khách
+          </p>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
       <DropdownMenuSeparator />

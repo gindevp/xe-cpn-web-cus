@@ -1,5 +1,7 @@
 /* Trang khách (CRM) — chuyển từ bản Figma Make, scope trong .kh-crm */
 .kh-crm {
+  /* Luôn sáng — không inherit dark mode NV / OS */
+  color-scheme: light;
   --ds-primary: #274ea1;
   --ds-text: #10192e;
   --ds-text-secondary: #475569;

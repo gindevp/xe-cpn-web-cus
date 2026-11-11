@@ -35,7 +35,7 @@ function CustomerArea() {
 
   if (customer === undefined) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-[#475569]">
         Đang tải…
       </div>
     );
@@ -82,7 +82,7 @@ function IndexPage() {
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-[#475569]">
         Đang tải…
       </div>
     );
@@ -91,7 +91,7 @@ function IndexPage() {
   // Native WebView: wait for token injection before showing guest landing.
   if (!session && isNativeWebView() && !getToken()) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-[#475569]">
         Đang kết nối ứng dụng…
       </div>
     );
@@ -102,7 +102,7 @@ function IndexPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-muted-foreground">
+    <div className="flex min-h-screen items-center justify-center bg-[#F3F4F6] text-sm text-[#475569]">
       Đang chuyển hướng…
     </div>
   );
