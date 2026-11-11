@@ -6,7 +6,7 @@ import { getToken } from "@/lib/api/client";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import xeLogo from "@/assets/logo-xe.png";
-import { openSiblingUi, siblingUiBaseUrl } from "@/lib/sibling-ui";
+import { openSiblingUi, SIBLING_UI_LABEL } from "@/lib/sibling-ui";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -246,16 +246,17 @@ function LoginPage() {
                   "Đăng nhập"
                 )}
               </button>
-              {siblingUiBaseUrl() ? (
-                <button
-                  type="button"
-                  className="btn ghost login-sibling"
-                  style={{ marginTop: 8, width: "100%" }}
-                  onClick={() => openSiblingUi()}
-                >
-                  Chuyển giao diện cũ
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="btn tonal login-btn"
+                style={{ marginTop: 4 }}
+                onClick={() => openSiblingUi()}
+              >
+                <span className="ms" aria-hidden="true">
+                  swap_horiz
+                </span>
+                {SIBLING_UI_LABEL}
+              </button>
             </form>
           )}
         </div>
