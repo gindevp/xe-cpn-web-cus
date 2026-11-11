@@ -1609,9 +1609,44 @@ function Page() {
     FAILED: "assignment_late",
   };
 
+  const officeFilters = (
+    <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap", margin: 0 }}>
+      {showCounterOffice && isDestPipelineTab(tab) ? counterOfficeSelect : null}
+      {showCounterOffice && session?.role === "DH" ? null : (
+        <div
+          className="field"
+          style={{ flex: "0 0 200px" }}
+          title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}
+        >
+          <span className="l">{isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}</span>
+          {admin ? (
+            <SearchableMultiSelect
+              values={scopedCodes}
+              allSelected={isViewAllOffices(viewScope)}
+              onValuesChange={(codes) => setViewOffice(encodeViewOffices(codes))}
+              options={offices.map((o) => ({ value: o.code, label: o.name, keywords: o.code }))}
+              allValue={VIEW_ALL_OFFICES}
+              allLabel="Toàn hệ thống"
+              placeholder="Chọn văn phòng"
+            />
+          ) : (
+            <SearchableSelect
+              value={scopedOffice || viewOffice}
+              onValueChange={setViewOffice}
+              disabled
+              placeholder="Chọn văn phòng"
+              options={offices.map((o) => ({ value: o.code, label: o.name }))}
+            />
+          )}
+        </div>
+      )}
+      {showCounterOffice && !isDestPipelineTab(tab) ? counterOfficeSelect : null}
+    </div>
+  );
+
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader title={activeTab.label} description={activeTab.hint} />
+      <M3PageHeader title={activeTab.label} description={activeTab.hint} actions={officeFilters} />
 
       <StageTabRow>
         {TABS.map((t) => (
@@ -1632,39 +1667,6 @@ function Page() {
           </StageTabButton>
         ))}
       </StageTabRow>
-
-      <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
-        {showCounterOffice && isDestPipelineTab(tab) ? counterOfficeSelect : null}
-        {showCounterOffice && session?.role === "DH" ? null : (
-          <div
-            className="field"
-            style={{ flex: "0 0 200px" }}
-            title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}
-          >
-            <span className="l">{isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}</span>
-            {admin ? (
-              <SearchableMultiSelect
-                values={scopedCodes}
-                allSelected={isViewAllOffices(viewScope)}
-                onValuesChange={(codes) => setViewOffice(encodeViewOffices(codes))}
-                options={offices.map((o) => ({ value: o.code, label: o.name, keywords: o.code }))}
-                allValue={VIEW_ALL_OFFICES}
-                allLabel="Toàn hệ thống"
-                placeholder="Chọn văn phòng"
-              />
-            ) : (
-              <SearchableSelect
-                value={scopedOffice || viewOffice}
-                onValueChange={setViewOffice}
-                disabled
-                placeholder="Chọn văn phòng"
-                options={offices.map((o) => ({ value: o.code, label: o.name }))}
-              />
-            )}
-          </div>
-        )}
-        {showCounterOffice && !isDestPipelineTab(tab) ? counterOfficeSelect : null}
-      </div>
 
       <Section
         title={
