@@ -1826,6 +1826,9 @@ function OfficeOrdersChart({
                     onFocus={() => setSel(i)}
                     onClick={() => setSel(i)}
                   >
+                    <span className={`pl-fee num${on ? " on" : ""}`} aria-hidden="true">
+                      {Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : ""}
+                    </span>
                     {on ? (
                       <>
                         <span className="xhair" aria-hidden="true" />
@@ -1835,19 +1838,35 @@ function OfficeOrdersChart({
                         {showSent ? (
                           <i className="pt sent" style={{ bottom: 24 + (r.sent / MAX) * PLOT - 5 }} />
                         ) : null}
-                        <span className="pl-fee num" aria-hidden="true">
-                          {Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : ""}
-                        </span>
-                        {showRecv ? (
-                          <span className="pl pl-r num" style={{ bottom: 24 + (r.received / MAX) * PLOT + 7 }} aria-hidden="true">
-                            {fmtN(r.received)}
-                          </span>
-                        ) : null}
-                        {showSent ? (
-                          <span className="pl pl-s num" style={{ bottom: 24 + (r.sent / MAX) * PLOT + 7 }} aria-hidden="true">
-                            {fmtN(r.sent)}
-                          </span>
-                        ) : null}
+                        <div
+                          className={`day-tip${i >= rows.length - 3 ? " left" : ""}`}
+                          aria-hidden="true"
+                        >
+                          <div className="day-tip-date">{fmt(r.date).slice(0, 5)}</div>
+                          {showSent ? (
+                            <div className="day-tip-row">
+                              <span className="dot sent" />
+                              <span className="lab">Đơn gửi</span>
+                              <span className="val num">{fmtN(r.sent)}</span>
+                            </div>
+                          ) : null}
+                          {showRecv ? (
+                            <div className="day-tip-row">
+                              <span className="dot recv" />
+                              <span className="lab">Đơn nhận</span>
+                              <span className="val num">{fmtN(r.received)}</span>
+                            </div>
+                          ) : null}
+                          <div className="day-tip-row">
+                            <span className="ms day-tip-ic" aria-hidden="true">
+                              payments
+                            </span>
+                            <span className="lab">Cước</span>
+                            <span className="val num">
+                              {Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : "—"}
+                            </span>
+                          </div>
+                        </div>
                       </>
                     ) : null}
                     <span className="d num">{day}</span>

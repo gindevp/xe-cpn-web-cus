@@ -684,12 +684,20 @@ body>*:not(#tem-print-root){display:none!important}
 .theme-dark{--ink-recv:#A9C0F0;--ink-sent:#EDB27E}
 .fee-band{position:absolute;left:0;right:0;top:0;height:26px;display:flex;align-items:center;gap:4px;padding-left:4px;border-radius:8px;background:var(--low);font-size:11px;font-weight:500;color:var(--on-surface-variant)}
 .fee-band .ms{font-size:14px;color:var(--rev-ink)}
-.pl-fee{position:absolute;left:50%;top:0;transform:translateX(-50%);height:26px;line-height:26px;font-size:11px;font-weight:500;letter-spacing:-.2px;color:var(--rev-ink);white-space:nowrap;pointer-events:none}
-.pl{position:absolute;left:50%;transform:translateX(-50%);font-size:11px;line-height:14px;font-weight:500;white-space:nowrap;pointer-events:none;text-shadow:0 0 3px var(--lowest),0 0 3px var(--lowest),0 0 2px var(--lowest)}
-.pl-r{color:var(--ink-recv)}
-.pl-s{color:var(--ink-sent)}
-.day.on .pl,.day.on .pl-fee{font-weight:700}
+.pl-fee{position:absolute;left:50%;top:0;transform:translateX(-50%);height:26px;line-height:26px;font-size:11px;font-weight:500;letter-spacing:-.2px;color:var(--on-surface-variant);white-space:nowrap;pointer-events:none}
+.pl-fee.on{color:var(--on-surface);font-weight:700}
 .days .day .xhair{top:26px}
+/* Tooltip hover biểu đồ đơn theo ngày */
+.day-tip{position:absolute;left:calc(50% + 12px);top:40px;z-index:4;min-width:152px;padding:10px 12px;border-radius:12px;background:var(--inverse-surface);color:var(--inverse-on-surface);box-shadow:0 4px 16px rgb(0 0 0 / .28);pointer-events:none;display:flex;flex-direction:column;gap:6px;font-size:12px;line-height:16px;animation:day-tip-in .16s ease-out both}
+.day-tip.left{left:auto;right:calc(50% + 12px)}
+.day-tip-date{font-size:13px;font-weight:600;letter-spacing:-.1px}
+.day-tip-row{display:flex;align-items:center;gap:8px}
+.day-tip-row .lab{flex:1;min-width:0;color:rgb(from var(--inverse-on-surface) r g b / .88)}
+.day-tip-row .val{font-weight:600;font-variant-numeric:tabular-nums}
+.day-tip-row .dot{width:8px;height:8px;flex:none}
+.day-tip-ic{font-size:16px;width:16px;text-align:center;color:#7ADCCD;flex:none}
+@keyframes day-tip-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.day-tip{animation:none}}
 /* màn đăng nhập */
 .login{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(420px,1fr);min-height:100vh;background:var(--lowest);color:var(--on-surface);font-family:Inter,'Noto Sans',system-ui,sans-serif;font-size:14px;line-height:20px}
 .login-side{display:flex;flex-direction:column;justify-content:space-between;gap:32px;padding:40px 48px;background:var(--rev-tint);min-width:0}
