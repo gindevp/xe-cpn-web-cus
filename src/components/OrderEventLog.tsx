@@ -217,7 +217,7 @@ function SignTile({ src }: { src: string }) {
   );
 }
 
-/** Nhật ký tác động trong popup đơn — mới nhất ở trên, mỗi dòng icon theo thao tác. */
+/** Nhật ký tác động trong popup đơn — cũ → mới (giống bản cũ), mỗi dòng icon theo thao tác. */
 export function OrderEventLog({
   events,
   signs,
@@ -237,8 +237,7 @@ export function OrderEventLog({
 }) {
   const rows = events
     .map((e, i) => ({ e, sign: signs[i] ?? null, info: describe(e) }))
-    .filter((r): r is { e: OrderLogEvent; sign: string | null; info: NonNullable<ReturnType<typeof describe>> } => !!r.info)
-    .reverse();
+    .filter((r): r is { e: OrderLogEvent; sign: string | null; info: NonNullable<ReturnType<typeof describe>> } => !!r.info);
 
   return (
     <section className="order-box stack" aria-labelledby="od-log-title">
@@ -267,7 +266,7 @@ export function OrderEventLog({
             return (
               <li
                 key={`${e.at}-${e.action}-${i}`}
-                className={["od-log-row", tone, i === 0 ? "latest" : ""].filter(Boolean).join(" ")}
+                className={["od-log-row", tone, i === rows.length - 1 ? "latest" : ""].filter(Boolean).join(" ")}
               >
                 <span className="od-log-ic" aria-hidden="true">
                   <span className="ms">{iconOf(key)}</span>
