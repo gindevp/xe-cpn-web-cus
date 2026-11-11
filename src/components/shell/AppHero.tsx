@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { openSiblingUi, siblingUiBaseUrl } from "@/lib/sibling-ui";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -195,6 +196,18 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
               </span>
               Đổi mật khẩu
             </DropdownMenuItem>
+            {siblingUiBaseUrl() ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  openSiblingUi();
+                }}
+              >
+                <span className="ms mr-2" aria-hidden="true">
+                  swap_horiz
+                </span>
+                Chuyển giao diện cũ
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onSelect={() => {
