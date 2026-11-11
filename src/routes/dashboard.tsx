@@ -1835,20 +1835,20 @@ function OfficeOrdersChart({
                         {showSent ? (
                           <i className="pt sent" style={{ bottom: 24 + (r.sent / MAX) * PLOT - 5 }} />
                         ) : null}
+                        <span className="pl-fee num" aria-hidden="true">
+                          {Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : ""}
+                        </span>
+                        {showRecv ? (
+                          <span className="pl pl-r num" style={{ bottom: 24 + (r.received / MAX) * PLOT + 7 }} aria-hidden="true">
+                            {fmtN(r.received)}
+                          </span>
+                        ) : null}
+                        {showSent ? (
+                          <span className="pl pl-s num" style={{ bottom: 24 + (r.sent / MAX) * PLOT + 7 }} aria-hidden="true">
+                            {fmtN(r.sent)}
+                          </span>
+                        ) : null}
                       </>
-                    ) : null}
-                    <span className="pl-fee num" aria-hidden="true">
-                      {Number(r.revenue) ? fmtDayRevenue(Number(r.revenue)) : ""}
-                    </span>
-                    {showRecv ? (
-                      <span className="pl pl-r num" style={{ bottom: 24 + (r.received / MAX) * PLOT + 7 }} aria-hidden="true">
-                        {fmtN(r.received)}
-                      </span>
-                    ) : null}
-                    {showSent ? (
-                      <span className="pl pl-s num" style={{ bottom: 24 + (r.sent / MAX) * PLOT + 7 }} aria-hidden="true">
-                        {fmtN(r.sent)}
-                      </span>
                     ) : null}
                     <span className="d num">{day}</span>
                   </button>
