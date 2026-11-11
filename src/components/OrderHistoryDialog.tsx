@@ -1727,8 +1727,7 @@ export function OrderHistoryDialog({
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <span className="lab">Tổng phải thu</span>
                     <span className="kpi-val" style={{ fontSize: 24 }}>
-                      {formatVND(money.remaining)}{" "}
-                      <span style={{ fontSize: 12, fontWeight: 400 }}>VNĐ</span>
+                      {formatVND(money.remaining)}
                     </span>
                   </div>
                   {money.remainingHint ? (

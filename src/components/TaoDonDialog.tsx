@@ -2148,8 +2148,7 @@ export function TaoDonDialog({
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                         <span className="lab">Tổng phải thu</span>
                         <span className="kpi-val" style={{ fontSize: 24 }}>
-                          {totalFare.toLocaleString("vi-VN")}{" "}
-                          <span style={{ fontSize: 12, fontWeight: 400 }}>VNĐ</span>
+                          {formatVND(totalFare)}
                         </span>
                       </div>
                       {unpaid > 0 ? (
@@ -2295,7 +2294,7 @@ function FeeLine({ label, value, always }: { label: string; value: number; alway
   return (
     <div className="fee-line">
       <span>{label}</span>
-      <span>{formatVND(value)} VNĐ</span>
+      <span>{formatVND(value)}</span>
     </div>
   );
 }
