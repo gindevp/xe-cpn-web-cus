@@ -39,7 +39,6 @@ export const M3_NAV_GROUPS: M3NavGroup[] = [
       { to: "/quan-ly-hoa-don", label: "Quản lý hoá đơn", icon: "description", screen: "quan-ly-hoa-don" },
       { to: "/crm-sdt", label: "CRM SĐT - MST", icon: "contact_phone", screen: "crm-sdt" },
       { to: "/bao-cao-doanh-thu", label: "Báo cáo doanh thu", icon: "bar_chart", screen: "bao-cao-doanh-thu" },
-      { to: "/bao-cao-thu", label: "Báo cáo thu / Day Close", icon: "event_available", screen: "bao-cao-thu" },
     ],
   },
   {
