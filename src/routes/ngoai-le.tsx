@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
@@ -492,6 +491,7 @@ function Page() {
                                 <OrderStatusBadge
                                   status={r.status}
                                   issue={tabOf(r) ? { type: tabOf(r)! } : r.issue}
+                                  order={r}
                                 />
                               </td>
                               <OrderCargoCell order={r} />
@@ -691,6 +691,13 @@ function CancelRequestPanel({
                   ) : null}
                   <td>
                     <OrderCodeLink code={r.code} className="code" />
+                    <div style={{ marginTop: 4 }}>
+                      <OrderStatusBadge
+                        status={r.status}
+                        issue={{ type: "CANCEL_REQUEST" }}
+                        order={r}
+                      />
+                    </div>
                   </td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}

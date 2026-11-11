@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+import { OrderStatusBadge } from "@/components/StatusBadge";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
@@ -281,9 +281,9 @@ export function DonHuyPanel() {
                       </td>
                       <td className="px-2 py-2 font-medium">
                         <div><OrderCodeLink code={r.code} /></div>
-                        <Badge variant="destructive" className="mt-1">
-                          Đã huỷ
-                        </Badge>
+                        <div className="mt-1">
+                          <OrderStatusBadge status="CANCELLED" issue={r.issue} order={r} />
+                        </div>
                       </td>
                       <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
                         {formatDateTime(info.at)}

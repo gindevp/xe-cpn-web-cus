@@ -13,6 +13,7 @@ import { GoodsPhotoButton } from "@/components/GoodsPhotoButton";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { CancelOrderDialog, CANCEL_REASON_MIN_TRANSFER } from "@/components/CancelOrderDialog";
 import { TransferPaidBadge, transferPaidNotice } from "@/components/TransferPaidBadge";
+import { OrderStatusBadge } from "@/components/StatusBadge";
 import { StaffSenderTransferQrAction } from "@/components/StaffSenderTransferQrAction";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
@@ -467,6 +468,10 @@ function Page() {
                           >
                             {expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
                           </button>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                            <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
+                            <TransferPaidBadge order={r} className="ml-0" />
+                          </div>
                           <span className="sub">
                             {r.qrDropOff
                               ? "Quét QR tại bưu cục"
@@ -475,7 +480,6 @@ function Page() {
                                 : "Khách mang đến"}
                           </span>
                           <span className="sub">{formatDateTime(r.createdAt)}</span>
-                          <TransferPaidBadge order={r} />
                           {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") &&
                           r.partnerOrderId ? (
                             <AhamoveInfo order={r} />
