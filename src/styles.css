@@ -309,8 +309,13 @@ html.xe-scan-immersive main {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px 24px 32px;
+  /* Không padding-top: sticky top bar phải sát mép vùng cuộn (tránh khoảng trống trên) */
+  padding: 0 24px 32px;
   box-sizing: border-box;
+}
+/* .pad { padding:16px !important } — ghi đè cho main M3 */
+.m3-main.page.pad {
+  padding: 0 24px 32px !important;
 }
 .m3-main-immersive {
   padding: 0 !important;
@@ -323,7 +328,7 @@ html.xe-scan-immersive main {
   min-width: 0;
 }
 .m3-hero {
-  /* Cố định trong vùng cuộn của .m3-main (desktop) / shell (mobile) */
+  /* Cố định sát mép trên vùng cuộn .m3-main (desktop) / shell (mobile) */
   position: sticky;
   top: 0;
   z-index: 12;
@@ -331,7 +336,7 @@ html.xe-scan-immersive main {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin: -16px -24px 0;
+  margin: 0 -24px;
   padding: 16px 24px 12px;
   background: var(--low);
   box-shadow: 0 1px 0 var(--outline-variant);
