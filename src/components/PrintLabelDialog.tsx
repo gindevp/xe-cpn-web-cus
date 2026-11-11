@@ -39,8 +39,12 @@ const PREVIEW_SCALE = 1.55;
 const LABEL_FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=block";
 
+/**
+ * Tem 105×105 — scoped `.xe-label` để không bị CSS M3 (`.sheet` gap/padding,
+ * `.code` màu primary…) phá preview trên cus.
+ */
 const SHEET_CSS = `
-.sheet{
+.xe-label{
   box-sizing:border-box;
   width:${SHEET_MM}mm;
   height:${SHEET_MM}mm;
@@ -51,34 +55,37 @@ const SHEET_CSS = `
   background:#fff;
   color:#000;
   border:0.35mm solid #000;
+  border-radius:0;
+  box-shadow:none;
+  gap:0;
   font-family:Arimo,Arial,Helvetica,sans-serif;
   padding:1.8mm 2.8mm 1.2mm;
   display:flex;
   flex-direction:column;
   line-height:1.05;
 }
-.grow{flex:1;min-width:0}
-.b{font-weight:700}
-.sec{border-bottom:0.45mm dashed #000;flex-shrink:0}
-.clamp{
+.xe-label .grow{flex:1;min-width:0}
+.xe-label .b{font-weight:700}
+.xe-label .sec{border-bottom:0.45mm dashed #000;flex-shrink:0}
+.xe-label .clamp{
   overflow:hidden;
   word-break:break-word;
   display:-webkit-box;
   -webkit-box-orient:vertical;
   -webkit-line-clamp:2;
 }
-.clamp1{
+.xe-label .clamp1{
   overflow:hidden;
   white-space:nowrap;
   text-overflow:ellipsis;
 }
-.head{
+.xe-label .head{
   display:flex;
   align-items:stretch;
   padding-bottom:0.5mm;
   gap:0;
 }
-.hub-col{
+.xe-label .hub-col{
   width:28mm;
   flex-shrink:0;
   border-right:0.45mm dashed #000;
@@ -90,7 +97,7 @@ const SHEET_CSS = `
   padding:0.2mm 1.2mm 0 0;
   box-sizing:border-box;
 }
-.hub{
+.xe-label .hub{
   flex:1;
   display:flex;
   align-items:center;
@@ -103,8 +110,9 @@ const SHEET_CSS = `
   max-width:100%;
   overflow:hidden;
   word-break:break-all;
+  color:#000;
 }
-.hub-time{
+.xe-label .hub-time{
   flex-shrink:0;
   margin-top:auto;
   padding-top:0.8mm;
@@ -114,8 +122,9 @@ const SHEET_CSS = `
   line-height:1.2;
   text-align:center;
   white-space:nowrap;
+  color:#000;
 }
-.code-col{
+.xe-label .code-col{
   flex:1;
   min-width:0;
   padding-left:1.5mm;
@@ -125,7 +134,13 @@ const SHEET_CSS = `
   justify-content:flex-start;
   gap:0.4mm;
 }
-.code{
+.xe-label .code{
+  padding:0;
+  border:0;
+  background:none;
+  color:#000;
+  cursor:default;
+  text-decoration:none;
   font-size:18.75pt;
   font-weight:700;
   line-height:1.05;
@@ -136,46 +151,48 @@ const SHEET_CSS = `
   white-space:nowrap;
   text-overflow:ellipsis;
 }
-.code-col img{width:28mm;height:28mm;flex-shrink:0}
-.route{
+.xe-label .code-col img{width:28mm;height:28mm;flex-shrink:0}
+.xe-label .route{
   font-size:8.25pt;
   font-weight:400;
   line-height:1.15;
   padding:0.35mm 0;
+  color:#000;
 }
-.pay-block{padding:0.35mm 0 0.25mm}
-.pay-row{
+.xe-label .pay-block{padding:0.35mm 0 0.25mm}
+.xe-label .pay-row{
   display:flex;
   justify-content:space-between;
   align-items:baseline;
   gap:3mm;
 }
-.pay-status{
+.xe-label .pay-status{
   font-size:17.25pt;
   font-weight:700;
   line-height:1.05;
   letter-spacing:0.02em;
   flex-shrink:0;
+  color:#000;
 }
-.pay-fare{
+.xe-label .pay-fare{
   display:flex;
   align-items:baseline;
   gap:2.5mm;
   flex-shrink:0;
   padding-top:0;
 }
-.pay-fare .lbl{font-size:8.25pt;font-weight:400;line-height:1.1;white-space:nowrap}
-.pay-fare .amt{font-size:9.75pt;font-weight:700;line-height:1.1;white-space:nowrap}
-.money{
+.xe-label .pay-fare .lbl{font-size:8.25pt;font-weight:400;line-height:1.1;white-space:nowrap}
+.xe-label .pay-fare .amt{font-size:9.75pt;font-weight:700;line-height:1.1;white-space:nowrap}
+.xe-label .money{
   display:flex;
   justify-content:space-between;
   align-items:baseline;
   gap:2mm;
   padding:0.15mm 0 0.15mm;
 }
-.money .lbl{font-size:8.25pt;font-weight:400;line-height:1.1}
-.money .amt{font-size:9.75pt;font-weight:700;line-height:1.1;white-space:nowrap}
-.total{
+.xe-label .money .lbl{font-size:8.25pt;font-weight:400;line-height:1.1}
+.xe-label .money .amt{font-size:9.75pt;font-weight:700;line-height:1.1;white-space:nowrap}
+.xe-label .total{
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -183,15 +200,15 @@ const SHEET_CSS = `
   padding-top:0.15mm;
   min-height:0;
 }
-.total .lbl{font-size:9.75pt;font-weight:700;line-height:1.05}
-.total .amt{
+.xe-label .total .lbl{font-size:9.75pt;font-weight:700;line-height:1.05}
+.xe-label .total .amt{
   font-size:27.75pt;
   font-weight:700;
   line-height:0.95;
   letter-spacing:-0.02em;
   white-space:nowrap;
 }
-.warn{
+.xe-label .warn{
   font-size:8.25pt;
   font-weight:400;
   line-height:1.1;
@@ -200,8 +217,9 @@ const SHEET_CSS = `
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  color:#000;
 }
-.recv-block{
+.xe-label .recv-block{
   flex:0 1 auto;
   min-height:0;
   display:flex;
@@ -209,55 +227,56 @@ const SHEET_CSS = `
   align-items:flex-start;
   justify-content:flex-start;
   gap:0.25mm;
-  /* Cách nhẹ phía trên tên để còn chỗ dấu thanh */
   padding:1.2mm 0 0.15mm;
   overflow:hidden;
+  color:#000;
 }
-.recv-block .name,
-.recv-block .phone,
-.recv-block .addr,
-.recv-block .note{
+.xe-label .recv-block .name,
+.xe-label .recv-block .phone,
+.xe-label .recv-block .addr,
+.xe-label .recv-block .note{
   flex-shrink:0;
   width:100%;
   max-width:100%;
   overflow:hidden;
   white-space:nowrap;
   text-overflow:ellipsis;
+  color:#000;
 }
-.recv-block .name{
+.xe-label .recv-block .name{
   font-size:20pt;
   font-weight:700;
   line-height:1.15;
   text-transform:uppercase;
   padding-top:0.3mm;
 }
-.recv-block .phone{
+.xe-label .recv-block .phone{
   font-size:20pt;
   font-weight:700;
   line-height:1.05;
   letter-spacing:0.04em;
 }
-.recv-block .addr,
-.recv-block .note{
+.xe-label .recv-block .addr,
+.xe-label .recv-block .note{
   display:block;
   font-weight:400;
   line-height:1.15;
-  /* Luôn 1 dòng — dài thì …, không xuống dòng */
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.recv-block .addr{font-size:8.25pt}
-.recv-block .note{font-size:7.75pt}
-.goods{
+.xe-label .recv-block .addr{font-size:8.25pt}
+.xe-label .recv-block .note{font-size:7.75pt}
+.xe-label .goods{
   display:flex;
   align-items:baseline;
   gap:2mm;
   padding-top:0.2mm;
   margin-top:0;
   flex-shrink:0;
+  color:#000;
 }
-.goods .txt{
+.xe-label .goods .txt{
   flex:1;
   min-width:0;
   font-size:9.75pt;
@@ -269,8 +288,8 @@ const SHEET_CSS = `
   -webkit-line-clamp:2;
   max-height:7.5mm;
 }
-.goods .kg{font-size:9.75pt;font-weight:700;white-space:nowrap;flex-shrink:0}
-.foot{
+.xe-label .goods .kg{font-size:9.75pt;font-weight:700;white-space:nowrap;flex-shrink:0}
+.xe-label .foot{
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -280,11 +299,12 @@ const SHEET_CSS = `
   padding-top:0.45mm;
   flex-shrink:0;
   line-height:1.1;
+  color:#000;
 }
-.foot .hotline{font-size:8.75pt;font-weight:700;white-space:nowrap}
-.foot .confirm{flex:1;text-align:center;font-size:6.25pt;font-weight:400}
-.foot .stamp{font-size:6.25pt;font-weight:400;white-space:nowrap}
-img{display:block;max-width:100%}
+.xe-label .foot .hotline{font-size:8.75pt;font-weight:700;white-space:nowrap}
+.xe-label .foot .confirm{flex:1;text-align:center;font-size:6.25pt;font-weight:400}
+.xe-label .foot .stamp{font-size:6.25pt;font-weight:400;white-space:nowrap}
+.xe-label img{display:block;max-width:100%}
 `;
 
 const PRINT_CSS = `
@@ -294,13 +314,13 @@ html,body{margin:0!important;padding:0!important;background:#fff}
 ${SHEET_CSS}
 @media print{
   html,body{width:${SHEET_MM}mm;margin:0;padding:0}
-  .sheet{
+  .xe-label{
     page-break-inside:avoid;
     break-inside:avoid;
     page-break-after:always;
     break-after:page;
   }
-  .sheet:last-child{
+  .xe-label:last-child{
     page-break-after:auto;
     break-after:auto;
   }
@@ -470,7 +490,7 @@ function sheetHtml(
       : "";
   const noteLine = senderNote ? oneLine(senderNote) : "";
 
-  return `<div class="sheet">
+  return `<div class="xe-label">
     <div class="head sec">
       <div class="hub-col">
         <div class="hub">${esc(hub)}</div>
