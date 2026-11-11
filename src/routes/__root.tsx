@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider, useAuth } from "../lib/auth";
+import { ThemeProvider, THEME_BOOT_SCRIPT } from "../lib/theme";
 import { useRealtimeSync } from "../lib/use-realtime-sync";
 import { Toaster } from "../components/ui/sonner";
 import { WebCustomerMaintenanceGate } from "../components/MaintenanceGate";
@@ -140,9 +141,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
         {children}
@@ -163,18 +165,20 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RealtimeSync />
-        <AutoCallErrorAlert />
-        <TaxLookupErrorAlert />
-        <InvoiceErrorAlert />
-        <OnePayErrorAlert />
-        <WebCustomerMaintenanceGate>
-          <Outlet />
-        </WebCustomerMaintenanceGate>
-        <ExtraFarePayerHost />
-        <Toaster richColors position="top-right" />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <RealtimeSync />
+          <AutoCallErrorAlert />
+          <TaxLookupErrorAlert />
+          <InvoiceErrorAlert />
+          <OnePayErrorAlert />
+          <WebCustomerMaintenanceGate>
+            <Outlet />
+          </WebCustomerMaintenanceGate>
+          <ExtraFarePayerHost />
+          <Toaster richColors position="top-right" />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

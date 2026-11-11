@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ExportFormat } from "@/lib/csv";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -32,6 +33,7 @@ export function ExportFormatButton({
   className,
   title = "Chọn định dạng xuất CSV hoặc Excel",
 }: Props) {
+  const { themeClass } = useTheme();
   const useM3 = !className?.includes("btn") && variant === "outline" && size === "sm";
   return (
     <DropdownMenu>
@@ -68,7 +70,10 @@ export function ExportFormatButton({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="theme-light min-w-[11rem] border-0 bg-[var(--lowest,#ffffff)] text-[var(--on-surface,#1a1b21)] shadow-[0_1px_3px_rgba(0,0,0,.3),0_4px_8px_3px_rgba(0,0,0,.15)]"
+        className={cn(
+          themeClass,
+          "min-w-[11rem] border-0 bg-[var(--lowest)] text-[var(--on-surface)] shadow-[0_1px_3px_rgba(0,0,0,.3),0_4px_8px_3px_rgba(0,0,0,.15)]",
+        )}
       >
         <DropdownMenuItem
           className="gap-2 rounded-full"

@@ -7,6 +7,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import xeLogo from "@/assets/logo-xe.png";
 import { openSiblingUi, SIBLING_UI_LABEL } from "@/lib/sibling-ui";
+import { ThemeCycleButton } from "@/components/ThemeToggle";
+import { useTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -20,6 +23,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const { session, hydrated, login } = useAuth();
+  const { themeClass } = useTheme();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -96,7 +100,10 @@ function LoginPage() {
   }
 
   return (
-    <main className="theme-light login font-inter">
+    <main className={cn(themeClass, "login font-inter")}>
+      <div className="fixed right-4 top-4 z-10">
+        <ThemeCycleButton />
+      </div>
       <section className="login-side">
         <div className="login-brand">
           <img src={xeLogo} alt="X.E Việt Nam" />

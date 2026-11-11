@@ -12,6 +12,7 @@ import { isNativeWebView } from "@/lib/native-shell";
 import { OrderHistoryProvider } from "@/components/OrderHistoryDialog";
 import { ConfirmHost } from "@/components/m3/askConfirm";
 import { getToken } from "@/lib/api/client";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 function NativeSyncing() {
@@ -54,6 +55,7 @@ export function AppShell({
   const scanImmersive = pathname === "/quet-nhap";
   const [nativeShell, setNativeShell] = useState(false);
   const nativeAuthWaitDone = useNativeAuthWait();
+  const { themeClass } = useTheme();
 
   useEffect(() => {
     const w = window as Window & { ReactNativeWebView?: { postMessage: (msg: string) => void } };
@@ -90,7 +92,8 @@ export function AppShell({
   return (
     <div
       className={cn(
-        "shell theme-light m3-app-shell",
+        "shell m3-app-shell",
+        themeClass,
         nativeShell ? "m3-native" : "",
         scanImmersive && "m3-scan-immersive",
       )}

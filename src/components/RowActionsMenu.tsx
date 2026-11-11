@@ -4,6 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /** Trễ khi rời chuột để còn kịp di từ nút sang menu. */
@@ -26,6 +27,7 @@ export function RowActionsMenu({
   contentClassName?: string;
   buttonClassName?: string;
 }) {
+  const { themeClass } = useTheme();
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -81,7 +83,8 @@ export function RowActionsMenu({
         align={align}
         sideOffset={6}
         className={cn(
-          "theme-light border-0 bg-[var(--lowest,#ffffff)] text-[var(--on-surface,#1a1b21)] shadow-[0_1px_3px_rgba(0,0,0,.3),0_4px_8px_3px_rgba(0,0,0,.15)]",
+          themeClass,
+          "border-0 bg-[var(--lowest)] text-[var(--on-surface)] shadow-[0_1px_3px_rgba(0,0,0,.3),0_4px_8px_3px_rgba(0,0,0,.15)]",
           contentClassName,
         )}
         onMouseEnter={clearCloseTimer}

@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 /** Overlay + sheet Material 3 (design `.scrim` / `.sheet`). Giữ Radix a11y/focus. */
@@ -20,13 +21,15 @@ export function M3Sheet({
   /** order sheets thường align top + scroll */
   alignTop?: boolean;
 }) {
+  const { themeClass } = useTheme();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <div
           className={cn(
-            /* Portal gắn body — phải mang theme-light nếu không --lowest/--on-surface bị undefined → sheet trong suốt */
-            "scrim theme-light",
+            /* Portal gắn body — mang theme hiện tại để --lowest/--on-surface luôn có giá trị */
+            "scrim",
+            themeClass,
             alignTop && "m3-scrim-top",
           )}
           style={alignTop ? { alignItems: "flex-start", overflowY: "auto" } : undefined}

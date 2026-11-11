@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { canRead, useRbacVersion } from "@/lib/rbac";
 import { TaoDonDialog } from "@/components/TaoDonDialog";
 import { M3_NAV_GROUPS, navActiveLabel } from "@/components/shell/nav-config";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 
 export function AppNav({ onNavigate, mobile }: Props) {
   const { session } = useAuth();
+  const { themeClass } = useTheme();
   useRbacVersion();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const activeLabel = navActiveLabel(pathname);
@@ -43,7 +45,7 @@ export function AppNav({ onNavigate, mobile }: Props) {
   return (
     <>
       <nav
-        className={cn("side rail theme-light", mobile && "m3-rail-mobile")}
+        className={cn("side rail", themeClass, mobile && "m3-rail-mobile")}
         aria-label="Điều hướng chính"
       >
         <Link

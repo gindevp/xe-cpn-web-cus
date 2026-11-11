@@ -25,7 +25,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { ThemeCycleButton, ThemeMenuItems } from "@/components/ThemeToggle";
 import { openSiblingUi, SIBLING_UI_LABEL } from "@/lib/sibling-ui";
+import { useTheme } from "@/lib/theme";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +35,7 @@ import { cn } from "@/lib/utils";
 export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { session, logout } = useAuth();
+  const { themeClass } = useTheme();
   useRbacVersion();
   const navigate = useNavigate();
   const offices = useStore((s) => s.offices);
@@ -101,7 +104,7 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   if (!session) return null;
 
   return (
-    <div className="m3-hero theme-light">
+    <div className={cn("m3-hero", themeClass)}>
       <div className="search-wrap m3-hero-search">
         <GlobalHeaderSearch />
       </div>
@@ -180,6 +183,7 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
           <span className="hidden sm:inline">{SIBLING_UI_LABEL}</span>
         </button>
 
+        <ThemeCycleButton className="m3-theme-btn" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -196,12 +200,13 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
               </div>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className={cn("w-56", themeClass)}>
             <div className="px-2 py-1.5 sm:hidden">
               <div className="truncate text-sm font-medium">{session.username}</div>
               <div className="truncate text-xs text-muted-foreground">{roleLabel}</div>
             </div>
             <DropdownMenuSeparator className="sm:hidden" />
+            <ThemeMenuItems />
             <DropdownMenuItem onSelect={() => setOpenChangePassword(true)}>
               <span className="ms mr-2" aria-hidden="true">
                 key

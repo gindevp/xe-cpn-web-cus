@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { useTheme } from "@/lib/theme";
 import { vnCmdkFilter } from "@/lib/vn-search";
 
 export type SearchableSelectOption = {
@@ -54,6 +55,7 @@ export function SearchableSelect({
   clearLabel = "—",
   id,
 }: SearchableSelectProps) {
+  const { themeClass } = useTheme();
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -174,9 +176,9 @@ export function SearchableSelect({
           onWheel={(e) => e.stopPropagation()}
         >
           <div
-            className="combo-list m3-combo-portal theme-light"
+            className={cn("combo-list m3-combo-portal", themeClass)}
             role="listbox"
-            style={{ position: "relative", top: 0, left: 0, right: 0, background: "var(--lowest, #ffffff)" }}
+            style={{ position: "relative", top: 0, left: 0, right: 0, background: "var(--lowest)" }}
           >
             <CommandList ref={listRef} className="max-h-[220px] overflow-y-auto overscroll-contain">
               <CommandEmpty>
