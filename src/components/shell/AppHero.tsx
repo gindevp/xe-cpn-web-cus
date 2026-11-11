@@ -7,16 +7,20 @@ import { ROLE_LABELS, officeName } from "@/lib/mock-data";
 import { canRead, useRbacVersion } from "@/lib/rbac";
 import { useStore } from "@/lib/store";
 import {
-  hasAllOfficeScope,
+  canPickViewOffices,
+  encodeViewOffices,
+  isViewAllOffices,
   resolveViewOffice,
+  selectedViewOfficeCodes,
   VIEW_ALL_OFFICES,
-  adminOfficeSelectOptions,
+  viewOfficeDisplayLabel,
 } from "@/lib/office-scope";
 import { pendingHandoverOrders } from "@/lib/pending-handover";
 import { isNativeWebView } from "@/lib/native-shell";
 import { ACTIVITY_TOP_NAV } from "@/lib/activity-nav";
 import { GlobalHeaderSearch } from "@/components/GlobalTopBar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,8 +46,9 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   const viewOffice = useStore((s) => s.viewOffice);
   const setViewOffice = useStore((s) => s.setViewOffice);
   const orders = useStore((s) => s.orders);
-  const admin = hasAllOfficeScope(session);
-  const officeCode = resolveViewOffice(session, viewOffice);
+  const canPickOffices = canPickViewOffices(session);
+  const officeScope = resolveViewOffice(session, viewOffice);
+  const selectedOfficeCodes = selectedViewOfficeCodes(officeScope);
   const allowed = useAllowedOffices((s) => s.offices);
   const activeOfficeId = useAllowedOffices((s) => s.activeId);
   const pendingOffline = useStore((s) => s.offlineQueue.length);
@@ -52,21 +57,21 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
 
   useEffect(() => {
     if (!session) return;
-    if (!admin) {
+    if (!canPickOffices) {
       const assigned = resolveViewOffice(session, "");
       if (assigned && viewOffice !== assigned) setViewOffice(assigned);
       return;
     }
     if (!viewOffice) setViewOffice(VIEW_ALL_OFFICES);
-  }, [session, admin, viewOffice, setViewOffice]);
+  }, [session, canPickOffices, viewOffice, setViewOffice]);
 
   const handoverCount = pendingHandoverOrders(orders, {
-    allOffices: admin,
+    allOffices: canPickOffices,
     office: session?.office,
   }).length;
 
   const quickNav = ACTIVITY_TOP_NAV.filter((i) => canRead(session?.role, i.screen));
-  const canSwitchOffice = !admin && !isNativeWebView() && allowed.length > 1;
+  const canSwitchOffice = !canPickOffices && !isNativeWebView() && allowed.length > 1;
 
   const switchOffice = async (token: string) => {
     const id = Number(token.replace(/^id:/, ""));
@@ -94,10 +99,7 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
     }
   };
 
-  const officeLabel =
-    !officeCode || officeCode === VIEW_ALL_OFFICES
-      ? "Toàn hệ thống"
-      : offices.find((o) => o.code === officeCode)?.name || officeName(officeCode) || officeCode;
+  const officeLabel = viewOfficeDisplayLabel(officeScope, offices, officeName);
   const roleLabel = session ? (ROLE_LABELS[session.role] ?? session.role) : "";
   const initial = (session?.username?.trim()?.[0] || "?").toLocaleUpperCase("vi-VN");
 
@@ -127,16 +129,18 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
       ) : null}
 
       <div className="m3-hero-right">
-        {admin ? (
-          <div className="pill m3-scope-pill">
-            <SearchableSelect
-              value={officeCode || VIEW_ALL_OFFICES}
-              onValueChange={setViewOffice}
-              options={adminOfficeSelectOptions(offices)}
+        {canPickOffices ? (
+          <div className="pill m3-scope-pill" title="Chọn một hoặc nhiều văn phòng để xem">
+            <SearchableMultiSelect
+              values={selectedOfficeCodes}
+              allSelected={isViewAllOffices(officeScope)}
+              onValuesChange={(codes) => setViewOffice(encodeViewOffices(codes))}
+              options={offices.map((o) => ({ value: o.code, label: o.name, keywords: o.code }))}
+              allValue={VIEW_ALL_OFFICES}
+              allLabel="Toàn hệ thống"
               placeholder="Toàn hệ thống"
-              searchPlaceholder="Tìm văn phòng…"
               className="m3-scope-select"
-              contentClassName="w-72 min-w-[16rem]"
+              contentClassName="w-80 min-w-[18rem]"
             />
             <span className="ms" aria-hidden="true">
               expand_more

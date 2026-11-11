@@ -101,13 +101,17 @@ import { customerNotWarehouseReceived } from "@/lib/pending-handover";
 import { loadOriginOffice, unloadTargetOffice } from "@/lib/order-leg";
 import { usePackageActions } from "@/components/PackageActions";
 import {
-  adminOfficeSelectOptions,
   assignedOfficeCode,
+  canPickViewOffices,
+  encodeViewOffices,
   hasAllOfficeScope,
   isAdminRole,
+  isViewAllOffices,
   resolveViewOffice,
+  selectedViewOfficeCodes,
   VIEW_ALL_OFFICES,
 } from "@/lib/office-scope";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 
 export const Route = createFileRoute("/nhap-kho-luan-chuyen")({
   head: () => ({
@@ -304,11 +308,16 @@ function officeCodeEq(a?: string | null, b?: string | null): boolean {
  *  Đơn RETURNING: chiều ngược — kho nguồn = VP nhận gốc; kho đích hoàn = VP gửi gốc. */
 function orderMatchesTabOffice(o: Order, tab: Stage, scoped: string): boolean {
   if (!scoped || scoped === VIEW_ALL_OFFICES) return true;
+  const codes = selectedViewOfficeCodes(scoped);
+  if (codes.length > 1) {
+    return codes.some((c) => orderMatchesTabOffice(o, tab, c));
+  }
+  const one = codes[0] ?? scoped;
   const returning = o.status === "RETURNING";
   if (isDestPipelineTab(tab)) {
-    return officeCodeEq(returning ? o.fromOffice : orderReceiverOffice(o), scoped);
+    return officeCodeEq(returning ? o.fromOffice : orderReceiverOffice(o), one);
   }
-  return officeCodeEq(loadOriginOffice(o), scoped);
+  return officeCodeEq(loadOriginOffice(o), one);
 }
 
 /** Tab có thêm bộ lọc VP phía đối diện: Nhập kho gửi → lọc VP nhận; Nhập kho giao → lọc VP gửi. */
@@ -575,7 +584,7 @@ function Page() {
   const offices = useStore((s) => s.offices);
   const viewOfficeRaw = useStore((s) => s.viewOffice);
   const setViewOffice = useStore((s) => s.setViewOffice);
-  const admin = hasAllOfficeScope(session);
+  const admin = canPickViewOffices(session);
   const canAssignOnWeb = isAdminRole(session?.role) || session?.role === "DH";
   const viewOffice = resolveViewOffice(session, viewOfficeRaw);
 
@@ -649,7 +658,11 @@ function Page() {
     });
   }, [orders, q, from, to, tripByCode]);
 
-  const scopedOffice = assignedOfficeCode(viewOffice);
+  /** Phạm vi xem (ALL / 1 VP / nhiều VP). Lọc danh sách dùng chuỗi đầy đủ. */
+  const viewScope = viewOffice;
+  /** 1 VP khi chỉ chọn một — dùng nút «Xe đang tới» / API cần đúng 1 mã. */
+  const scopedOffice = assignedOfficeCode(viewScope);
+  const scopedCodes = selectedViewOfficeCodes(viewScope);
 
   const counts = useMemo(
     () =>
@@ -659,13 +672,13 @@ function Page() {
           [t.key]: base.filter(
             (o) =>
               matchesPipelineTab(o, t.key, stageOf(o)) &&
-              orderMatchesTabOffice(o, t.key, scopedOffice) &&
+              orderMatchesTabOffice(o, t.key, viewScope) &&
               orderMatchesCounterOffice(o, t.key, counterOffice[t.key] ?? ""),
           ).length,
         }),
         {} as Record<Stage, number>,
       ),
-    [base, scopedOffice, counterOffice],
+    [base, viewScope, counterOffice],
   );
   useJumpToMatchingTab(
     q,
@@ -684,10 +697,10 @@ function Page() {
       base.filter(
         (o) =>
           matchesPipelineTab(o, tab, stageOf(o)) &&
-          orderMatchesTabOffice(o, tab, scopedOffice) &&
+          orderMatchesTabOffice(o, tab, viewScope) &&
           orderMatchesCounterOffice(o, tab, counterOffice[tab] ?? ""),
       ),
-    [base, tab, scopedOffice, counterOffice],
+    [base, tab, viewScope, counterOffice],
   );
   const homeCount = useMemo(() => tabRows.filter((o) => o.homeDelivery).length, [tabRows]);
   const rows = useMemo(() => {
@@ -756,9 +769,9 @@ function Page() {
   );
   const [groupLimit, setGroupLimit] = useState<Record<string, number>>({});
 
-  /** Xe đang mang hàng tới VP đang xem — chỉ đếm đơn/kiện giao tới VP đó. */
+  /** Xe đang mang hàng tới VP đang xem — chỉ đếm đơn/kiện giao tới VP đó (hỗ trợ nhiều VP). */
   const inboundPlateSummary = useMemo(() => {
-    if (!scopedOffice) return [];
+    if (isViewAllOffices(viewScope) || scopedCodes.length === 0) return [];
     const map = new Map<
       string,
       {
@@ -773,7 +786,7 @@ function Page() {
     >();
     for (const o of base) {
       if (!matchesPipelineTab(o, "TRANSFERRING", stageOf(o))) continue;
-      if (!officeCodeEq(unloadTargetOffice(o), scopedOffice)) continue;
+      if (!scopedCodes.some((c) => officeCodeEq(unloadTargetOffice(o), c))) continue;
       const remaining = Math.max(0, packageCount(o) - warehouseInSeqs(o).length);
       if (remaining <= 0) continue;
       const { key, plate } = plateOf(o, tripByCode);
@@ -791,7 +804,7 @@ function Page() {
       if (depart && (!g.departAt || depart > g.departAt)) g.departAt = depart;
     }
     return [...map.values()].sort(byDepartThenPlate);
-  }, [base, scopedOffice, tripByCode]);
+  }, [base, viewScope, scopedCodes, tripByCode]);
 
   const inboundTotals = useMemo(
     () => ({
@@ -1629,17 +1642,25 @@ function Page() {
             title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}
           >
             <span className="l">{isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}</span>
-            <SearchableSelect
-              value={viewOffice}
-              onValueChange={setViewOffice}
-              disabled={!admin}
-              placeholder="Chọn văn phòng"
-              options={
-                admin
-                  ? adminOfficeSelectOptions(offices)
-                  : offices.map((o) => ({ value: o.code, label: o.name }))
-              }
-            />
+            {admin ? (
+              <SearchableMultiSelect
+                values={scopedCodes}
+                allSelected={isViewAllOffices(viewScope)}
+                onValuesChange={(codes) => setViewOffice(encodeViewOffices(codes))}
+                options={offices.map((o) => ({ value: o.code, label: o.name, keywords: o.code }))}
+                allValue={VIEW_ALL_OFFICES}
+                allLabel="Toàn hệ thống"
+                placeholder="Chọn văn phòng"
+              />
+            ) : (
+              <SearchableSelect
+                value={scopedOffice || viewOffice}
+                onValueChange={setViewOffice}
+                disabled
+                placeholder="Chọn văn phòng"
+                options={offices.map((o) => ({ value: o.code, label: o.name }))}
+              />
+            )}
           </div>
         )}
         {showCounterOffice && !isDestPipelineTab(tab) ? counterOfficeSelect : null}
@@ -1653,7 +1674,7 @@ function Page() {
         }
         right={
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
-            {tab === "TRANSFERRING" && scopedOffice ? (
+            {tab === "TRANSFERRING" && scopedCodes.length > 0 ? (
               <button
                 type="button"
                 className="btn tonal"
@@ -2362,7 +2383,12 @@ function Page() {
       <Dialog open={inboundPlatesOpen} onOpenChange={setInboundPlatesOpen}>
         <DialogContent className="max-h-[85vh] w-[min(92vw,680px)] max-w-[680px] overflow-hidden flex flex-col gap-3">
           <DialogHeader>
-            <DialogTitle>Xe đang giao tới {officeName(scopedOffice) || scopedOffice}</DialogTitle>
+            <DialogTitle>
+              Xe đang giao tới{" "}
+              {scopedCodes.length === 1
+                ? officeName(scopedOffice) || scopedOffice
+                : `${scopedCodes.length} văn phòng`}
+            </DialogTitle>
             <p className="text-sm text-muted-foreground">
               Chỉ đếm đơn / kiện còn trên xe sẽ giao tới VP này ({inboundTotals.vehicles} BKS ·{" "}
               {inboundTotals.orders} đơn · {inboundTotals.packages} kiện).

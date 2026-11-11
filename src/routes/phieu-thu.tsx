@@ -39,6 +39,8 @@ import { RECEIPT_CONFIRMED_EVENT, type ReceiptConfirmedPayload } from "@/lib/use
 import {
   assignedOfficeCode,
   hasAllOfficeScope,
+  isViewAllOffices,
+  officeInViewScope,
   resolveViewOffice,
   VIEW_ALL_OFFICES,
 } from "@/lib/office-scope";
@@ -365,8 +367,20 @@ function Page() {
           o.status,
         );
       if (o.status !== "DELIVERED" && !guiTraEarly) continue;
-      if (viewOffice && o.fromOffice !== viewOffice && o.toOffice !== viewOffice) continue;
-      if (guiTraEarly && o.status !== "DELIVERED" && viewOffice && o.fromOffice !== viewOffice)
+      if (
+        viewOffice &&
+        !isViewAllOffices(viewOffice) &&
+        !officeInViewScope(viewOffice, o.fromOffice) &&
+        !officeInViewScope(viewOffice, o.toOffice)
+      )
+        continue;
+      if (
+        guiTraEarly &&
+        o.status !== "DELIVERED" &&
+        viewOffice &&
+        !isViewAllOffices(viewOffice) &&
+        !officeInViewScope(viewOffice, o.fromOffice)
+      )
         continue;
       const debtOwner = deliveryActorForOrder(o as OrderX);
       if (!allowOwner(debtOwner)) continue;

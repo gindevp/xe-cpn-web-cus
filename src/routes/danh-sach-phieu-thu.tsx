@@ -40,7 +40,13 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { useAuth } from "@/lib/auth";
-import { assignedOfficeCode, resolveViewOffice, VIEW_ALL_OFFICES } from "@/lib/office-scope";
+import {
+  assignedOfficeCode,
+  isViewAllOffices,
+  resolveViewOffice,
+  selectedViewOfficeCodes,
+  VIEW_ALL_OFFICES,
+} from "@/lib/office-scope";
 import { isApiEnabled } from "@/lib/api/client";
 import { syncOrdersByCodes } from "@/lib/api/sync";
 import { cn } from "@/lib/utils";
@@ -574,9 +580,11 @@ function Page() {
 
   const scopeHint = officeScope
     ? `Theo văn phòng ${officeName(officeScope)} — chỉ phiếu thu của VP này.`
-    : viewOffice === VIEW_ALL_OFFICES
-      ? "Đang xem toàn hệ thống (AD/KT) — chọn VP trên thanh điều hướng để lọc theo văn phòng."
-      : "Chưa xác định văn phòng.";
+    : isViewAllOffices(viewOffice)
+      ? "Đang xem toàn hệ thống — chọn một hoặc nhiều VP trên thanh điều hướng để lọc."
+      : selectedViewOfficeCodes(viewOffice).length > 1
+        ? `Đang xem ${selectedViewOfficeCodes(viewOffice).length} văn phòng — lọc theo VP đã chọn.`
+        : "Chưa xác định văn phòng.";
 
   return (
     <div className="stack" style={{ gap: 16 }}>
