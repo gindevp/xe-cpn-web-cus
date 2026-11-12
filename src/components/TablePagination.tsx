@@ -20,7 +20,7 @@ export function TablePagination({ pager, className }: { pager: Pager; className?
   const end = Math.min(total, start + pageSize);
 
   return (
-    <div className={cn("pager", className)}>
+    <div className={cn("pager table-pager-sticky", className)} role="navigation" aria-label="Phân trang">
       <div className="pager-left">
         <span className="muted num lab">
           {start + 1}-{end} trên {total}
