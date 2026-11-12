@@ -61,6 +61,8 @@ const KINDS = [
 type KindKey = (typeof KINDS)[number]["key"];
 
 function classify(o: any): { kind: KindKey; office: string } | null {
+  // Đơn kết thúc / nháp không còn trong kho — kể cả còn sót stage/returnStage.
+  if (["DRAFT", "CANCELLED", "DELIVERED", "RETURNED"].includes(String(o.status ?? ""))) return null;
   const rs = o.returnStage as string | undefined;
   if (rs) {
     if (rs === "RETURN_PENDING" || rs === "RT_DELIVERING" || rs === "RT_ORIGIN_WH_IN")

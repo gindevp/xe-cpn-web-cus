@@ -283,11 +283,13 @@ export function mapOrder(dto: OrderSummary): OrderX {
     hasCodBillPhoto: dto.hasCodBillPhoto,
     paidAmount: dto.paidAmount != null ? Number(dto.paidAmount) : 0,
     shelf: dto.shelfNumber,
-    // Don't keep warehouse stage after terminal status — otherwise "Nhập kho giao" still lists them.
+    // Don't keep warehouse stage after terminal status — otherwise "Nhập kho giao" / tồn kho still lists them.
     stage: ["DELIVERED", "CANCELLED", "RETURNED"].includes(dto.status)
       ? undefined
       : (dto.forwardStage as any),
-    returnStage: dto.returnStage as any,
+    returnStage: ["DELIVERED", "CANCELLED", "RETURNED"].includes(dto.status)
+      ? undefined
+      : (dto.returnStage as any),
     tripCode: dto.currentTripCode,
     pickingAt: dto.pickingAt,
     pickedUpAt: dto.pickedUpAt,
