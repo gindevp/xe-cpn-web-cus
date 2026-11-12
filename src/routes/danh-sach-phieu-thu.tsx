@@ -209,7 +209,7 @@ function ConfirmCell({
 
   if (!canConfirm) {
     return (
-      <span className="inline-flex items-center rounded-full border border-dashed border-slate-300 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+      <span className="inline-flex items-center rounded-full border border-dashed border-border bg-muted px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Chưa thu
       </span>
     );

@@ -225,22 +225,22 @@ export function ReceiptPayQrDialog({ receiptCode, open, onOpenChange, onPaid }: 
             >
               <X className="h-4 w-4" />
             </button>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-              <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={2.25} />
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15">
+              <CheckCircle2 className="h-9 w-9 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Đã nhận được tiền</h2>
+            <h2 className="text-xl font-bold text-foreground">Đã nhận được tiền</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               OnePay đã xác nhận đã thu phiếu{" "}
               <span className="font-semibold text-foreground">{code}</span>.
             </p>
-            <div className="mt-5 space-y-2.5 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+            <div className="mt-5 space-y-2.5 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Số tiền</span>
                 <span className="font-bold tabular-nums text-orange-500">{moneyLabel(pay?.amount)}</span>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">Trạng thái</span>
-                <span className="font-semibold text-emerald-600">Đã thu</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">Đã thu</span>
               </div>
               {pay?.paidTransId ? (
                 <div className="flex items-start justify-between gap-3">
@@ -249,9 +249,9 @@ export function ReceiptPayQrDialog({ receiptCode, open, onOpenChange, onPaid }: 
                 </div>
               ) : null}
               {pay?.confirmNote ? (
-                <div className="flex items-start justify-between gap-3 border-t border-slate-200/80 pt-2">
+                <div className="flex items-start justify-between gap-3 border-t border-border pt-2">
                   <span className="shrink-0 text-muted-foreground">Ghi chú</span>
-                  <span className="max-w-[70%] whitespace-pre-wrap break-words text-right text-xs text-slate-700">
+                  <span className="max-w-[70%] whitespace-pre-wrap break-words text-right text-xs text-foreground">
                     {pay.confirmNote}
                   </span>
                 </div>
@@ -272,17 +272,17 @@ export function ReceiptPayQrDialog({ receiptCode, open, onOpenChange, onPaid }: 
               <X className="h-4 w-4" />
             </button>
             <div className="pr-8">
-              <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Quét QR để thanh toán</h2>
+              <h2 className="text-lg font-bold text-foreground sm:text-xl">Quét QR để thanh toán</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 Phiếu thu{" "}
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1 font-semibold text-foreground hover:text-sky-700"
+                  className="inline-flex items-center gap-1 font-semibold text-foreground hover:text-primary"
                   onClick={() => void copyText(code, "code", "Đã chép mã phiếu")}
                   title="Chép mã phiếu"
                 >
                   {code || "—"}
-                  {copied === "code" ? <Check className="h-3.5 w-3.5 text-sky-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied === "code" ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </p>
             </div>
@@ -294,11 +294,11 @@ export function ReceiptPayQrDialog({ receiptCode, open, onOpenChange, onPaid }: 
             ) : (
               <>
                 <div className="mt-5 grid gap-5 sm:grid-cols-[minmax(0,240px)_1fr] sm:items-start">
-                  <div className="mx-auto flex aspect-square w-full max-w-[240px] items-center justify-center rounded-xl border border-sky-100 bg-sky-50/60 p-3">
+                  <div className="mx-auto flex aspect-square w-full max-w-[240px] items-center justify-center rounded-xl border border-border bg-card p-3">
                     {qrSrc ? (
-                      <img src={qrSrc} alt={`QR ${code}`} className="h-full w-full object-contain" />
+                      <img src={qrSrc} alt={`QR ${code}`} className="h-full w-full object-contain bg-white" />
                     ) : (
-                      <p className="px-2 text-center text-xs text-amber-800">
+                      <p className="px-2 text-center text-xs text-amber-800 dark:text-amber-200">
                         {loadError
                           ? loadError
                           : onePay
@@ -331,7 +331,7 @@ export function ReceiptPayQrDialog({ receiptCode, open, onOpenChange, onPaid }: 
                           {transfer?.accountNo ? (
                             <button
                               type="button"
-                              className="rounded p-0.5 text-sky-600 hover:bg-sky-50"
+                              className="rounded p-0.5 text-primary hover:bg-muted"
                               onClick={() =>
                                 void copyText(transfer.accountNo || "", "account", "Đã chép số tài khoản")
                               }
@@ -353,7 +353,7 @@ export function ReceiptPayQrDialog({ receiptCode, open, onOpenChange, onPaid }: 
                           {content ? (
                             <button
                               type="button"
-                              className="mt-0.5 shrink-0 rounded p-0.5 text-sky-600 hover:bg-sky-50"
+                              className="mt-0.5 shrink-0 rounded p-0.5 text-primary hover:bg-muted"
                               onClick={() => void copyText(content, "content", "Đã chép nội dung CK")}
                               title="Chép nội dung"
                             >

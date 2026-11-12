@@ -35,8 +35,8 @@ export function BuyerProfileChips({
               className={cn(
                 "max-w-full rounded-md border px-2 py-1 text-left text-[11px] leading-tight transition-colors",
                 active
-                  ? "border-sky-500 bg-sky-100 text-sky-900"
-                  : "border-slate-200 bg-white text-foreground hover:border-sky-300 hover:bg-sky-50",
+                  ? "border-primary/50 bg-primary/15 text-foreground"
+                  : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted",
               )}
             >
               <div className="font-mono font-semibold">{p.taxCode}</div>

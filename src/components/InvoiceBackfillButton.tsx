@@ -135,7 +135,7 @@ export function InvoiceBackfillButton({
                   <li>Còn lại → xuất HĐ cá nhân theo tên + SĐT người trả cước, hình thức tiền mặt.</li>
                 </ul>
                 {lateCount > 0 ? (
-                  <p className="rounded bg-amber-50 px-2 py-1 text-amber-800">
+                  <p className="rounded bg-amber-500/10 px-2 py-1 text-amber-800 dark:text-amber-200">
                     {lateCount} đơn đã quá 3 tiếng kể từ thanh toán — sẽ là xuất muộn.
                   </p>
                 ) : null}

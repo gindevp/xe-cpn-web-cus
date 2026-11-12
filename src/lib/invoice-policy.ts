@@ -74,12 +74,12 @@ export function invoiceStateOf(status?: string, type?: string): InvoiceState {
 }
 
 export const INVOICE_STATE_LABEL: Record<InvoiceState, { text: string; cls: string }> = {
-  NOT_ISSUED: { text: "Chưa xuất", cls: "bg-slate-100 text-slate-700" },
-  COMPANY: { text: "Đã xuất DN", cls: "bg-emerald-100 text-emerald-800" },
-  PERSONAL: { text: "Đã xuất cá nhân", cls: "bg-sky-100 text-sky-800" },
-  MANUAL: { text: "Bỏ xuất tự động", cls: "bg-indigo-100 text-indigo-800" },
-  FAILED: { text: "Lỗi", cls: "bg-red-100 text-red-800" },
-  PENDING: { text: "Đang xuất", cls: "bg-amber-100 text-amber-800" },
+  NOT_ISSUED: { text: "Chưa xuất", cls: "bg-muted text-muted-foreground" },
+  COMPANY: { text: "Đã xuất DN", cls: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200" },
+  PERSONAL: { text: "Đã xuất cá nhân", cls: "bg-sky-500/15 text-sky-800 dark:text-sky-200" },
+  MANUAL: { text: "Bỏ xuất tự động", cls: "bg-indigo-500/15 text-indigo-800 dark:text-indigo-200" },
+  FAILED: { text: "Lỗi", cls: "bg-destructive/15 text-destructive" },
+  PENDING: { text: "Đang xuất", cls: "bg-amber-500/15 text-amber-800 dark:text-amber-200" },
 };
 
 /** Nhãn hoá đơn trên bảng M3 — dùng `.tag` thay cho chip Tailwind. */
@@ -119,14 +119,14 @@ export function invoiceOrderFlagLabel(
   flag: InvoiceOrderFlag,
   openIssueType?: string | null,
 ): { text: string; cls: string } {
-  if (flag === "CANCELLED") return { text: "Đơn huỷ", cls: "bg-red-100 text-red-800" };
+  if (flag === "CANCELLED") return { text: "Đơn huỷ", cls: "bg-destructive/15 text-destructive" };
   if (flag === "EXCEPTION") {
     return {
       text: ISSUE_TYPE_TEXT[openIssueType ?? ""] ?? "Ngoại lệ",
-      cls: "bg-orange-100 text-orange-800",
+      cls: "bg-orange-500/15 text-orange-800 dark:text-orange-200",
     };
   }
-  return { text: "Đơn hoàn", cls: "bg-violet-100 text-violet-800" };
+  return { text: "Đơn hoàn", cls: "bg-violet-500/15 text-violet-800 dark:text-violet-200" };
 }
 
 export const INVOICE_TYPE_LABEL: Record<string, string> = {

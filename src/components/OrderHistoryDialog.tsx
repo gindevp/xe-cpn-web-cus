@@ -1086,11 +1086,11 @@ export function OrderHistoryDialog({
           </div>
 
         {loading && !o ? (
-          <div className="bg-white px-6 py-16 text-center text-sm text-muted-foreground">
+          <div className="bg-transparent px-6 py-16 text-center text-sm text-muted-foreground">
             Đang tải thông tin đơn…
           </div>
         ) : !o || !money ? (
-          <div className="bg-white px-6 py-16 text-center text-sm text-muted-foreground">
+          <div className="bg-transparent px-6 py-16 text-center text-sm text-muted-foreground">
             Không tìm thấy đơn hàng
           </div>
         ) : (

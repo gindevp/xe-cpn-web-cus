@@ -48,10 +48,10 @@ type Suggestion = {
 };
 
 const TONE_CLS: Record<Suggestion["tone"], string> = {
-  ok: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  info: "border-sky-200 bg-sky-50 text-sky-800",
-  warn: "border-amber-200 bg-amber-50 text-amber-800",
-  done: "border-slate-200 bg-slate-50 text-slate-700",
+  ok: "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200",
+  info: "border-primary/30 bg-primary/10 text-foreground",
+  warn: "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200",
+  done: "border-border bg-muted text-muted-foreground",
 };
 
 function officeEq(a?: string | null, b?: string | null) {

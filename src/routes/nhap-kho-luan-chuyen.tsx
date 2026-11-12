@@ -149,7 +149,7 @@ type Stage =
   | "FAILED"
   | "REDELIVER_WAIT";
 
-const TH_MUTED = "px-2 py-2 text-[14px] font-bold text-slate-500";
+const TH_MUTED = "px-2 py-2 text-[14px] font-bold text-muted-foreground";
 
 /** Chuyến xuất phát gần nhất lên trước; xe chưa có giờ xuất phát xếp cuối, cùng giờ thì theo BKS. */
 function byDepartThenPlate(
@@ -2508,7 +2508,7 @@ function Page() {
               <div className="mt-2 max-h-[200px] overflow-auto rounded-md border">
                 <table className="w-full min-w-[980px] text-sm">
                   <thead>
-                    <tr className="border-b bg-slate-50/80 text-left text-sm font-bold uppercase tracking-wide">
+                    <tr className="border-b bg-muted/50 text-left text-sm font-bold uppercase tracking-wide">
                       <th className={`${TH_MUTED} pl-4`}>Mã đơn</th>
                       <th className={TH_MUTED}>Người gửi</th>
                       <th className={TH_MUTED}>Người nhận</th>

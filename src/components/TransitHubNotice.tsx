@@ -28,20 +28,20 @@ export function TransitHubNotice({
   const hit = resolveProvinceTransit(from, to, offices, policy);
   if (!hit) return null;
   return (
-    <div className="mt-3 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950">
-      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+    <div className="mt-3 flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-950 dark:text-amber-100">
+      <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
       <div className="min-w-0 flex-1 space-y-1.5">
         <div className="font-semibold">Đơn hàng trung chuyển</div>
-        <p className="leading-snug text-amber-900/90">
+        <p className="leading-snug text-amber-900/90 dark:text-amber-100/90">
           Tuyến tỉnh đi tỉnh cần trung chuyển qua văn phòng <span className="font-medium">{hit.hubName}</span> trước
           khi đến VP nhận.
         </p>
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs font-medium">
-          <span className="rounded bg-white/70 px-1.5 py-0.5">{hit.fromName}</span>
-          <span className="text-amber-600">→</span>
-          <span className="rounded border border-amber-300 bg-white px-1.5 py-0.5">{hit.hubName}</span>
-          <span className="text-amber-600">→</span>
-          <span className="rounded bg-white/70 px-1.5 py-0.5">{hit.toName}</span>
+          <span className="rounded bg-card/80 px-1.5 py-0.5 text-foreground">{hit.fromName}</span>
+          <span className="text-amber-600 dark:text-amber-300">→</span>
+          <span className="rounded border border-amber-500/40 bg-card px-1.5 py-0.5 text-foreground">{hit.hubName}</span>
+          <span className="text-amber-600 dark:text-amber-300">→</span>
+          <span className="rounded bg-card/80 px-1.5 py-0.5 text-foreground">{hit.toName}</span>
         </div>
       </div>
     </div>

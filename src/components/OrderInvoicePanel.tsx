@@ -39,11 +39,11 @@ function onlyDigits(s: string) {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
-  ISSUED: { text: "Đã xuất", cls: "bg-emerald-100 text-emerald-800" },
-  DUPLICATE: { text: "Đã xuất (trùng RefID)", cls: "bg-emerald-100 text-emerald-800" },
-  MANUAL: { text: "Kế toán bỏ xuất tự động", cls: "bg-indigo-100 text-indigo-800" },
-  FAILED: { text: "Lỗi", cls: "bg-red-100 text-red-800" },
-  PENDING: { text: "Đang xuất", cls: "bg-amber-100 text-amber-800" },
+  ISSUED: { text: "Đã xuất", cls: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200" },
+  DUPLICATE: { text: "Đã xuất (trùng RefID)", cls: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200" },
+  MANUAL: { text: "Kế toán bỏ xuất tự động", cls: "bg-indigo-500/15 text-indigo-800 dark:text-indigo-200" },
+  FAILED: { text: "Lỗi", cls: "bg-destructive/15 text-destructive" },
+  PENDING: { text: "Đang xuất", cls: "bg-amber-500/15 text-amber-800 dark:text-amber-200" },
 };
 
 function Row({ label, value }: { label: string; value?: string | null }) {
@@ -283,9 +283,9 @@ export function OrderInvoicePanel({
   };
 
   return (
-    <div className="rounded-md border border-sky-200 bg-sky-50/70 p-2.5 text-sm">
+    <div className="rounded-md border border-border bg-muted/40 p-2.5 text-sm">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold text-sky-800">Hoá đơn điện tử (MISA)</div>
+        <div className="text-[11px] font-semibold text-foreground">Hoá đơn điện tử (MISA)</div>
         {badge ? (
           <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold", badge.cls)}>
             {badge.text}
@@ -294,7 +294,7 @@ export function OrderInvoicePanel({
       </div>
 
       {editable && late && issueMode ? (
-        <div className="mb-1.5 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+        <div className="mb-1.5 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-800 dark:text-amber-200">
           Đã quá 3 tiếng kể từ thanh toán (hạn {formatDateTime(deadline!.toISOString())}) — xuất bây
           giờ là xuất muộn.
         </div>
@@ -307,7 +307,7 @@ export function OrderInvoicePanel({
             value={order.invoiceIssuedAt ? formatDateTime(order.invoiceIssuedAt) : null}
           />
           {order.invoiceError ? (
-            <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700">
+            <div className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
               Lần xuất DN trước lỗi: {order.invoiceError}
             </div>
           ) : null}
@@ -367,7 +367,7 @@ export function OrderInvoicePanel({
             </div>
           ) : null}
           {status === "FAILED" && order.invoiceError ? (
-            <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700">
+            <div className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
               Lần xuất trước lỗi: {order.invoiceError}
             </div>
           ) : null}
@@ -375,7 +375,7 @@ export function OrderInvoicePanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 w-full gap-1.5 bg-white text-xs"
+            className="h-8 w-full gap-1.5 text-xs"
             onClick={() => setExpanded(true)}
           >
             <FileText className="h-3.5 w-3.5" />
@@ -393,23 +393,23 @@ export function OrderInvoicePanel({
           {marked ? null : !issueMode &&
             order.status !== "CANCELLED" &&
             order.status !== "RETURNED" ? (
-            <div className="text-[11px] text-sky-800">
+            <div className="text-[11px] text-muted-foreground">
               Khách cần yêu cầu HĐ công ty trước hạn: 3 tiếng sau khi thanh toán (
               {paidAtWarehouseIn(order.collectForm) ? "nhập kho gửi" : "giao thành công"}) và đơn đã
               giao thành công.
             </div>
           ) : !late && deadline ? (
-            <div className="text-[11px] text-sky-800">
+            <div className="text-[11px] text-muted-foreground">
               Hạn nhận yêu cầu HĐ công ty: {formatDateTime(deadline.toISOString())}
             </div>
           ) : !deadline && issueMode ? (
-            <div className="text-[11px] text-sky-800">
+            <div className="text-[11px] text-muted-foreground">
               Hạn nhận yêu cầu HĐ công ty: khi đơn đã giao thành công và quá 3 tiếng kể từ thanh
               toán.
             </div>
           ) : null}
           {status === "FAILED" && order.invoiceError ? (
-            <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[11px] text-red-700">
+            <div className="rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
               Lần xuất trước lỗi: {order.invoiceError}
             </div>
           ) : null}
@@ -419,7 +419,7 @@ export function OrderInvoicePanel({
             {payerPhone ? ` · ${payerPhone}` : ""}).
           </p>
           <NameInput
-            className="h-8 bg-white text-xs"
+            className="h-8 text-xs"
             placeholder="Tên người trên hóa đơn *"
             value={buyerName}
             disabled={busy}
@@ -427,7 +427,7 @@ export function OrderInvoicePanel({
           />
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             <Input
-              className="h-8 bg-white text-xs"
+              className="h-8 text-xs"
               inputMode="numeric"
               placeholder="CCCD / CMND (không bắt buộc)"
               value={buyerIdNumber}
@@ -436,7 +436,7 @@ export function OrderInvoicePanel({
               onChange={(e) => setBuyerIdNumber(e.target.value.replace(/\D/g, ""))}
             />
             <PhoneInput
-              className="h-8 bg-white text-xs"
+              className="h-8 text-xs"
               placeholder="SĐT trên hóa đơn (không bắt buộc)"
               value={buyerPhone}
               disabled={busy}
@@ -451,7 +451,7 @@ export function OrderInvoicePanel({
             onPick={pickProfile}
           />
           <TaxCodeInput
-            className="h-8 bg-white text-xs"
+            className="h-8 text-xs"
             placeholder="Mã số thuế *"
             value={taxCode}
             disabled={busy}
@@ -476,7 +476,7 @@ export function OrderInvoicePanel({
             tabIndex={-1}
           />
           <Input
-            className="h-8 bg-white text-xs"
+            className="h-8 text-xs"
             type="email"
             placeholder="Email nhận hoá đơn *"
             value={email}
@@ -545,7 +545,7 @@ export function OrderInvoicePanel({
           <Row label="Email" value={order.invoiceEmail} />
           <Row label="Địa chỉ" value={order.invoiceCompanyAddress} />
           {status === "FAILED" && order.invoiceError ? (
-            <div className="text-[11px] text-red-700">Lỗi: {order.invoiceError}</div>
+            <div className="text-[11px] text-destructive">Lỗi: {order.invoiceError}</div>
           ) : null}
         </div>
       )}

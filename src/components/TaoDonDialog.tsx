@@ -2042,7 +2042,7 @@ export function TaoDonDialog({
                         Xuất hoá đơn
                       </label>
                       {invoiceRequested && (
-                        <div className="grid grid-cols-1 gap-2.5 rounded-md border border-sky-200 bg-sky-50/70 p-3">
+                        <div className="grid grid-cols-1 gap-2.5 rounded-md border border-border bg-muted/40 p-3">
                           <p className="text-[11px] text-muted-foreground">
                             Lấy MST của người trả cước: {payerIsReceiver ? "người nhận" : "người gửi"}
                             {invoicePayerPhone ? ` · ${invoicePayerPhone}` : ""}. Đổi hình thức thanh toán thì tra lại.
