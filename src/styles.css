@@ -326,14 +326,28 @@ html.xe-scan-immersive main {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  /* Card cuối sát đáy vùng cuộn — pager sticky không bị khe xám */
+  /* Kéo đầy phần còn lại của .m3-main → pager (margin-top:auto) sát đáy */
+  flex: 1 0 auto;
   padding-bottom: 0;
   margin-bottom: 0;
 }
-.m3-page-body > .card:last-child,
-.m3-page-body > .m3-page > .card:last-child,
-.m3-page-body > .stack > .card:last-child,
-.m3-page.stack > .card:last-child {
+.m3-page-body > .stack:has(.pager),
+.m3-page-body > .m3-page:has(.pager),
+.m3-page-body > .stack:has(.table-pager-sticky),
+.m3-page-body > .m3-page:has(.table-pager-sticky) {
+  flex: 1 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+/* Card có phân trang: cao tối thiểu = phần còn lại viewport, pager đẩy xuống đáy */
+.m3-page-body .card:has(.pager),
+.m3-page-body .card:has(.table-pager-sticky) {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0;
   margin-bottom: 0;
 }
 .m3-hero {
