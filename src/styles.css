@@ -144,6 +144,18 @@
   --sidebar-accent-foreground: oklch(0.99 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #3B6FD1;
+  /* Đồng bộ M3 tokens với .theme-dark — portal Dialog/Select dưới body không kẹt :root sáng */
+  --on-surface: #e2e2e9;
+  --on-surface-variant: #c5c6d0;
+  --lowest: #1e1f25;
+  --low: #121318;
+  --high: #33343a;
+  --outline: #8f9099;
+  --outline-variant: #45464f;
+  --primary-container: #174295;
+  --on-primary-container: #dae2ff;
+  --secondary-container: #404659;
+  --on-secondary-container: #dce2f9;
 }
 
 .font-inter {

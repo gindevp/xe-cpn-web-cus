@@ -108,7 +108,7 @@ export function OfficePickerSheet({
                 placeholder="Tìm tên, mã hoặc địa chỉ VP"
                 autoComplete="off"
                 enterKeyHint="search"
-                className="h-11 w-full rounded-xl bg-[#E9EEF5] pl-9 pr-9 text-base outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                className="h-11 w-full rounded-xl bg-[var(--low)] pl-9 pr-9 text-base text-[var(--on-surface)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]"
               />
               {query ? (
                 <button

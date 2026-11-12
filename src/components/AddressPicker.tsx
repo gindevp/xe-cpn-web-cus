@@ -16,9 +16,9 @@ import { composeAddress } from "@/lib/vn-address";
 import { cn } from "@/lib/utils";
 
 const softSelectClass =
-  "h-12 rounded-xl border-0 bg-[#E9EEF5] px-3 shadow-none hover:bg-[#E1E8F2] focus-visible:ring-1 focus-visible:ring-primary";
+  "h-12 rounded-xl border-0 bg-[var(--low)] px-3 text-[var(--on-surface)] shadow-none hover:bg-[var(--high)] focus-visible:ring-1 focus-visible:ring-[var(--primary)]";
 const softInputClass =
-  "h-12 rounded-xl border-0 bg-[#E9EEF5] px-3 shadow-none focus-visible:ring-1 focus-visible:ring-primary";
+  "h-12 rounded-xl border-0 bg-[var(--low)] px-3 text-[var(--on-surface)] shadow-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]";
 import {
   findDistrictV1ByName,
   findProvinceV1ByName,
