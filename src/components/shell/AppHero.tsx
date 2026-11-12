@@ -128,9 +128,6 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
               className="m3-scope-select"
               contentClassName="w-80 min-w-[18rem]"
             />
-            <span className="ms" aria-hidden="true">
-              expand_more
-            </span>
           </div>
         ) : canSwitchOffice ? (
           <div className="pill m3-scope-pill">
@@ -148,9 +145,6 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
               className="m3-scope-select"
               contentClassName="w-72 min-w-[16rem]"
             />
-            <span className="ms" aria-hidden="true">
-              expand_more
-            </span>
           </div>
         ) : (
           <button type="button" className="pill" title={officeLabel}>

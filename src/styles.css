@@ -404,11 +404,15 @@ html.xe-scan-immersive main {
 }
 .m3-scope-pill {
   position: relative;
-  padding-right: 36px;
   max-width: min(100%, 16rem);
   flex-shrink: 0;
+  /* Chevron nằm trong combobox — không padding chết + ms ngoài pointer-events:none */
+  padding-right: 12px;
 }
 .m3-scope-pill .m3-scope-select {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
   height: auto !important;
   min-height: 0 !important;
   border: 0 !important;
@@ -417,17 +421,9 @@ html.xe-scan-immersive main {
   padding: 0 !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  max-width: 12rem;
 }
 .m3-scope-pill .m3-scope-select > .ms {
-  display: none;
-}
-.m3-scope-pill > .ms {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
+  pointer-events: auto;
   color: var(--on-surface-variant);
 }
 /* Tài khoản đáy navbar (rail + drawer) */
