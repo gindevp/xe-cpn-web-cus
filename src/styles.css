@@ -144,18 +144,20 @@
   --sidebar-accent-foreground: oklch(0.99 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #3B6FD1;
-  /* Đồng bộ M3 tokens với .theme-dark — portal Dialog/Select dưới body không kẹt :root sáng */
-  --on-surface: #e2e2e9;
-  --on-surface-variant: #c5c6d0;
+  /* Đồng bộ M3 tokens với .theme-dark (handoff giao-dien-toi) — portal không kẹt :root sáng */
+  --on-surface: #dcdde4;
+  --on-surface-variant: #b9bac4;
   --lowest: #1e1f25;
   --low: #121318;
   --high: #33343a;
   --outline: #8f9099;
-  --outline-variant: #45464f;
+  --outline-variant: #3d3e46;
   --primary-container: #174295;
   --on-primary-container: #dae2ff;
-  --secondary-container: #404659;
+  --secondary-container: #3a4052;
   --on-secondary-container: #dce2f9;
+  --inverse-surface: #3a3b42;
+  --inverse-on-surface: #e4e4ea;
 }
 
 .font-inter {

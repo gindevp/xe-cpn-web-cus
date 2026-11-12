@@ -1,0 +1,16 @@
+/* Giao diện tối CPN: biến màu và các quy tắc riêng. Bật bằng thuộc tính data-theme="dark" trên thẻ <html>. */
+:root{--primary:#274ea1;--on-primary:#ffffff;--primary-container:#dae2ff;--on-primary-container:#174295;--secondary:#585e71;--secondary-container:#dce2f9;--on-secondary-container:#404659;--on-surface:#1a1b21;--on-surface-variant:#45464f;--lowest:#ffffff;--low:#f4f3fa;--high:#e8e7ef;--outline:#757780;--outline-variant:#c5c6d0;--inverse-surface:#2f3036;--inverse-on-surface:#f1f0f7;--error:#ba1a1a;--error-container:#ffdad6;--on-error-container:#93000a;--success-container:#b8f1ad;--on-success-container:#1e511e;--warning-container:#ffdf92;--on-warning-container:#594400;--chart-sent:#DE8F45;--chart-recv:#6488CC;--chart-rev:#2A9D8F;--rev-ink:#0E7569;--rev-tint:#D3EDE8;--rev-ic-bg:#DDF1EE;}
+html[data-theme="dark"]{color-scheme:dark;--primary:#a8bcf3;--on-primary:#002c72;--primary-container:#174295;--on-primary-container:#dae2ff;--secondary:#c0c6dd;--secondary-container:#3a4052;--on-secondary-container:#dce2f9;--on-surface:#dcdde4;--on-surface-variant:#b9bac4;--lowest:#1e1f25;--low:#121318;--high:#33343a;--outline:#8f9099;--outline-variant:#3d3e46;--inverse-surface:#3a3b42;--inverse-on-surface:#e4e4ea;--error:#ffb4ab;--error-container:#93000a;--on-error-container:#ffdad6;--success-container:#1e511e;--on-success-container:#b8f1ad;--warning-container:#594400;--on-warning-container:#ffdf92;--chart-sent:#CC7F3E;--chart-recv:#6C8ED6;--chart-rev:#35A899;--rev-ink:#74cfc1;--rev-tint:#16302d;--rev-ic-bg:#1d3a36;}
+/* Lớp nền sáng dần từ ngoài vào trong: trang (--low) < thẻ (--lowest) < khối bên trong thẻ (--low, --high được định nghĩa lại) */
+html[data-theme="dark"] :is(.card,.sheet,.row-menu,.acct-menu,.nav-fly,.sr-pop,.combo-list){--low:#26272e;--high:#30313a}
+/* Mảng chọn lớn dùng xanh đậm dịu thay vì --primary sáng, tránh loá */
+html[data-theme="dark"] :is(.total-box,.seg button.on,.pill.on,.side-link.on,.nav-item.on,.nav-head.on .nav-pill,.role-btn.on,.pg.on,.card.card-hi){background:#26386b;color:#dbe3ff}
+html[data-theme="dark"] :is(.seg button.on,.pill.on) .count{background:#dbe3ff;color:#26386b}
+/* Nút chính */
+html[data-theme="dark"] .btn:not(.tonal):not(.ghost):not(.text):not(.danger){background:#3a57a3;color:#eef1ff}
+/* Công tắc */
+html[data-theme="dark"] .switch:checked{background:#3a57a3}
+html[data-theme="dark"] .switch:checked::after{background:#eef1ff}
+html[data-theme="dark"] .switch::after{background:#9fa1ab}
+/* Logo hiện chỉ có bản xanh đậm: tạm đặt trên nền sáng. Bỏ khi có logo cho nền tối. */
+html[data-theme="dark"] :is(.brand,.login-brand img){background:#d3d6e2;border-radius:10px}
