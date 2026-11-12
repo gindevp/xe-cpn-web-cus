@@ -20,6 +20,8 @@ import {
   type ExtraFarePayer,
 } from "./extra-fare-payer";
 import type { AutoCallRateConfig } from "./phone-carrier";
+import { apiRequest, getToken, isApiEnabled, setToken } from "./api/client";
+import { clearRuntimePermissions } from "./rbac";
 
 export type { AutoCallRateConfig };
 
@@ -728,19 +730,19 @@ export const useStore = create<Store>()(
       logout: () => {
         const s = get().session;
         if (s) get().audit({ action: "LOGOUT", entityType: "user", entityId: s.username });
-        void (async () => {
-          try {
-            const c = await import("./api/client");
-            if (c.isApiEnabled() && c.getToken()) {
-              await c.apiRequest("/api/logout-session", { method: "POST" });
-            }
-          } catch {
-            /* phiên đã hết / mất mạng — vẫn đăng xuất cục bộ */
-          }
-          const m = await import("./api/sync");
-          m.clearApiSession();
-        })();
+        // Xóa JWT đồng bộ trước redirect — nếu đợi POST logout-session rồi mới clear,
+        // AppShell reload /login còn token → hydrateFromToken đăng nhập lại (phải bấm 2–3 lần).
+        const token = getToken();
+        setToken(null);
+        clearRuntimePermissions();
         set({ session: null, viewOffice: "" });
+        if (token && isApiEnabled()) {
+          void apiRequest("/api/logout-session", {
+            method: "POST",
+            auth: false,
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => undefined);
+        }
       },
 
       setViewOffice: (code) => {

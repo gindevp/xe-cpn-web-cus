@@ -111,7 +111,9 @@ export function NavAccountMenu({
             className="text-destructive focus:text-destructive"
             onSelect={() => {
               logout();
-              navigate({ to: "/login" });
+              // Hard redirect sau khi JWT đã clear sync — tránh navigate SPA rồi hydrate lại.
+              if (typeof window !== "undefined") window.location.assign("/login");
+              else navigate({ to: "/login" });
             }}
           >
             <span className="ms mr-2" aria-hidden="true">
