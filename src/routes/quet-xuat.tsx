@@ -148,25 +148,27 @@ function Page() {
         {scannedCodes.length === 0 ? (
           <p className="text-sm text-muted-foreground">Chưa quét đơn nào.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
-                <tr className="border-b"><th className="py-2 pr-4">Mã</th><th className="py-2 pr-4">Cập nhật</th></tr>
-              </thead>
-              <tbody>
-                {scannedPage.map((c) => {
-                  const o = orders.find((x) => x.code === c);
-                  return (
-                    <tr key={c} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-medium">{c}</td>
-                      <td className="py-2 pr-4 text-muted-foreground">{o ? formatDateTime(o.updatedAt) : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
+                  <tr className="border-b"><th className="py-2 pr-4">Mã</th><th className="py-2 pr-4">Cập nhật</th></tr>
+                </thead>
+                <tbody>
+                  {scannedPage.map((c) => {
+                    const o = orders.find((x) => x.code === c);
+                    return (
+                      <tr key={c} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-medium">{c}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">{o ? formatDateTime(o.updatedAt) : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
     </div>

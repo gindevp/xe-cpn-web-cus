@@ -514,170 +514,172 @@ function Page() {
         {rows.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] text-sm">
-              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
-                <tr className="border-b">
-                  <th className="w-8 py-2 pr-2">
-                    <Checkbox
-                      checked={
-                        rows.length > 0 && rows.every((r) => selected.has(r.code))
-                      }
-                      onCheckedChange={(v) => {
-                        if (v) setSelected(new Set(rows.map((r) => r.code)));
-                        else setSelected(new Set());
-                      }}
-                    />
-                  </th>
-                  <th className="py-2 pr-4">Đơn hàng</th>
-                  <th className="py-2 pr-4">Trạng thái</th>
-                  <th className="py-2 pr-4">Tên món<br/>Ghi chú</th>
-                  <th className="py-2 pr-4">COD</th>
-                  <th className="py-2 pr-4">Cước phí</th>
-                  <th className="py-2 pr-4">Người nhận<br/>Số điện thoại</th>
-                  <th className="py-2 pr-4">VP nhận<br/>ĐC giao</th>
-                  <th className="py-2 pr-4">Người gửi<br/>Số điện thoại</th>
-                  <th className="py-2 pr-4">VP gửi<br/>ĐC lấy</th>
-                  <th className="py-2 pr-4">Mã GD<br/>Ngày ĐH</th>
-                  <th className="py-2 pr-4">Nhân viên</th>
-                  <th className="py-2 pr-2 text-right">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const paid = r.paidAmount ?? 0;
-                  const goodsName = orderGoodsLabel(r);
-                  return (
-                    <Fragment key={r.code}>
-                    <tr
-                      className="border-b last:border-0 align-top hover:bg-muted/40"
-                    >
-                      <td className="py-2 pr-2">
-                        <Checkbox
-                          checked={selected.has(r.code)}
-                          onCheckedChange={(v) => {
-                            const next = new Set(selected);
-                            if (v) next.add(r.code);
-                            else next.delete(r.code);
-                            setSelected(next);
-                          }}
-                        />
-                      </td>
-                      <td className="py-2 pr-4">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-left"
-                          title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
-                          onClick={() => toggleOrderPkgs(r.code)}
-                        >
-                          <ChevronDown
-                            className={cn(
-                              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-                              expandedOrders.has(r.code) && "rotate-180",
-                            )}
-                          />
-                          <span>
-                            <div>{packageCount(r)} kiện</div>
-                            <div className="text-muted-foreground">{goodsName}</div>
-                            {r.weightKg != null && (
-                              <div className="text-muted-foreground">
-                                {r.weightKg} KG
-                              </div>
-                            )}
-                          </span>
-                        </button>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div className="uppercase">{goodsName}</div>
-                        <div className="text-muted-foreground">
-                          {displayOrderNote(r.note) || "-"}
-                        </div>
-                      </td>
-                      <OrderFeeCell order={r} className="px-0 pr-4 text-left">
-                        <div className="text-xs">Đã thu {formatMoney(paid)}</div>
-                      </OrderFeeCell>
-                      <td className="py-2 pr-4">
-                        <div className="font-medium uppercase">
-                          {r.receiverName}
-                        </div>
-                        <div className="text-primary">{r.receiverPhone}</div>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div>{receiverOfficeName(r)}</div>
-                        {r.homeDelivery && r.address && (
-                          <div className="text-muted-foreground">
-                            {r.address}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div className="font-medium uppercase">
-                          {r.senderName ?? "-"}
-                        </div>
-                        <div className="text-primary">{r.senderPhone}</div>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div>{officeName(r.fromOffice)}</div>
-                        {r.homePickup && r.address && (
-                          <div className="text-muted-foreground">
-                            {r.address}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-2 pr-4">
-                        <OrderCodeLink code={r.code} />
-                        <div className="text-muted-foreground">
-                          {formatDateTime(r.createdAt)}
-                        </div>
-                        {(() => {
-                          const it = describeItinerary(r);
-                          if (!it.isMultiLeg) return null;
-                          return (
-                            <div className="mt-1 flex items-center gap-1 text-[11px]">
-                              <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
-                                Chặng {it.currentIdx + 1}/{it.totalLegs}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {it.legs.map((l, i) => (
-                                  <span key={i}>
-                                    {i > 0 && " → "}
-                                    <span className={l.done ? "line-through opacity-60" : l.current ? "font-semibold text-foreground" : ""}>
-                                      {officeName(l.to)}
-                                    </span>
-                                  </span>
-                                ))}
-                              </span>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-2 pr-4 text-muted-foreground">
-                        {r.tripCode ?? "-"}
-                      </td>
-                      <td className="py-2 pr-2 text-right">
-                        <RowActions code={r.code} />
-                      </td>
-                    </tr>
-                    {expandedOrders.has(r.code) && (
-                      <OrderPackageListRow
-                        order={r}
-                        colSpan={13}
-                        onPrintPackage={(code, seq) => setPrintPkg({ code, seq })}
-                        onDeletePackage={(code, seq) =>
-                          setDeleteTarget({ type: "package", code, seq })
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1400px] text-sm">
+                <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="w-8 py-2 pr-2">
+                      <Checkbox
+                        checked={
+                          rows.length > 0 && rows.every((r) => selected.has(r.code))
                         }
+                        onCheckedChange={(v) => {
+                          if (v) setSelected(new Set(rows.map((r) => r.code)));
+                          else setSelected(new Set());
+                        }}
                       />
-                    )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                    </th>
+                    <th className="py-2 pr-4">Đơn hàng</th>
+                    <th className="py-2 pr-4">Trạng thái</th>
+                    <th className="py-2 pr-4">Tên món<br/>Ghi chú</th>
+                    <th className="py-2 pr-4">COD</th>
+                    <th className="py-2 pr-4">Cước phí</th>
+                    <th className="py-2 pr-4">Người nhận<br/>Số điện thoại</th>
+                    <th className="py-2 pr-4">VP nhận<br/>ĐC giao</th>
+                    <th className="py-2 pr-4">Người gửi<br/>Số điện thoại</th>
+                    <th className="py-2 pr-4">VP gửi<br/>ĐC lấy</th>
+                    <th className="py-2 pr-4">Mã GD<br/>Ngày ĐH</th>
+                    <th className="py-2 pr-4">Nhân viên</th>
+                    <th className="py-2 pr-2 text-right">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const paid = r.paidAmount ?? 0;
+                    const goodsName = orderGoodsLabel(r);
+                    return (
+                      <Fragment key={r.code}>
+                      <tr
+                        className="border-b last:border-0 align-top hover:bg-muted/40"
+                      >
+                        <td className="py-2 pr-2">
+                          <Checkbox
+                            checked={selected.has(r.code)}
+                            onCheckedChange={(v) => {
+                              const next = new Set(selected);
+                              if (v) next.add(r.code);
+                              else next.delete(r.code);
+                              setSelected(next);
+                            }}
+                          />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-left"
+                            title={expandedOrders.has(r.code) ? "Ẩn kiện" : "Xem kiện"}
+                            onClick={() => toggleOrderPkgs(r.code)}
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                                expandedOrders.has(r.code) && "rotate-180",
+                              )}
+                            />
+                            <span>
+                              <div>{packageCount(r)} kiện</div>
+                              <div className="text-muted-foreground">{goodsName}</div>
+                              {r.weightKg != null && (
+                                <div className="text-muted-foreground">
+                                  {r.weightKg} KG
+                                </div>
+                              )}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div className="uppercase">{goodsName}</div>
+                          <div className="text-muted-foreground">
+                            {displayOrderNote(r.note) || "-"}
+                          </div>
+                        </td>
+                        <OrderFeeCell order={r} className="px-0 pr-4 text-left">
+                          <div className="text-xs">Đã thu {formatMoney(paid)}</div>
+                        </OrderFeeCell>
+                        <td className="py-2 pr-4">
+                          <div className="font-medium uppercase">
+                            {r.receiverName}
+                          </div>
+                          <div className="text-primary">{r.receiverPhone}</div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div>{receiverOfficeName(r)}</div>
+                          {r.homeDelivery && r.address && (
+                            <div className="text-muted-foreground">
+                              {r.address}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div className="font-medium uppercase">
+                            {r.senderName ?? "-"}
+                          </div>
+                          <div className="text-primary">{r.senderPhone}</div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div>{officeName(r.fromOffice)}</div>
+                          {r.homePickup && r.address && (
+                            <div className="text-muted-foreground">
+                              {r.address}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <OrderCodeLink code={r.code} />
+                          <div className="text-muted-foreground">
+                            {formatDateTime(r.createdAt)}
+                          </div>
+                          {(() => {
+                            const it = describeItinerary(r);
+                            if (!it.isMultiLeg) return null;
+                            return (
+                              <div className="mt-1 flex items-center gap-1 text-[11px]">
+                                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+                                  Chặng {it.currentIdx + 1}/{it.totalLegs}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {it.legs.map((l, i) => (
+                                    <span key={i}>
+                                      {i > 0 && " → "}
+                                      <span className={l.done ? "line-through opacity-60" : l.current ? "font-semibold text-foreground" : ""}>
+                                        {officeName(l.to)}
+                                      </span>
+                                    </span>
+                                  ))}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          {r.tripCode ?? "-"}
+                        </td>
+                        <td className="py-2 pr-2 text-right">
+                          <RowActions code={r.code} />
+                        </td>
+                      </tr>
+                      {expandedOrders.has(r.code) && (
+                        <OrderPackageListRow
+                          order={r}
+                          colSpan={13}
+                          onPrintPackage={(code, seq) => setPrintPkg({ code, seq })}
+                          onDeletePackage={(code, seq) =>
+                            setDeleteTarget({ type: "package", code, seq })
+                          }
+                        />
+                      )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

@@ -247,51 +247,53 @@ ${list
         {rows.length === 0 ? (
           <EmptyState>Không có xe nào đang trên đường về</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50 text-left text-sm font-bold uppercase text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Mã chuyến</th>
-                  <th className="px-3 py-2 font-medium">Lộ trình</th>
-                  <th className="px-3 py-2 font-medium">Giờ xuất bến</th>
-                  <th className="px-3 py-2 font-medium">BKS</th>
-                  <th className="px-3 py-2 font-medium">Tài xế</th>
-                  <th className="px-3 py-2 text-right font-medium">Số đơn</th>
-                  <th className="px-3 py-2 text-right font-medium">Số kiện</th>
-                  <th className="px-3 py-2 text-right font-medium">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => (
-                  <tr key={r.trip.code} className="border-b hover:bg-muted/30">
-                    <td className="px-3 py-2 font-mono text-xs">{r.trip.code}</td>
-                    <td className="px-3 py-2">
-                      <span className="inline-flex items-center gap-1">
-                        <Truck className="h-3.5 w-3.5 text-muted-foreground" />
-                        {r.trip.route}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">{formatDateTime(r.trip.departAt)}</td>
-                    <td className="px-3 py-2 font-medium">{r.trip.bks}</td>
-                    <td className="px-3 py-2">{r.trip.driver}</td>
-                    <td className="px-3 py-2 text-right">{r.orderCount}</td>
-                    <td className="px-3 py-2 text-right">{r.totalQty}</td>
-                    <td className="px-3 py-2 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setDetailTrip(r.trip.code)}
-                      >
-                        <Eye className="mr-1.5 h-4 w-4" />
-                        Xem đơn
-                      </Button>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50 text-left text-sm font-bold uppercase text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Mã chuyến</th>
+                    <th className="px-3 py-2 font-medium">Lộ trình</th>
+                    <th className="px-3 py-2 font-medium">Giờ xuất bến</th>
+                    <th className="px-3 py-2 font-medium">BKS</th>
+                    <th className="px-3 py-2 font-medium">Tài xế</th>
+                    <th className="px-3 py-2 text-right font-medium">Số đơn</th>
+                    <th className="px-3 py-2 text-right font-medium">Số kiện</th>
+                    <th className="px-3 py-2 text-right font-medium">Tác vụ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => (
+                    <tr key={r.trip.code} className="border-b hover:bg-muted/30">
+                      <td className="px-3 py-2 font-mono text-xs">{r.trip.code}</td>
+                      <td className="px-3 py-2">
+                        <span className="inline-flex items-center gap-1">
+                          <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                          {r.trip.route}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">{formatDateTime(r.trip.departAt)}</td>
+                      <td className="px-3 py-2 font-medium">{r.trip.bks}</td>
+                      <td className="px-3 py-2">{r.trip.driver}</td>
+                      <td className="px-3 py-2 text-right">{r.orderCount}</td>
+                      <td className="px-3 py-2 text-right">{r.totalQty}</td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDetailTrip(r.trip.code)}
+                        >
+                          <Eye className="mr-1.5 h-4 w-4" />
+                          Xem đơn
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

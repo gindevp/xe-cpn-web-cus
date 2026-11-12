@@ -195,141 +195,143 @@ function Page() {
         {rows.length === 0 ? (
           <EmptyState>Chưa có đơn nào trong kho nhận.</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1600px] text-sm">
-              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
-                <tr className="border-b">
-                  <th className="py-2 pr-4">Mã đơn</th>
-                  <th className="py-2 pr-4">Lộ trình</th>
-                  <th className="py-2 pr-4">Ngày nhập kho</th>
-                  <th className="py-2 pr-4">BKS</th>
-                  <th className="py-2 pr-4">Đơn hàng</th>
-                  <th className="py-2 pr-4">Tên hàng</th>
-                  <th className="py-2 pr-4">Cách giao hàng</th>
-                  <th className="py-2 pr-4">Trạng thái TT</th>
-                  <th className="py-2 pr-4 text-right">Thu hộ</th>
-                  <th className="py-2 pr-4">Người gửi</th>
-                  <th className="py-2 pr-4">VP gửi</th>
-                  <th className="py-2 pr-4">Người nhận</th>
-                  <th className="py-2 pr-4">VP nhận</th>
-                  <th className="py-2 pr-2 text-right">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const t = r.tripCode ? tripByCode.get(r.tripCode) : undefined;
-                  const route = t?.route ?? `${r.fromOffice} → ${r.toOffice}`;
-                  const goodsLabel = orderGoodsLabel(r);
-                  const collectLabel =
-                    COLLECT_FORMS.find((c) => c.value === r.collectForm)?.label ?? r.collectForm;
-                  const paid = r.paidAmount ?? 0;
-                  const remain = Math.max(0, r.fare - paid);
-                  const stock = isStock(r.updatedAt);
-                  return (
-                    <tr
-                      key={r.code}
-                      className={`border-b last:border-0 align-top hover:bg-muted/40 ${stock ? "bg-warning/10" : ""}`}
-                    >
-                      <td className="py-2 pr-4 font-medium">
-                        <div className="flex items-center gap-2">
-                          <OrderCodeLink code={r.code} />
-                          {stock && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-warning px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
-                              <AlertTriangle className="h-3 w-3" /> Tồn
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4">{route}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{formatDateTime(r.updatedAt)}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">{t?.bks ?? "—"}</td>
-                      <td className="py-2 pr-4">
-                        <div>{r.quantity ?? 1} kiện</div>
-                        <div className="text-muted-foreground">
-                          {(r.weightKg ?? 0).toFixed(1)} kg
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4">{goodsLabel}</td>
-                      <td className="py-2 pr-4">
-                        {r.homeDelivery ? (
-                          <Badge
-                            className="gap-1 bg-info/15 text-info hover:bg-info/20 border-info/30"
-                            variant="outline"
-                          >
-                            <Truck className="h-3 w-3" /> Giao tận nơi
-                          </Badge>
-                        ) : (
-                          <Badge
-                            className="gap-1 bg-muted text-foreground hover:bg-muted"
-                            variant="outline"
-                          >
-                            <Home className="h-3 w-3" /> Khách tự lấy
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-xs text-muted-foreground">
-                            Đã thu: {formatMoney(paid)}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            Chưa thu:{" "}
-                            <span
-                              className={
-                                remain > 0 ? "font-medium text-destructive" : "text-success"
-                              }
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1600px] text-sm">
+                <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 pr-4">Mã đơn</th>
+                    <th className="py-2 pr-4">Lộ trình</th>
+                    <th className="py-2 pr-4">Ngày nhập kho</th>
+                    <th className="py-2 pr-4">BKS</th>
+                    <th className="py-2 pr-4">Đơn hàng</th>
+                    <th className="py-2 pr-4">Tên hàng</th>
+                    <th className="py-2 pr-4">Cách giao hàng</th>
+                    <th className="py-2 pr-4">Trạng thái TT</th>
+                    <th className="py-2 pr-4 text-right">Thu hộ</th>
+                    <th className="py-2 pr-4">Người gửi</th>
+                    <th className="py-2 pr-4">VP gửi</th>
+                    <th className="py-2 pr-4">Người nhận</th>
+                    <th className="py-2 pr-4">VP nhận</th>
+                    <th className="py-2 pr-2 text-right">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const t = r.tripCode ? tripByCode.get(r.tripCode) : undefined;
+                    const route = t?.route ?? `${r.fromOffice} → ${r.toOffice}`;
+                    const goodsLabel = orderGoodsLabel(r);
+                    const collectLabel =
+                      COLLECT_FORMS.find((c) => c.value === r.collectForm)?.label ?? r.collectForm;
+                    const paid = r.paidAmount ?? 0;
+                    const remain = Math.max(0, r.fare - paid);
+                    const stock = isStock(r.updatedAt);
+                    return (
+                      <tr
+                        key={r.code}
+                        className={`border-b last:border-0 align-top hover:bg-muted/40 ${stock ? "bg-warning/10" : ""}`}
+                      >
+                        <td className="py-2 pr-4 font-medium">
+                          <div className="flex items-center gap-2">
+                            <OrderCodeLink code={r.code} />
+                            {stock && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-warning px-1.5 py-0.5 text-[10px] font-semibold text-warning-foreground">
+                                <AlertTriangle className="h-3 w-3" /> Tồn
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">{route}</td>
+                        <td className="py-2 pr-4 whitespace-nowrap">{formatDateTime(r.updatedAt)}</td>
+                        <td className="py-2 pr-4 whitespace-nowrap">{t?.bks ?? "—"}</td>
+                        <td className="py-2 pr-4">
+                          <div>{r.quantity ?? 1} kiện</div>
+                          <div className="text-muted-foreground">
+                            {(r.weightKg ?? 0).toFixed(1)} kg
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">{goodsLabel}</td>
+                        <td className="py-2 pr-4">
+                          {r.homeDelivery ? (
+                            <Badge
+                              className="gap-1 bg-info/15 text-info hover:bg-info/20 border-info/30"
+                              variant="outline"
                             >
-                              {formatMoney(remain)}
+                              <Truck className="h-3 w-3" /> Giao tận nơi
+                            </Badge>
+                          ) : (
+                            <Badge
+                              className="gap-1 bg-muted text-foreground hover:bg-muted"
+                              variant="outline"
+                            >
+                              <Home className="h-3 w-3" /> Khách tự lấy
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-muted-foreground">
+                              Đã thu: {formatMoney(paid)}
                             </span>
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4 text-right">
-                        <div className="font-medium">{collectLabel}</div>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div>{r.senderName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
-                      </td>
-                      <td className="py-2 pr-4">{officeName(r.fromOffice)}</td>
-                      <td className="py-2 pr-4">
-                        <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
-                      </td>
-                      <td className="py-2 pr-4">{officeName(r.toOffice)}</td>
-                      <td className="py-2 pr-2 text-right">
-                        <RowActions
-                          code={r.code}
-                          tripCode={r.tripCode ?? undefined}
-                          canCancel={
-                            r.status !== "CANCELLED" &&
-                            r.status !== "DELIVERED" &&
-                            r.status !== "RETURNED"
-                          }
-                          canDeliver={r.status === "AT_DEST"}
-                          homeDelivery={!!r.homeDelivery}
-                          onAssignShipper={() => setShipperOrder(r)}
-                          onDeliver={() => setDeliverOrder(r)}
-                          onCancel={async () => {
-                            if (!(await askConfirm(`Huỷ đơn ${r.code}?`))) return;
-                            const res = transitionOrder(
-                              r.code,
-                              "CANCELLED",
-                              "CANCEL",
-                              "Huỷ từ Đơn hàng đến",
-                            );
-                            if (res.ok) toast.success(`Đã huỷ đơn ${r.code}`);
-                            else toast.error(res.error);
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            <span className="text-xs text-muted-foreground">
+                              Chưa thu:{" "}
+                              <span
+                                className={
+                                  remain > 0 ? "font-medium text-destructive" : "text-success"
+                                }
+                              >
+                                {formatMoney(remain)}
+                              </span>
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4 text-right">
+                          <div className="font-medium">{collectLabel}</div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div>{r.senderName ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
+                        </td>
+                        <td className="py-2 pr-4">{officeName(r.fromOffice)}</td>
+                        <td className="py-2 pr-4">
+                          <div>{r.receiverName}</div>
+                          <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
+                        </td>
+                        <td className="py-2 pr-4">{officeName(r.toOffice)}</td>
+                        <td className="py-2 pr-2 text-right">
+                          <RowActions
+                            code={r.code}
+                            tripCode={r.tripCode ?? undefined}
+                            canCancel={
+                              r.status !== "CANCELLED" &&
+                              r.status !== "DELIVERED" &&
+                              r.status !== "RETURNED"
+                            }
+                            canDeliver={r.status === "AT_DEST"}
+                            homeDelivery={!!r.homeDelivery}
+                            onAssignShipper={() => setShipperOrder(r)}
+                            onDeliver={() => setDeliverOrder(r)}
+                            onCancel={async () => {
+                              if (!(await askConfirm(`Huỷ đơn ${r.code}?`))) return;
+                              const res = transitionOrder(
+                                r.code,
+                                "CANCELLED",
+                                "CANCEL",
+                                "Huỷ từ Đơn hàng đến",
+                              );
+                              if (res.ok) toast.success(`Đã huỷ đơn ${r.code}`);
+                              else toast.error(res.error);
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

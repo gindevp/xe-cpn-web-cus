@@ -409,167 +409,169 @@ function SuccessOrderTable({
         {pager.total === 0 ? (
           <EmptyState>{loading ? "Đang tải…" : emptyText}</EmptyState>
         ) : (
-          <div className="scroller">
-            <table className="tbl" style={{ ["--tbl-min" as string]: "1120px" }}>
-              <thead>
-                <tr>
-                  <th>Mã đơn</th>
-                  <th>Ảnh</th>
-                  <th>Thời gian</th>
-                  <th>Hình thức</th>
-                  <th>Người gửi</th>
-                  <th>Người nhận</th>
-                  <th>VP gửi → VP nhận</th>
-                  <OrderCargoHeader />
-                  <OrderFeeHeader />
-                  <th className="r">Đã thu</th>
-                  <th>Hoá đơn</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const ret = isReturned(r);
-                  const open = expanded === r.code;
-                  const shipper = successBy(r) === "SHIPPER";
-                  const photoLabel = ret ? "Xem ảnh hoàn" : "Xem POD";
-                  const busy = loadingPodCode === r.code;
-                  const invState = invoiceStateOf(r.invoiceStatus, r.invoiceType);
-                  return (
-                    <Fragment key={r.code}>
-                      <tr>
-                        <td>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <>
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "1120px" }}>
+                <thead>
+                  <tr>
+                    <th>Mã đơn</th>
+                    <th>Ảnh</th>
+                    <th>Thời gian</th>
+                    <th>Hình thức</th>
+                    <th>Người gửi</th>
+                    <th>Người nhận</th>
+                    <th>VP gửi → VP nhận</th>
+                    <OrderCargoHeader />
+                    <OrderFeeHeader />
+                    <th className="r">Đã thu</th>
+                    <th>Hoá đơn</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const ret = isReturned(r);
+                    const open = expanded === r.code;
+                    const shipper = successBy(r) === "SHIPPER";
+                    const photoLabel = ret ? "Xem ảnh hoàn" : "Xem POD";
+                    const busy = loadingPodCode === r.code;
+                    const invState = invoiceStateOf(r.invoiceStatus, r.invoiceType);
+                    return (
+                      <Fragment key={r.code}>
+                        <tr>
+                          <td>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              <button
+                                type="button"
+                                className="link"
+                                style={{ display: "inline-flex", padding: 0, textDecoration: "none" }}
+                                title={open ? "Ẩn kiện" : "Xem kiện"}
+                                aria-expanded={open}
+                                onClick={() => setExpanded(open ? null : r.code)}
+                              >
+                                <ChevronDown
+                                  className={cn(
+                                    "h-4 w-4 shrink-0 transition-transform",
+                                    open && "rotate-180",
+                                  )}
+                                  style={{ color: "var(--on-surface-variant)" }}
+                                />
+                              </button>
+                              <OrderCodeLink code={r.code} className="code" />
+                              {ret ? <span className="tag warn">HOÀN</span> : null}
+                            </span>
+                          </td>
+                          <td>
                             <button
                               type="button"
                               className="link"
-                              style={{ display: "inline-flex", padding: 0, textDecoration: "none" }}
-                              title={open ? "Ẩn kiện" : "Xem kiện"}
-                              aria-expanded={open}
-                              onClick={() => setExpanded(open ? null : r.code)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                              disabled={busy}
+                              onClick={() => void onViewPod(r)}
                             >
-                              <ChevronDown
-                                className={cn(
-                                  "h-4 w-4 shrink-0 transition-transform",
-                                  open && "rotate-180",
-                                )}
-                                style={{ color: "var(--on-surface-variant)" }}
-                              />
+                              <span className="ms" aria-hidden="true">
+                                photo_camera
+                              </span>
+                              {busy ? "Đang tải…" : photoLabel}
                             </button>
-                            <OrderCodeLink code={r.code} className="code" />
-                            {ret ? <span className="tag warn">HOÀN</span> : null}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="link"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                            disabled={busy}
-                            onClick={() => void onViewPod(r)}
-                          >
-                            <span className="ms" aria-hidden="true">
-                              photo_camera
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(successAt(r))}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <span style={{ fontWeight: 500 }}>
+                              {ret
+                                ? shipper
+                                  ? "Shipper hoàn"
+                                  : "Hoàn tại bưu cục"
+                                : shipper
+                                  ? "Shipper giao"
+                                  : "Nhận tại bưu cục"}
                             </span>
-                            {busy ? "Đang tải…" : photoLabel}
-                          </button>
-                        </td>
-                        <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(successAt(r))}</td>
-                        <td style={{ whiteSpace: "nowrap" }}>
-                          <span style={{ fontWeight: 500 }}>
-                            {ret
-                              ? shipper
-                                ? "Shipper hoàn"
-                                : "Hoàn tại bưu cục"
-                              : shipper
-                                ? "Shipper giao"
-                                : "Nhận tại bưu cục"}
-                          </span>
-                          {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") &&
-                          r.partnerOrderId ? (
-                            <span className="sub" style={{ display: "block" }}>
-                              <AhamoveInfo order={r} />
-                            </span>
-                          ) : shipper ? (
-                            <span className="sub" style={{ display: "block" }}>
-                              <InternalShipperInfo order={r} />
-                            </span>
-                          ) : null}
-                        </td>
-                        <td>
-                          <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
-                          <span className="sub">{r.senderPhone}</span>
-                        </td>
-                        <td>
-                          <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
-                          <span className="sub">{r.receiverPhone}</span>
-                          {r.receiverActualName ? (
-                            <span className="sub" style={{ display: "block" }}>
-                              Thực nhận: {r.receiverActualName}
-                              {r.receiverActualPhone ? ` · ${r.receiverActualPhone}` : ""}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td style={{ whiteSpace: "nowrap" }}>
-                          <OfficeRouteCell order={r} />
-                        </td>
-                        <OrderCargoCell order={r} />
-                        <OrderFeeCell order={r} />
-                        <td className="r main">{formatMoney(r.paidAmount ?? 0)}</td>
-                        <td style={{ whiteSpace: "nowrap" }}>
-                          {ret ? (
-                            <span className="muted">—</span>
-                          ) : (
-                            <span className={INVOICE_STATE_TAG_CLASS[invState]}>
-                              {INVOICE_STATE_LABEL[invState].text}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                      {open ? (
-                        <tr>
-                          <td
-                            colSpan={13}
-                            style={{ background: "var(--surface-variant)", padding: "8px 12px" }}
-                          >
-                            <div className="mb-1 text-xs font-medium text-muted-foreground">
-                              Chi tiết kiện
-                            </div>
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="text-left text-muted-foreground">
-                                    <th className="py-1 pr-3">STT</th>
-                                    <th className="py-1 pr-3">Mã kiện</th>
-                                    <th className="py-1 pr-3">Hàng hóa</th>
-                                    <th className="py-1 pr-3 text-right">SL</th>
-                                    <th className="py-1 text-right">KL (kg)</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {packageRows(r).map((p) => (
-                                    <tr key={p.code} className="border-t border-border/50">
-                                      <td className="py-1 pr-3">{p.seq}</td>
-                                      <td className="py-1 pr-3 font-medium">{p.code}</td>
-                                      <td className="py-1 pr-3">{p.label || "—"}</td>
-                                      <td className="py-1 pr-3 text-right">{p.itemQty}</td>
-                                      <td className="py-1 text-right">
-                                        {(p.weightKg ?? 0).toFixed(1)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                            {(r.partnerCode === "AHAMOVE" || r.partnerCode === "GRAB") &&
+                            r.partnerOrderId ? (
+                              <span className="sub" style={{ display: "block" }}>
+                                <AhamoveInfo order={r} />
+                              </span>
+                            ) : shipper ? (
+                              <span className="sub" style={{ display: "block" }}>
+                                <InternalShipperInfo order={r} />
+                              </span>
+                            ) : null}
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                            <span className="sub">{r.senderPhone}</span>
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                            <span className="sub">{r.receiverPhone}</span>
+                            {r.receiverActualName ? (
+                              <span className="sub" style={{ display: "block" }}>
+                                Thực nhận: {r.receiverActualName}
+                                {r.receiverActualPhone ? ` · ${r.receiverActualPhone}` : ""}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <OfficeRouteCell order={r} />
+                          </td>
+                          <OrderCargoCell order={r} />
+                          <OrderFeeCell order={r} />
+                          <td className="r main">{formatMoney(r.paidAmount ?? 0)}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            {ret ? (
+                              <span className="muted">—</span>
+                            ) : (
+                              <span className={INVOICE_STATE_TAG_CLASS[invState]}>
+                                {INVOICE_STATE_LABEL[invState].text}
+                              </span>
+                            )}
                           </td>
                         </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {open ? (
+                          <tr>
+                            <td
+                              colSpan={13}
+                              style={{ background: "var(--surface-variant)", padding: "8px 12px" }}
+                            >
+                              <div className="mb-1 text-xs font-medium text-muted-foreground">
+                                Chi tiết kiện
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="text-left text-muted-foreground">
+                                      <th className="py-1 pr-3">STT</th>
+                                      <th className="py-1 pr-3">Mã kiện</th>
+                                      <th className="py-1 pr-3">Hàng hóa</th>
+                                      <th className="py-1 pr-3 text-right">SL</th>
+                                      <th className="py-1 text-right">KL (kg)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {packageRows(r).map((p) => (
+                                      <tr key={p.code} className="border-t border-border/50">
+                                        <td className="py-1 pr-3">{p.seq}</td>
+                                        <td className="py-1 pr-3 font-medium">{p.code}</td>
+                                        <td className="py-1 pr-3">{p.label || "—"}</td>
+                                        <td className="py-1 pr-3 text-right">{p.itemQty}</td>
+                                        <td className="py-1 text-right">
+                                          {(p.weightKg ?? 0).toFixed(1)}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

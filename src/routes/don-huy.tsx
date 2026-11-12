@@ -244,81 +244,83 @@ export function DonHuyPanel() {
         {rowCount === 0 ? (
           <EmptyState>{apiMode && server.loading ? "Đang tải…" : "Không có đơn huỷ"}</EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
-                  <th className="w-10 px-2 py-2">
-                    <Checkbox
-                      checked={allChecked}
-                      onCheckedChange={(v) => toggleAll(Boolean(v))}
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                  <th className="px-2 py-2">Mã đơn</th>
-                  <th className="px-2 py-2">Thời gian huỷ</th>
-                  <th className="px-2 py-2">Người huỷ</th>
-                  <th className="px-2 py-2">Lý do huỷ</th>
-                  <th className="px-2 py-2">Người gửi</th>
-                  <th className="px-2 py-2">Người nhận</th>
-                  <th className="px-2 py-2">VP gửi → VP nhận</th>
-                  <OrderCargoHeader className="font-normal text-muted-foreground" />
-                  <OrderFeeHeader className="text-muted-foreground" />
-                  <th className="px-2 py-2 text-right">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const info = cancelInfo(r);
-                  return (
-                    <tr key={r.code} className="border-b hover:bg-muted/40">
-                      <td className="px-2 py-2">
-                        <Checkbox
-                          checked={selected.has(r.code)}
-                          onCheckedChange={(v) => toggle(r.code, Boolean(v))}
-                          aria-label={`Chọn ${r.code}`}
-                        />
-                      </td>
-                      <td className="px-2 py-2 font-medium">
-                        <div><OrderCodeLink code={r.code} /></div>
-                        <div className="mt-1">
-                          <OrderStatusBadge status="CANCELLED" issue={r.issue} order={r} />
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                        {formatDateTime(info.at)}
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
-                        <StaffInfoPopover staffKey={info.by} />
-                      </td>
-                      <td className="px-2 py-2 max-w-[220px] truncate" title={info.reason}>
-                        {info.reason}
-                      </td>
-                      <td className="px-2 py-2">
-                        <div>{r.senderName ?? "-"}</div>
-                        <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
-                      </td>
-                      <td className="px-2 py-2">
-                        <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
-                      </td>
-                      <td className="px-2 py-2 whitespace-nowrap">
-                        <OfficeRouteCell order={r} />
-                      </td>
-                      <OrderCargoCell order={r} />
-                      <OrderFeeCell order={r} />
-                      <td className="px-2 py-2 text-right">
-                        <Button size="sm" variant="outline" onClick={() => restore([r.code])}>
-                          Khôi phục
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1100px] text-sm">
+                <thead>
+                  <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
+                    <th className="w-10 px-2 py-2">
+                      <Checkbox
+                        checked={allChecked}
+                        onCheckedChange={(v) => toggleAll(Boolean(v))}
+                        aria-label="Chọn tất cả"
+                      />
+                    </th>
+                    <th className="px-2 py-2">Mã đơn</th>
+                    <th className="px-2 py-2">Thời gian huỷ</th>
+                    <th className="px-2 py-2">Người huỷ</th>
+                    <th className="px-2 py-2">Lý do huỷ</th>
+                    <th className="px-2 py-2">Người gửi</th>
+                    <th className="px-2 py-2">Người nhận</th>
+                    <th className="px-2 py-2">VP gửi → VP nhận</th>
+                    <OrderCargoHeader className="font-normal text-muted-foreground" />
+                    <OrderFeeHeader className="text-muted-foreground" />
+                    <th className="px-2 py-2 text-right">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const info = cancelInfo(r);
+                    return (
+                      <tr key={r.code} className="border-b hover:bg-muted/40">
+                        <td className="px-2 py-2">
+                          <Checkbox
+                            checked={selected.has(r.code)}
+                            onCheckedChange={(v) => toggle(r.code, Boolean(v))}
+                            aria-label={`Chọn ${r.code}`}
+                          />
+                        </td>
+                        <td className="px-2 py-2 font-medium">
+                          <div><OrderCodeLink code={r.code} /></div>
+                          <div className="mt-1">
+                            <OrderStatusBadge status="CANCELLED" issue={r.issue} order={r} />
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
+                          {formatDateTime(info.at)}
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <StaffInfoPopover staffKey={info.by} />
+                        </td>
+                        <td className="px-2 py-2 max-w-[220px] truncate" title={info.reason}>
+                          {info.reason}
+                        </td>
+                        <td className="px-2 py-2">
+                          <div>{r.senderName ?? "-"}</div>
+                          <div className="text-xs text-muted-foreground">{r.senderPhone}</div>
+                        </td>
+                        <td className="px-2 py-2">
+                          <div>{r.receiverName}</div>
+                          <div className="text-xs text-muted-foreground">{r.receiverPhone}</div>
+                        </td>
+                        <td className="px-2 py-2 whitespace-nowrap">
+                          <OfficeRouteCell order={r} />
+                        </td>
+                        <OrderCargoCell order={r} />
+                        <OrderFeeCell order={r} />
+                        <td className="px-2 py-2 text-right">
+                          <Button size="sm" variant="outline" onClick={() => restore([r.code])}>
+                            Khôi phục
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
     </div>

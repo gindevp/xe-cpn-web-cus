@@ -264,105 +264,107 @@ function Page() {
             gán xe từ mục "Đơn chờ gán xe".
           </EmptyState>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1500px] text-sm">
-              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
-                <tr className="border-b">
-                  <th className="py-2 pr-2 w-8">
-                    <Checkbox
-                      checked={allChecked}
-                      onCheckedChange={(v) => toggleAll(!!v)}
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                  <th className="py-2 pr-4">Mã đơn</th>
-                  <th className="py-2 pr-4">Lộ trình</th>
-                  <th className="py-2 pr-4">Ngày giờ đi</th>
-                  <th className="py-2 pr-4">BKS</th>
-                  <th className="py-2 pr-4">Tài xế</th>
-                  <th className="py-2 pr-4">Đơn hàng</th>
-                  <th className="py-2 pr-4">Tên hàng</th>
-                  <th className="py-2 pr-4 text-right">Thu hộ</th>
-                  <th className="py-2 pr-4">Người gửi</th>
-                  <th className="py-2 pr-4">VP gửi</th>
-                  <th className="py-2 pr-4">Người nhận</th>
-                  <th className="py-2 pr-4">VP nhận</th>
-                  <th className="py-2 pr-2 text-right">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => {
-                  const t = r.tripCode ? tripByCode.get(r.tripCode) : undefined;
-                  const route = t?.route ?? `${r.fromOffice} → ${r.toOffice}`;
-                  const goodsLabel = orderGoodsLabel(r);
-                  const collectLabel =
-                    COLLECT_FORMS.find((c) => c.value === r.collectForm)
-                      ?.label ?? r.collectForm;
-                  const isSel = selected.has(r.code);
-                  return (
-                    <tr
-                      key={r.code}
-                      className="border-b last:border-0 align-top hover:bg-muted/40"
-                    >
-                      <td className="py-2 pr-2">
-                        <Checkbox
-                          checked={isSel}
-                          onCheckedChange={(v) => toggleOne(r.code, !!v)}
-                          aria-label={`Chọn ${r.code}`}
-                        />
-                      </td>
-                      <td className="py-2 pr-4 font-medium">
-                        <OrderCodeLink code={r.code} />
-                      </td>
-                      <td className="py-2 pr-4">{route}</td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {t?.departAt ? formatDateTime(t.departAt) : "—"}
-                      </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {t?.bks ?? "—"}
-                      </td>
-                      <td className="py-2 pr-4 whitespace-nowrap">
-                        {t?.driver ?? "—"}
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div>{r.quantity ?? 1} kiện</div>
-                        <div className="text-muted-foreground">{(r.weightKg ?? 0).toFixed(1)} kg</div>
-                      </td>
-                      <td className="py-2 pr-4">{goodsLabel}</td>
-                      <td className="py-2 pr-4 text-right">
-                        <div className="font-medium">{collectLabel}</div>
-                      </td>
-                      <td className="py-2 pr-4">
-                        <div>{r.senderName ?? "—"}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.senderPhone}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4">{officeName(r.fromOffice)}</td>
-                      <td className="py-2 pr-4">
-                        <div>{r.receiverName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {r.receiverPhone}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-4">{officeName(r.toOffice)}</td>
-                      <td className="py-2 pr-2 text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => confirmHandover([r.code])}
-                        >
-                          <CheckCircle2 className="mr-1 h-4 w-4" />
-                          Bàn giao
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1500px] text-sm">
+                <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 pr-2 w-8">
+                      <Checkbox
+                        checked={allChecked}
+                        onCheckedChange={(v) => toggleAll(!!v)}
+                        aria-label="Chọn tất cả"
+                      />
+                    </th>
+                    <th className="py-2 pr-4">Mã đơn</th>
+                    <th className="py-2 pr-4">Lộ trình</th>
+                    <th className="py-2 pr-4">Ngày giờ đi</th>
+                    <th className="py-2 pr-4">BKS</th>
+                    <th className="py-2 pr-4">Tài xế</th>
+                    <th className="py-2 pr-4">Đơn hàng</th>
+                    <th className="py-2 pr-4">Tên hàng</th>
+                    <th className="py-2 pr-4 text-right">Thu hộ</th>
+                    <th className="py-2 pr-4">Người gửi</th>
+                    <th className="py-2 pr-4">VP gửi</th>
+                    <th className="py-2 pr-4">Người nhận</th>
+                    <th className="py-2 pr-4">VP nhận</th>
+                    <th className="py-2 pr-2 text-right">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => {
+                    const t = r.tripCode ? tripByCode.get(r.tripCode) : undefined;
+                    const route = t?.route ?? `${r.fromOffice} → ${r.toOffice}`;
+                    const goodsLabel = orderGoodsLabel(r);
+                    const collectLabel =
+                      COLLECT_FORMS.find((c) => c.value === r.collectForm)
+                        ?.label ?? r.collectForm;
+                    const isSel = selected.has(r.code);
+                    return (
+                      <tr
+                        key={r.code}
+                        className="border-b last:border-0 align-top hover:bg-muted/40"
+                      >
+                        <td className="py-2 pr-2">
+                          <Checkbox
+                            checked={isSel}
+                            onCheckedChange={(v) => toggleOne(r.code, !!v)}
+                            aria-label={`Chọn ${r.code}`}
+                          />
+                        </td>
+                        <td className="py-2 pr-4 font-medium">
+                          <OrderCodeLink code={r.code} />
+                        </td>
+                        <td className="py-2 pr-4">{route}</td>
+                        <td className="py-2 pr-4 whitespace-nowrap">
+                          {t?.departAt ? formatDateTime(t.departAt) : "—"}
+                        </td>
+                        <td className="py-2 pr-4 whitespace-nowrap">
+                          {t?.bks ?? "—"}
+                        </td>
+                        <td className="py-2 pr-4 whitespace-nowrap">
+                          {t?.driver ?? "—"}
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div>{r.quantity ?? 1} kiện</div>
+                          <div className="text-muted-foreground">{(r.weightKg ?? 0).toFixed(1)} kg</div>
+                        </td>
+                        <td className="py-2 pr-4">{goodsLabel}</td>
+                        <td className="py-2 pr-4 text-right">
+                          <div className="font-medium">{collectLabel}</div>
+                        </td>
+                        <td className="py-2 pr-4">
+                          <div>{r.senderName ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {r.senderPhone}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">{officeName(r.fromOffice)}</td>
+                        <td className="py-2 pr-4">
+                          <div>{r.receiverName}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {r.receiverPhone}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-4">{officeName(r.toOffice)}</td>
+                        <td className="py-2 pr-2 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => confirmHandover([r.code])}
+                          >
+                            <CheckCircle2 className="mr-1 h-4 w-4" />
+                            Bàn giao
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
     </div>

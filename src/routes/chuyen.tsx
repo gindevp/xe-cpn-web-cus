@@ -109,28 +109,30 @@ function Page() {
         {rows.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
-                <tr className="border-b">
-                  <th className="py-2 pr-4">Mã chuyến</th>
-                  <th className="py-2 pr-4">BKS</th>
-                  <th className="py-2 pr-4">Tài xế</th>
-                  <th className="py-2 pr-4">Tuyến</th>
-                  <th className="py-2 pr-4">Giờ</th>
-                  <th className="py-2 pr-4">Đã quét</th>
-                  <th className="py-2 pr-4">Trạng thái</th>
-                  <th className="py-2 pr-4">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((t) => (
-                  <TripRow key={t.code} t={t} />
-                ))}
-              </tbody>
-            </table>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 pr-4">Mã chuyến</th>
+                    <th className="py-2 pr-4">BKS</th>
+                    <th className="py-2 pr-4">Tài xế</th>
+                    <th className="py-2 pr-4">Tuyến</th>
+                    <th className="py-2 pr-4">Giờ</th>
+                    <th className="py-2 pr-4">Đã quét</th>
+                    <th className="py-2 pr-4">Trạng thái</th>
+                    <th className="py-2 pr-4">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((t) => (
+                    <TripRow key={t.code} t={t} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 

@@ -615,67 +615,69 @@ function Page() {
         {rows.length === 0 ? (
           <EmptyState>Không có đơn cần lập phiếu thu</EmptyState>
         ) : (
-          <div className="scroller">
-            <table className="tbl" style={{ ["--tbl-min" as string]: "760px" }}>
-              <thead>
-                <tr>
-                  <th>Người tác động</th>
-                  <th>Tên nhân viên</th>
-                  <th className="r">Số đơn</th>
-                  <th className="r">Tiền còn thu</th>
-                  <th>Ngày</th>
-                  <th className="r">Tác vụ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => (
-                  <tr key={r.key}>
-                    <td className="main">
-                      {r.owner === UNKNOWN_DEBT_OWNER ? (
-                        r.label
-                      ) : (
-                        <StaffInfoPopover staffKey={r.owner}>{r.label}</StaffInfoPopover>
-                      )}
-                    </td>
-                    <td>{r.name || "—"}</td>
-                    <td className="r">{r.count}</td>
-                    <td className="r main">{formatVND(r.amount)}</td>
-                    <td>{r.day ? fmtDayVn(r.day) : "—"}</td>
-                    <td>
-                      <div className="act">
-                        <button
-                          type="button"
-                          className="ok"
-                          disabled={r.count === 0}
-                          onClick={() => setOpenKey(r.key)}
-                        >
-                          Tạo phiếu thu
-                        </button>
-                        {canWaive ? (
+          <>
+            <div className="scroller">
+              <table className="tbl" style={{ ["--tbl-min" as string]: "760px" }}>
+                <thead>
+                  <tr>
+                    <th>Người tác động</th>
+                    <th>Tên nhân viên</th>
+                    <th className="r">Số đơn</th>
+                    <th className="r">Tiền còn thu</th>
+                    <th>Ngày</th>
+                    <th className="r">Tác vụ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => (
+                    <tr key={r.key}>
+                      <td className="main">
+                        {r.owner === UNKNOWN_DEBT_OWNER ? (
+                          r.label
+                        ) : (
+                          <StaffInfoPopover staffKey={r.owner}>{r.label}</StaffInfoPopover>
+                        )}
+                      </td>
+                      <td>{r.name || "—"}</td>
+                      <td className="r">{r.count}</td>
+                      <td className="r main">{formatVND(r.amount)}</td>
+                      <td>{r.day ? fmtDayVn(r.day) : "—"}</td>
+                      <td>
+                        <div className="act">
                           <button
                             type="button"
-                            className="text-act danger"
+                            className="ok"
                             disabled={r.count === 0}
-                            onClick={() =>
-                              setWaiveTarget({
-                                title: `${r.label}${r.day ? ` · ${fmtDayVn(r.day)}` : ""}`,
-                                orders: (rowsByOwnerDay.get(r.key) ?? []).filter(
-                                  (o) => !isFeeRow(o),
-                                ),
-                              })
-                            }
+                            onClick={() => setOpenKey(r.key)}
                           >
-                            Huỷ nộp
+                            Tạo phiếu thu
                           </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          {canWaive ? (
+                            <button
+                              type="button"
+                              className="text-act danger"
+                              disabled={r.count === 0}
+                              onClick={() =>
+                                setWaiveTarget({
+                                  title: `${r.label}${r.day ? ` · ${fmtDayVn(r.day)}` : ""}`,
+                                  orders: (rowsByOwnerDay.get(r.key) ?? []).filter(
+                                    (o) => !isFeeRow(o),
+                                  ),
+                                })
+                              }
+                            >
+                              Huỷ nộp
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
 
@@ -890,54 +892,56 @@ function HistorySection({ reloadKey }: { reloadKey: number }) {
       {!rows || rows.length === 0 ? (
         <EmptyState>Chưa có thao tác trong khoảng này</EmptyState>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
-                <th className="px-2 py-2">Thời gian</th>
-                <th className="px-2 py-2">Người thao tác</th>
-                <th className="px-2 py-2">Thao tác</th>
-                <th className="px-2 py-2">Phiếu / Đơn</th>
-                <th className="px-2 py-2">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((h) => (
-                <tr key={h.id} className="border-b align-top hover:bg-muted/40">
-                  <td className="px-2 py-2 whitespace-nowrap tabular-nums">
-                    {new Date(h.at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
-                  </td>
-                  <td className="px-2 py-2">
-                    <StaffInfoPopover staffKey={h.username}>
-                      {h.displayName || h.username || "—"}
-                    </StaffInfoPopover>
-                    {h.displayName && h.username ? (
-                      <div className="text-xs text-muted-foreground">{h.username}</div>
-                    ) : null}
-                  </td>
-                  <td
-                    className={`px-2 py-2 whitespace-nowrap font-medium ${
-                      h.action === "RECEIPT_DUE_WAIVE" || h.action === "RECEIPT_CANCEL"
-                        ? "text-destructive"
-                        : ""
-                    }`}
-                  >
-                    {HISTORY_ACTION_LABEL[h.action] ?? h.action}
-                  </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
-                    {h.entityType === "ReceiptDue" && h.entityId ? (
-                      <OrderCodeLink code={h.entityId} />
-                    ) : (
-                      h.entityId || "—"
-                    )}
-                  </td>
-                  <td className="px-2 py-2 text-muted-foreground">{h.detail || ""}</td>
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
+                  <th className="px-2 py-2">Thời gian</th>
+                  <th className="px-2 py-2">Người thao tác</th>
+                  <th className="px-2 py-2">Thao tác</th>
+                  <th className="px-2 py-2">Phiếu / Đơn</th>
+                  <th className="px-2 py-2">Chi tiết</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pageRows.map((h) => (
+                  <tr key={h.id} className="border-b align-top hover:bg-muted/40">
+                    <td className="px-2 py-2 whitespace-nowrap tabular-nums">
+                      {new Date(h.at).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
+                    </td>
+                    <td className="px-2 py-2">
+                      <StaffInfoPopover staffKey={h.username}>
+                        {h.displayName || h.username || "—"}
+                      </StaffInfoPopover>
+                      {h.displayName && h.username ? (
+                        <div className="text-xs text-muted-foreground">{h.username}</div>
+                      ) : null}
+                    </td>
+                    <td
+                      className={`px-2 py-2 whitespace-nowrap font-medium ${
+                        h.action === "RECEIPT_DUE_WAIVE" || h.action === "RECEIPT_CANCEL"
+                          ? "text-destructive"
+                          : ""
+                      }`}
+                    >
+                      {HISTORY_ACTION_LABEL[h.action] ?? h.action}
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      {h.entityType === "ReceiptDue" && h.entityId ? (
+                        <OrderCodeLink code={h.entityId} />
+                      ) : (
+                        h.entityId || "—"
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-muted-foreground">{h.detail || ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <TablePagination pager={pager} />
-        </div>
+        </>
       )}
     </Section>
   );

@@ -647,125 +647,127 @@ function CancelRequestPanel({
       ) : list.length === 0 ? (
         <EmptyState>Không có yêu cầu huỷ đang chờ</EmptyState>
       ) : (
-        <div className="scroller">
-          <table className="tbl" style={{ ["--tbl-min" as string]: "1100px" }}>
-            <thead>
-              <tr>
-                {canDecide ? (
-                  <th style={{ width: 18 }}>
-                    <input
-                      className="check"
-                      type="checkbox"
-                      checked={list.length > 0 && list.every((r) => selected.has(r.code))}
-                      onChange={(e) =>
-                        setSelected(e.target.checked ? new Set(list.map((r) => r.code)) : new Set())
-                      }
-                      aria-label="Chọn tất cả"
-                    />
-                  </th>
-                ) : null}
-                <th>Mã đơn</th>
-                <th>Yêu cầu</th>
-                <th>Lý do</th>
-                <th>Người gửi</th>
-                <th>Người nhận</th>
-                <th>VP gửi → VP nhận</th>
-                <OrderCargoHeader />
-                <OrderFeeHeader />
-                {canDecide ? <th className="r">Tác vụ</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((r) => (
-                <tr key={r.code} className={cn(selected.has(r.code) && "sel")}>
+        <>
+          <div className="scroller">
+            <table className="tbl" style={{ ["--tbl-min" as string]: "1100px" }}>
+              <thead>
+                <tr>
                   {canDecide ? (
-                    <td>
+                    <th style={{ width: 18 }}>
                       <input
                         className="check"
                         type="checkbox"
-                        checked={selected.has(r.code)}
+                        checked={list.length > 0 && list.every((r) => selected.has(r.code))}
                         onChange={(e) =>
-                          setSelected((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(r.code);
-                            else next.delete(r.code);
-                            return next;
-                          })
+                          setSelected(e.target.checked ? new Set(list.map((r) => r.code)) : new Set())
                         }
-                        aria-label={`Chọn ${r.code}`}
+                        aria-label="Chọn tất cả"
                       />
-                    </td>
+                    </th>
                   ) : null}
-                  <td>
-                    <OrderCodeLink code={r.code} className="code" />
-                    <div style={{ marginTop: 4 }}>
-                      <OrderStatusBadge
-                        status={r.status}
-                        issue={{ type: "CANCEL_REQUEST" }}
-                        order={r}
-                      />
-                    </div>
-                  </td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}
-                    <span className="sub">{r.issue?.by ?? "-"}</span>
-                  </td>
-                  <td title={r.issue?.reason ?? ""} style={{ maxWidth: 280 }}>
-                    <span
-                      style={{
-                        fontWeight: 500,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {r.issue?.reason ?? "-"}
-                    </span>
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
-                    <span className="sub">{r.senderPhone}</span>
-                  </td>
-                  <td>
-                    <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
-                    <span className="sub">{r.receiverPhone}</span>
-                  </td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    <OfficeRouteCell order={r} />
-                  </td>
-                  <OrderCargoCell order={r} />
-                  <OrderFeeCell order={r} />
-                  {canDecide ? (
+                  <th>Mã đơn</th>
+                  <th>Yêu cầu</th>
+                  <th>Lý do</th>
+                  <th>Người gửi</th>
+                  <th>Người nhận</th>
+                  <th>VP gửi → VP nhận</th>
+                  <OrderCargoHeader />
+                  <OrderFeeHeader />
+                  {canDecide ? <th className="r">Tác vụ</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((r) => (
+                  <tr key={r.code} className={cn(selected.has(r.code) && "sel")}>
+                    {canDecide ? (
+                      <td>
+                        <input
+                          className="check"
+                          type="checkbox"
+                          checked={selected.has(r.code)}
+                          onChange={(e) =>
+                            setSelected((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(r.code);
+                              else next.delete(r.code);
+                              return next;
+                            })
+                          }
+                          aria-label={`Chọn ${r.code}`}
+                        />
+                      </td>
+                    ) : null}
                     <td>
-                      <div className="act">
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          style={{ height: 36 }}
-                          disabled={busy}
-                          onClick={() => setRejectCodes([r.code])}
-                        >
-                          Từ chối
-                        </button>
-                        <button
-                          type="button"
-                          className="btn danger"
-                          style={{ height: 36 }}
-                          disabled={busy}
-                          onClick={() => void decide([r.code], true)}
-                        >
-                          Duyệt huỷ
-                        </button>
+                      <OrderCodeLink code={r.code} className="code" />
+                      <div style={{ marginTop: 4 }}>
+                        <OrderStatusBadge
+                          status={r.status}
+                          issue={{ type: "CANCEL_REQUEST" }}
+                          order={r}
+                        />
                       </div>
                     </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {formatDateTime(r.issue?.at ?? r.updatedAt ?? r.createdAt)}
+                      <span className="sub">{r.issue?.by ?? "-"}</span>
+                    </td>
+                    <td title={r.issue?.reason ?? ""} style={{ maxWidth: 280 }}>
+                      <span
+                        style={{
+                          fontWeight: 500,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {r.issue?.reason ?? "-"}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 500 }}>{r.senderName ?? "-"}</span>
+                      <span className="sub">{r.senderPhone}</span>
+                    </td>
+                    <td>
+                      <span style={{ fontWeight: 500 }}>{r.receiverName}</span>
+                      <span className="sub">{r.receiverPhone}</span>
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <OfficeRouteCell order={r} />
+                    </td>
+                    <OrderCargoCell order={r} />
+                    <OrderFeeCell order={r} />
+                    {canDecide ? (
+                      <td>
+                        <div className="act">
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            style={{ height: 36 }}
+                            disabled={busy}
+                            onClick={() => setRejectCodes([r.code])}
+                          >
+                            Từ chối
+                          </button>
+                          <button
+                            type="button"
+                            className="btn danger"
+                            style={{ height: 36 }}
+                            disabled={busy}
+                            onClick={() => void decide([r.code], true)}
+                          >
+                            Duyệt huỷ
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <TablePagination pager={pager} />
-        </div>
+        </>
       )}
       <RejectCancelDialog
         codes={rejectCodes}

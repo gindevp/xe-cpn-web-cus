@@ -197,7 +197,8 @@ html.xe-scan-immersive main {
   main {
     overflow-x: hidden;
   }
-  main :is(.overflow-x-auto, div:has(> table)) {
+  /* Không gắn overflow lên div bọc cả table+pager — sticky phân trang phải bám main */
+  main :is(.overflow-x-auto, div:has(> table):not(:has([aria-label="Phân trang"], .table-pager-sticky))) {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;

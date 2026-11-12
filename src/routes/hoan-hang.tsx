@@ -136,52 +136,54 @@ function Page() {
         {filtered.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
-                <tr className="border-b">
-                  <th className="py-2 pr-4">Mã đơn</th>
-                  <th className="py-2 pr-4">Lộ trình</th>
-                  <th className="py-2 pr-4">Thời gian giao</th>
-                  <th className="py-2 pr-4">Đơn hàng</th>
-                  <th className="py-2 pr-4">Tên hàng</th>
-                  <th className="py-2 pr-4">Trạng thái</th>
-                  <th className="py-2 pr-4">Thu hộ</th>
-                  <th className="py-2 pr-4">Người gửi</th>
-                  <th className="py-2 pr-4">VP gửi</th>
-                  <th className="py-2 pr-4">Người nhận</th>
-                  <th className="py-2 pr-4">VP nhận</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((o) => (
-                  <tr key={o.code} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="py-2 pr-4 font-medium"><OrderCodeLink code={o.code} /></td>
-                    <td className="py-2 pr-4 text-muted-foreground">
-                      <OfficeRouteCell order={o} />
-                    </td>
-                    <td className="py-2 pr-4 text-muted-foreground">{formatDateTime(o.updatedAt)}</td>
-                    <td className="py-2 pr-4">
-                      <div>{o.quantity ?? 0} kiện</div>
-                      <div className="text-muted-foreground">{(o.weightKg ?? 0).toFixed(1)} kg</div>
-                    </td>
-                    <td className="py-2 pr-4">{orderGoodsLabel(o)}</td>
-                    <td className="py-2 pr-4">
-                      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                        <CheckCircle2 className="mr-1 h-3 w-3" /> Đã giao
-                      </Badge>
-                    </td>
-                    <td className="py-2 pr-4">{formatMoney(Math.max(0, o.fare - (o.paidAmount ?? 0)))}</td>
-                    <td className="py-2 pr-4">{o.senderName ?? o.senderPhone}</td>
-                    <td className="py-2 pr-4 text-muted-foreground">{officeName(o.fromOffice)}</td>
-                    <td className="py-2 pr-4">{o.receiverName}</td>
-                    <td className="py-2 pr-4 text-muted-foreground">{officeName(o.toOffice)}</td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-sm font-bold uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="py-2 pr-4">Mã đơn</th>
+                    <th className="py-2 pr-4">Lộ trình</th>
+                    <th className="py-2 pr-4">Thời gian giao</th>
+                    <th className="py-2 pr-4">Đơn hàng</th>
+                    <th className="py-2 pr-4">Tên hàng</th>
+                    <th className="py-2 pr-4">Trạng thái</th>
+                    <th className="py-2 pr-4">Thu hộ</th>
+                    <th className="py-2 pr-4">Người gửi</th>
+                    <th className="py-2 pr-4">VP gửi</th>
+                    <th className="py-2 pr-4">Người nhận</th>
+                    <th className="py-2 pr-4">VP nhận</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {pageRows.map((o) => (
+                    <tr key={o.code} className="border-b last:border-0 hover:bg-muted/40">
+                      <td className="py-2 pr-4 font-medium"><OrderCodeLink code={o.code} /></td>
+                      <td className="py-2 pr-4 text-muted-foreground">
+                        <OfficeRouteCell order={o} />
+                      </td>
+                      <td className="py-2 pr-4 text-muted-foreground">{formatDateTime(o.updatedAt)}</td>
+                      <td className="py-2 pr-4">
+                        <div>{o.quantity ?? 0} kiện</div>
+                        <div className="text-muted-foreground">{(o.weightKg ?? 0).toFixed(1)} kg</div>
+                      </td>
+                      <td className="py-2 pr-4">{orderGoodsLabel(o)}</td>
+                      <td className="py-2 pr-4">
+                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Đã giao
+                        </Badge>
+                      </td>
+                      <td className="py-2 pr-4">{formatMoney(Math.max(0, o.fare - (o.paidAmount ?? 0)))}</td>
+                      <td className="py-2 pr-4">{o.senderName ?? o.senderPhone}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{officeName(o.fromOffice)}</td>
+                      <td className="py-2 pr-4">{o.receiverName}</td>
+                      <td className="py-2 pr-4 text-muted-foreground">{officeName(o.toOffice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <TablePagination pager={pager} />
-          </div>
+          </>
         )}
       </Section>
     </div>

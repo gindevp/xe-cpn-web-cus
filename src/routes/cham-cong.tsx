@@ -527,50 +527,52 @@ function Page() {
           {detailRows.length === 0 ? (
             <EmptyState>Chưa có lượt chấm công nào</EmptyState>
           ) : (
-            <div className="scroller">
-              <table className="tbl" style={{ ["--tbl-min" as string]: "900px" }}>
-                <thead>
-                  <tr>
-                    <th>Ngày</th>
-                    <th>Nhân viên</th>
-                    <th>VP chấm</th>
-                    <th>Giờ vào</th>
-                    <th>Giờ ra</th>
-                    <th className="r">Số lượt</th>
-                    <th className="r" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {detailPage.pageRows.map((d) => (
-                    <tr key={`${d.day}-${d.staff.login}`}>
-                      <td className="num" style={{ whiteSpace: "nowrap" }}>
-                        {viDay(d.day)}
-                      </td>
-                      <td className="main">
-                        <StaffInfoPopover staffKey={d.staff.login}>
-                          {staffName(d.staff)}
-                        </StaffInfoPopover>
-                        <span className="sub">{d.staff.login}</span>
-                      </td>
-                      <td className="muted">{d.items[0].officeName}</td>
-                      <td className="num">{timeOf(d.items[0].checkedAt)}</td>
-                      <td className="num">
-                        {d.items.length > 1 ? timeOf(d.items[d.items.length - 1].checkedAt) : "—"}
-                      </td>
-                      <td className="r num">{d.items.length}</td>
-                      <td>
-                        <div className="act">
-                          <button type="button" className="ok" onClick={() => setDetail(d)}>
-                            Chi tiết
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="scroller">
+                <table className="tbl" style={{ ["--tbl-min" as string]: "900px" }}>
+                  <thead>
+                    <tr>
+                      <th>Ngày</th>
+                      <th>Nhân viên</th>
+                      <th>VP chấm</th>
+                      <th>Giờ vào</th>
+                      <th>Giờ ra</th>
+                      <th className="r">Số lượt</th>
+                      <th className="r" />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {detailPage.pageRows.map((d) => (
+                      <tr key={`${d.day}-${d.staff.login}`}>
+                        <td className="num" style={{ whiteSpace: "nowrap" }}>
+                          {viDay(d.day)}
+                        </td>
+                        <td className="main">
+                          <StaffInfoPopover staffKey={d.staff.login}>
+                            {staffName(d.staff)}
+                          </StaffInfoPopover>
+                          <span className="sub">{d.staff.login}</span>
+                        </td>
+                        <td className="muted">{d.items[0].officeName}</td>
+                        <td className="num">{timeOf(d.items[0].checkedAt)}</td>
+                        <td className="num">
+                          {d.items.length > 1 ? timeOf(d.items[d.items.length - 1].checkedAt) : "—"}
+                        </td>
+                        <td className="r num">{d.items.length}</td>
+                        <td>
+                          <div className="act">
+                            <button type="button" className="ok" onClick={() => setDetail(d)}>
+                              Chi tiết
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <TablePagination pager={detailPage.pager} />
-            </div>
+            </>
           )}
         </section>
       )}
