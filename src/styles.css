@@ -309,13 +309,13 @@ html.xe-scan-immersive main {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  /* Không padding-top: sticky top bar phải sát mép vùng cuộn (tránh khoảng trống trên) */
-  padding: 0 24px 32px;
+  /* Không padding-top: sticky top bar sát mép trên; đáy mỏng để pager sát lề */
+  padding: 0 24px 8px;
   box-sizing: border-box;
 }
 /* .pad { padding:16px !important } — ghi đè cho main M3 */
 .m3-main.page.pad {
-  padding: 0 24px 32px !important;
+  padding: 0 24px 8px !important;
 }
 .m3-main-immersive {
   padding: 0 !important;

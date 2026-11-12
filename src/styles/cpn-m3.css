@@ -123,8 +123,14 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--secondary);outline-
 .hbars{display:grid;grid-template-columns:minmax(90px,200px) minmax(0,1fr) 56px;align-items:center;gap:6px 12px}
 .hbar-track{height:12px}
 .hbar-track i{display:block;height:100%;min-width:2px;border-radius:0 4px 4px 0;background:var(--chart-recv)}
-.pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;position:sticky;bottom:0;z-index:8;margin-top:auto;padding:10px 0 8px;background:var(--lowest,#ffffff);border-top:1px solid var(--outline-variant,rgb(0 0 0 / .08));box-shadow:0 -6px 16px -12px rgb(0 0 0 / .18)}
+.pager{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;position:sticky;bottom:0;z-index:8;margin-top:0;padding:8px 0 0;background:var(--lowest,#ffffff);border-top:1px solid var(--outline-variant,rgb(0 0 0 / .08));box-shadow:none}
+/* Trong .card (pad 24px): kéo sát bo góc dưới, không lửng */
+.card>.pager,.card .pager{margin:0 -24px -24px;padding:8px 24px 12px;border-radius:0 0 28px 28px}
 .pager-btns{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+@media (max-width:760px){
+.card>.pager,.card .pager{margin:0 -16px -16px;padding:8px 16px 10px;border-radius:0 0 16px 16px}
+.pad .card>.pager,.pad .card .pager{margin:0 -16px -16px;padding:8px 16px 10px}
+}
 .sticky-1 th:first-child,.sticky-1 td:first-child{position:sticky;left:0;z-index:1}
 .sticky-1 td:first-child{background:var(--lowest)}
 .sticky-1 tbody tr:hover td:first-child{background:var(--low)}
