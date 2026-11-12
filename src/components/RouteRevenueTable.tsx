@@ -162,12 +162,12 @@ export function RouteRevenueTable({ from, to, officeCode }: Props) {
             <table className="w-max min-w-full border-collapse text-[11px]">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th rowSpan={2} className="sticky left-0 z-20 border-r bg-muted/80 px-2 py-2 text-left font-semibold">
+                  <th rowSpan={2} className="sticky left-0 z-[2] border-r bg-muted/80 px-2 py-2 text-left font-semibold">
                     STT
                   </th>
                   <th
                     rowSpan={2}
-                    className="sticky left-[40px] z-20 border-r bg-muted/80 px-2 py-2 text-left font-semibold"
+                    className="sticky left-[40px] z-[2] border-r bg-muted/80 px-2 py-2 text-left font-semibold"
                   >
                     Ngày đi
                   </th>
@@ -201,10 +201,10 @@ export function RouteRevenueTable({ from, to, officeCode }: Props) {
                     const t = row.total ?? EMPTY;
                     return (
                       <tr key={row.date} className="border-b hover:bg-muted/20">
-                        <td className="sticky left-0 z-10 border-r bg-background px-2 py-1 text-muted-foreground">
+                        <td className="sticky left-0 z-[1] border-r bg-background px-2 py-1 text-muted-foreground">
                           {i + 1}
                         </td>
-                        <td className="sticky left-[40px] z-10 border-r bg-background px-2 py-1 font-medium whitespace-nowrap">
+                        <td className="sticky left-[40px] z-[1] border-r bg-background px-2 py-1 font-medium whitespace-nowrap">
                           {fmtDay(row.date)}
                         </td>
                         {routes.map((r) => (
@@ -217,7 +217,7 @@ export function RouteRevenueTable({ from, to, officeCode }: Props) {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 bg-muted/50 font-semibold">
-                  <td className="sticky left-0 z-10 border-r bg-muted/80 px-2 py-1.5" colSpan={2}>
+                  <td className="sticky left-0 z-[1] border-r bg-muted/80 px-2 py-1.5" colSpan={2}>
                     Tổng
                   </td>
                   {routes.map((r) => (

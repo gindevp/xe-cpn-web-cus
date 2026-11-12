@@ -249,7 +249,8 @@ html.xe-scan-immersive main {
   min-width: 72px;
   height: 100vh;
   position: relative;
-  z-index: 20;
+  /* Trên sticky header/cột bảng trong main (thường z-10–20) */
+  z-index: 40;
   background: var(--lowest);
   border-right: 1px solid var(--outline-variant);
 }
