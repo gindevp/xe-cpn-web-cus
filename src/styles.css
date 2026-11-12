@@ -406,6 +406,71 @@ html.xe-scan-immersive main {
   pointer-events: none;
   color: var(--on-surface-variant);
 }
+/* Tài khoản đáy navbar (rail + drawer) */
+.m3-nav-account-slot {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.m3-nav-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  padding: 4px;
+  border-radius: 12px;
+}
+.m3-nav-account:hover {
+  background: var(--low);
+}
+.m3-nav-account-compact {
+  justify-content: center;
+}
+.m3-nav-account-wide {
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+}
+.m3-nav-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  font-size: 14px;
+  font-weight: 600;
+  flex: none;
+}
+.m3-nav-account-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.m3-nav-account-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m3-nav-account-sub {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .m3-user-chip {
   display: flex;
   align-items: center;
@@ -626,6 +691,13 @@ button.no:hover {
   height: 100%;
   flex-direction: column;
   align-items: stretch;
+}
+.m3-nav-panel .m3-nav-account-slot {
+  justify-content: stretch;
+  padding: 8px 4px 4px;
+}
+.m3-nav-panel .m3-nav-account-wide {
+  width: 100%;
 }
 .m3-nav-panel .side.rail .brand,
 .m3-nav-panel .side.rail:hover .brand,

@@ -1,9 +1,9 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { askConfirm } from "@/components/m3/askConfirm";
 import { useEffect, useState } from "react";
 import { changeActiveOffice, useAuth } from "@/lib/auth";
 import { useAllowedOffices } from "@/lib/allowed-offices";
-import { ROLE_LABELS, officeName } from "@/lib/mock-data";
+import { officeName } from "@/lib/mock-data";
 import { canRead, useRbacVersion } from "@/lib/rbac";
 import { useStore } from "@/lib/store";
 import {
@@ -21,27 +21,16 @@ import { ACTIVITY_TOP_NAV } from "@/lib/activity-nav";
 import { GlobalHeaderSearch } from "@/components/GlobalTopBar";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
-import { ThemeCycleButton, ThemeMenuItems } from "@/components/ThemeToggle";
-import { openSiblingUi, SIBLING_UI_LABEL } from "@/lib/sibling-ui";
 import { useTheme } from "@/lib/theme";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-/** Thanh đầu trang design M3: search + lifecycle pills + scope + user. */
+/** Thanh đầu trang: search + lifecycle pills + lọc VP (theme/user ở đáy navbar). */
 export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
   const { themeClass } = useTheme();
   useRbacVersion();
-  const navigate = useNavigate();
   const offices = useStore((s) => s.offices);
   const viewOffice = useStore((s) => s.viewOffice);
   const setViewOffice = useStore((s) => s.setViewOffice);
@@ -53,7 +42,6 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   const activeOfficeId = useAllowedOffices((s) => s.activeId);
   const pendingOffline = useStore((s) => s.offlineQueue.length);
   const [switching, setSwitching] = useState(false);
-  const [openChangePassword, setOpenChangePassword] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -100,8 +88,6 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   };
 
   const officeLabel = viewOfficeDisplayLabel(officeScope, offices, officeName);
-  const roleLabel = session ? (ROLE_LABELS[session.role] ?? session.role) : "";
-  const initial = (session?.username?.trim()?.[0] || "?").toLocaleUpperCase("vi-VN");
 
   if (!session) return null;
 
@@ -174,70 +160,6 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
             </span>
           </button>
         )}
-
-        <button
-          type="button"
-          className="pill"
-          title={SIBLING_UI_LABEL}
-          onClick={() => openSiblingUi()}
-        >
-          <span className="ms" aria-hidden="true">
-            swap_horiz
-          </span>
-          <span className="hidden sm:inline">{SIBLING_UI_LABEL}</span>
-        </button>
-
-        <ThemeCycleButton className="m3-theme-btn" />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="m3-user-chip"
-              title={`${session.username} · ${roleLabel}`}
-            >
-              <div className="m3-user-text">
-                <div className="m3-user-name">{session.username}</div>
-                <div className="muted m3-user-role">{roleLabel}</div>
-              </div>
-              <div className="m3-user-avatar" aria-hidden>
-                {initial}
-              </div>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={cn("w-56", themeClass)}>
-            <div className="px-2 py-1.5 sm:hidden">
-              <div className="truncate text-sm font-medium">{session.username}</div>
-              <div className="truncate text-xs text-muted-foreground">{roleLabel}</div>
-            </div>
-            <DropdownMenuSeparator className="sm:hidden" />
-            <ThemeMenuItems />
-            <DropdownMenuItem onSelect={() => setOpenChangePassword(true)}>
-              <span className="ms mr-2" aria-hidden="true">
-                key
-              </span>
-              Đổi mật khẩu
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => openSiblingUi()}>
-              <span className="ms mr-2" aria-hidden="true">
-                swap_horiz
-              </span>
-              {SIBLING_UI_LABEL}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={() => {
-                logout();
-                navigate({ to: "/login" });
-              }}
-            >
-              <span className="ms mr-2" aria-hidden="true">
-                logout
-              </span>
-              Đăng xuất
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <ChangePasswordDialog open={openChangePassword} onOpenChange={setOpenChangePassword} />
       </div>
     </div>
   );

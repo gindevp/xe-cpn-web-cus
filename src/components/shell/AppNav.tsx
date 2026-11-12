@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { canRead, useRbacVersion } from "@/lib/rbac";
 import { TaoDonDialog } from "@/components/TaoDonDialog";
 import { M3_NAV_GROUPS, navActiveLabel } from "@/components/shell/nav-config";
+import { NavAccountMenu } from "@/components/shell/NavAccountMenu";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +147,10 @@ export function AppNav({ onNavigate, mobile }: Props) {
             </div>
           );
         })}
+
+        <div className="m3-nav-account-slot">
+          <NavAccountMenu compact={!mobile} onNavigate={onNavigate} />
+        </div>
       </nav>
       <TaoDonDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>

@@ -18,7 +18,51 @@ function ModeIcon({ mode, className }: { mode: ColorMode; className?: string }) 
   return <Sun className={className} />;
 }
 
-/** Nút nhanh cạnh avatar — xoay Sáng → Tối → Hệ thống. */
+const MODE_OPTS: { value: ColorMode; label: string; Icon: typeof Sun }[] = [
+  { value: "light", label: "Sáng", Icon: Sun },
+  { value: "dark", label: "Tối", Icon: Moon },
+  { value: "system", label: "Hệ thống", Icon: Monitor },
+];
+
+/** Segmented Sáng / Tối / Hệ thống — dùng trong menu đáy navbar. */
+export function ThemeModeSeg({ className }: { className?: string }) {
+  const { mode, setMode } = useTheme();
+  return (
+    <div className={cn("w-full", className)}>
+      <div className="mb-1.5 text-xs font-medium text-muted-foreground">Giao diện</div>
+      <div
+        className="flex gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5"
+        role="radiogroup"
+        aria-label="Giao diện"
+      >
+        {MODE_OPTS.map(({ value, label, Icon }) => {
+          const on = mode === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              title={label}
+              onClick={() => setMode(value)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium transition-colors",
+                on
+                  ? "bg-background text-primary shadow-sm ring-1 ring-primary/25"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Nút nhanh — chỉ còn dùng ở login (không có navbar). */
 export function ThemeCycleButton({ className }: { className?: string }) {
   const { mode, cycleMode } = useTheme();
   return (
@@ -36,7 +80,7 @@ export function ThemeCycleButton({ className }: { className?: string }) {
   );
 }
 
-/** Mục menu user: chọn Sáng / Tối / Theo hệ thống. */
+/** Mục menu user (legacy) — ưu tiên ThemeModeSeg ở đáy nav. */
 export function ThemeMenuItems() {
   const { mode, setMode } = useTheme();
   return (
