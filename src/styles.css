@@ -309,13 +309,13 @@ html.xe-scan-immersive main {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  /* Không padding-top: sticky top bar sát mép trên; đáy mỏng để pager sát lề */
-  padding: 0 24px 8px;
+  /* Không padding-top: sticky top bar sát mép trên; đáy 0 để pager sticky sát lề dưới */
+  padding: 0 24px 0;
   box-sizing: border-box;
 }
 /* .pad { padding:16px !important } — ghi đè cho main M3 */
 .m3-main.page.pad {
-  padding: 0 24px 8px !important;
+  padding: 0 24px 0 !important;
 }
 .m3-main-immersive {
   padding: 0 !important;
@@ -326,6 +326,15 @@ html.xe-scan-immersive main {
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  /* Card cuối sát đáy vùng cuộn — pager sticky không bị khe xám */
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.m3-page-body > .card:last-child,
+.m3-page-body > .m3-page > .card:last-child,
+.m3-page-body > .stack > .card:last-child,
+.m3-page.stack > .card:last-child {
+  margin-bottom: 0;
 }
 .m3-hero {
   /* Cố định sát mép trên vùng cuộn .m3-main (desktop) / shell (mobile) */
