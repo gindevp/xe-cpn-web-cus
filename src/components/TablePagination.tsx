@@ -25,21 +25,18 @@ export function TablePagination({ pager, className }: { pager: Pager; className?
         <span className="muted num lab">
           {start + 1}-{end} trên {total}
         </span>
-        <label className="pill sm" style={{ cursor: "pointer" }}>
+        <label className="pill sm pager-size">
+          <span className="pager-size-lab" aria-hidden="true">
+            {pageSize} dòng/trang
+          </span>
+          <span className="ms" aria-hidden="true">
+            expand_more
+          </span>
+          {/* select phủ cả pill (kể cả mũi tên); color-scheme theo theme để popup dark đọc được */}
           <select
             aria-label="Số dòng mỗi trang"
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
-            style={{
-              appearance: "none",
-              border: 0,
-              background: "transparent",
-              font: "inherit",
-              color: "inherit",
-              cursor: "pointer",
-              padding: 0,
-              outline: "none",
-            }}
           >
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>
@@ -47,9 +44,6 @@ export function TablePagination({ pager, className }: { pager: Pager; className?
               </option>
             ))}
           </select>
-          <span className="ms" aria-hidden="true">
-            expand_more
-          </span>
         </label>
       </div>
       {pageCount > 1 ? (
