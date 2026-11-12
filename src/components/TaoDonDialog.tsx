@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
+import { M3ConfirmActions, M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { M3Confirm } from "@/components/m3/M3Confirm";
 import { AddressPicker } from "@/components/AddressPicker";
 import { TransitHubNotice } from "@/components/TransitHubNotice";
@@ -105,6 +105,24 @@ const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
 
 /** Hình thức thanh toán */
 const PAY_METHODS = ["Người gửi thanh toán", "Người nhận thanh toán", "Công nợ", "Thu cước 1 phần"];
+
+const BANK_OPTIONS = [
+  "Vietcombank",
+  "VietinBank",
+  "BIDV",
+  "Agribank",
+  "Techcombank",
+  "MB Bank",
+  "ACB",
+  "VPBank",
+  "TPBank",
+  "Sacombank",
+  "SHB",
+  "HDBank",
+  "VIB",
+  "MSB",
+  "OCB",
+].map((b) => ({ value: b, label: b }));
 
 /** Giảm giá hệ thống — chỉ khi BE/policy cung cấp (chưa có thì 0) */
 function systemDiscount(_subtotal: number) {
@@ -621,6 +639,7 @@ export function TaoDonDialog({
     setPrepaid(0);
     setPayMethod(PAY_METHODS[0]);
     setRequestSenderTransfer(false);
+    setOptDlg(null);
     senderAutofillPhone.current = "";
     receiverAutofillPhone.current = "";
     recentReceiversFetchedPhone.current = "";
@@ -1192,6 +1211,130 @@ export function TaoDonDialog({
     setDeliverFee(0);
   };
 
+  /** Form có nhập liệu — khớp design-ref TaoDonHang (confirm trước khi thoát / xoá). */
+  const isDirty = useMemo(() => {
+    if (mode === "edit") {
+      const initItems = initial?.items?.length ? initial.items : [];
+      const itemsDirty =
+        items.length !== Math.max(1, initItems.length) ||
+        items.some((it, i) => {
+          const base = initItems[i];
+          if (!base) return true;
+          return (
+            (it.group ?? "") !== (base.group ?? "") ||
+            (it.kind ?? "") !== (base.kind ?? "") ||
+            (it.name ?? "") !== (base.name ?? "") ||
+            Number(it.sl) !== Number(base.sl ?? 1) ||
+            Number(it.weight) !== Number(base.weight ?? 0) ||
+            Number(it.dai) !== Number(base.dai ?? 0) ||
+            Number(it.rong) !== Number(base.rong ?? 0) ||
+            Number(it.cao) !== Number(base.cao ?? 0) ||
+            Number(it.value) !== Number(base.value ?? 0) ||
+            (it.note ?? "") !== (base.note ?? "")
+          );
+        });
+      return (
+        senderPhone !== (initial?.senderPhone ?? "") ||
+        toUpperName(senderName) !== toUpperName(initial?.senderName ?? "") ||
+        receiverPhone !== (initial?.receiverPhone ?? "") ||
+        toUpperName(receiverName) !== toUpperName(initial?.receiverName ?? "") ||
+        idNumber !== (initial?.idNumber ?? "") ||
+        homePickup !== Boolean(initial?.homePickup) ||
+        homeDeliver !== Boolean(initial?.homeDeliver) ||
+        pickupAddr !== (initial?.pickupAddr ?? "") ||
+        deliverAddr !== (initial?.deliverAddr ?? "") ||
+        deliverDate !== (initial?.deliverDate ?? "") ||
+        orderNote !== (initial?.orderNote ?? "") ||
+        Number(codAmount) !== Number(initial?.codAmount ?? 0) ||
+        ckSender !== Boolean(initial?.ckSender) ||
+        bankName !== (initial?.bankName ?? "") ||
+        bankAccountNo !== (initial?.bankAccountNo ?? "") ||
+        bankAccountName !== (initial?.bankAccountName ?? "") ||
+        invoiceRequested !== Boolean(initial?.invoiceRequested) ||
+        invoiceTaxCode !== (initial?.invoiceTaxCode ?? "") ||
+        invoiceCompanyName !== (initial?.invoiceCompanyName ?? "") ||
+        invoiceEmail !== (initial?.invoiceEmail ?? "") ||
+        invoiceCompanyAddress !== (initial?.invoiceCompanyAddress ?? "") ||
+        toUpperName(invoiceBuyerName) !== toUpperName(initial?.invoiceBuyerName ?? "") ||
+        invoiceBuyerIdNumber !== (initial?.invoiceBuyerIdNumber ?? "") ||
+        invoiceBuyerPhone !== (initial?.invoiceBuyerPhone ?? "") ||
+        Number(surchargeExtra) !== Number(initial?.surchargeExtra ?? 0) ||
+        Number(prepaid) !== Number(initial?.prepaid ?? 0) ||
+        payMethod !== (initial?.payMethod ?? PAY_METHODS[0]) ||
+        requestSenderTransfer ||
+        itemsDirty
+      );
+    }
+    return (
+      !!senderPhone.trim() ||
+      !!senderName.trim() ||
+      !!receiverPhone.trim() ||
+      !!receiverName.trim() ||
+      !!toOffice.trim() ||
+      (!lockFromOffice && !!fromOffice.trim()) ||
+      homePickup ||
+      homeDeliver ||
+      !!pickupAddr.trim() ||
+      !!deliverAddr.trim() ||
+      !!deliverDate.trim() ||
+      !!idNumber.trim() ||
+      !!orderNote.trim() ||
+      Number(codAmount) > 0 ||
+      ckSender ||
+      invoiceRequested ||
+      requestSenderTransfer ||
+      payMethod !== PAY_METHODS[0] ||
+      Number(surchargeExtra) > 0 ||
+      Number(prepaid) > 0 ||
+      items.length > 1 ||
+      items.some(
+        (it) =>
+          !!(it.group || it.kind || it.name || it.note) ||
+          Number(it.sl) !== 1 ||
+          Number(it.weight) !== 1 ||
+          Number(it.dai) !== 10 ||
+          Number(it.rong) !== 10 ||
+          Number(it.cao) !== 10 ||
+          Number(it.value) > 0,
+      )
+    );
+  }, [
+    mode,
+    initial,
+    senderPhone,
+    senderName,
+    receiverPhone,
+    receiverName,
+    fromOffice,
+    toOffice,
+    lockFromOffice,
+    homePickup,
+    homeDeliver,
+    pickupAddr,
+    deliverAddr,
+    deliverDate,
+    idNumber,
+    orderNote,
+    codAmount,
+    ckSender,
+    bankName,
+    bankAccountNo,
+    bankAccountName,
+    invoiceRequested,
+    invoiceTaxCode,
+    invoiceCompanyName,
+    invoiceEmail,
+    invoiceCompanyAddress,
+    invoiceBuyerName,
+    invoiceBuyerIdNumber,
+    invoiceBuyerPhone,
+    surchargeExtra,
+    prepaid,
+    payMethod,
+    requestSenderTransfer,
+    items,
+  ]);
+
   const addOrder = useStore((s) => s.addOrder);
   const updateOrder = useStore((s) => s.updateOrder);
   const [saving, setSaving] = useState(false);
@@ -1202,6 +1345,146 @@ export function TaoDonDialog({
     action: "save" | "print";
     message: string;
   } | null>(null);
+  /** null | exit (đóng sheet) | reset (nút Xoá) — design-ref TaoDonHang. */
+  const [formAsk, setFormAsk] = useState<"exit" | "reset" | null>(null);
+  /** Popup COD TK / xuất HĐ — design-ref dlgBank / dlgInv. */
+  const [optDlg, setOptDlg] = useState<"bank" | "inv" | null>(null);
+  const [draftBankName, setDraftBankName] = useState("");
+  const [draftBankAccountNo, setDraftBankAccountNo] = useState("");
+  const [draftBankAccountName, setDraftBankAccountName] = useState("");
+  const [draftInvoiceTaxCode, setDraftInvoiceTaxCode] = useState("");
+  const [draftInvoiceCompanyName, setDraftInvoiceCompanyName] = useState("");
+  const [draftInvoiceEmail, setDraftInvoiceEmail] = useState("");
+  const [draftInvoiceCompanyAddress, setDraftInvoiceCompanyAddress] = useState("");
+  const [draftInvoiceBuyerName, setDraftInvoiceBuyerName] = useState("");
+  const [draftInvoiceBuyerIdNumber, setDraftInvoiceBuyerIdNumber] = useState("");
+  const [draftInvoiceBuyerPhone, setDraftInvoiceBuyerPhone] = useState("");
+  const draftInvoiceBuyerTouched = useRef(false);
+
+  const bankHas = ckSender && !!(bankName.trim() && bankAccountNo.trim() && bankAccountName.trim());
+  const invHas =
+    invoiceRequested &&
+    !!(
+      invoiceTaxCode.trim() &&
+      invoiceCompanyName.trim() &&
+      invoiceCompanyAddress.trim() &&
+      invoiceEmail.trim() &&
+      invoiceBuyerName.trim()
+    );
+  const bankDraftBad = !(draftBankName.trim() && draftBankAccountNo.trim() && draftBankAccountName.trim());
+  const invDraftBad = ![
+    draftInvoiceTaxCode,
+    draftInvoiceCompanyName,
+    draftInvoiceCompanyAddress,
+    draftInvoiceEmail,
+    draftInvoiceBuyerName,
+  ].every((v) => v.trim());
+
+  const openBankDlg = () => {
+    setDraftBankName(bankName);
+    setDraftBankAccountNo(bankAccountNo);
+    setDraftBankAccountName(bankAccountName);
+    setOptDlg("bank");
+  };
+
+  const openInvDlg = () => {
+    draftInvoiceBuyerTouched.current = invoiceBuyerTouched.current;
+    setDraftInvoiceTaxCode(invoiceTaxCode);
+    setDraftInvoiceCompanyName(invoiceCompanyName);
+    setDraftInvoiceEmail(invoiceEmail);
+    setDraftInvoiceCompanyAddress(invoiceCompanyAddress);
+    setDraftInvoiceBuyerName(invoiceBuyerName || invoicePayerName);
+    setDraftInvoiceBuyerIdNumber(invoiceBuyerIdNumber);
+    setDraftInvoiceBuyerPhone(invoiceBuyerPhone);
+    setOptDlg("inv");
+  };
+
+  const toggleBankOpt = (on: boolean) => {
+    if (!on) {
+      setCkSender(false);
+      setBankName("");
+      setBankAccountNo("");
+      setBankAccountName("");
+      if (optDlg === "bank") setOptDlg(null);
+      return;
+    }
+    openBankDlg();
+  };
+
+  const toggleInvOpt = (on: boolean) => {
+    if (!on) {
+      setInvoiceRequested(false);
+      setInvoiceTaxCode("");
+      setInvoiceCompanyName("");
+      setInvoiceEmail("");
+      setInvoiceCompanyAddress("");
+      setInvoiceBuyerName("");
+      invoiceBuyerTouched.current = false;
+      setInvoiceBuyerIdNumber("");
+      setInvoiceBuyerPhone("");
+      invoiceAutoTax.current = "";
+      if (optDlg === "inv") setOptDlg(null);
+      return;
+    }
+    openInvDlg();
+  };
+
+  const saveBankDlg = () => {
+    if (bankDraftBad) return;
+    setBankName(draftBankName.trim());
+    setBankAccountNo(draftBankAccountNo.trim());
+    setBankAccountName(draftBankAccountName.trim());
+    setCkSender(true);
+    setOptDlg(null);
+  };
+
+  const saveInvDlg = () => {
+    if (invDraftBad) return;
+    invoiceBuyerTouched.current = draftInvoiceBuyerTouched.current;
+    setInvoiceTaxCode(normalizeTaxCode(draftInvoiceTaxCode));
+    setInvoiceCompanyName(draftInvoiceCompanyName.trim());
+    setInvoiceEmail(draftInvoiceEmail.trim());
+    setInvoiceCompanyAddress(draftInvoiceCompanyAddress.trim());
+    setInvoiceBuyerName(toUpperName(draftInvoiceBuyerName));
+    setInvoiceBuyerIdNumber(onlyDigits(draftInvoiceBuyerIdNumber));
+    setInvoiceBuyerPhone(onlyDigits(draftInvoiceBuyerPhone));
+    setInvoiceRequested(true);
+    setOptDlg(null);
+  };
+
+  const applyBuyerProfileDraft = async (p: InvoiceBuyerProfile) => {
+    invoiceAutoTax.current = normalizeTaxCode(p.taxCode ?? "");
+    setDraftInvoiceTaxCode(p.taxCode ?? "");
+    if (p.email) setDraftInvoiceEmail(p.email);
+    const company = await resolveBuyerCompany(p);
+    setDraftInvoiceCompanyName(company.companyName);
+    setDraftInvoiceCompanyAddress(company.address);
+  };
+
+  const requestDismiss = () => {
+    if (isDirty) {
+      setFormAsk("exit");
+      return;
+    }
+    if (mode === "create") resetForm();
+    onOpenChange(false);
+  };
+
+  const handleSheetOpenChange = (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+    requestDismiss();
+  };
+
+  const requestClear = () => {
+    if (isDirty) {
+      setFormAsk("reset");
+      return;
+    }
+    clear();
+  };
 
   const submit = async (action: "save" | "print") => {
     if (saving) return;
@@ -1547,7 +1830,7 @@ export function TaoDonDialog({
 
   return (
     <>
-      <M3Sheet open={open} onOpenChange={onOpenChange} variant="order-sheet" alignTop>
+      <M3Sheet open={open} onOpenChange={handleSheetOpenChange} variant="order-sheet" alignTop>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
           <M3SheetTitle
             className="page-title"
@@ -1976,54 +2259,25 @@ export function TaoDonDialog({
                         <input
                           className="check"
                           type="checkbox"
-                          checked={ckSender}
-                          onChange={(e) => setCkSender(e.target.checked)}
+                          checked={ckSender || optDlg === "bank"}
+                          onChange={(e) => toggleBankOpt(e.target.checked)}
                         />
                         <span className="ms opt-ic" aria-hidden="true">
                           account_balance
                         </span>
                         Nhận tiền COD qua tài khoản
                       </label>
-                      {ckSender ? (
-                        <div className="stack" style={{ marginTop: 8 }}>
-                          <F label="Ngân hàng *" boxed={false}>
-                            <SearchableSelect
-                              value={bankName}
-                              onValueChange={setBankName}
-                              placeholder="Chọn ngân hàng"
-                              options={[
-                                "Vietcombank",
-                                "VietinBank",
-                                "BIDV",
-                                "Agribank",
-                                "Techcombank",
-                                "MB Bank",
-                                "ACB",
-                                "VPBank",
-                                "TPBank",
-                                "Sacombank",
-                                "SHB",
-                                "HDBank",
-                                "VIB",
-                                "MSB",
-                                "OCB",
-                              ].map((b) => ({ value: b, label: b }))}
-                            />
-                          </F>
-                          <F label="Số tài khoản">
-                            <Input
-                              placeholder="Nhập số tài khoản"
-                              value={bankAccountNo}
-                              onChange={(e) => setBankAccountNo(e.target.value)}
-                            />
-                          </F>
-                          <F label="Tên tài khoản">
-                            <Input
-                              placeholder="Chủ tài khoản"
-                              value={bankAccountName}
-                              onChange={(e) => setBankAccountName(e.target.value)}
-                            />
-                          </F>
+                      {bankHas ? (
+                        <div className="opt-sum">
+                          <div style={{ minWidth: 0 }}>
+                            <div className="opt-sum-a">
+                              {bankName} · {bankAccountNo}
+                            </div>
+                            <div className="opt-sum-b">{bankAccountName}</div>
+                          </div>
+                          <button type="button" className="text-act" onClick={openBankDlg}>
+                            Sửa
+                          </button>
                         </div>
                       ) : null}
                     </div>
@@ -2033,92 +2287,37 @@ export function TaoDonDialog({
                         <input
                           className="check"
                           type="checkbox"
-                          checked={invoiceRequested}
-                          onChange={(e) => setInvoiceRequested(e.target.checked)}
+                          checked={invoiceRequested || optDlg === "inv"}
+                          onChange={(e) => toggleInvOpt(e.target.checked)}
                         />
                         <span className="ms opt-ic" aria-hidden="true">
                           receipt_long
                         </span>
                         Xuất hoá đơn
                       </label>
-                      {invoiceRequested && (
-                        <div className="grid grid-cols-1 gap-2.5 rounded-md border border-border bg-muted/40 p-3">
-                          <p className="text-[11px] text-muted-foreground">
-                            Lấy MST của người trả cước: {payerIsReceiver ? "người nhận" : "người gửi"}
-                            {invoicePayerPhone ? ` · ${invoicePayerPhone}` : ""}. Đổi hình thức thanh toán thì tra lại.
-                          </p>
-                          <F label="Tên người trên hóa đơn *">
-                            <NameInput
-                              placeholder="Mặc định tên người trả cước"
-                              value={invoiceBuyerName}
-                              onChange={(v) => {
-                                invoiceBuyerTouched.current = true;
-                                setInvoiceBuyerName(v);
-                              }}
-                            />
-                          </F>
-                          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                            <F label="CCCD / CMND">
-                              <Input
-                                inputMode="numeric"
-                                placeholder="Không bắt buộc"
-                                value={invoiceBuyerIdNumber}
-                                maxLength={12}
-                                onChange={(e) => setInvoiceBuyerIdNumber(e.target.value.replace(/\D/g, ""))}
-                              />
-                            </F>
-                            <F label="SĐT trên hóa đơn">
-                              <PhoneInput
-                                placeholder="Không bắt buộc"
-                                value={invoiceBuyerPhone}
-                                onChange={setInvoiceBuyerPhone}
-                              />
-                            </F>
+                      {invHas ? (
+                        <div className="opt-sum">
+                          <div style={{ minWidth: 0 }}>
+                            <div className="opt-sum-a">{invoiceCompanyName}</div>
+                            <div className="opt-sum-b">
+                              MST {normalizeTaxCode(invoiceTaxCode)} · {invoiceEmail}
+                            </div>
                           </div>
-                          <BuyerProfileChips
-                            phone={invoicePayerPhone}
-                            profiles={invoiceProfiles}
-                            selectedTaxCode={invoiceTaxCode}
-                            onPick={(p) => void applyBuyerProfile(p)}
-                          />
-                          <F label="Mã số thuế *">
-                            <TaxCodeInput
-                              value={invoiceTaxCode}
-                              onChange={setInvoiceTaxCode}
-                              onFound={(info) => {
-                                setInvoiceCompanyName(info.companyName);
-                                setInvoiceCompanyAddress(info.address);
-                              }}
-                            />
-                          </F>
-                          <F label="Tên công ty *">
-                            <Input
-                              className="bg-muted"
-                              placeholder="Tự điền theo MST"
-                              value={invoiceCompanyName}
-                              readOnly
-                              tabIndex={-1}
-                            />
-                          </F>
-                          <F label="Email nhận hoá đơn *">
-                            <Input
-                              type="email"
-                              placeholder="example@company.com"
-                              value={invoiceEmail}
-                              onChange={(e) => setInvoiceEmail(e.target.value)}
-                            />
-                          </F>
-                          <F label="Địa chỉ công ty *">
-                            <Input
-                              className="bg-muted"
-                              placeholder="Tự điền theo MST"
-                              value={invoiceCompanyAddress}
-                              readOnly
-                              tabIndex={-1}
-                            />
-                          </F>
+                          <button type="button" className="text-act" onClick={openInvDlg}>
+                            Sửa
+                          </button>
                         </div>
-                      )}
+                      ) : invoiceRequested ? (
+                        <div className="opt-sum">
+                          <div style={{ minWidth: 0 }}>
+                            <div className="opt-sum-a">Thiếu thông tin hoá đơn</div>
+                            <div className="opt-sum-b">Bấm Sửa để bổ sung trước khi tạo đơn</div>
+                          </div>
+                          <button type="button" className="text-act" onClick={openInvDlg}>
+                            Sửa
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
 
                     <F label="Ghi chú đơn hàng" boxed={false}>
@@ -2175,7 +2374,7 @@ export function TaoDonDialog({
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
                       {mode === "edit" ? (
                         <>
-                          <button type="button" className="btn ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+                          <button type="button" className="btn ghost" onClick={requestDismiss} disabled={saving}>
                             Hủy
                           </button>
                           <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
@@ -2184,7 +2383,7 @@ export function TaoDonDialog({
                         </>
                       ) : (
                         <>
-                          <button type="button" className="btn ghost" onClick={clear} disabled={saving}>
+                          <button type="button" className="btn ghost" onClick={requestClear} disabled={saving}>
                             Xoá
                           </button>
                           <button type="button" className="btn tonal" onClick={() => void submit("save")} disabled={saving}>
@@ -2235,6 +2434,168 @@ export function TaoDonDialog({
           if (ask) void persist(ask.payload, ask.action, true);
         }}
       />
+
+      <M3Confirm
+        open={formAsk === "exit"}
+        onOpenChange={(o) => !o && setFormAsk(null)}
+        title={mode === "edit" ? "Bỏ các thay đổi?" : "Thoát mà không tạo đơn?"}
+        body={
+          mode === "edit"
+            ? "Những thông tin vừa sửa sẽ không được lưu."
+            : "Thông tin đã nhập sẽ không được lưu."
+        }
+        cancelLabel="Đóng"
+        confirmLabel={mode === "edit" ? "Bỏ thay đổi" : "Thoát không lưu"}
+        confirmDanger
+        onConfirm={() => {
+          setFormAsk(null);
+          if (mode === "create") resetForm();
+          onOpenChange(false);
+        }}
+      />
+
+      <M3Confirm
+        open={formAsk === "reset"}
+        onOpenChange={(o) => !o && setFormAsk(null)}
+        title="Xoá dữ liệu đã nhập?"
+        body="Toàn bộ thông tin trong form sẽ bị xoá."
+        cancelLabel="Đóng"
+        confirmLabel="Xoá dữ liệu"
+        confirmDanger
+        onConfirm={() => {
+          setFormAsk(null);
+          clear();
+        }}
+      />
+
+      <M3Sheet
+        open={optDlg === "bank"}
+        onOpenChange={(v) => !v && setOptDlg(null)}
+        variant="confirm"
+      >
+        <div className="dlg-head">
+          <M3SheetTitle>Nhận tiền COD qua tài khoản</M3SheetTitle>
+          <M3SheetClose />
+        </div>
+        <F label="Ngân hàng *" boxed={false}>
+          <SearchableSelect
+            value={draftBankName}
+            onValueChange={setDraftBankName}
+            placeholder="Chọn ngân hàng"
+            options={BANK_OPTIONS}
+          />
+        </F>
+        <F label="Số tài khoản *">
+          <Input
+            inputMode="numeric"
+            placeholder="Nhập số tài khoản"
+            value={draftBankAccountNo}
+            onChange={(e) => setDraftBankAccountNo(e.target.value)}
+          />
+        </F>
+        <F label="Tên tài khoản *">
+          <Input
+            placeholder="Chủ tài khoản"
+            value={draftBankAccountName}
+            onChange={(e) => setDraftBankAccountName(e.target.value)}
+          />
+        </F>
+        <M3ConfirmActions>
+          <button type="button" className="btn ghost" onClick={() => setOptDlg(null)}>
+            Đóng
+          </button>
+          <button type="button" className="btn" disabled={bankDraftBad} onClick={saveBankDlg}>
+            Lưu thông tin
+          </button>
+        </M3ConfirmActions>
+      </M3Sheet>
+
+      <M3Sheet open={optDlg === "inv"} onOpenChange={(v) => !v && setOptDlg(null)} variant="form-sheet">
+        <div className="dlg-head">
+          <M3SheetTitle>Thông tin xuất hoá đơn</M3SheetTitle>
+          <M3SheetClose />
+        </div>
+        <p className="lab muted" style={{ margin: 0 }}>
+          Lấy MST của người trả cước: {payerIsReceiver ? "người nhận" : "người gửi"}
+          {invoicePayerPhone ? ` · ${invoicePayerPhone}` : ""}. Đổi hình thức thanh toán thì tra lại.
+        </p>
+        <BuyerProfileChips
+          phone={invoicePayerPhone}
+          profiles={invoiceProfiles}
+          selectedTaxCode={draftInvoiceTaxCode}
+          onPick={(p) => void applyBuyerProfileDraft(p)}
+        />
+        <div className="opt-grid">
+          <F label="Mã số thuế *" labelClassName="opt-wide" boxed={false}>
+            <TaxCodeInput
+              value={draftInvoiceTaxCode}
+              onChange={setDraftInvoiceTaxCode}
+              onFound={(info) => {
+                setDraftInvoiceCompanyName(info.companyName);
+                setDraftInvoiceCompanyAddress(info.address);
+              }}
+            />
+          </F>
+          <F label="Tên công ty *" labelClassName="opt-wide">
+            <Input
+              placeholder="Tự điền theo MST"
+              value={draftInvoiceCompanyName}
+              readOnly
+              tabIndex={-1}
+            />
+          </F>
+          <F label="Địa chỉ công ty *" labelClassName="opt-wide">
+            <Input
+              placeholder="Tự điền theo MST"
+              value={draftInvoiceCompanyAddress}
+              readOnly
+              tabIndex={-1}
+            />
+          </F>
+          <F label="Email nhận hoá đơn *">
+            <Input
+              type="email"
+              placeholder="example@company.com"
+              value={draftInvoiceEmail}
+              onChange={(e) => setDraftInvoiceEmail(e.target.value)}
+            />
+          </F>
+          <F label="Tên người trên hoá đơn *">
+            <NameInput
+              placeholder="Mặc định tên người trả cước"
+              value={draftInvoiceBuyerName}
+              onChange={(v) => {
+                draftInvoiceBuyerTouched.current = true;
+                setDraftInvoiceBuyerName(v);
+              }}
+            />
+          </F>
+          <F label="CCCD / CMND">
+            <Input
+              inputMode="numeric"
+              placeholder="Không bắt buộc"
+              value={draftInvoiceBuyerIdNumber}
+              maxLength={12}
+              onChange={(e) => setDraftInvoiceBuyerIdNumber(e.target.value.replace(/\D/g, ""))}
+            />
+          </F>
+          <F label="SĐT trên hoá đơn">
+            <PhoneInput
+              placeholder="Không bắt buộc"
+              value={draftInvoiceBuyerPhone}
+              onChange={setDraftInvoiceBuyerPhone}
+            />
+          </F>
+        </div>
+        <M3ConfirmActions>
+          <button type="button" className="btn ghost" onClick={() => setOptDlg(null)}>
+            Đóng
+          </button>
+          <button type="button" className="btn" disabled={invDraftBad} onClick={saveInvDlg}>
+            Lưu thông tin
+          </button>
+        </M3ConfirmActions>
+      </M3Sheet>
     </>
   );
 }
