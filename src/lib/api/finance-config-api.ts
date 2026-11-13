@@ -1740,3 +1740,28 @@ export async function listCollectionTransactions(params: {
   if (params.to?.trim()) q.set("to", params.to.trim());
   return apiRequest<CollectionTransactionPage>(`/api/finance/collection-transactions?${q}`);
 }
+
+/** Dòng hạch toán nhập MISA: voucher TIEN_GUI (phiếu thu tiền gửi) / TIEN_MAT (phiếu thu tiền mặt). */
+export type MisaLine = {
+  voucher: "TIEN_GUI" | "TIEN_MAT";
+  /** yyyy-MM-dd — ngày tiền về. */
+  date: string;
+  objectName?: string | null;
+  bankAccount?: string | null;
+  bankName?: string | null;
+  reason?: string | null;
+  memo?: string | null;
+  debitAccount: string;
+  creditAccount: string;
+  amount: number;
+  /** ONEPAY_RECEIPT / ONEPAY_ORDER / CK / TIEN_MAT */
+  source: string;
+  refCode?: string | null;
+  transId?: string | null;
+  officeCode?: string | null;
+};
+
+export async function listMisaLines(from: string, to: string) {
+  const q = new URLSearchParams({ from, to });
+  return apiRequest<MisaLine[]>(`/api/finance/collection-transactions/misa?${q}`);
+}

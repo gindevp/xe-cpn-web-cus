@@ -11,8 +11,10 @@ import { formatVND } from "@/lib/mock-data";
 import { isApiEnabled } from "@/lib/api/client";
 import {
   listCollectionTransactions,
+  listMisaLines,
   type CollectionTransactionRow,
 } from "@/lib/api/finance-config-api";
+import { downloadMisaWorkbook } from "@/lib/misa-export";
 import { useServerPagedRows } from "@/lib/use-server-paged-rows";
 import { toast } from "sonner";
 
@@ -282,6 +284,27 @@ function Page() {
     }
   };
 
+  const [misaBusy, setMisaBusy] = useState(false);
+  const exportMisa = async () => {
+    if (!from || !to) {
+      toast.message("Chọn từ ngày / đến ngày");
+      return;
+    }
+    setMisaBusy(true);
+    try {
+      const lines = await listMisaLines(from, to);
+      if (!lines.length) {
+        toast.message("Không có khoản thu nào trong khoảng ngày");
+        return;
+      }
+      await downloadMisaWorkbook(`misa-phieu-thu-${from}_${to}`, lines);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Xuất file MISA thất bại");
+    } finally {
+      setMisaBusy(false);
+    }
+  };
+
   const totalAmount = server.meta?.totalAmount ?? 0;
   const rows = server.pageRows;
   const sumText = formatVND(totalAmount)
@@ -295,12 +318,26 @@ function Page() {
           <h1 className="page-title">Giao dịch thu hộ</h1>
           <div className="lab muted">Tiền về từ OnePay / BIDV, ghi rõ bên thu hộ để đối soát.</div>
         </div>
-        <ExportFormatButton
-          className="btn tonal"
-          variant="ghost"
-          disabled={!apiOn || server.total === 0}
-          onExport={exportExcel}
-        />
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn tonal"
+            disabled={!apiOn || misaBusy}
+            onClick={() => void exportMisa()}
+            title="Phiếu thu tiền gửi + tiền mặt theo mẫu nhập MISA AMIS, lọc theo ngày tiền về"
+          >
+            <span className="ms" aria-hidden="true">
+              upload_file
+            </span>
+            {misaBusy ? "Đang xuất…" : "Xuất MISA"}
+          </button>
+          <ExportFormatButton
+            className="btn tonal"
+            variant="ghost"
+            disabled={!apiOn || server.total === 0}
+            onExport={exportExcel}
+          />
+        </div>
       </div>
 
       <section className="sum-row num">
