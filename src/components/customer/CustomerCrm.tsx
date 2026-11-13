@@ -499,16 +499,22 @@ function Overview({
   onCreate: () => void;
   onAll: () => void;
 }) {
-  const m = summary?.month;
-  const shipping = m?.SHIPPING ?? 0;
-  const pending = m?.PENDING ?? 0;
-  const done = m?.DELIVERED ?? 0;
-  const cancelled = m?.CANCELLED ?? 0;
-  const total = m?.TOTAL ?? 0;
+  const monthLabel = new Date().getMonth() + 1;
+  const cur = summary?.month;
+  const prev = summary?.prevMonth;
+  /** Tháng này = 0 nhưng tháng trước có đơn → hiện tháng trước (tránh hiểu nhầm vì list hoạt động vẫn có đơn cũ). */
+  const statusFromPrev = (cur?.TOTAL ?? 0) === 0 && (prev?.TOTAL ?? 0) > 0;
+  const status = statusFromPrev ? prev : cur;
+  const statusMonth = statusFromPrev ? (monthLabel === 1 ? 12 : monthLabel - 1) : monthLabel;
+  const shipping = status?.SHIPPING ?? 0;
+  const pending = status?.PENDING ?? 0;
+  const done = status?.DELIVERED ?? 0;
+  const cancelled = status?.CANCELLED ?? 0;
+  const total = status?.TOTAL ?? 0;
+  const deliveredThisMonth = cur?.DELIVERED ?? 0;
   const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
   const firstName = (name.trim().split(/\s+/).filter(Boolean).pop() || "bạn").trim();
   const recent = (orders ?? []).slice(0, 5);
-  const monthLabel = new Date().getMonth() + 1;
   const bar = (n: number, color: string) =>
     n > 0 ? <span key={color} style={{ flex: n, background: color }} /> : null;
 
@@ -540,7 +546,7 @@ function Overview({
         <StatCard
           icon="check"
           label="Giao thành công"
-          value={String(done)}
+          value={String(deliveredThisMonth)}
           unit="đơn"
           hint={`Trong tháng ${monthLabel}`}
         />
@@ -549,7 +555,7 @@ function Overview({
           label="Chi tiêu tháng này"
           value={summary ? Math.round(summary.spendMonth).toLocaleString("vi-VN") : "—"}
           unit="đ"
-          hint={`Tổng cước ${total} đơn`}
+          hint={`Tổng cước ${(cur?.TOTAL ?? 0) - (cur?.CANCELLED ?? 0)} đơn (không tính huỷ)`}
         />
         {(() => {
           const codOrders =
@@ -570,8 +576,12 @@ function Overview({
         <div className="panel">
           <div className="panel-head">
             <div>
-              <h2>Trạng thái đơn tháng {monthLabel}</h2>
-              <p>Tính trên đơn tạo trong tháng</p>
+              <h2>Trạng thái đơn tháng {statusMonth}</h2>
+              <p>
+                {statusFromPrev
+                  ? `Tháng ${monthLabel} chưa có đơn tạo mới — đang xem tháng trước`
+                  : "Tính trên đơn tạo trong tháng"}
+              </p>
             </div>
           </div>
           <div className="status-total">
