@@ -453,7 +453,7 @@ function Overview({
   const cancelled = m?.CANCELLED ?? 0;
   const total = m?.TOTAL ?? 0;
   const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
-  const firstName = name.trim().split(/\s+/).pop() || "bạn";
+  const firstName = (name.trim().split(/\s+/).filter(Boolean).pop() || "bạn").trim();
   const recent = (orders ?? []).slice(0, 5);
   const monthLabel = new Date().getMonth() + 1;
   const bar = (n: number, color: string) =>

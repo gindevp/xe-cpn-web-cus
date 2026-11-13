@@ -341,15 +341,21 @@
   gap: 2px;
   z-index: 10;
 }
+/* Override global staff `.brand` (height:30px; overflow:hidden) — không cắt logo. */
 .kh-crm .brand {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 10px;
-  padding: 4px 12px 16px;
+  padding: 4px 12px 16px !important;
   border: 0;
-  background: none;
+  background: none !important;
   text-align: left;
-  width: 100%;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0;
+  line-height: normal;
+  overflow: visible !important;
+  flex: none;
 }
 .kh-crm .brand-mark {
   display: grid;
@@ -360,7 +366,9 @@
   background: var(--primary);
   color: #fff;
   flex: none;
+  overflow: visible;
 }
+.kh-crm .brand-mark svg { display: block; overflow: visible; }
 .kh-crm .brand-text { display: flex; flex-direction: column; min-width: 0; }
 .kh-crm .brand-text strong { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--primary); }
 .kh-crm .brand-text span { font-size: 11px; line-height: 16px; font-weight: 500; color: var(--on-surface-variant); }
@@ -451,7 +459,9 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px 32px 40px;
-  max-width: 1280px;
+  width: 100%;
+  max-width: none; /* design: main flex tràn hết bề ngang */
+  box-sizing: border-box;
 }
 .kh-crm .page-head {
   display: flex;
@@ -929,7 +939,7 @@
 .kh-crm .drawer-loading { color: var(--on-surface-variant); }
 
 /* Settings */
-.kh-crm .form-shell { max-width: 880px; }
+.kh-crm .form-shell { width: 100%; max-width: none; }
 .kh-crm .form-card {
   background: #fff;
   border-radius: var(--corner-xl);
@@ -1147,8 +1157,8 @@
   align-items: stretch !important; /* override legacy align-items:start (co form về ~0px) */
   gap: 16px;
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   grid-template-columns: none;
 }
 .kh-crm .cf-main {
