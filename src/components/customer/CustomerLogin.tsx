@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Loader2, Package, Search, Smartphone } from "lucide-react";
+import { ArrowLeft, Loader2, MessageSquare, Package, Phone, Search, Smartphone } from "lucide-react";
 import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent } from "react";
 import {
   normalizeCustomerPhone,
@@ -9,7 +9,7 @@ import {
   type CustomerSession,
 } from "@/lib/api/customer-portal-api";
 
-type Step = "landing" | "phone" | "otp";
+type Step = "phone" | "otp";
 
 const OTP_LEN = 6;
 
@@ -20,13 +20,19 @@ function formatPhoneInput(raw: string) {
   return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
 }
 
+function formatPhoneDisplay(p: string) {
+  const d = p.replace(/\D/g, "");
+  if (d.length === 10) return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
+  return p;
+}
+
 function errorText(e: unknown) {
   return e instanceof Error && e.message ? e.message : "Không kết nối được máy chủ — thử lại sau";
 }
 
-/** Trang khách chưa đăng nhập: chào → nhập SĐT → OTP (mobile + desktop theo design). */
+/** Trang khách chưa đăng nhập — phone → OTP (Desktop.dc / Main.dc). */
 export function CustomerLogin({ onLoggedIn }: { onLoggedIn: (s: CustomerSession) => void }) {
-  const [step, setStep] = useState<Step>("landing");
+  const [step, setStep] = useState<Step>("phone");
   const [phoneInput, setPhoneInput] = useState("");
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
@@ -63,20 +69,11 @@ export function CustomerLogin({ onLoggedIn }: { onLoggedIn: (s: CustomerSession)
     if (await sendOtp(p)) setStep("otp");
   };
 
-  const phoneForm = (
-    <form onSubmit={submitPhone} noValidate className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <div className="login-icon">
-          <Smartphone size={28} strokeWidth={1.8} />
-        </div>
-        <div>
-          <p className="eyebrow">CHUYỂN PHÁT NHANH XE.VN</p>
-          <h1>Đăng nhập bằng số điện thoại</h1>
-          <p className="sub">Chúng tôi sẽ gửi mã xác minh gồm 6 chữ số qua tin nhắn tới số của bạn.</p>
-        </div>
-      </div>
-      <div className={`field ${phoneError ? "error" : ""}`}>
-        <label htmlFor="kh-phone">Số điện thoại</label>
+  const phoneField = (
+    <div className={`field ${phoneError ? "error" : ""}`}>
+      <label htmlFor="kh-phone">Số điện thoại</label>
+      <div className="field-box">
+        <Phone size={20} strokeWidth={1.8} aria-hidden />
         <input
           id="kh-phone"
           autoFocus
@@ -90,39 +87,18 @@ export function CustomerLogin({ onLoggedIn }: { onLoggedIn: (s: CustomerSession)
             if (phoneError) setPhoneError("");
           }}
         />
-        {phoneError ? <p className="err">{phoneError}</p> : null}
+        {phoneInput ? (
+          <button
+            type="button"
+            className="field-clear"
+            aria-label="Xoá số đã nhập"
+            onClick={() => setPhoneInput("")}
+          >
+            ×
+          </button>
+        ) : null}
       </div>
-      <button type="submit" className="btn-primary" disabled={sending}>
-        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-        Tiếp tục
-      </button>
-    </form>
-  );
-
-  const landingBody = (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4">
-        <div className="login-icon">
-          <Package size={28} strokeWidth={1.8} />
-        </div>
-        <div>
-          <p className="eyebrow">CHUYỂN PHÁT NHANH XE.VN</p>
-          <h1>Xin chào</h1>
-          <p className="sub">Đăng nhập để theo dõi đơn hàng, tạo đơn nhanh và quản lý thông tin gửi hàng của bạn.</p>
-        </div>
-      </div>
-      <button type="button" className="btn-primary" onClick={() => setStep("phone")}>
-        Đăng nhập bằng SĐT
-      </button>
-      <div className="divider">Hoặc</div>
-      <div className="btn-row">
-        <Link to="/tao-don" className="btn-ghost">
-          Tạo đơn nhanh
-        </Link>
-        <Link to="/tra-cuu" className="btn-ghost">
-          Tra cứu đơn
-        </Link>
-      </div>
+      {phoneError ? <p className="err">{phoneError}</p> : <span className="field-hint">Dùng số bạn thường gửi hàng để xem lại các đơn cũ.</span>}
     </div>
   );
 
@@ -148,7 +124,6 @@ export function CustomerLogin({ onLoggedIn }: { onLoggedIn: (s: CustomerSession)
 
   return (
     <div className="kh-login">
-      {/* Desktop split */}
       <div className="login-desktop">
         <div className="login-desktop-grid">
           <section className="login-hero">
@@ -174,38 +149,76 @@ export function CustomerLogin({ onLoggedIn }: { onLoggedIn: (s: CustomerSession)
           <section className="login-card">
             {step === "otp" ? (
               otpEl
-            ) : step === "phone" ? (
-              <>
-                <button type="button" className="icon-back" aria-label="Quay lại" onClick={() => setStep("landing")} style={{ alignSelf: "flex-start" }}>
-                  <ArrowLeft size={22} />
-                </button>
-                {phoneForm}
-              </>
             ) : (
-              landingBody
+              <form onSubmit={submitPhone} noValidate className="login-phone-form">
+                <button type="button" className="text-back" onClick={() => window.history.back()}>
+                  <ArrowLeft size={18} strokeWidth={2} /> Quay lại
+                </button>
+                <div className="login-title-block">
+                  <h1>Đăng nhập bằng số điện thoại</h1>
+                  <p className="sub desktop-sub">Chúng tôi sẽ gửi mã xác minh gồm 6 chữ số qua tin nhắn tới số của bạn.</p>
+                </div>
+                {phoneField}
+                <div className="login-actions">
+                  <button type="submit" className="btn-primary" disabled={sending}>
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Nhận mã xác minh
+                  </button>
+                  <div className="divider">Hoặc</div>
+                  <div className="btn-row">
+                    <Link to="/tao-don" className="btn-ghost">
+                      Tạo đơn nhanh
+                    </Link>
+                    <Link to="/tra-cuu" className="btn-ghost">
+                      Tra cứu đơn
+                    </Link>
+                  </div>
+                </div>
+              </form>
             )}
           </section>
         </div>
       </div>
 
-      {/* Mobile stack */}
       <div className="login-mobile">
         <header className="login-mobile-head">
-          {step !== "landing" ? (
-            <button
-              type="button"
-              className="icon-back"
-              aria-label="Quay lại"
-              onClick={() => setStep(step === "otp" ? "phone" : "landing")}
-            >
+          {step === "otp" ? (
+            <button type="button" className="icon-back" aria-label="Quay lại" onClick={() => setStep("phone")}>
               <ArrowLeft size={24} />
             </button>
           ) : (
-            <span style={{ width: 48 }} />
+            <button type="button" className="icon-back" aria-label="Quay lại" onClick={() => window.history.back()}>
+              <ArrowLeft size={24} />
+            </button>
           )}
         </header>
         <main className="login-mobile-main">
-          {step === "otp" ? otpEl : step === "phone" ? phoneForm : landingBody}
+          {step === "otp" ? (
+            otpEl
+          ) : (
+            <form onSubmit={submitPhone} noValidate className="login-phone-form mobile">
+              <div className="flex flex-col gap-4">
+                <div className="login-icon">
+                  <Smartphone size={28} strokeWidth={1.8} />
+                </div>
+                <div className="login-title-block">
+                  <p className="eyebrow">CHUYỂN PHÁT NHANH XE.VN</p>
+                  <h1>Đăng nhập bằng số điện thoại</h1>
+                  <p className="sub">Chúng tôi sẽ gửi mã xác minh gồm 6 chữ số qua tin nhắn tới số của bạn.</p>
+                </div>
+              </div>
+              {phoneField}
+              <div className="login-actions mobile-actions">
+                <button type="submit" className="btn-primary" disabled={sending}>
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Nhận mã xác minh
+                </button>
+                <Link to="/tao-don" className="btn-secondary">
+                  Tạo đơn không cần đăng nhập
+                </Link>
+              </div>
+            </form>
+          )}
         </main>
       </div>
     </div>
@@ -249,54 +262,38 @@ function OtpStep({
   const wait = Math.max(0, Math.ceil((resendAt - now) / 1000));
   const hasError = !!(error || resendError);
 
-  const fill = (start: number, text: string) => {
-    const chars = text
-      .replace(/\D/g, "")
-      .slice(0, OTP_LEN - start)
-      .split("");
-    if (!chars.length) return;
+  const setDigit = (i: number, v: string) => {
+    const d = v.replace(/\D/g, "").slice(-1);
     setDigits((prev) => {
       const next = [...prev];
-      chars.forEach((c, i) => (next[start + i] = c));
+      next[i] = d;
       return next;
     });
-    setError("");
-    refs.current[Math.min(start + chars.length, OTP_LEN - 1)]?.focus();
+    if (d && i < OTP_LEN - 1) refs.current[i + 1]?.focus();
   };
 
-  const onKeyDown = (i: number, e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace") {
-      e.preventDefault();
-      setError("");
-      setDigits((prev) => {
-        const next = [...prev];
-        if (next[i]) {
-          next[i] = "";
-        } else if (i > 0) {
-          next[i - 1] = "";
-          refs.current[i - 1]?.focus();
-        }
-        return next;
-      });
-    } else if (e.key === "ArrowLeft" && i > 0) {
+  const onKey = (i: number, e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !digits[i] && i > 0) {
       refs.current[i - 1]?.focus();
-    } else if (e.key === "ArrowRight" && i < OTP_LEN - 1) {
-      refs.current[i + 1]?.focus();
     }
   };
 
-  const onPaste = (i: number, e: ClipboardEvent<HTMLInputElement>) => {
+  const onPaste = (e: ClipboardEvent) => {
     e.preventDefault();
-    fill(i, e.clipboardData.getData("text"));
+    const raw = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LEN);
+    if (!raw) return;
+    setDigits(Array.from({ length: OTP_LEN }, (_, i) => raw[i] ?? ""));
+    refs.current[Math.min(raw.length, OTP_LEN) - 1]?.focus();
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const verify = async (e?: FormEvent) => {
+    e?.preventDefault();
     if (!complete || verifying) return;
     setVerifying(true);
     setError("");
     try {
-      onVerified(await verifyCustomerOtp(phone, code));
+      const s = await verifyCustomerOtp(phone, code);
+      onVerified(s);
     } catch (err) {
       setError(errorText(err));
       setDigits(Array(OTP_LEN).fill(""));
@@ -306,63 +303,66 @@ function OtpStep({
     }
   };
 
-  const resend = async () => {
-    if (wait > 0 || resending) return;
-    setError("");
-    setDigits(Array(OTP_LEN).fill(""));
-    await onResend();
-    refs.current[0]?.focus();
-  };
+  useEffect(() => {
+    if (complete) void verify();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-submit when 6 digits filled
+  }, [complete]);
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-6">
+    <form onSubmit={verify} className="login-otp-form" noValidate>
+      <button type="button" className="text-back desktop-only" onClick={onBack}>
+        <ArrowLeft size={18} strokeWidth={2} /> Quay lại
+      </button>
       <div className="flex flex-col gap-4">
-        <div className="login-icon">
-          <Smartphone size={28} strokeWidth={1.8} />
+        <div className="login-icon mobile-only">
+          <MessageSquare size={28} strokeWidth={1.8} />
         </div>
-        <div>
-          <p className="eyebrow">XÁC MINH OTP</p>
+        <div className="login-title-block">
           <h1>Nhập mã xác minh</h1>
-          <p className="sub">
-            Mã 6 chữ số đã gửi tới <strong style={{ color: "#1a1b21" }}>{formatPhoneInput(phone)}</strong>
-          </p>
+          <p className="sub">Mã gồm 6 chữ số đã được gửi tới</p>
+          <div className="otp-phone-row">
+            <strong>{formatPhoneDisplay(phone)}</strong>
+            <button type="button" className="link-pill" onClick={onBack}>
+              Đổi số
+            </button>
+          </div>
         </div>
       </div>
-      <div className="otp-row">
-        {digits.map((d, i) => (
-          <input
-            key={i}
-            ref={(el) => {
-              refs.current[i] = el;
-            }}
-            value={d}
-            inputMode="numeric"
-            autoComplete={i === 0 ? "one-time-code" : "off"}
-            maxLength={OTP_LEN}
-            aria-label={`Chữ số ${i + 1}`}
-            onChange={(e) => fill(i, e.target.value.slice(-OTP_LEN))}
-            onKeyDown={(e) => onKeyDown(i, e)}
-            onPaste={(e) => onPaste(i, e)}
-            onFocus={(e) => e.currentTarget.select()}
-            className={`otp-box ${hasError ? "error" : ""}`}
-          />
-        ))}
-      </div>
-      {hasError ? <div className="alert">{error || resendError}</div> : null}
+      <fieldset className="otp-fieldset">
+        <legend>Mã xác minh</legend>
+        <div className="otp-row" onPaste={onPaste}>
+          {digits.map((d, i) => (
+            <input
+              key={i}
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              className={`otp-box ${hasError ? "error" : ""}`}
+              inputMode="numeric"
+              maxLength={1}
+              aria-label={`Số thứ ${i + 1}`}
+              value={d}
+              onChange={(e) => setDigit(i, e.target.value)}
+              onKeyDown={(e) => onKey(i, e)}
+            />
+          ))}
+        </div>
+        {hasError ? <p className="err">{error || resendError}</p> : null}
+        {wait > 0 ? (
+          <p className="resend">Gửi lại mã sau <strong>{wait}s</strong></p>
+        ) : (
+          <div className="resend-row">
+            <span>Chưa nhận được mã?</span>
+            <button type="button" className="btn-resend" disabled={resending} onClick={() => void onResend()}>
+              {resending ? "Đang gửi…" : "Gửi lại mã"}
+            </button>
+          </div>
+        )}
+      </fieldset>
       <button type="submit" className="btn-primary" disabled={!complete || verifying}>
         {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         Xác nhận
       </button>
-      <div className="resend">
-        <button type="button" onClick={() => void resend()} disabled={wait > 0 || resending}>
-          {resending ? "Đang gửi lại…" : wait > 0 ? `Gửi lại mã (${wait}s)` : "Gửi lại mã"}
-        </button>
-        <div style={{ marginTop: 8 }}>
-          <button type="button" onClick={onBack} style={{ fontWeight: 500, color: "#45464f" }}>
-            Đổi số điện thoại
-          </button>
-        </div>
-      </div>
     </form>
   );
 }

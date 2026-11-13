@@ -88,7 +88,27 @@ const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
       </>
     ),
     arrow: <path d="m9 18 6-6-6-6" />,
-    download: <path d="M12 3v12m-5-5 5 5 5-5M5 21h14" />,
+    download: (
+      <>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
+      </>
+    ),
+    search: (
+      <>
+        <circle cx="11" cy="11" r="7" />
+        <path d="m21 21-4.3-4.3" />
+      </>
+    ),
+    refresh: (
+      <>
+        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+        <path d="M8 16H3v5" />
+      </>
+    ),
     x: (
       <>
         <path d="M18 6 6 18" />
@@ -685,17 +705,22 @@ function OrdersPage({
           ))}
         </div>
         <div className="filter-tools">
-          <input
-            className="search-filter"
-            placeholder="Mã đơn hoặc tên người nhận"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button type="button" className="outline" onClick={onReload}>
-            Tải lại
+          <label className="search-field">
+            <span>Tìm đơn</span>
+            <div className="search-box">
+              <Icon name="search" size={20} />
+              <input
+                placeholder="Mã đơn hoặc tên người nhận"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </label>
+          <button type="button" className="outline icon-only" aria-label="Tải lại" onClick={onReload}>
+            <Icon name="refresh" size={18} />
           </button>
           <button type="button" className="outline" title="Xuất file Excel" onClick={() => exportFile("excel")}>
-            <Icon name="download" size={17} />
+            <Icon name="download" size={18} />
             Xuất file
           </button>
         </div>
