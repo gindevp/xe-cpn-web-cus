@@ -327,37 +327,47 @@
   .kh-login .login-desktop { display: flex; }
 }
 
-/* —— CRM shell —— */
+/* —— CRM shell (kh-* names: tránh đụng global staff .brand/.nav-item/.primary) —— */
 .kh-crm { min-height: 100vh; background: var(--surface-container-low); }
-.kh-crm .app { min-height: 100vh; display: flex; }
-.kh-crm .sidebar {
-  width: 240px;
-  background: #fff;
-  padding: 20px 12px;
-  position: fixed;
-  inset: 0 auto 0 0;
+.kh-crm .kh-shell {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+}
+.kh-crm .kh-aside {
+  flex: 0 0 240px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 20px 12px;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
   z-index: 10;
 }
-/* Override global staff `.brand` (height:30px; overflow:hidden) — không cắt logo. */
-.kh-crm .brand {
-  display: flex !important;
+.kh-crm .kh-brand {
+  display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 12px 16px !important;
+  padding: 4px 12px 16px;
   border: 0;
-  background: none !important;
+  background: none;
   text-align: left;
-  width: 100% !important;
-  height: auto !important;
+  width: 100%;
+  height: auto;
   min-height: 0;
   line-height: normal;
-  overflow: visible !important;
+  overflow: visible;
   flex: none;
+  cursor: pointer;
 }
-.kh-crm .brand-mark {
+.kh-crm .kh-brand-mark {
   display: grid;
   place-items: center;
   width: 36px;
@@ -366,22 +376,20 @@
   background: var(--primary);
   color: #fff;
   flex: none;
-  overflow: visible;
 }
-.kh-crm .brand-mark svg { display: block; overflow: visible; }
-.kh-crm .brand-text { display: flex; flex-direction: column; min-width: 0; }
-.kh-crm .brand-text strong { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--primary); }
-.kh-crm .brand-text span { font-size: 11px; line-height: 16px; font-weight: 500; color: var(--on-surface-variant); }
-.kh-crm .nav-title {
+.kh-crm .kh-brand-mark svg { display: block; }
+.kh-crm .kh-brand-text { display: flex; flex-direction: column; min-width: 0; }
+.kh-crm .kh-brand-text strong { font-size: 15px; line-height: 20px; font-weight: 700; color: var(--primary); }
+.kh-crm .kh-brand-text span { font-size: 11px; line-height: 16px; font-weight: 500; color: var(--on-surface-variant); }
+.kh-crm .kh-nav-label {
   padding: 14px 12px 4px;
   font: 600 11px/16px var(--font-plain);
   letter-spacing: 0.5px;
   color: var(--on-surface-variant);
   margin: 0;
 }
-.kh-crm .settings-title { margin-top: 4px; }
-.kh-crm .sidebar-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.kh-crm .nav-item {
+.kh-crm .kh-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; }
+.kh-crm .kh-nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -392,35 +400,24 @@
   background: transparent;
   color: var(--on-surface-variant);
   font-size: 14px;
+  line-height: 20px;
   font-weight: 500;
   text-align: left;
   transition: background-color 0.15s, color 0.15s;
 }
-.kh-crm .nav-item:hover { background: var(--surface-container-low); color: var(--on-surface); }
-.kh-crm .nav-item.active { background: var(--primary); color: #fff; }
-.kh-crm .nav-item b {
-  margin-left: auto;
-  min-width: 24px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.22);
-  color: inherit;
-  font-size: 11px;
-  display: grid;
-  place-items: center;
-}
-.kh-crm .nav-item:not(.active) b { background: var(--primary-container); color: var(--on-primary-container); }
-.kh-crm .profile-mini {
+.kh-crm .kh-nav-item:hover { background: var(--surface-container-low); color: var(--on-surface); }
+.kh-crm .kh-nav-item.active { background: var(--primary); color: #fff; }
+.kh-crm .kh-profile {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px;
   border-radius: var(--corner-large);
   background: var(--surface-container-low);
-  margin-top: 12px;
+  margin-top: auto;
+  flex: none;
 }
-.kh-crm .avatar {
+.kh-crm .kh-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -432,12 +429,12 @@
   font-weight: 600;
   flex: none;
 }
-.kh-crm .profile-mini > div:nth-child(2) { min-width: 0; flex: 1; }
-.kh-crm .profile-mini strong,
-.kh-crm .profile-mini span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kh-crm .profile-mini strong { font-size: 14px; line-height: 20px; font-weight: 600; }
-.kh-crm .profile-mini span { font-size: 12px; line-height: 16px; color: var(--on-surface-variant); font-variant-numeric: tabular-nums; }
-.kh-crm .profile-mini button {
+.kh-crm .kh-profile > div:nth-child(2) { min-width: 0; flex: 1; }
+.kh-crm .kh-profile strong,
+.kh-crm .kh-profile span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kh-crm .kh-profile strong { font-size: 14px; line-height: 20px; font-weight: 600; }
+.kh-crm .kh-profile span { font-size: 12px; line-height: 16px; color: var(--on-surface-variant); font-variant-numeric: tabular-nums; }
+.kh-crm .kh-profile button {
   display: grid;
   place-items: center;
   width: 36px;
@@ -447,21 +444,19 @@
   background: none;
   color: var(--on-surface-variant);
 }
-.kh-crm .profile-mini button:hover { color: var(--error); background: var(--error-container); }
+.kh-crm .kh-profile button:hover { color: var(--error); background: var(--error-container); }
 
-.kh-crm main {
-  margin-left: 240px;
-  width: calc(100% - 240px);
-  min-height: 100vh;
-}
-.kh-crm .content {
+/* design: main flex: 999 1 640px — tràn hết bề ngang còn lại, không max-width */
+.kh-crm .kh-main {
+  flex: 999 1 640px;
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding: 24px 32px 40px;
-  width: 100%;
-  max-width: none; /* design: main flex tràn hết bề ngang */
-  box-sizing: border-box;
+  width: auto;
+  max-width: none;
 }
 .kh-crm .page-head {
   display: flex;
@@ -483,9 +478,13 @@
   line-height: 20px;
   color: var(--on-surface-variant);
 }
-.kh-crm .primary,
-.kh-crm .secondary,
-.kh-crm .text-btn {
+/* Chỉ button — không đụng .stat-card (trước đây .primary height:40px ép KPI) */
+.kh-crm button.kh-btn,
+.kh-crm button.kh-btn-sec,
+.kh-crm button.kh-btn-text,
+.kh-crm button.primary,
+.kh-crm button.secondary,
+.kh-crm button.text-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -498,24 +497,32 @@
   white-space: nowrap;
   transition: filter 0.15s, transform 0.1s;
 }
-.kh-crm .primary:hover,
-.kh-crm .secondary:hover { filter: brightness(0.95); }
-.kh-crm .primary:active,
-.kh-crm .secondary:active { transform: scale(0.98); }
-.kh-crm .primary {
+.kh-crm button.kh-btn:hover,
+.kh-crm button.kh-btn-sec:hover,
+.kh-crm button.primary:hover,
+.kh-crm button.secondary:hover { filter: brightness(0.95); }
+.kh-crm button.kh-btn:active,
+.kh-crm button.kh-btn-sec:active,
+.kh-crm button.primary:active,
+.kh-crm button.secondary:active { transform: scale(0.98); }
+.kh-crm button.kh-btn,
+.kh-crm button.primary {
   height: 40px;
   padding: 0 20px;
   background: var(--primary);
   color: #fff;
 }
-.kh-crm .primary:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
-.kh-crm .secondary {
+.kh-crm button.kh-btn:disabled,
+.kh-crm button.primary:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
+.kh-crm button.kh-btn-sec,
+.kh-crm button.secondary {
   height: 40px;
   padding: 0 16px;
   background: var(--surface-container-low);
   color: var(--on-surface);
 }
-.kh-crm .text-btn {
+.kh-crm button.kh-btn-text,
+.kh-crm button.text-btn {
   height: 36px;
   padding: 0 12px;
   background: none;
@@ -537,25 +544,29 @@
   border-radius: var(--corner-xl);
   background: #fff;
   color: var(--on-surface);
+  height: auto;
+  min-height: 0;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .kh-crm .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06);
 }
-.kh-crm .stat-card.primary {
+.kh-crm .stat-card.accent {
   background: var(--primary);
   color: #fff;
+  height: auto;
 }
 .kh-crm .stat-card .stat-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
+  line-height: 18px;
   font-weight: 500;
   color: var(--on-surface-variant);
 }
-.kh-crm .stat-card.primary .stat-top { color: var(--primary-container); }
+.kh-crm .stat-card.accent .stat-top { color: var(--primary-container); }
 .kh-crm .stat-icon {
   width: 36px;
   height: 36px;
@@ -564,8 +575,9 @@
   place-items: center;
   background: var(--primary-container);
   color: var(--on-primary-container);
+  flex: none;
 }
-.kh-crm .stat-card.primary .stat-icon {
+.kh-crm .stat-card.accent .stat-icon {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
 }
@@ -579,13 +591,13 @@
   font-variant-numeric: tabular-nums;
 }
 .kh-crm .stat-value span { font-size: 12px; font-weight: 400; color: var(--on-surface-variant); }
-.kh-crm .stat-card.primary .stat-value span { color: var(--primary-container); }
+.kh-crm .stat-card.accent .stat-value span { color: var(--primary-container); }
 .kh-crm .stat-hint {
   font-size: 12px;
   line-height: 16px;
   color: var(--on-surface-variant);
 }
-.kh-crm .stat-card.primary .stat-hint { color: var(--primary-container); }
+.kh-crm .stat-card.accent .stat-hint { color: var(--primary-container); }
 
 .kh-crm .dashboard-grid {
   display: flex;
@@ -593,6 +605,8 @@
   gap: 16px;
 }
 .kh-crm .panel {
+  flex: 1 1 360px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1023,16 +1037,14 @@
 .kh-crm .ds-icon-23 { width: 23px; height: 23px; }
 
 @media (max-width: 900px) {
-  .kh-crm .sidebar { width: 72px; padding: 16px 8px; }
-  .kh-crm .brand-text,
-  .kh-crm .nav-title,
-  .kh-crm .nav-item span,
-  .kh-crm .nav-item b,
-  .kh-crm .profile-mini > div:nth-child(2) { display: none; }
-  .kh-crm .nav-item { justify-content: center; padding: 0; }
-  .kh-crm .brand { justify-content: center; padding: 4px; }
-  .kh-crm main { margin-left: 72px; width: calc(100% - 72px); }
-  .kh-crm .content { padding: 16px; }
+  .kh-crm .kh-aside { flex: 0 0 72px; width: 72px; padding: 16px 8px; }
+  .kh-crm .kh-brand-text,
+  .kh-crm .kh-nav-label,
+  .kh-crm .kh-nav-item span,
+  .kh-crm .kh-profile > div:nth-child(2) { display: none; }
+  .kh-crm .kh-nav-item { justify-content: center; padding: 0; }
+  .kh-crm .kh-brand { justify-content: center; padding: 4px; }
+  .kh-crm .kh-main { padding: 16px; flex-basis: calc(100% - 72px); }
 }
 
 /* Create order (crm) — kept from prior + token-aligned radii */
@@ -1090,7 +1102,11 @@
 .kh-crm .cf-summary.flat { margin: 16px 0 0; }
 .kh-crm .cf-foot { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-top: 20px; border-top: 1px solid var(--cf-line); }
 .kh-crm .cf-foot > span { margin-right: auto; color: var(--cf-muted); font-size: 14px; }
-.kh-crm .cf-foot .primary, .kh-crm .cf-foot .secondary { height: 46px; padding: 0 28px; border-radius: 12px; font-size: 15px; }
+.kh-crm .cf-foot .kh-btn,
+.kh-crm .cf-foot .kh-btn-sec,
+.kh-crm .cf-foot .primary,
+.kh-crm .cf-foot .secondary { height: 46px; padding: 0 28px; border-radius: 12px; font-size: 15px; }
+.kh-crm .cf-foot .kh-btn:disabled,
 .kh-crm .cf-foot .primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 .kh-crm .cf-code { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; background: #f3f4f6; color: #10192e; }
 .kh-crm .cf-done { display: grid; gap: 16px; } .kh-crm .cf-done.with-qr { grid-template-columns: 1.3fr 1fr; }
@@ -1183,25 +1199,23 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-radius: 9999px;
   background: #fff;
-  border: 1px solid #e8e7ef;
+  border: 0;
 }
 .kh-crm .cf-stepper li.current {
   background: #dae2ff;
-  border-color: transparent;
 }
 .kh-crm .cf-stepper li.done { opacity: 0.85; }
 .kh-crm .cf-step-num {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   flex: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   background: #e8e7ef;
   color: #45464f;
@@ -1250,6 +1264,8 @@
   border-radius: 28px;
   border-color: #e8e7ef;
 }
+.kh-crm .cf-foot .kh-btn,
+.kh-crm .cf-foot .kh-btn-sec,
 .kh-crm .cf-foot .primary,
 .kh-crm .cf-foot .secondary {
   height: 44px;

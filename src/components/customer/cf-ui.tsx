@@ -177,8 +177,8 @@ export function CfBlockTitle({
 
 const STEPS = [
   ["1", "Chọn văn phòng", "Điểm gửi và điểm nhận"],
-  ["2", "Thông tin đơn", "Người gửi/nhận, hàng, thanh toán"],
-  ["3", "Hoàn tất", "Xác nhận mã đơn"],
+  ["2", "Thông tin đơn", "Người nhận, hàng hoá, thanh toán"],
+  ["3", "Hoàn tất", "Xác nhận đơn hàng"],
 ] as const;
 
 /** Stepper ngang theo design CreateStep (pill + số). `tip` giữ API cũ. */

@@ -1043,7 +1043,7 @@ export function PublicOrderForm({
                         ? `Tuyến ${route} · ${itinerary}`
                         : "Chưa khớp được tuyến/lộ trình — kiểm tra điểm lộ trình VP"}
                   </span>
-                  <button type="button" className="primary" disabled={!fromOffice || !toOffice} onClick={goNext}>
+                  <button type="button" className="kh-btn" disabled={!fromOffice || !toOffice} onClick={goNext}>
                     Tiếp tục <CfGlyph name="arrow" size={16} />
                   </button>
                 </footer>
@@ -1325,10 +1325,10 @@ export function PublicOrderForm({
                 </aside>
                 </div>
                 <footer className="cf-foot">
-                  <button type="button" className="secondary" onClick={() => setStep(1)}>
+                  <button type="button" className="kh-btn-sec" onClick={() => setStep(1)}>
                     Quay lại
                   </button>
-                  <button type="submit" className="primary" disabled={saving}>
+                  <button type="submit" className="kh-btn" disabled={saving}>
                     {saving ? "Đang tạo..." : "Tạo đơn hàng"}
                   </button>
                 </footer>
@@ -1971,16 +1971,16 @@ function CrmOrderDone({
         </div>
       </div>
       <footer className="cf-foot mt-6" style={{ justifyContent: "center", flexWrap: "wrap" }}>
-        <button type="button" className="secondary" onClick={onHome}>
+        <button type="button" className="kh-btn-sec" onClick={onHome}>
           Xem tổng quan
         </button>
-        <button type="button" className="secondary" onClick={onPrintLabels}>
+        <button type="button" className="kh-btn-sec" onClick={onPrintLabels}>
           <CfGlyph name="printer" size={16} /> In tem
         </button>
-        <button type="button" className="secondary" disabled={downloading} onClick={() => void saveBill()}>
+        <button type="button" className="kh-btn-sec" disabled={downloading} onClick={() => void saveBill()}>
           <CfGlyph name="download" size={16} /> {downloading ? "Đang tạo…" : "Tải biên nhận"}
         </button>
-        <button type="button" className="primary" onClick={onCreateAnother}>
+        <button type="button" className="kh-btn" onClick={onCreateAnother}>
           Tạo đơn khác
         </button>
       </footer>

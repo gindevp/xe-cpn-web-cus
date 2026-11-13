@@ -298,36 +298,36 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
 
   return (
     <div className="kh-crm">
-      <div className="app">
-        <aside className="sidebar">
-          <button type="button" className="brand" onClick={() => setPage("overview")}>
-            <span className="brand-mark">
+      <div className="kh-shell">
+        <aside className="kh-aside">
+          <button type="button" className="kh-brand" onClick={() => setPage("overview")}>
+            <span className="kh-brand-mark">
               <Icon name="truck" size={20} />
             </span>
-            <span className="brand-text">
+            <span className="kh-brand-text">
               <strong>X.E Việt Nam</strong>
               <span>Chuyển phát nhanh</span>
             </span>
           </button>
-          <nav className="sidebar-nav" aria-label="Điều hướng chính">
-            <p className="nav-title">VẬN CHUYỂN</p>
+          <nav className="kh-nav" aria-label="Điều hướng chính">
+            <p className="kh-nav-label">VẬN CHUYỂN</p>
             {NAV.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className={`nav-item ${page === item.id ? "active" : ""}`}
+                className={`kh-nav-item ${page === item.id ? "active" : ""}`}
                 onClick={() => go(item.id)}
               >
                 <Icon name={item.icon} />
                 <span>{item.label}</span>
               </button>
             ))}
-            <p className="nav-title settings-title">CÀI ĐẶT</p>
+            <p className="kh-nav-label">CÀI ĐẶT</p>
             {SETTINGS.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className={`nav-item ${page === item.id ? "active" : ""}`}
+                className={`kh-nav-item ${page === item.id ? "active" : ""}`}
                 onClick={() => setPage(item.id)}
               >
                 <Icon name={item.icon} />
@@ -335,8 +335,8 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
               </button>
             ))}
           </nav>
-          <div className="profile-mini">
-            <div className="avatar">{initials(name, session.phone)}</div>
+          <div className="kh-profile">
+            <div className="kh-avatar">{initials(name, session.phone)}</div>
             <div>
               <strong>{displayName}</strong>
               <span>{formatPhoneDisplay(session.phone)}</span>
@@ -346,55 +346,53 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
             </button>
           </div>
         </aside>
-        <main>
-          <div className="content">
-            {page === "overview" && (
-              <Overview name={name} summary={summary} orders={orders} onCreate={() => go("create")} onAll={() => setPage("orders")} />
-            )}
-            {page === "create" && (
-              <>
-                <div className="page-head">
-                  <div>
-                    <h1>Tạo đơn mới</h1>
-                    <p>Gửi hàng giữa các văn phòng X.E trên toàn quốc</p>
-                  </div>
+        <main className="kh-main">
+          {page === "overview" && (
+            <Overview name={name} summary={summary} orders={orders} onCreate={() => go("create")} onAll={() => setPage("orders")} />
+          )}
+          {page === "create" && (
+            <>
+              <div className="page-head">
+                <div>
+                  <h1>Tạo đơn mới</h1>
+                  <p>Gửi hàng giữa các văn phòng X.E Việt Nam</p>
                 </div>
-                <PublicOrderForm
-                  variant="crm"
-                  onHome={() => {
-                    setPage("overview");
-                    reload();
-                  }}
-                />
-              </>
-            )}
-            {page === "orders" && (
-              <OrdersPage orders={orders} search={search} setSearch={setSearch} onCreate={() => go("create")} onReload={reload} />
-            )}
-            {(page === "bank" || page === "sender" || page === "defaults") && (
-              <>
-                <div className="page-head">
-                  <div>
-                    <h1>{TITLES[page]}</h1>
-                    <p>{settingsSub[page]}</p>
-                  </div>
+              </div>
+              <PublicOrderForm
+                variant="crm"
+                onHome={() => {
+                  setPage("overview");
+                  reload();
+                }}
+              />
+            </>
+          )}
+          {page === "orders" && (
+            <OrdersPage orders={orders} search={search} setSearch={setSearch} onCreate={() => go("create")} onReload={reload} />
+          )}
+          {(page === "bank" || page === "sender" || page === "defaults") && (
+            <>
+              <div className="page-head">
+                <div>
+                  <h1>{TITLES[page]}</h1>
+                  <p>{settingsSub[page]}</p>
                 </div>
-                <SettingsPage
-                  key={page}
-                  page={page}
-                  phone={session.phone}
-                  name={name}
-                  onSaved={(s) => {
-                    if (page !== "sender") return;
-                    const n = s.senderName?.trim() ?? "";
-                    setName(n);
-                    const cur = getCustomerSession();
-                    if (cur) setCustomerSession({ ...cur, name: n || cur.name });
-                  }}
-                />
-              </>
-            )}
-          </div>
+              </div>
+              <SettingsPage
+                key={page}
+                page={page}
+                phone={session.phone}
+                name={name}
+                onSaved={(s) => {
+                  if (page !== "sender") return;
+                  const n = s.senderName?.trim() ?? "";
+                  setName(n);
+                  const cur = getCustomerSession();
+                  if (cur) setCustomerSession({ ...cur, name: n || cur.name });
+                }}
+              />
+            </>
+          )}
         </main>
       </div>
     </div>
@@ -417,7 +415,7 @@ function StatCard({
   primary?: boolean;
 }) {
   return (
-    <div className={`stat-card ${primary ? "primary" : ""}`}>
+    <div className={`stat-card${primary ? " accent" : ""}`}>
       <div className="stat-top">
         <span>{label}</span>
         <span className="stat-icon">
@@ -470,7 +468,7 @@ function Overview({
             {todayLabel()} · Tình hình gửi hàng của bạn hôm nay
           </p>
         </div>
-        <button type="button" className="primary" onClick={onCreate}>
+        <button type="button" className="kh-btn" onClick={onCreate}>
           <Icon name="plus" size={18} />
           Tạo đơn mới
         </button>
@@ -587,7 +585,7 @@ function Overview({
             <h2>Đơn gần đây</h2>
             <p>5 đơn tạo gần nhất</p>
           </div>
-          <button type="button" className="text-btn" onClick={onAll}>
+          <button type="button" className="kh-btn-text" onClick={onAll}>
             Xem tất cả
           </button>
         </div>
@@ -666,7 +664,7 @@ function OrdersPage({
           <h1>Quản lý đơn hàng</h1>
           <p>Theo dõi tất cả đơn bạn đã gửi</p>
         </div>
-        <button type="button" className="primary" onClick={onCreate}>
+        <button type="button" className="kh-btn" onClick={onCreate}>
           <Icon name="plus" size={18} />
           Tạo đơn mới
         </button>
@@ -689,7 +687,7 @@ function OrdersPage({
         <div className="filter-tools">
           <input
             className="search-filter"
-            placeholder="Mã đơn, tên, SĐT…"
+            placeholder="Mã đơn hoặc tên người nhận"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -823,7 +821,7 @@ function OrderDrawer({ row, onClose }: { row: CustomerOrderRow; onClose: () => v
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="secondary" onClick={copy}>
+            <button type="button" className="kh-btn-sec" onClick={copy}>
               <Icon name="copy" size={16} />
               Sao chép
             </button>
@@ -1025,10 +1023,10 @@ function SettingsPage({
             <p className="form-note">Các giá trị mặc định chỉ lưu trên trình duyệt của bạn và tự điền khi tạo đơn.</p>
           ) : null}
           <div className="form-actions">
-            <button type="button" className="secondary" onClick={() => setValues(initial)}>
+            <button type="button" className="kh-btn-sec" onClick={() => setValues(initial)}>
               Huỷ
             </button>
-            <button type="submit" className="primary">
+            <button type="submit" className="kh-btn">
               Lưu thay đổi
             </button>
           </div>
