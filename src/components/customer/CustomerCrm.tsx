@@ -543,12 +543,20 @@ function Overview({
             {total}
             <span>đơn</span>
           </div>
-          <div className="status-bar grow" role="img" aria-label="Phân bố trạng thái">
+          <div
+            className="status-bar kh-bar-anim"
+            role="img"
+            aria-label={
+              total
+                ? `${done} thành công, ${shipping} đang giao, ${pending} chờ lấy hàng, ${cancelled} huỷ hoặc hoàn`
+                : "Chưa có đơn trong tháng"
+            }
+          >
             {bar(done, "#376934")}
             {bar(shipping, "#274ea1")}
             {bar(pending, "#b2c5ff")}
             {bar(cancelled, "#ba1a1a")}
-            {!total ? <span style={{ flex: 1, background: "#e2e2e9" }} /> : null}
+            {!total ? <span className="status-bar-empty" /> : null}
           </div>
           <ul className="legend">
             {(
