@@ -176,34 +176,29 @@ export function CfBlockTitle({
 }
 
 const STEPS = [
-  ["pin", "Chọn văn phòng", "Điểm gửi & điểm nhận"],
-  ["pkg", "Thông tin đơn", "Người nhận, hàng hoá, thanh toán"],
-  ["shield", "Hoàn tất", "Xác nhận đơn hàng"],
+  ["1", "Chọn hành trình", "Văn phòng gửi & nhận"],
+  ["2", "Thông tin đơn", "Người gửi/nhận, hàng, thanh toán"],
+  ["3", "Hoàn tất", "Xác nhận mã đơn"],
 ] as const;
 
+/** Stepper ngang theo design CreateStep (pill + số). `tip` giữ API cũ. */
 export function CfRail({ step, tip }: { step: number; tip: string }) {
+  void tip;
   return (
-    <aside className="cf-rail">
-      <div className="cf-rail-head">
-        <span>Tạo đơn mới</span>
-        <strong>Gửi hàng nhanh chóng, an toàn</strong>
-      </div>
-      <ol className="cf-steps">
-        {STEPS.map(([icon, title, desc], i) => (
-          <li key={title} className={i + 1 === step ? "current" : i + 1 < step ? "done" : ""}>
-            <i>{i + 1 < step ? <CfGlyph name="check" size={16} /> : <CfGlyph name={icon} />}</i>
-            <div>
+    <ol className="cf-stepper" aria-label="Tiến trình tạo đơn">
+      {STEPS.map(([num, title, desc], i) => {
+        const n = i + 1;
+        const cls = n === step ? "current" : n < step ? "done" : "";
+        return (
+          <li key={title} className={cls}>
+            <span className="cf-step-num">{n < step ? "✓" : num}</span>
+            <span className="cf-step-text">
               <strong>{title}</strong>
               <small>{desc}</small>
-            </div>
+            </span>
           </li>
-        ))}
-      </ol>
-      <TruckArt />
-      <p className="cf-tip">
-        <CfGlyph name="shield" />
-        {tip}
-      </p>
-    </aside>
+        );
+      })}
+    </ol>
   );
 }

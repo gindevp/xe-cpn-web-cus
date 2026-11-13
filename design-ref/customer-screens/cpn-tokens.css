@@ -1,0 +1,152 @@
+/* CPN – Material 3 · design tokens
+   Nguồn: design system "CPN – Material 3". Tên biến giữ đúng Material Design 3.
+   Theme sáng là mặc định; theme tối bật bằng [data-theme="dark"] trên <html>. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Màu */
+  --primary: #274ea1;
+  --on-primary: #ffffff;
+  --primary-container: #dae2ff;
+  --on-primary-container: #174295;
+  --inverse-primary: #b2c5ff;
+  --secondary: #585e71;
+  --on-secondary: #ffffff;
+  --secondary-container: #dce2f9;
+  --on-secondary-container: #404659;
+  --tertiary: #9a4600;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #fa7603;
+  --on-tertiary-container: #321200;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+  --success: #376934;
+  --on-success: #ffffff;
+  --success-container: #b8f1ad;
+  --on-success-container: #1e511e;
+  --warning: #755b00;
+  --on-warning: #ffffff;
+  --warning-container: #ffdf92;
+  --on-warning-container: #594400;
+  --surface: #faf8ff;
+  --on-surface: #1a1b21;
+  --surface-variant: #e1e2ec;
+  --on-surface-variant: #45464f;
+  --surface-dim: #dad9e0;
+  --surface-bright: #faf8ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f4f3fa;
+  --surface-container: #eeedf4;
+  --surface-container-high: #e8e7ef;
+  --surface-container-highest: #e2e2e9;
+  --inverse-surface: #2f3036;
+  --inverse-on-surface: #f1f0f7;
+  --outline: #757780;
+  --outline-variant: #c5c6d0;
+  --shadow: #000000;
+  --scrim: #000000;
+
+  /* Chữ */
+  --font-plain: Inter, 'Noto Sans', system-ui, sans-serif;
+
+  /* Khoảng cách (lưới 4px) */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+
+  /* Bo góc */
+  --corner-none: 0px;
+  --corner-extra-small: 4px;
+  --corner-small: 8px;
+  --corner-medium: 12px;
+  --corner-large: 16px;
+  --corner-extra-large: 28px;
+  --corner-full: 9999px;
+
+  /* Độ nổi */
+  --elevation-1: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
+  --elevation-2: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
+  --elevation-3: 0 1px 3px rgba(0,0,0,0.3), 0 4px 8px 3px rgba(0,0,0,0.15);
+  --elevation-4: 0 2px 3px rgba(0,0,0,0.3), 0 6px 10px 4px rgba(0,0,0,0.15);
+  --elevation-5: 0 4px 4px rgba(0,0,0,0.3), 0 8px 12px 6px rgba(0,0,0,0.15);
+
+  /* Chuyển động */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-short: 150ms;
+  --duration-medium: 200ms;
+  --duration-long: 320ms;
+}
+
+[data-theme="dark"] {
+  --primary: #b2c5ff;
+  --on-primary: #002c72;
+  --primary-container: #174295;
+  --on-primary-container: #dae2ff;
+  --inverse-primary: #274ea1;
+  --secondary: #c0c6dd;
+  --on-secondary: #2a3042;
+  --secondary-container: #404659;
+  --on-secondary-container: #dce2f9;
+  --tertiary: #ffb68c;
+  --on-tertiary: #532200;
+  --tertiary-container: #fa7603;
+  --on-tertiary-container: #321200;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+  --success: #9cd593;
+  --on-success: #023909;
+  --success-container: #1e511e;
+  --on-success-container: #b8f1ad;
+  --warning: #eec141;
+  --on-warning: #3e2e00;
+  --warning-container: #594400;
+  --on-warning-container: #ffdf92;
+  --surface: #121318;
+  --on-surface: #e2e2e9;
+  --surface-variant: #45464f;
+  --on-surface-variant: #c5c6d0;
+  --surface-dim: #121318;
+  --surface-bright: #38393f;
+  --surface-container-lowest: #0d0e13;
+  --surface-container-low: #1a1b21;
+  --surface-container: #1e1f25;
+  --surface-container-high: #282a2f;
+  --surface-container-highest: #33343a;
+  --inverse-surface: #e2e2e9;
+  --inverse-on-surface: #2f3036;
+  --outline: #8f9099;
+  --outline-variant: #45464f;
+}
+
+/* Kiểu chữ */
+.display-large   { font: 400 57px/64px var(--font-plain); letter-spacing: -0.25px; }
+.display-medium  { font: 400 45px/52px var(--font-plain); }
+.display-small   { font: 400 36px/44px var(--font-plain); }
+.headline-large  { font: 400 32px/40px var(--font-plain); }
+.headline-medium { font: 400 28px/36px var(--font-plain); }
+.headline-small  { font: 400 24px/32px var(--font-plain); }
+.title-large     { font: 400 22px/28px var(--font-plain); }
+.title-medium    { font: 500 16px/24px var(--font-plain); letter-spacing: 0.15px; }
+.title-small     { font: 500 14px/20px var(--font-plain); letter-spacing: 0.1px; }
+.body-large      { font: 400 16px/24px var(--font-plain); letter-spacing: 0.5px; }
+.body-medium     { font: 400 14px/20px var(--font-plain); letter-spacing: 0.25px; }
+.body-small      { font: 400 12px/16px var(--font-plain); letter-spacing: 0.4px; }
+.label-large     { font: 500 14px/20px var(--font-plain); letter-spacing: 0.1px; }
+.label-medium    { font: 500 12px/16px var(--font-plain); letter-spacing: 0.5px; }
+.label-small     { font: 500 11px/16px var(--font-plain); letter-spacing: 0.5px; }
+
+/* Riêng web CPN: tiêu đề màn và tiêu đề thẻ đậm 600 */
+.page-title { font: 600 28px/36px var(--font-plain); }
+.card-title { font: 600 15px/20px var(--font-plain); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -1878,13 +1878,11 @@ function CrmOrderDone({
     <>
       <header className="cf-head center">
         <SuccessArt />
-        <h2>Tạo đơn thành công!</h2>
-        <p>
-          Mã đơn{" "}
-          <button type="button" className="cf-code" onClick={copyCode} title="Copy mã đơn">
-            <b>{order.code}</b> <CfGlyph name="copy" size={15} />
-          </button>
-        </p>
+        <h2>Tạo đơn thành công</h2>
+        <p style={{ color: "#45464f" }}>Đơn đã được ghi nhận. Mang hàng tới văn phòng gửi hoặc chờ lấy tận nơi.</p>
+        <button type="button" className="cf-code" onClick={copyCode} title="Copy mã đơn" style={{ marginTop: 12 }}>
+          {order.code} <CfGlyph name="copy" size={18} />
+        </button>
       </header>
       <div className="mx-auto mb-4 w-full max-w-md">
         <GuestTransferPanel order={order} initial={collect} />
@@ -1972,9 +1970,9 @@ function CrmOrderDone({
           </div>
         </div>
       </div>
-      <footer className="cf-foot mt-6">
+      <footer className="cf-foot mt-6" style={{ justifyContent: "center", flexWrap: "wrap" }}>
         <button type="button" className="secondary" onClick={onHome}>
-          Về trang chủ
+          Xem tổng quan
         </button>
         <button type="button" className="secondary" onClick={onPrintLabels}>
           <CfGlyph name="printer" size={16} /> In tem

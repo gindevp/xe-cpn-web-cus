@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhập mã xác minh</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fadein{animation:fi .22s cubic-bezier(.2,0,0,1)}
+.hv{transition:filter .15s,transform .1s}.hv:hover{filter:brightness(.95)}.hv:active{transform:scale(.98)}
+input{transition:border-color .15s,box-shadow .15s}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+a{color:#274ea1}a:hover{color:#174295}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #faf8ff; color: #1a1b21; font-family: Inter, 'Noto Sans', system-ui, sans-serif">
+  <header style="display: flex; align-items: center; height: 64px; padding: 0 4px">
+    <button type="button" aria-label="Quay lại" style="display: grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 9999px; background: none; color: #1a1b21; cursor: pointer">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+    </button>
+  </header>
+  <main style="flex: 1; display: flex; flex-direction: column; gap: 32px; padding: 8px 16px 24px">
+    <div style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #dae2ff; color: #174295">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M8 10h.01"></path><path d="M12 10h.01"></path><path d="M16 10h.01"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: 0">Nhập mã xác minh</h1>
+        <p style="margin: 0; font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #45464f">Mã gồm 6 chữ số đã được gửi tới</p>
+        <div style="display: flex; align-items: center; gap: 4px">
+          <span style="font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0.5px; font-variant-numeric: tabular-nums">0912 345 678</span>
+          <a href="Main.dc.html" style="display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 9999px; color: #274ea1; font: 500 14px/20px Inter, system-ui, sans-serif; letter-spacing: 0.1px; text-decoration: none">Đổi số</a>
+        </div>
+      </div>
+    </div>
+
+    <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 12px">
+      <legend style="padding: 0; margin-bottom: 6px; font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px">Mã xác minh</legend>
+      <div style="display: flex; gap: 8px">
+        <input aria-label="Số thứ 1" inputmode="numeric" maxlength="1" value="4" style="width: 52px; height: 56px; box-sizing: border-box; padding: 0; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff; text-align: center; font: 600 22px/28px Inter, system-ui, sans-serif; color: #1a1b21; outline: 0">
+        <input aria-label="Số thứ 2" inputmode="numeric" maxlength="1" value="8" style="width: 52px; height: 56px; box-sizing: border-box; padding: 0; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff; text-align: center; font: 600 22px/28px Inter, system-ui, sans-serif; color: #1a1b21; outline: 0">
+        <input aria-label="Số thứ 3" inputmode="numeric" maxlength="1" value="2" style="width: 52px; height: 56px; box-sizing: border-box; padding: 0; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff; text-align: center; font: 600 22px/28px Inter, system-ui, sans-serif; color: #1a1b21; outline: 0">
+        <input aria-label="Số thứ 4" inputmode="numeric" maxlength="1" value="1" style="width: 52px; height: 56px; box-sizing: border-box; padding: 0; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff; text-align: center; font: 600 22px/28px Inter, system-ui, sans-serif; color: #1a1b21; outline: 0">
+        <input aria-label="Số thứ 5" inputmode="numeric" maxlength="1" value="7" style="width: 52px; height: 56px; box-sizing: border-box; padding: 0; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff; text-align: center; font: 600 22px/28px Inter, system-ui, sans-serif; color: #1a1b21; outline: 0">
+        <input aria-label="Số thứ 6" inputmode="numeric" maxlength="1" value="5" style="width: 52px; height: 56px; box-sizing: border-box; padding: 0; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff; text-align: center; font: 600 22px/28px Inter, system-ui, sans-serif; color: #1a1b21; outline: 0">
+      </div>
+      <sc-if value="{{counting}}" hint-placeholder-val="{{ true }}"><div style="display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 20px; letter-spacing: 0.25px; color: #45464f"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>Gửi lại mã sau <strong style="font-weight: 600; color: #1a1b21; font-variant-numeric: tabular-nums">{{cd}}</strong></span></div></sc-if><sc-if value="{{done}}" hint-placeholder-val="{{ false }}"><div class="fadein" style="display: flex; align-items: center; justify-content: space-between; gap: 8px"><span style="font-size: 14px; line-height: 20px; color: #45464f">Chưa nhận được mã?</span><button type="button" class="hv" onClick="{{resend}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 0; border-radius: 9999px; background: #dce2f9; color: #404659; font: 500 14px/20px Inter, system-ui, sans-serif; cursor: pointer">Gửi lại mã</button></div></sc-if><sc-if value="{{sent}}" hint-placeholder-val="{{ false }}"><div role="status" class="fadein" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; background: #b8f1ad; color: #1e511e; font-size: 13px; line-height: 18px">Đã gửi mã mới tới 0912 345 678</div></sc-if>
+    </fieldset>
+
+    <div style="flex: 1"></div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <a href="Overview.dc.html" class="hv" style="display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-decoration: none; height: 48px; border-radius: 9999px; background: #274ea1; color: #ffffff; font: 500 15px/20px Inter, system-ui, sans-serif; letter-spacing: 0.1px">Xác nhận</a>
+      <a href="OtpError.dc.html" style="align-self: center; font-size: 12px; line-height: 16px; letter-spacing: 0.4px; color: #45464f">Xem trạng thái nhập sai mã</a>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  componentDidMount() { this.start(45); }
+  componentWillUnmount() { clearInterval(this._iv); clearTimeout(this._t); }
+  start(n) {
+    clearInterval(this._iv);
+    this.setState({ left: n });
+    this._iv = setInterval(() => {
+      const l = ((this.state && this.state.left) || 0) - 1;
+      this.setState({ left: Math.max(l, 0) });
+      if (l <= 0) clearInterval(this._iv);
+    }, 1000);
+  }
+  renderVals() {
+    const left = this.state && this.state.left != null ? this.state.left : 45;
+    const mm = String(Math.floor(left / 60)).padStart(2, '0'), ss = String(left % 60).padStart(2, '0');
+    return {
+      cd: mm + ':' + ss, counting: left > 0, done: left <= 0, sent: !!(this.state && this.state.sent),
+      resend: () => { this.start(45); this.setState({ sent: true }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ sent: false }), 2500); }
+    };
+  }
+}
+</script>
+</body>
+</html>

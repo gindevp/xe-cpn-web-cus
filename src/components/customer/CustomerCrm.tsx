@@ -146,12 +146,6 @@ const initials = (name?: string | null, phone?: string) => {
   return (phone ?? "").slice(-2);
 };
 
-const deltaText = (cur: number, prev: number) => {
-  if (!prev) return cur ? "Mới" : "0%";
-  const pct = ((cur - prev) / prev) * 100;
-  return `${pct >= 0 ? "+" : ""}${pct.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`;
-};
-
 /** Cài đặt khách lưu trên trình duyệt theo SĐT (chưa đồng bộ BE). */
 type CustomerSettings = Record<string, string>;
 const settingsKey = (phone: string) => `xe-kh-settings:${phone}`;
@@ -234,14 +228,21 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
     <div className="kh-crm">
       <div className="app">
         <aside className="sidebar">
-          <button className="brand" onClick={() => setPage("overview")}>
-            <img className="brand-logo" src="/kh/xe-vietnam-logo.png" alt="X.E Việt Nam" />
+          <button type="button" className="brand" onClick={() => setPage("overview")}>
+            <span className="brand-mark">
+              <Icon name="truck" size={20} />
+            </span>
+            <span className="brand-text">
+              <strong>X.E Việt Nam</strong>
+              <span>Chuyển phát nhanh</span>
+            </span>
           </button>
-          <nav className="sidebar-nav">
+          <nav className="sidebar-nav" aria-label="Điều hướng chính">
             <p className="nav-title">VẬN CHUYỂN</p>
             {NAV.map((item) => (
               <button
                 key={item.id}
+                type="button"
                 className={`nav-item ${page === item.id ? "active" : ""}`}
                 onClick={() => go(item.id)}
               >
@@ -254,6 +255,7 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
             {SETTINGS.map((item) => (
               <button
                 key={item.id}
+                type="button"
                 className={`nav-item ${page === item.id ? "active" : ""}`}
                 onClick={() => setPage(item.id)}
               >
@@ -269,31 +271,11 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
               <span>{session.phone}</span>
             </div>
             <button type="button" title="Đăng xuất" aria-label="Đăng xuất" onClick={onLogout}>
-              <Icon name="logout" size={16} />
+              <Icon name="logout" size={18} />
             </button>
           </div>
         </aside>
         <main>
-          <header className="topbar">
-            <div>
-              <h1>{TITLES[page]}</h1>
-              <p>{todayLabel()}</p>
-            </div>
-            <div className="top-actions">
-              <label className="search">
-                <Icon name="search" size={18} />
-                <input
-                  placeholder="Tìm kiếm đơn hàng..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    if (e.target.value.trim()) setPage("orders");
-                  }}
-                />
-              </label>
-              <div className="header-avatar">{initials(name, session.phone)}</div>
-            </div>
-          </header>
           <div className="content">
             {page === "overview" && (
               <Overview name={name} summary={summary} orders={orders} onCreate={() => go("create")} onAll={() => setPage("orders")} />
@@ -311,19 +293,27 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
               <OrdersPage orders={orders} search={search} setSearch={setSearch} onCreate={() => go("create")} onReload={reload} />
             )}
             {(page === "bank" || page === "sender" || page === "defaults") && (
-              <SettingsPage
-                key={page}
-                page={page}
-                phone={session.phone}
-                name={name}
-                onSaved={(s) => {
-                  if (page !== "sender") return;
-                  const n = s.senderName?.trim() ?? "";
-                  setName(n);
-                  const cur = getCustomerSession();
-                  if (cur) setCustomerSession({ ...cur, name: n || cur.name });
-                }}
-              />
+              <>
+                <div className="page-head">
+                  <div>
+                    <h1>{TITLES[page]}</h1>
+                    <p>{todayLabel()}</p>
+                  </div>
+                </div>
+                <SettingsPage
+                  key={page}
+                  page={page}
+                  phone={session.phone}
+                  name={name}
+                  onSaved={(s) => {
+                    if (page !== "sender") return;
+                    const n = s.senderName?.trim() ?? "";
+                    setName(n);
+                    const cur = getCustomerSession();
+                    if (cur) setCustomerSession({ ...cur, name: n || cur.name });
+                  }}
+                />
+              </>
             )}
           </div>
         </main>
@@ -332,20 +322,34 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
   );
 }
 
-function StatCard({ icon, label, value, delta, tone }: { icon: string; label: string; value: string; delta: string; tone: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  unit,
+  hint,
+  primary,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  unit?: string;
+  hint: string;
+  primary?: boolean;
+}) {
   return (
-    <div className="stat-card">
-      <div className={`stat-icon ${tone}`}>
-        <Icon name={icon} size={23} />
-      </div>
+    <div className={`stat-card ${primary ? "primary" : ""}`}>
       <div className="stat-top">
         <span>{label}</span>
+        <span className="stat-icon">
+          <Icon name={icon} size={18} />
+        </span>
       </div>
-      <div className="stat-value">{value}</div>
-      <div className={`delta ${delta.startsWith("-") ? "down" : delta.startsWith("+") || delta === "Mới" ? "up" : "neutral"}`}>
-        <strong>{delta}</strong>
-        <span> so với tháng trước</span>
+      <div className="stat-value">
+        {value}
+        {unit ? <span>{unit}</span> : null}
       </div>
+      <div className="stat-hint">{hint}</div>
     </div>
   );
 }
@@ -364,100 +368,114 @@ function Overview({
   onAll: () => void;
 }) {
   const m = summary?.month;
-  const p = summary?.prevMonth;
-  const active = (m?.SHIPPING ?? 0) + (m?.PENDING ?? 0);
+  const shipping = m?.SHIPPING ?? 0;
+  const pending = m?.PENDING ?? 0;
   const done = m?.DELIVERED ?? 0;
   const cancelled = m?.CANCELLED ?? 0;
   const total = m?.TOTAL ?? 0;
-  const pct = (n: number) => (total ? (n / total) * 100 : 0);
-  const a = pct(active);
-  const b = a + pct(done);
-  const donutBg = total
-    ? `conic-gradient(#274ea1 0 ${a}%, #40ac67 ${a}% ${b}%, #de3a3a ${b}% 100%)`
-    : undefined;
+  const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
   const firstName = name.trim().split(/\s+/).pop() || "bạn";
-  const recent = (orders ?? []).slice(0, 4);
+  const recent = (orders ?? []).slice(0, 5);
+  const monthLabel = new Date().getMonth() + 1;
+  const bar = (n: number, color: string) =>
+    n > 0 ? <span key={color} style={{ flex: n, background: color }} /> : null;
 
   return (
     <>
-      <section className="welcome">
+      <section className="page-head">
         <div>
-          <h2>
-            {greeting()}, {firstName}!
-          </h2>
-          <p>Đây là tình hình vận chuyển của bạn hôm nay.</p>
+          <h1>
+            {greeting()}, {firstName}
+          </h1>
+          <p>
+            {todayLabel()} · Tình hình gửi hàng của bạn hôm nay
+          </p>
         </div>
-        <button className="primary" onClick={onCreate}>
-          <Icon name="plus" size={19} />
+        <button type="button" className="primary" onClick={onCreate}>
+          <Icon name="plus" size={18} />
           Tạo đơn mới
         </button>
       </section>
       <section className="stats">
         <StatCard
+          primary
           icon="truck"
           label="Đơn đang giao"
           value={String(summary?.shippingNow ?? "—")}
-          delta={deltaText(m?.SHIPPING ?? 0, p?.SHIPPING ?? 0)}
-          tone="blue"
+          unit="đơn"
+          hint={`${pending} đơn đang chờ nhà xe lấy hàng`}
         />
         <StatCard
           icon="check"
           label="Giao thành công"
-          value={String(m?.DELIVERED ?? "—")}
-          delta={deltaText(m?.DELIVERED ?? 0, p?.DELIVERED ?? 0)}
-          tone="green"
+          value={String(done)}
+          unit="đơn"
+          hint={`Trong tháng ${monthLabel}`}
         />
         <StatCard
           icon="wallet"
-          label="Tổng chi tiêu tháng này"
-          value={summary ? money(summary.spendMonth) : "—"}
-          delta={deltaText(summary?.spendMonth ?? 0, summary?.spendPrevMonth ?? 0)}
-          tone="purple"
+          label="Chi tiêu tháng này"
+          value={summary ? Math.round(summary.spendMonth).toLocaleString("vi-VN") : "—"}
+          unit="đ"
+          hint={`Tổng cước ${total} đơn`}
+        />
+        <StatCard
+          icon="wallet"
+          label="COD chờ hoàn"
+          value={
+            orders
+              ? Math.round(
+                  orders
+                    .filter((o) => o.group === "DELIVERED" && o.codAmount && !o.codRefunded)
+                    .reduce((s, o) => s + Number(o.codAmount ?? 0), 0),
+                ).toLocaleString("vi-VN")
+              : "—"
+          }
+          unit="đ"
+          hint="Từ đơn đã giao chưa hoàn COD"
         />
       </section>
       <section className="dashboard-grid">
-        <div className="panel status-panel">
+        <div className="panel">
           <div className="panel-head">
             <div>
-              <h3>Trạng thái đơn hàng</h3>
-              <p>Thống kê đơn tạo trong tháng {new Date().getMonth() + 1}</p>
+              <h2>Trạng thái đơn tháng {monthLabel}</h2>
+              <p>Tính trên đơn tạo trong tháng</p>
             </div>
           </div>
-          <div className="chart-wrap">
-            <div className="donut-shell">
-              <div className={`donut ${total ? "" : "empty"}`} style={donutBg ? { background: donutBg } : undefined}>
-                <div>
-                  <span>Tổng đơn</span>
-                  <strong>{total}</strong>
-                  <small>Tháng này</small>
-                </div>
-              </div>
-            </div>
-            <div className="legend">
-              {(
-                [
-                  ["blue", "Đang giao", "Chờ lấy / đang vận chuyển", active],
-                  ["green", "Giao thành công", "Đã giao đến người nhận", done],
-                  ["red", "Huỷ / hoàn", "Đơn đã huỷ hoặc hoàn về", cancelled],
-                ] as const
-              ).map(([tone, label, sub, n]) => (
-                <div className="legend-item" key={label}>
-                  <i className={`dot ${tone}`}></i>
-                  <span>
-                    {label}
-                    <small>{sub}</small>
-                  </span>
-                  <strong>{n}</strong>
-                  <em>{pct(n).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%</em>
-                </div>
-              ))}
-            </div>
+          <div className="status-total">
+            {total}
+            <span>đơn</span>
           </div>
+          <div className="status-bar" role="img" aria-label="Phân bố trạng thái">
+            {bar(done, "#376934")}
+            {bar(shipping, "#274ea1")}
+            {bar(pending, "#b2c5ff")}
+            {bar(cancelled, "#ba1a1a")}
+            {!total ? <span style={{ flex: 1, background: "#e2e2e9" }} /> : null}
+          </div>
+          <ul className="legend">
+            {(
+              [
+                ["#376934", "Thành công", done],
+                ["#274ea1", "Đang giao", shipping],
+                ["#b2c5ff", "Chờ lấy hàng", pending],
+                ["#ba1a1a", "Huỷ / hoàn", cancelled],
+              ] as const
+            ).map(([color, label, n]) => (
+              <li key={label}>
+                <i className="swatch" style={{ background: color }} />
+                <span style={{ flex: 1 }}>{label}</span>
+                <strong>{n}</strong>
+                <em>{pct(n)}%</em>
+              </li>
+            ))}
+          </ul>
         </div>
-        <div className="panel activity">
+        <div className="panel">
           <div className="panel-head">
             <div>
-              <h3>Hoạt động gần đây</h3>
+              <h2>Hoạt động gần đây</h2>
               <p>Cập nhật trạng thái mới nhất</p>
             </div>
           </div>
@@ -466,13 +484,17 @@ function Overview({
           ) : recent.length === 0 ? (
             <p className="activity-empty">Chưa có đơn hàng nào</p>
           ) : (
-            recent.map((o) => (
+            recent.slice(0, 4).map((o) => (
               <div className="activity-row" key={o.orderCode}>
-                <span className={`activity-icon ${GROUP_TONE[o.group] === "red" ? "orange" : GROUP_TONE[o.group] === "orange" ? "purple" : GROUP_TONE[o.group]}`}>
-                  <Icon name={o.group === "DELIVERED" ? "check" : o.group === "SHIPPING" ? "truck" : "box"} size={17} />
+                <span
+                  className={`activity-icon ${
+                    o.group === "DELIVERED" ? "green" : o.group === "CANCELLED" ? "red" : ""
+                  }`}
+                >
+                  <Icon name={o.group === "DELIVERED" ? "check" : o.group === "SHIPPING" ? "truck" : o.group === "CANCELLED" ? "x" : "plus"} size={16} />
                 </span>
-                <div>
-                  <strong>Đơn {o.orderCode}</strong>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong>{o.orderCode}</strong>
                   <p>{o.statusLabel}</p>
                 </div>
                 <time>{relativeTime(o.createdAt)}</time>
@@ -481,14 +503,14 @@ function Overview({
           )}
         </div>
       </section>
-      <section className="panel orders-panel">
-        <div className="panel-head">
+      <section className="panel" style={{ flex: "1 1 100%" }}>
+        <div className="panel-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <h3>Đơn hàng gần đây</h3>
-            <p>Các đơn hàng được tạo gần nhất</p>
+            <h2>Đơn gần đây</h2>
+            <p>5 đơn tạo gần nhất</p>
           </div>
-          <button className="text-btn" onClick={onAll}>
-            Xem tất cả <Icon name="arrow" size={16} />
+          <button type="button" className="text-btn" onClick={onAll}>
+            Xem tất cả
           </button>
         </div>
         <OrderTable rows={recent} loading={orders == null} />
@@ -560,62 +582,60 @@ function OrdersPage({
   };
 
   return (
-    <section className="panel full-panel">
-      <div className="panel-head">
+    <>
+      <section className="page-head">
         <div>
-          <h2>Quản lý đơn hàng</h2>
+          <h1>Quản lý đơn hàng</h1>
           <p>Theo dõi tất cả đơn bạn gửi và nhận</p>
         </div>
-        <button className="primary" onClick={onCreate}>
+        <button type="button" className="primary" onClick={onCreate}>
           <Icon name="plus" size={18} />
           Tạo đơn mới
         </button>
-      </div>
-      <div className="filter-row">
-        {FILTERS.map((f) => (
-          <button key={f.id} className={`filter ${filter === f.id ? "active" : ""}`} onClick={() => setFilter(f.id)}>
-            {f.label} <b>{count(f.id)}</b>
+      </section>
+      <section className="full-panel">
+        <div className="seg-tabs" role="tablist">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={filter === f.id}
+              className={`filter ${filter === f.id ? "active" : ""}`}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label} <b>{count(f.id)}</b>
+            </button>
+          ))}
+        </div>
+        <div className="filter-tools">
+          <input
+            className="search-filter"
+            placeholder="Mã đơn, tên, SĐT…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button type="button" className="outline" onClick={onReload}>
+            Tải lại
           </button>
-        ))}
-        <input
-          className="search-filter"
-          placeholder="Mã đơn, tên, SĐT…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ marginLeft: "auto" }}
-        />
-        <button className="outline" onClick={onReload}>
-          Tải lại
-        </button>
-        <button
-          className="outline"
-          style={{ marginLeft: 0 }}
-          type="button"
-          title="Xuất CSV"
-          onClick={() => exportFile("csv")}
-        >
-          <Icon name="download" size={17} />
-          CSV
-        </button>
-        <button
-          className="outline"
-          style={{ marginLeft: 0 }}
-          type="button"
-          title="Xuất Excel"
-          onClick={() => exportFile("excel")}
-        >
-          <Icon name="download" size={17} />
-          Excel
-        </button>
-      </div>
-      <OrderTable rows={rows} detailed loading={orders == null} />
-    </section>
+          <button type="button" className="outline" title="Xuất CSV" onClick={() => exportFile("csv")}>
+            <Icon name="download" size={17} />
+            CSV
+          </button>
+          <button type="button" className="outline" title="Xuất Excel" onClick={() => exportFile("excel")}>
+            <Icon name="download" size={17} />
+            Excel
+          </button>
+        </div>
+        <OrderTable rows={rows} detailed loading={orders == null} />
+      </section>
+    </>
   );
 }
 
 function OrderTable({ rows, detailed = false, loading = false }: { rows: CustomerOrderRow[]; detailed?: boolean; loading?: boolean }) {
   const [viewing, setViewing] = useState<CustomerOrderRow | null>(null);
-  const cols = detailed ? 7 : 5;
+  const cols = detailed ? 6 : 5;
   const copy = (code: string) => {
     void navigator.clipboard?.writeText(code).then(
       () => toast.success(`Đã sao chép ${code}`),
@@ -628,13 +648,12 @@ function OrderTable({ rows, detailed = false, loading = false }: { rows: Custome
         <table className={detailed ? "detailed" : ""}>
           <thead>
             <tr>
-              <th>MÃ ĐƠN</th>
-              {detailed && <th>NGÀY TẠO</th>}
-              <th>NGƯỜI NHẬN</th>
-              <th>PHÍ VẬN CHUYỂN</th>
-              <th>TIỀN COD</th>
-              <th>TRẠNG THÁI</th>
-              {detailed && <th>TÁC VỤ</th>}
+              <th>Mã đơn</th>
+              <th>Người nhận</th>
+              <th className="r">Phí vận chuyển</th>
+              <th className="r">Tiền COD</th>
+              <th>Trạng thái</th>
+              {detailed && <th />}
             </tr>
           </thead>
           <tbody>
@@ -647,45 +666,30 @@ function OrderTable({ rows, detailed = false, loading = false }: { rows: Custome
                 <tr key={o.orderCode} className="clickable" onClick={() => setViewing(o)}>
                   <td>
                     <div className="id-wrap">
-                      <strong className="order-id order-id-strong">{o.orderCode}</strong>
-                      {detailed && (
-                        <span
-                          className={`invoice-flag ${o.invoiced ? "done" : ""}`}
-                          title={o.invoiced ? "Đã xuất hoá đơn" : "Chưa xuất hoá đơn"}
-                        >
-                          <Icon name="receipt" size={16} />
-                        </span>
-                      )}
+                      <span className="order-id">{o.orderCode}</span>
                       {o.direction === "RECEIVED" && <span className="direction-tag">Nhận</span>}
                     </div>
-                  </td>
-                  {detailed && <td className="created">{dateTime(o.createdAt)}</td>}
-                  <td>
-                    <div className="customer">
-                      <strong>{o.receiverName || o.receiverPhone || "—"}</strong>
-                      <span>{o.deliveryAddress || o.toOfficeName || ""}</span>
-                    </div>
+                    <span className="subline">{dateTime(o.createdAt)}</span>
                   </td>
                   <td>
-                    <div className="customer">
-                      <strong>{money(o.fareAmount)}</strong>
-                      {detailed && <span>{o.payer === "SENDER" ? "Người gửi trả" : "Người nhận trả"}</span>}
-                    </div>
+                    <strong style={{ fontWeight: 500 }}>{o.receiverName || o.receiverPhone || "—"}</strong>
+                    <span className="subline">{o.deliveryAddress || o.toOfficeName || ""}</span>
                   </td>
-                  <td>{o.codAmount ? money(o.codAmount) : "0đ"}</td>
+                  <td className="r">
+                    <strong style={{ fontWeight: 600 }}>{money(o.fareAmount)}</strong>
+                    <span className="subline">{o.payer === "SENDER" ? "Người gửi trả" : "Người nhận trả"}</span>
+                  </td>
+                  <td className="r">{o.codAmount ? money(o.codAmount) : "—"}</td>
                   <td>
-                    <span className={`badge ${GROUP_TONE[o.group]}`}>
-                      <i></i>
-                      {o.statusLabel || "—"}
-                    </span>
+                    <span className={`badge ${GROUP_TONE[o.group]}`}>{o.statusLabel || "—"}</span>
                   </td>
                   {detailed && (
                     <td onClick={(e) => e.stopPropagation()}>
                       <div className="row-actions">
-                        <button className="row-btn" title="Xem chi tiết" onClick={() => setViewing(o)}>
+                        <button type="button" className="row-btn" title="Xem chi tiết" onClick={() => setViewing(o)}>
                           <Icon name="eye" size={16} />
                         </button>
-                        <button className="row-btn" title="Sao chép mã đơn" onClick={() => copy(o.orderCode)}>
+                        <button type="button" className="row-btn" title="Sao chép mã đơn" onClick={() => copy(o.orderCode)}>
                           <Icon name="copy" size={16} />
                         </button>
                       </div>
@@ -723,6 +727,13 @@ function OrderDrawer({ row, onClose }: { row: CustomerOrderRow; onClose: () => v
   const codRefunded = detail?.codRefundPaid ?? row.codRefunded;
   const invoiced = detail ? detail.invoiceState === "ISSUED" : row.invoiced;
 
+  const copy = () => {
+    void navigator.clipboard?.writeText(row.orderCode).then(
+      () => toast.success(`Đã sao chép ${row.orderCode}`),
+      () => toast.error("Không sao chép được"),
+    );
+  };
+
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="drawer" role="dialog" aria-label={`Chi tiết đơn ${row.orderCode}`} onClick={(e) => e.stopPropagation()}>
@@ -730,38 +741,37 @@ function OrderDrawer({ row, onClose }: { row: CustomerOrderRow; onClose: () => v
           <div>
             <p>Chi tiết đơn hàng</p>
             <h2>{row.orderCode}</h2>
+            <div className="detail-meta" style={{ marginTop: 10 }}>
+              <span className={`badge ${GROUP_TONE[row.group]}`}>{detail?.statusLabel || row.statusLabel}</span>
+              <span className={`badge ${invoiced ? "green" : "orange"}`}>
+                {invoiced ? `Đã xuất hoá đơn${detail?.invoiceNo ? ` · ${detail.invoiceNo}` : ""}` : "Chưa xuất hoá đơn"}
+              </span>
+            </div>
           </div>
-          <button className="row-btn" aria-label="Đóng" onClick={onClose}>
-            <Icon name="x" size={16} />
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="secondary" onClick={copy}>
+              <Icon name="copy" size={16} />
+              Sao chép
+            </button>
+            <button type="button" className="row-btn" aria-label="Đóng" onClick={onClose}>
+              <Icon name="x" size={16} />
+            </button>
+          </div>
         </div>
-        <div className="detail-meta">
-          <span className={`badge ${GROUP_TONE[row.group]}`}>
-            <i></i>
-            {detail?.statusLabel || row.statusLabel}
-          </span>
-          <span className={`badge ${invoiced ? "green" : "orange"}`}>
-            <i></i>
-            {invoiced ? `Đã xuất hoá đơn${detail?.invoiceNo ? ` · ${detail.invoiceNo}` : ""}` : "Chưa xuất hoá đơn"}
-          </span>
-        </div>
-        <section className="detail-section">
+        <section className="detail-card">
           <h3>Thông tin đơn</h3>
-          <dl>
+          <div className="route-strip">
+            <span className="mark">
+              <Icon name="truck" size={18} />
+            </span>
             <div>
-              <dt>Mã đơn</dt>
-              <dd>{row.orderCode}</dd>
-            </div>
-            <div>
-              <dt>Ngày tạo</dt>
-              <dd>{dateTime(row.createdAt)}</dd>
-            </div>
-            <div>
-              <dt>Hành trình</dt>
-              <dd>
+              <strong style={{ fontWeight: 600 }}>
                 {row.fromOfficeName || "—"} → {row.toOfficeName || "—"}
-              </dd>
+              </strong>
+              <span className="subline">Ngày tạo {dateTime(row.createdAt)}</span>
             </div>
+          </div>
+          <dl>
             {detail?.note ? (
               <div>
                 <dt>Ghi chú</dt>
@@ -770,27 +780,31 @@ function OrderDrawer({ row, onClose }: { row: CustomerOrderRow; onClose: () => v
             ) : null}
           </dl>
         </section>
-        <section className="detail-section">
-          <h3>{row.direction === "SENT" ? "Người nhận" : "Người gửi"}</h3>
+        <section className="detail-card">
+          <h3>Người gửi / nhận</h3>
           <dl>
             <div>
-              <dt>Tên</dt>
-              <dd>{(row.direction === "SENT" ? row.receiverName : row.senderName) || "—"}</dd>
+              <dt>Người gửi</dt>
+              <dd>
+                {row.senderName || "—"}
+                <small>{row.senderPhone}</small>
+              </dd>
             </div>
             <div>
-              <dt>Số điện thoại</dt>
-              <dd>{(row.direction === "SENT" ? row.receiverPhone : row.senderPhone) || "—"}</dd>
+              <dt>Người nhận</dt>
+              <dd>
+                {row.receiverName || "—"}
+                <small>{row.receiverPhone}</small>
+              </dd>
             </div>
-            {row.direction === "SENT" && (
-              <div>
-                <dt>Địa chỉ</dt>
-                <dd>{row.deliveryAddress || row.toOfficeName || "—"}</dd>
-              </div>
-            )}
+            <div>
+              <dt>Địa chỉ nhận</dt>
+              <dd>{row.deliveryAddress || row.toOfficeName || "—"}</dd>
+            </div>
           </dl>
         </section>
-        <section className="detail-section">
-          <h3>Thông tin thanh toán</h3>
+        <section className="detail-card">
+          <h3>Thanh toán</h3>
           <dl>
             <div>
               <dt>Tiền cước</dt>
@@ -804,27 +818,23 @@ function OrderDrawer({ row, onClose }: { row: CustomerOrderRow; onClose: () => v
               <dd>{money(detail?.paidAmount ?? row.paidAmount)}</dd>
             </div>
             <div>
-              <dt>Tiền COD thu hộ</dt>
-              <dd>{cod ? money(cod) : "Không có"}</dd>
+              <dt>Tiền COD</dt>
+              <dd>{cod ? money(cod) : "—"}</dd>
             </div>
             {cod > 0 && (
               <div>
                 <dt>Hoàn COD</dt>
                 <dd>
                   <span className={`badge ${codRefunded ? "green" : "orange"}`}>
-                    <i></i>
-                    {codRefunded ? "Đã hoàn cho người gửi" : "Chưa hoàn"}
+                    {codRefunded ? "Đã hoàn" : "Chưa hoàn"}
                   </span>
                 </dd>
               </div>
             )}
           </dl>
         </section>
-        <section className="order-log">
-          <h3>
-            <Icon name="box" size={20} />
-            Trạng thái đơn
-          </h3>
+        <section className="detail-card order-log">
+          <h3>Hành trình</h3>
           {loading ? (
             <p className="drawer-loading">Đang tải hành trình…</p>
           ) : steps.length === 0 ? (
@@ -934,9 +944,15 @@ function SettingsPage({
               </label>
             ))}
           </div>
+          {page === "bank" ? (
+            <p className="form-note">Tiền COD thu hộ sẽ được chuyển về tài khoản này sau khi đơn giao thành công.</p>
+          ) : null}
+          {page === "defaults" ? (
+            <p className="form-note">Các giá trị mặc định chỉ lưu trên trình duyệt của bạn và tự điền khi tạo đơn.</p>
+          ) : null}
           <div className="form-actions">
             <button type="button" className="secondary" onClick={() => setValues(initial)}>
-              Hủy
+              Huỷ
             </button>
             <button type="submit" className="primary">
               Lưu thay đổi

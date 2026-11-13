@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Desktop – Nhập số điện thoại</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.hv{transition:filter .15s,transform .1s}.hv:hover{filter:brightness(.95)}.hv:active{transform:scale(.98)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+a{color:#274ea1}a:hover{color:#174295}
+</style>
+</helmet>
+<div style="min-height: 800px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 32px 16px; background: #f4f3fa; color: #1a1b21; font-family: Inter, 'Noto Sans', system-ui, sans-serif">
+  <div style="width: 100%; max-width: 960px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px">
+
+    <section style="display: flex; flex-direction: column; justify-content: space-between; gap: 32px; min-height: 30rem; padding: 32px; border-radius: 28px; background: #274ea1; color: #ffffff">
+      <p style="margin: 0; font-size: 13px; line-height: 20px; font-weight: 600; letter-spacing: 0.5px">CHUYỂN PHÁT NHANH XE.VN</p>
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="margin: 0; font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: 0">Gửi hàng Hà Nội và các tỉnh, theo dõi đơn ngay trên web</h2>
+        <p style="margin: 0; font-size: 16px; line-height: 24px; letter-spacing: 0.5px; color: #dae2ff">Đăng nhập để tạo đơn nhanh hơn, xem hành trình và lịch sử gửi hàng của bạn.</p>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9999px; background: #174295; font-size: 13px; line-height: 20px; font-weight: 500">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Tạo đơn
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9999px; background: #174295; font-size: 13px; line-height: 20px; font-weight: 500">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>Tra cứu đơn
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 9999px; background: #174295; font-size: 13px; line-height: 20px; font-weight: 500">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M7 14l4-4 3 3 5-6"></path></svg>Lịch sử gửi hàng
+        </span>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 28px; padding: 32px; border-radius: 28px; background: #ffffff">
+      <a href="#" style="display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; height: 36px; padding: 0 12px 0 8px; margin-left: -8px; border-radius: 9999px; font-size: 14px; line-height: 20px; font-weight: 500; color: #45464f; text-decoration: none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>Quay lại
+      </a>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 600; letter-spacing: 0">Đăng nhập bằng số điện thoại</h1>
+        <p style="margin: 0; font-size: 15px; line-height: 22px; letter-spacing: 0.25px; color: #45464f">Chúng tôi sẽ gửi mã xác minh gồm 6 chữ số qua tin nhắn tới số của bạn.</p>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="phone-d" style="font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px">Số điện thoại</label>
+        <div style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border: 1px solid #dce2f9; border-radius: 8px; background: #ffffff">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#45464f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"></path></svg>
+          <input id="phone-d" type="tel" inputmode="numeric" autocomplete="tel" placeholder="09xx xxx xxx" style="flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 400 15px/22px Inter, system-ui, sans-serif; letter-spacing: 0.25px; color: #1a1b21">
+        </div>
+        <span style="font-size: 12px; line-height: 16px; letter-spacing: 0.1px; color: #45464f">Dùng số bạn thường gửi hàng để xem lại các đơn cũ.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <a href="Otp.dc.html" class="hv" style="display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-decoration: none; height: 48px; border-radius: 9999px; background: #274ea1; color: #ffffff; font: 500 15px/20px Inter, system-ui, sans-serif; letter-spacing: 0.1px">Nhận mã xác minh</a>
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 12px; line-height: 16px; color: #45464f">
+          <span style="flex: 1; height: 1px; background: #e8e7ef"></span>Hoặc<span style="flex: 1; height: 1px; background: #e8e7ef"></span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+          <a href="CreateStep1.dc.html" class="hv" style="display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-decoration: none; height: 44px; border-radius: 9999px; background: #f4f3fa; color: #1a1b21; font: 500 14px/20px Inter, system-ui, sans-serif">Tạo đơn nhanh</a>
+          <a href="Orders.dc.html" class="hv" style="display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; text-decoration: none; height: 44px; border-radius: 9999px; background: #f4f3fa; color: #1a1b21; font: 500 14px/20px Inter, system-ui, sans-serif">Tra cứu đơn</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
