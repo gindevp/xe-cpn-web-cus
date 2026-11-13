@@ -1,5 +1,5 @@
 import { PublicOrderForm } from "@/routes/tao-don";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -15,6 +15,8 @@ import {
   type CustomerSummary,
 } from "@/lib/api/customer-portal-api";
 import { downloadExcelRows, type ExportFormat } from "@/lib/csv";
+import { officeOptionValue } from "@/lib/mock-data";
+import { useStore } from "@/lib/store";
 
 type Page = "overview" | "create" | "orders" | "bank" | "sender" | "defaults";
 
@@ -107,6 +109,38 @@ const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
         <path d="M21 3v5h-5" />
         <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
         <path d="M8 16H3v5" />
+      </>
+    ),
+    calendar: (
+      <>
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M16 3v4M8 3v4M3 10h18" />
+      </>
+    ),
+    flag: (
+      <>
+        <path d="M4 22V4" />
+        <path d="M4 4h12l-2 4 2 4H4" />
+      </>
+    ),
+    chevron: <path d="m6 9 6 6 6-6" />,
+    pencil: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </>
+    ),
+    phone: <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" />,
+    map: (
+      <>
+        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0" />
+        <circle cx="12" cy="10" r="3" />
+      </>
+    ),
+    info: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5M12 8h.01" />
       </>
     ),
     x: (
@@ -312,8 +346,8 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
   const displayName = name || session.phone;
   const settingsSub: Record<"bank" | "sender" | "defaults", string> = {
     bank: "Nơi nhận tiền thu hộ (COD)",
-    sender: "Tự điền khi bạn tạo đơn mới",
-    defaults: "Rút ngắn thời gian bằng các tùy chọn thường dùng",
+    sender: "Thông tin này được điền sẵn vào mỗi đơn mới",
+    defaults: "Áp dụng cho các đơn bạn tạo từ bây giờ",
   };
 
   return (
@@ -380,6 +414,7 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
               </div>
               <PublicOrderForm
                 variant="crm"
+                presetFromOffice={loadSettings(session.phone).preferredFromOffice}
                 onHome={() => {
                   setPage("overview");
                   reload();
@@ -631,6 +666,31 @@ const FILTERS: { id: CustomerGroup | "ALL"; label: string }[] = [
   { id: "CANCELLED", label: "Huỷ / hoàn" },
 ];
 
+const DATE_FILTERS = [
+  { id: "today", label: "Hôm nay" },
+  { id: "7d", label: "7 ngày qua" },
+  { id: "month", label: "Tháng này" },
+  { id: "prev", label: "Tháng trước" },
+  { id: "all", label: "Tất cả thời gian" },
+] as const;
+
+function inDateFilter(iso: string | null | undefined, id: (typeof DATE_FILTERS)[number]["id"]) {
+  if (id === "all" || !iso) return id === "all" ? true : false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const t = d.getTime();
+  if (id === "today") return t >= startToday;
+  if (id === "7d") return t >= startToday - 6 * 86400000;
+  if (id === "month") return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  if (id === "prev") {
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return d.getFullYear() === prev.getFullYear() && d.getMonth() === prev.getMonth();
+  }
+  return true;
+}
+
 function OrdersPage({
   orders,
   search,
@@ -645,9 +705,22 @@ function OrdersPage({
   onReload: () => void;
 }) {
   const [filter, setFilter] = useState<CustomerGroup | "ALL">("ALL");
+  const [dateId, setDateId] = useState<(typeof DATE_FILTERS)[number]["id"]>("month");
+  const [vp, setVp] = useState("Tất cả văn phòng");
+  const [spin, setSpin] = useState(false);
   const all = orders ?? [];
+  const vpOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of all) {
+      const n = (o.toOfficeName || o.deliveryAddress || "").trim();
+      if (n) set.add(n);
+    }
+    return ["Tất cả văn phòng", ...[...set].sort((a, b) => a.localeCompare(b, "vi"))];
+  }, [all]);
+
+  const base = all.filter((o) => inDateFilter(o.createdAt, dateId) && (vp === "Tất cả văn phòng" || (o.toOfficeName || o.deliveryAddress || "") === vp));
   const q = search.trim().toLowerCase();
-  const rows = all.filter(
+  const rows = base.filter(
     (o) =>
       (filter === "ALL" || o.group === filter) &&
       (!q ||
@@ -655,7 +728,8 @@ function OrdersPage({
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(q))),
   );
-  const count = (id: CustomerGroup | "ALL") => (id === "ALL" ? all.length : all.filter((o) => o.group === id).length);
+  const count = (id: CustomerGroup | "ALL") => (id === "ALL" ? base.length : base.filter((o) => o.group === id).length);
+  const dateLabel = DATE_FILTERS.find((d) => d.id === dateId)?.label ?? "Tháng này";
 
   const exportFile = (format: ExportFormat = "csv") => {
     if (!rows.length) {
@@ -683,6 +757,13 @@ function OrdersPage({
       "DonHang",
       format,
     );
+    toast.success(`Đang tạo file ${format === "excel" ? "Excel" : "CSV"} cho ${rows.length} đơn`);
+  };
+
+  const refresh = () => {
+    setSpin(true);
+    onReload();
+    window.setTimeout(() => setSpin(false), 700);
   };
 
   return (
@@ -724,29 +805,183 @@ function OrdersPage({
               />
             </div>
           </label>
-          <button type="button" className="outline icon-only" aria-label="Tải lại" onClick={onReload}>
-            <Icon name="refresh" size={18} />
-          </button>
-          <button type="button" className="outline" title="Xuất file Excel" onClick={() => exportFile("excel")}>
-            <Icon name="download" size={18} />
-            Xuất file
-          </button>
+          <KhSelect
+            label="Ngày tạo"
+            icon="calendar"
+            value={dateLabel}
+            options={DATE_FILTERS.map((d) => d.label)}
+            onPick={(label) => {
+              const hit = DATE_FILTERS.find((d) => d.label === label);
+              if (hit) setDateId(hit.id);
+            }}
+          />
+          <KhSelect
+            label="Văn phòng nhận"
+            icon="flag"
+            value={vp}
+            options={vpOptions}
+            onPick={setVp}
+          />
+          <div className="filter-actions">
+            <button type="button" className="outline icon-only" aria-label="Tải lại" onClick={refresh}>
+              <span className={spin ? "kh-spin" : undefined}>
+                <Icon name="refresh" size={18} />
+              </span>
+            </button>
+            <KhSelect
+              label=""
+              trigger={
+                <>
+                  <Icon name="download" size={18} />
+                  Xuất file
+                </>
+              }
+              value=""
+              options={["Xuất CSV", "Xuất Excel"]}
+              onPick={(opt) => exportFile(opt.includes("Excel") ? "excel" : "csv")}
+              menuAlign="right"
+            />
+          </div>
         </div>
         <OrderTable rows={rows} detailed loading={orders == null} />
+        <div className="orders-foot">
+          <span>
+            {rows.length
+              ? `Hiển thị 1–${rows.length} trên ${rows.length} đơn`
+              : orders == null
+                ? "Đang tải…"
+                : "Không có đơn"}
+          </span>
+        </div>
       </section>
     </>
+  );
+}
+
+type KhOption = string | { value: string; label: string; sub?: string };
+
+function normalizeKhOptions(options: KhOption[]) {
+  return options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
+}
+
+function KhSelect({
+  label,
+  icon,
+  value,
+  options,
+  onPick,
+  trigger,
+  menuAlign = "left",
+  searchable = false,
+  searchPlaceholder = "Tìm…",
+  displayLabel,
+}: {
+  label: string;
+  icon?: string;
+  value: string;
+  options: KhOption[];
+  onPick: (v: string) => void;
+  trigger?: ReactNode;
+  menuAlign?: "left" | "right";
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  displayLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const opts = useMemo(() => normalizeKhOptions(options), [options]);
+  const selected = opts.find((o) => o.value === value || o.label === value);
+  const shown = displayLabel ?? selected?.label ?? value;
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return opts;
+    return opts.filter(
+      (o) =>
+        o.label.toLowerCase().includes(needle) ||
+        o.value.toLowerCase().includes(needle) ||
+        (o.sub ?? "").toLowerCase().includes(needle),
+    );
+  }, [opts, q]);
+
+  useEffect(() => {
+    if (!open) setQ("");
+  }, [open]);
+
+  return (
+    <div className={`kh-select${label ? "" : " bare"}`}>
+      {label ? <span className="kh-select-label">{label}</span> : null}
+      <div className="kh-select-wrap">
+        <button
+          type="button"
+          className={`kh-select-btn${trigger ? " pill" : ""}`}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={label || undefined}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {trigger ? (
+            trigger
+          ) : (
+            <>
+              {icon ? <Icon name={icon} size={20} /> : null}
+              <span className="kh-select-value">{shown || "Chọn…"}</span>
+            </>
+          )}
+          <Icon name="chevron" size={16} />
+        </button>
+        {open ? (
+          <>
+            <button type="button" className="kh-select-scrim" aria-label="Đóng" onClick={() => setOpen(false)} />
+            <div className={`kh-select-menu ${menuAlign}`} role="listbox">
+              {searchable ? (
+                <label className="kh-select-search">
+                  <Icon name="search" size={18} />
+                  <input
+                    autoFocus
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder={searchPlaceholder}
+                    aria-label={searchPlaceholder}
+                  />
+                </label>
+              ) : null}
+              {filtered.length === 0 ? (
+                <p className="kh-select-empty">Không tìm thấy kết quả phù hợp</p>
+              ) : (
+                filtered.map((opt) => {
+                  const on = opt.value === value || opt.label === value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="option"
+                      aria-selected={on}
+                      className={on ? "on" : ""}
+                      onClick={() => {
+                        onPick(opt.value);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="opt-main">
+                        <span>{opt.label}</span>
+                        {opt.sub ? <span className="opt-sub">{opt.sub}</span> : null}
+                      </span>
+                      {on ? <Icon name="check" size={18} /> : null}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 function OrderTable({ rows, detailed = false, loading = false }: { rows: CustomerOrderRow[]; detailed?: boolean; loading?: boolean }) {
   const [viewing, setViewing] = useState<CustomerOrderRow | null>(null);
   const cols = detailed ? 6 : 5;
-  const copy = (code: string) => {
-    void navigator.clipboard?.writeText(code).then(
-      () => toast.success(`Đã sao chép ${code}`),
-      () => toast.error("Không sao chép được"),
-    );
-  };
   return (
     <>
       <div className="table-scroll">
@@ -758,7 +993,7 @@ function OrderTable({ rows, detailed = false, loading = false }: { rows: Custome
               <th className="r">Phí vận chuyển</th>
               <th className="r">Tiền COD</th>
               <th>Trạng thái</th>
-              {detailed && <th />}
+              {detailed && <th className="c">Xem</th>}
             </tr>
           </thead>
           <tbody>
@@ -771,17 +1006,19 @@ function OrderTable({ rows, detailed = false, loading = false }: { rows: Custome
                 <tr key={o.orderCode} className="clickable" onClick={() => setViewing(o)}>
                   <td>
                     <div className="id-wrap">
-                      <span className="order-id">{o.orderCode}</span>
+                      <button type="button" className="order-id" onClick={() => setViewing(o)}>
+                        {o.orderCode}
+                      </button>
                       {o.direction === "RECEIVED" && <span className="direction-tag">Nhận</span>}
                     </div>
                     <span className="subline">{dateTime(o.createdAt)}</span>
                   </td>
                   <td>
-                    <strong style={{ fontWeight: 500 }}>{o.receiverName || o.receiverPhone || "—"}</strong>
+                    <strong className="cell-strong">{o.receiverName || o.receiverPhone || "—"}</strong>
                     <span className="subline">{o.deliveryAddress || o.toOfficeName || ""}</span>
                   </td>
                   <td className="r">
-                    <strong style={{ fontWeight: 600 }}>{money(o.fareAmount)}</strong>
+                    <strong className="cell-fare">{money(o.fareAmount)}</strong>
                     <span className="subline">{o.payer === "SENDER" ? "Người gửi trả" : "Người nhận trả"}</span>
                   </td>
                   <td className="r">{o.codAmount ? money(o.codAmount) : "-"}</td>
@@ -789,15 +1026,16 @@ function OrderTable({ rows, detailed = false, loading = false }: { rows: Custome
                     <span className={`badge ${GROUP_TONE[o.group]}`}>{o.statusLabel || "—"}</span>
                   </td>
                   {detailed && (
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div className="row-actions">
-                        <button type="button" className="row-btn" title="Xem chi tiết" onClick={() => setViewing(o)}>
-                          <Icon name="eye" size={16} />
-                        </button>
-                        <button type="button" className="row-btn" title="Sao chép mã đơn" onClick={() => copy(o.orderCode)}>
-                          <Icon name="copy" size={16} />
-                        </button>
-                      </div>
+                    <td className="c" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="row-btn"
+                        aria-label={`Xem đơn ${o.orderCode}`}
+                        title="Xem chi tiết"
+                        onClick={() => setViewing(o)}
+                      >
+                        <Icon name="eye" size={16} />
+                      </button>
                     </td>
                   )}
                 </tr>
@@ -960,41 +1198,19 @@ function OrderDrawer({ row, onClose }: { row: CustomerOrderRow; onClose: () => v
   );
 }
 
-const SETTING_FORMS: Record<
-  "bank" | "sender" | "defaults",
-  { title: string; sub: string; icon: string; fields: [key: string, label: string, placeholder: string, type: string][] }
-> = {
-  bank: {
-    title: "Tài khoản nhận tiền COD",
-    sub: "Tiền thu hộ sẽ được chuyển về tài khoản này",
-    icon: "bank",
-    fields: [
-      ["bankName", "Ngân hàng", "Ví dụ: Vietcombank", "text"],
-      ["bankAccount", "Số tài khoản", "Nhập số tài khoản", "text"],
-      ["bankHolder", "Tên chủ tài khoản", "NGUYEN VAN A", "text"],
-    ],
-  },
-  sender: {
-    title: "Thông tin người gửi",
-    sub: "Tự điền khi bạn tạo đơn mới",
-    icon: "user",
-    fields: [
-      ["senderName", "Tên cửa hàng / người gửi", "Nguyễn Văn A", "text"],
-      ["senderPhone", "Số điện thoại", "", "tel"],
-      ["senderAddress", "Địa chỉ lấy hàng", "Số nhà, đường, phường/xã, tỉnh/thành", "text"],
-    ],
-  },
-  defaults: {
-    title: "Cài đặt tạo đơn mặc định",
-    sub: "Rút ngắn thời gian bằng các tùy chọn thường dùng",
-    icon: "sliders",
-    fields: [
-      ["defaultWeight", "Khối lượng mặc định (kg)", "1", "number"],
-      ["defaultGoods", "Tên hàng thường gửi", "Ví dụ: Quần áo", "text"],
-      ["defaultNote", "Ghi chú giao hàng", "Cho khách xem hàng, không cho thử", "text"],
-    ],
-  },
-};
+const BANKS = [
+  "Vietcombank",
+  "VietinBank",
+  "BIDV",
+  "Agribank",
+  "Techcombank",
+  "MB Bank",
+  "ACB",
+  "VPBank",
+  "TPBank",
+  "Sacombank",
+  "Khác",
+];
 
 function SettingsPage({
   page,
@@ -1007,63 +1223,325 @@ function SettingsPage({
   name: string;
   onSaved: (s: CustomerSettings) => void;
 }) {
-  const cfg = SETTING_FORMS[page];
   const initial = useMemo(() => {
     const s = loadSettings(phone);
-    return { senderName: name, ...s, senderPhone: phone };
+    return {
+      bankName: "",
+      bankAccount: "",
+      bankHolder: "",
+      senderName: name,
+      senderAddress: "",
+      preferredFromOffice: "",
+      defaultWeight: "1",
+      defaultGoods: "",
+      defaultNote: "",
+      defaultPayer: "SENDER",
+      defaultHomeDelivery: "0",
+      defaultHomePickup: "0",
+      ...s,
+      senderPhone: phone,
+    };
   }, [phone, name]);
   const [values, setValues] = useState<CustomerSettings>(initial);
+  const [editingBank, setEditingBank] = useState(false);
+  const [otherBank, setOtherBank] = useState(() => {
+    const n = initial.bankName ?? "";
+    return !!n && !BANKS.includes(n);
+  });
+  const offices = useStore((s) => s.offices);
 
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    setValues(initial);
+    setEditingBank(false);
+    const n = initial.bankName ?? "";
+    setOtherBank(!!n && !BANKS.includes(n));
+  }, [initial]);
+
+  useEffect(() => {
+    if (page !== "sender" || offices.length > 0) return;
+    void import("@/lib/api/sync").then((m) => m.syncPublicOfficesFromApi().catch(() => undefined));
+  }, [page, offices.length]);
+
+  const officeOpts = useMemo(
+    () =>
+      offices
+        .filter((o) => o.customerVisible !== false)
+        .map((o) => ({
+          value: officeOptionValue(o),
+          label: o.name,
+          sub: [o.code, o.address].filter(Boolean).join(" · ") || undefined,
+        })),
+    [offices],
+  );
+
+  const preferredOfficeLabel = useMemo(() => {
+    const raw = (values.preferredFromOffice ?? "").trim();
+    if (!raw) return "Chọn văn phòng";
+    const hit = officeOpts.find((o) => o.value === raw || o.label === raw);
+    return hit?.label ?? raw;
+  }, [values.preferredFromOffice, officeOpts]);
+
+  const set = (key: string, val: string) => setValues((v) => ({ ...v, [key]: val }));
+
+  const save = () => {
     const merged = { ...loadSettings(phone), ...values, senderPhone: phone };
     localStorage.setItem(settingsKey(phone), JSON.stringify(merged));
     onSaved(merged);
+    setEditingBank(false);
     toast.success("Đã lưu thay đổi");
   };
 
-  return (
-    <section className="form-shell">
-      <div className="form-card">
-        <div className="form-heading">
-          <span className="form-icon">
-            <Icon name={cfg.icon} />
-          </span>
-          <div>
-            <h2>{cfg.title}</h2>
-            <p>{cfg.sub}</p>
+  const cancel = () => {
+    setValues(initial);
+    setEditingBank(false);
+    const n = initial.bankName ?? "";
+    setOtherBank(!!n && !BANKS.includes(n));
+  };
+
+  const bankSelectValue = otherBank ? "Khác" : values.bankName && BANKS.includes(values.bankName) ? values.bankName : "";
+
+  if (page === "bank") {
+    return (
+      <section className="form-shell">
+        <div className="form-card settings-card">
+          <div className="settings-card-head">
+            <div>
+              <h2>Tài khoản nhận tiền COD</h2>
+              <p>Tiền thu hộ của các đơn giao thành công sẽ được chuyển về tài khoản này</p>
+            </div>
+            {!editingBank ? (
+              <button type="button" className="kh-btn-sec" onClick={() => setEditingBank(true)}>
+                <Icon name="pencil" size={16} />
+                Sửa
+              </button>
+            ) : null}
           </div>
-        </div>
-        <form onSubmit={submit}>
-          <div className="form-grid">
-            {cfg.fields.map(([key, label, placeholder, type], i) => (
-              <label className={i === 2 && page !== "bank" ? "wide" : ""} key={key}>
-                <span>{label}</span>
+          {!editingBank ? (
+            <div className="bank-view">
+              <span className="form-icon">
+                <Icon name="bank" />
+              </span>
+              <div className="bank-view-grid">
+                <div>
+                  <span>Ngân hàng</span>
+                  <strong>{values.bankName || "—"}</strong>
+                </div>
+                <div>
+                  <span>Số tài khoản</span>
+                  <strong className="mono">{values.bankAccount || "—"}</strong>
+                </div>
+                <div>
+                  <span>Chủ tài khoản</span>
+                  <strong>{values.bankHolder || "—"}</strong>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="settings-form">
+              <div className="field-stack">
+                <span className="field-label">Ngân hàng</span>
+                <KhSelect
+                  label=""
+                  value={bankSelectValue}
+                  displayLabel={bankSelectValue || "Chọn ngân hàng"}
+                  options={BANKS}
+                  searchable
+                  searchPlaceholder="Tìm ngân hàng"
+                  onPick={(v) => {
+                    if (v === "Khác") {
+                      setOtherBank(true);
+                      set("bankName", "");
+                      return;
+                    }
+                    setOtherBank(false);
+                    set("bankName", v);
+                  }}
+                />
+                {otherBank ? (
+                  <input
+                    className="mt-field"
+                    placeholder="Nhập tên ngân hàng"
+                    value={values.bankName ?? ""}
+                    onChange={(e) => set("bankName", e.target.value)}
+                  />
+                ) : null}
+              </div>
+              <label>
+                <span>Số tài khoản</span>
                 <input
-                  type={type}
-                  placeholder={placeholder}
-                  value={values[key] ?? ""}
-                  readOnly={key === "senderPhone"}
-                  onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                  inputMode="numeric"
+                  value={values.bankAccount ?? ""}
+                  onChange={(e) => set("bankAccount", e.target.value.replace(/\D/g, ""))}
                 />
               </label>
-            ))}
+              <label>
+                <span>Tên chủ tài khoản</span>
+                <input
+                  value={values.bankHolder ?? ""}
+                  onChange={(e) => set("bankHolder", e.target.value.toUpperCase())}
+                />
+                <em className="field-hint">Viết in hoa, không dấu, đúng như trên thẻ</em>
+              </label>
+              <div className="form-actions">
+                <button type="button" className="kh-btn-sec" onClick={cancel}>
+                  Huỷ
+                </button>
+                <button type="button" className="kh-btn" onClick={save}>
+                  Lưu thay đổi
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="form-note with-icon">
+            <Icon name="info" size={18} />
+            <span>Đổi tài khoản chỉ áp dụng cho các khoản COD hoàn sau thời điểm lưu.</span>
           </div>
-          {page === "bank" ? (
-            <p className="form-note">Tiền COD thu hộ sẽ được chuyển về tài khoản này sau khi đơn giao thành công.</p>
-          ) : null}
-          {page === "defaults" ? (
-            <p className="form-note">Các giá trị mặc định chỉ lưu trên trình duyệt của bạn và tự điền khi tạo đơn.</p>
-          ) : null}
+        </div>
+      </section>
+    );
+  }
+
+  if (page === "sender") {
+    return (
+      <section className="form-shell">
+        <div className="form-card settings-card">
+          <div className="settings-card-head">
+            <div>
+              <h2>Thông tin người gửi</h2>
+              <p>Tự điền khi bạn tạo đơn mới</p>
+            </div>
+          </div>
+          <div className="settings-form">
+            <label>
+              <span>Tên cửa hàng hoặc người gửi</span>
+              <input value={values.senderName ?? ""} onChange={(e) => set("senderName", e.target.value)} />
+            </label>
+            <label>
+              <span>Số điện thoại</span>
+              <div className="field-box">
+                <Icon name="phone" size={20} />
+                <input value={formatPhoneDisplay(values.senderPhone)} readOnly />
+              </div>
+            </label>
+            <label className="wide">
+              <span>Địa chỉ lấy hàng</span>
+              <div className="field-box">
+                <Icon name="map" size={20} />
+                <input
+                  value={values.senderAddress ?? ""}
+                  placeholder="Số nhà, đường, phường/xã…"
+                  onChange={(e) => set("senderAddress", e.target.value)}
+                />
+              </div>
+              <em className="field-hint">Dùng khi bạn chọn lấy hàng tận nơi</em>
+            </label>
+            <div className="field-stack wide">
+              <span className="field-label">VP gửi hay dùng</span>
+              <KhSelect
+                label=""
+                icon="flag"
+                value={values.preferredFromOffice ?? ""}
+                displayLabel={preferredOfficeLabel}
+                options={officeOpts}
+                searchable
+                searchPlaceholder="Tìm tên hoặc địa chỉ VP"
+                onPick={(v) => set("preferredFromOffice", v)}
+              />
+            </div>
+            <div className="form-actions">
+              <button type="button" className="kh-btn-sec" onClick={cancel}>
+                Huỷ
+              </button>
+              <button type="button" className="kh-btn" onClick={save}>
+                Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const payerLabel = values.defaultPayer === "RECEIVER" ? "Người nhận trả" : "Người gửi trả";
+  return (
+    <section className="form-shell">
+      <div className="form-card settings-card">
+        <div className="settings-card-head">
+          <div>
+            <h2>Cài đặt tạo đơn mặc định</h2>
+            <p>Điền sẵn các tuỳ chọn bạn hay dùng để tạo đơn nhanh hơn</p>
+          </div>
+        </div>
+        <div className="settings-form">
+          <label>
+            <span>Khối lượng mặc định</span>
+            <div className="field-box unit">
+              <input
+                inputMode="numeric"
+                value={values.defaultWeight ?? "1"}
+                onChange={(e) => set("defaultWeight", e.target.value)}
+              />
+              <em>kg</em>
+            </div>
+          </label>
+          <label>
+            <span>Tên hàng thường gửi</span>
+            <input value={values.defaultGoods ?? ""} onChange={(e) => set("defaultGoods", e.target.value)} />
+          </label>
+          <div className="field-stack">
+            <span className="field-label">Người trả cước mặc định</span>
+            <KhSelect
+              label=""
+              value={payerLabel}
+              options={["Người gửi trả", "Người nhận trả"]}
+              onPick={(v) => set("defaultPayer", v.includes("nhận") ? "RECEIVER" : "SENDER")}
+            />
+          </div>
+          <label className="wide">
+            <span>Ghi chú giao hàng</span>
+            <input value={values.defaultNote ?? ""} onChange={(e) => set("defaultNote", e.target.value)} />
+          </label>
+          <div className="switch-list">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={values.defaultHomeDelivery === "1"}
+              className={`kh-switch${values.defaultHomeDelivery === "1" ? " on" : ""}`}
+              onClick={() => set("defaultHomeDelivery", values.defaultHomeDelivery === "1" ? "0" : "1")}
+            >
+              <span>
+                <strong>Giao hàng tận nơi</strong>
+                <small>Bật sẵn cho mọi đơn mới</small>
+              </span>
+              <span className="track">
+                <span className="knob" />
+              </span>
+            </button>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={values.defaultHomePickup === "1"}
+              className={`kh-switch${values.defaultHomePickup === "1" ? " on" : ""}`}
+              onClick={() => set("defaultHomePickup", values.defaultHomePickup === "1" ? "0" : "1")}
+            >
+              <span>
+                <strong>Lấy hàng tận nơi</strong>
+                <small>Bật sẵn cho mọi đơn mới</small>
+              </span>
+              <span className="track">
+                <span className="knob" />
+              </span>
+            </button>
+          </div>
           <div className="form-actions">
-            <button type="button" className="kh-btn-sec" onClick={() => setValues(initial)}>
+            <button type="button" className="kh-btn-sec" onClick={cancel}>
               Huỷ
             </button>
-            <button type="submit" className="kh-btn">
+            <button type="button" className="kh-btn" onClick={save}>
               Lưu thay đổi
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </section>
   );

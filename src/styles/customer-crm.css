@@ -867,6 +867,20 @@
 .kh-crm th:last-child { border-radius: 0 12px 12px 0; }
 .kh-crm th.r,
 .kh-crm td.r { text-align: right; }
+.kh-crm th.c,
+.kh-crm td.c { text-align: center; }
+.kh-crm button.order-id {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  text-align: left;
+}
+.kh-crm .cell-strong { font-weight: 500; }
+.kh-crm .cell-fare { font-weight: 600; }
 .kh-crm td {
   padding: 12px;
   border-bottom: 1px solid var(--surface-container-low);
@@ -1135,18 +1149,34 @@
 .kh-crm .order-log time { display: block; margin-top: 2px; font-size: 12px; color: var(--on-surface-variant); }
 .kh-crm .drawer-loading { color: var(--on-surface-variant); }
 
-/* Settings */
-.kh-crm .form-shell { width: 100%; max-width: none; }
-.kh-crm .form-card {
+/* Settings (Bank / Sender / Defaults) — design max-width ~880 */
+.kh-crm .form-shell { width: 100%; max-width: 880px; }
+.kh-crm .form-card,
+.kh-crm .settings-card {
   background: #fff;
   border-radius: var(--corner-xl);
   padding: 24px;
-}
-.kh-crm .form-heading {
   display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.kh-crm .settings-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  align-items: center;
-  margin-bottom: 20px;
+}
+.kh-crm .settings-card-head h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.kh-crm .settings-card-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--on-surface-variant);
 }
 .kh-crm .form-icon {
   width: 48px;
@@ -1156,32 +1186,120 @@
   color: var(--on-primary-container);
   display: grid;
   place-items: center;
+  flex: none;
 }
-.kh-crm .form-heading h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
-.kh-crm .form-heading p { margin: 0; color: var(--on-surface-variant); font-size: 13px; }
-.kh-crm .form-grid {
+.kh-crm .bank-view {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--surface-container-low);
+}
+.kh-crm .bank-view-grid {
+  flex: 1;
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px 24px;
+}
+.kh-crm .bank-view-grid span {
+  display: block;
+  font-size: 12px;
+  color: var(--on-surface-variant);
+  margin-bottom: 2px;
+}
+.kh-crm .bank-view-grid strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.kh-crm .bank-view-grid .mono { font-variant-numeric: tabular-nums; letter-spacing: 0.3px; }
+.kh-crm .bank-empty {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+.kh-crm .settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-.kh-crm .form-grid label { display: flex; flex-direction: column; gap: 6px; }
-.kh-crm .form-grid .wide { grid-column: 1 / -1; }
-.kh-crm .form-grid label span { font-size: 14px; font-weight: 500; }
-.kh-crm .form-grid input {
+@media (max-width: 720px) {
+  .kh-crm .settings-form { grid-template-columns: 1fr; }
+}
+.kh-crm .settings-form label,
+.kh-crm .settings-form .field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.kh-crm .settings-form label.wide,
+.kh-crm .settings-form .field-stack.wide,
+.kh-crm .settings-form .switch-list,
+.kh-crm .settings-form .form-actions { grid-column: 1 / -1; }
+.kh-crm .settings-form label > span,
+.kh-crm .settings-form .field-label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--on-surface);
+}
+.kh-crm .settings-form .kh-select {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+}
+.kh-crm .settings-form input,
+.kh-crm .settings-form .mt-field {
   height: 40px;
   border: 1px solid var(--secondary-container);
   border-radius: var(--corner-small);
   padding: 0 12px;
   outline: 0;
   background: #fff;
+  font: inherit;
+  color: var(--on-surface);
 }
-.kh-crm .form-grid input:focus {
+.kh-crm .settings-form input:focus {
   border-color: var(--primary);
   box-shadow: inset 0 0 0 1px var(--primary);
 }
-.kh-crm .form-grid input[readonly] { background: var(--surface-container-low); color: var(--on-surface-variant); }
+.kh-crm .settings-form .field-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--secondary-container);
+  border-radius: var(--corner-small);
+  background: #fff;
+  color: var(--on-surface-variant);
+}
+.kh-crm .settings-form .field-box input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.kh-crm .settings-form .field-box input[readonly] { color: var(--on-surface-variant); }
+.kh-crm .settings-form .field-box.unit { padding-right: 14px; }
+.kh-crm .settings-form .field-box.unit em {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+.kh-crm .field-hint {
+  font-style: normal;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--on-surface-variant);
+}
 .kh-crm .form-note {
-  margin-top: 16px;
+  margin: 0;
   padding: 14px 16px;
   border-radius: var(--corner-large);
   background: var(--surface-container-low);
@@ -1189,14 +1307,206 @@
   line-height: 18px;
   color: var(--on-surface-variant);
 }
+.kh-crm .form-note.with-icon {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
 .kh-crm .form-actions {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 8px;
   padding-top: 16px;
   border-top: 1px solid var(--surface-container-low);
 }
+.kh-crm .switch-list {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kh-crm .kh-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-container-low);
+  text-align: left;
+  color: var(--on-surface);
+}
+.kh-crm .kh-switch strong { display: block; font-size: 14px; font-weight: 600; }
+.kh-crm .kh-switch small { display: block; margin-top: 2px; font-size: 12px; color: var(--on-surface-variant); }
+.kh-crm .kh-switch .track {
+  position: relative;
+  width: 52px;
+  height: 32px;
+  border-radius: 9999px;
+  background: #757780;
+  flex: none;
+  transition: background-color 0.2s;
+}
+.kh-crm .kh-switch.on .track { background: var(--primary); }
+.kh-crm .kh-switch .knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s var(--ease);
+}
+.kh-crm .kh-switch.on .knob { left: 22px; }
+
+/* Orders filters — select + footer */
+.kh-crm .filter-tools { align-items: flex-end; }
+.kh-crm .filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-left: auto;
+}
+.kh-crm .kh-select {
+  flex: 0 1 240px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kh-crm .kh-select.bare { flex: 0 0 auto; min-width: 0; }
+.kh-crm .kh-select-label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.kh-crm .kh-select-wrap { position: relative; }
+.kh-crm .kh-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--secondary-container);
+  border-radius: var(--corner-small);
+  background: #fff;
+  text-align: left;
+  color: var(--on-surface);
+  font: 400 14px/20px var(--font-plain);
+  cursor: pointer;
+}
+.kh-crm .kh-select-btn.pill {
+  width: auto;
+  padding: 0 16px 0 20px;
+  border: 0;
+  border-radius: var(--corner-full);
+  background: var(--surface-container-low);
+  font-weight: 500;
+}
+.kh-crm .kh-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kh-crm .kh-select-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+.kh-crm .kh-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 100%;
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+}
+.kh-crm .kh-select-menu.right { left: auto; right: 0; }
+.kh-crm .kh-select-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-container-low);
+  color: var(--on-surface-variant);
+}
+.kh-crm .kh-select-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: 400 14px/20px var(--font-plain);
+  color: var(--on-surface);
+}
+.kh-crm .kh-select-empty {
+  margin: 0;
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+.kh-crm .kh-select-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+.kh-crm .kh-select-menu button:hover { background: var(--surface-container-low); }
+.kh-crm .kh-select-menu button.on { background: var(--primary-container); font-weight: 600; }
+.kh-crm .kh-select-menu button svg { margin-left: auto; color: var(--primary); flex: none; }
+.kh-crm .kh-select-menu .opt-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kh-crm .kh-select-menu .opt-sub {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--on-surface-variant);
+}
+.kh-crm .orders-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  font-size: 13px;
+  color: var(--on-surface-variant);
+}
+@keyframes khSpin { to { transform: rotate(360deg); } }
+.kh-crm .kh-spin { display: inline-flex; animation: khSpin 0.7s linear infinite; }
 
 .kh-crm .ds-icon {
   display: inline-block;
