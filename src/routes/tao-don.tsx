@@ -71,7 +71,11 @@ import {
 import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
 import { itinerariesAllowedFrom } from "@/lib/api/vehicle-events-api";
 import { cn } from "@/lib/utils";
-import { getCustomerSession } from "@/lib/api/customer-portal-api";
+import {
+  fetchCustomerOrders,
+  getCustomerSession,
+  type CustomerOrderRow,
+} from "@/lib/api/customer-portal-api";
 import { CfBlockTitle, CfField, CfGlyph, CfRail, SuccessArt } from "@/components/customer/cf-ui";
 import { GuestTransferPanel } from "@/components/customer/GuestTransferPanel";
 import { toast } from "sonner";
@@ -295,6 +299,72 @@ function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFar
   return note;
 }
 
+const KH_RECENT_ROUTES_KEY = "kh-recent-routes-v1";
+
+type RecentRoute = { from: string; to: string; fromName: string; toName: string; label: string };
+
+function shortOfficeLabel(name: string) {
+  const base = name.split(/\s+[–-]\s+/)[0]?.trim() || name.trim();
+  return base.length > 28 ? `${base.slice(0, 26)}…` : base;
+}
+
+function findOfficeByNameHint(name: string | null | undefined, offices: OfficeRec[]) {
+  const n = name?.trim().toLowerCase();
+  if (!n) return undefined;
+  return (
+    offices.find((o) => o.name.trim().toLowerCase() === n) ||
+    offices.find((o) => o.name.toLowerCase().includes(n) || n.includes(o.name.toLowerCase().split(/\s+[–-]\s+/)[0] || ""))
+  );
+}
+
+function routeFromPair(fromRec: OfficeRec, toRec: OfficeRec): RecentRoute {
+  return {
+    from: officeOptionValue(fromRec),
+    to: officeOptionValue(toRec),
+    fromName: fromRec.name,
+    toName: toRec.name,
+    label: `${shortOfficeLabel(fromRec.name)} → ${shortOfficeLabel(toRec.name)}`,
+  };
+}
+
+function readStoredRecentRoutes(): RecentRoute[] {
+  try {
+    const raw = localStorage.getItem(KH_RECENT_ROUTES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RecentRoute[];
+    return Array.isArray(parsed) ? parsed.filter((r) => r?.from && r?.to && r?.label).slice(0, 6) : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushStoredRecentRoute(route: RecentRoute) {
+  try {
+    const prev = readStoredRecentRoutes().filter((r) => !(r.from === route.from && r.to === route.to));
+    localStorage.setItem(KH_RECENT_ROUTES_KEY, JSON.stringify([route, ...prev].slice(0, 6)));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function recentRoutesFromOrders(orders: CustomerOrderRow[], offices: OfficeRec[]): RecentRoute[] {
+  const out: RecentRoute[] = [];
+  const seen = new Set<string>();
+  for (const o of orders) {
+    if (o.direction !== "SENT") continue;
+    const fromRec = findOfficeByNameHint(o.fromOfficeName, offices);
+    const toRec = findOfficeByNameHint(o.toOfficeName, offices);
+    if (!fromRec || !toRec || fromRec.code === toRec.code) continue;
+    const r = routeFromPair(fromRec, toRec);
+    const key = `${r.from}|${r.to}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
 export function PublicOrderForm({
   presetFromOffice,
   variant = "guest",
@@ -328,6 +398,33 @@ export function PublicOrderForm({
     setSenderPhone((p) => p || kh.phone);
     setSenderName((n) => n || kh.name || "");
   }, []);
+
+  useEffect(() => {
+    if (variant !== "crm" || offices.length === 0) return;
+    let cancelled = false;
+    void fetchCustomerOrders()
+      .then((rows) => {
+        if (cancelled) return;
+        const fromOrders = recentRoutesFromOrders(rows, offices);
+        const stored = readStoredRecentRoutes();
+        const seen = new Set<string>();
+        const merged: RecentRoute[] = [];
+        for (const r of [...fromOrders, ...stored]) {
+          const key = `${r.from}|${r.to}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(r);
+          if (merged.length >= 5) break;
+        }
+        setRecentRoutes(merged);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentRoutes(readStoredRecentRoutes());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, offices]);
   const [homePickup, setHomePickup] = useState(false);
   const [pickupAddr, setPickupAddr] = useState("");
   const [pickupFee, setPickupFee] = useState(0);
@@ -342,6 +439,9 @@ export function PublicOrderForm({
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
   const [toOffice, setToOffice] = useState("");
+  const [recentRoutes, setRecentRoutes] = useState<RecentRoute[]>(() =>
+    variant === "crm" ? readStoredRecentRoutes() : [],
+  );
   const [items, setItems] = useState<Item[]>([newItem()]);
   const [goodsPhoto, setGoodsPhoto] = useState("");
   const [payMethod, setPayMethod] = useState<string>(DEFAULT_PAY_METHOD);
@@ -903,6 +1003,11 @@ export function PublicOrderForm({
     };
     addOrder(o, { skipApi: true });
       upsertCustomer(senderPhone, toUpperName(senderName));
+      if (fromOfficeRec && toOfficeRec) {
+        const recent = routeFromPair(fromOfficeRec, toOfficeRec);
+        pushStoredRecentRoute(recent);
+        setRecentRoutes((prev) => [recent, ...prev.filter((r) => !(r.from === recent.from && r.to === recent.to))].slice(0, 5));
+      }
       setCreatedOrder(o);
       toast.success("Đã tạo đơn hàng");
     } finally {
@@ -945,8 +1050,8 @@ export function PublicOrderForm({
       "Điền chính xác số điện thoại để nhà xe liên hệ khi giao hàng.",
       "Tải biên nhận và in tem dán lên từng kiện trước khi mang hàng ra văn phòng.",
     ];
-    const pickerClass = "min-h-[46px] rounded-xl border border-[#d1d5db] bg-white px-3 py-2 hover:border-[#274ea1]";
-    const selectClass = "h-[46px] rounded-xl border border-[#d1d5db] bg-white";
+    const pickerClass = "cf-office-pick";
+    const selectClass = "h-10 rounded-lg border border-[#dce2f9] bg-white";
     const payCards = [
       ["Người gửi thanh toán", "send", "Người gửi trả", "Trả cước tại văn phòng gửi"],
       ["Người nhận thanh toán", "user", "Người nhận trả", "Thu khi giao hàng"],
@@ -962,6 +1067,17 @@ export function PublicOrderForm({
               ? ` Ahamove chưa xác định được điểm ${what} — cước ${what} hàng 50.000đ.`
               : ""
       }`;
+    const applyRecentRoute = (r: RecentRoute) => {
+      setFromOffice(r.from);
+      setToOffice(r.to);
+    };
+    const bothOffices = !!(fromOffice && toOffice);
+    const routeBanner =
+      bothOffices && route
+        ? `Tuyến ${route}`
+        : bothOffices
+          ? "Đã chọn đủ văn phòng"
+          : "";
 
     return (
       <>
@@ -980,8 +1096,11 @@ export function PublicOrderForm({
               <>
                 <header className="cf-head">
                   <span>BƯỚC 1 / 3</span>
-                  <h2>Chọn văn phòng</h2>
-                  <p>Hàng của bạn sẽ được chuyển từ văn phòng gửi đến văn phòng nhận.</p>
+                  <h2>Chọn hành trình</h2>
+                  <p>
+                    Hàng được chuyển từ văn phòng gửi đến văn phòng nhận. Chọn VP gần bạn nhất để được tiếp nhận nhanh
+                    hơn.
+                  </p>
                 </header>
                 {!masterLoading && offices.length === 0 && (
                   <p className="cf-error">
@@ -991,13 +1110,35 @@ export function PublicOrderForm({
                     </button>
                   </p>
                 )}
+                {recentRoutes.length > 0 ? (
+                  <div className="cf-recent">
+                    <span className="cf-recent-label">Hành trình gần đây</span>
+                    <div className="cf-recent-chips">
+                      {recentRoutes.map((r) => (
+                        <button
+                          key={`${r.from}|${r.to}`}
+                          type="button"
+                          className={`cf-recent-chip${fromOffice === r.from && toOffice === r.to ? " on" : ""}`}
+                          onClick={() => applyRecentRoute(r)}
+                        >
+                          <CfGlyph name="clock" size={16} />
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="cf-route">
                   <div className="cf-route-card">
-                    <div className="cf-badge blue">
-                      <CfGlyph name="pin" />
+                    <div className="cf-route-card-head">
+                      <span className="cf-badge blue">
+                        <CfGlyph name="pin" size={18} />
+                      </span>
+                      <span>
+                        <strong>Văn phòng gửi</strong>
+                        <small>Nơi bạn mang hàng đến gửi</small>
+                      </span>
                     </div>
-                    <strong>Văn phòng gửi</strong>
-                    <small>Nơi bạn mang hàng đến gửi</small>
                     <OfficePickerSheet
                       value={fromOffice}
                       onChange={setFromOffice}
@@ -1008,19 +1149,19 @@ export function PublicOrderForm({
                       disabled={masterLoading || offices.length === 0}
                     />
                   </div>
-                  <div className="cf-route-line">
-                    <span />
-                    <i>
-                      <CfGlyph name="truck" />
-                    </i>
-                    <span />
+                  <div className="cf-route-mid" aria-hidden>
+                    <CfGlyph name="truck" size={20} />
                   </div>
                   <div className="cf-route-card">
-                    <div className="cf-badge green">
-                      <CfGlyph name="flag" />
+                    <div className="cf-route-card-head">
+                      <span className="cf-badge blue">
+                        <CfGlyph name="flag" size={18} />
+                      </span>
+                      <span>
+                        <strong>Văn phòng nhận</strong>
+                        <small>Nơi hàng được chuyển đến</small>
+                      </span>
                     </div>
-                    <strong>Văn phòng nhận</strong>
-                    <small>Nơi hàng được chuyển đến</small>
                     <OfficePickerSheet
                       value={toOffice}
                       onChange={setToOffice}
@@ -1034,17 +1175,24 @@ export function PublicOrderForm({
                     />
                   </div>
                 </div>
+                {bothOffices ? (
+                  <div className="cf-banner ok">
+                    <CfGlyph name="info" size={20} />
+                    <span>
+                      <strong>{routeBanner}</strong>
+                      {route && itinerary ? ` · ${itinerary}` : " · Hàng nhận tại VP gửi sẽ đi chuyến gần nhất trong ngày."}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="cf-banner">
+                    <CfGlyph name="info" size={20} />
+                    <span>Chọn đủ văn phòng gửi và văn phòng nhận để tiếp tục.</span>
+                  </div>
+                )}
                 <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
-                <footer className="cf-foot mt-6">
-                  <span>
-                    {!fromOffice || !toOffice
-                      ? "Chọn đủ hai văn phòng để tiếp tục"
-                      : route && itinerary
-                        ? `Tuyến ${route} · ${itinerary}`
-                        : "Chưa khớp được tuyến/lộ trình — kiểm tra điểm lộ trình VP"}
-                  </span>
-                  <button type="button" className="kh-btn" disabled={!fromOffice || !toOffice} onClick={goNext}>
-                    Tiếp tục <CfGlyph name="arrow" size={16} />
+                <footer className="cf-foot">
+                  <button type="button" className="kh-btn" disabled={!bothOffices} onClick={goNext}>
+                    Tiếp tục
                   </button>
                 </footer>
               </>

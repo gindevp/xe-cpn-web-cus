@@ -66,6 +66,18 @@ const GLYPHS: Record<string, ReactNode> = {
       <circle cx="18" cy="19" r="2" />
     </>
   ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
   download: <path d="M12 3v12m-5-5 5 5 5-5M5 21h14" />,
   printer: <path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" />,
 };
