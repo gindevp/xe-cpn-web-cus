@@ -697,18 +697,20 @@ function Page() {
                             <span className="sub">lúc {processedAt(o.codExportedAt)}</span>
                           </>
                         ) : o.status === "DELIVERED" && canMark ? (
-                          <button
-                            type="button"
-                            className="ok"
-                            disabled={markingCode === o.code}
-                            onClick={() => {
-                              setConfirmTarget(o);
-                              setConfirmChecked(false);
-                              setConfirmPhotos([]);
-                            }}
-                          >
-                            {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
-                          </button>
+                          <div className="act" style={{ justifyContent: "flex-start" }}>
+                            <button
+                              type="button"
+                              className="ok"
+                              disabled={markingCode === o.code}
+                              onClick={() => {
+                                setConfirmTarget(o);
+                                setConfirmChecked(false);
+                                setConfirmPhotos([]);
+                              }}
+                            >
+                              {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
+                            </button>
+                          </div>
                         ) : (
                           <span className="tag">{orderTabStatusLabel(o)}</span>
                         )}

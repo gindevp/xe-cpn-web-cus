@@ -116,7 +116,11 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--secondary);outline-
 .link{padding:0;border:0;background:none;font-size:12px;line-height:16px;color:var(--on-surface-variant);text-decoration:underline}
 .thumb{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;background:var(--low);color:var(--on-surface-variant)}
 .act{display:flex;align-items:center;justify-content:flex-end;gap:4px}
-.act .ok{height:32px;padding:0 12px;border:0;border-radius:9999px;background:var(--secondary-container);color:var(--on-secondary-container);font-size:12px;font-weight:500;white-space:nowrap}
+.act .ok,button.ok{height:32px;padding:0 12px;border:0;border-radius:9999px;background:var(--secondary-container);color:var(--on-secondary-container);font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}
+.act .ok:hover,button.ok:hover{filter:brightness(0.96)}
+.act .ok[disabled],button.ok[disabled]{opacity:.5;cursor:not-allowed;filter:none}
+.theme-dark .act .ok,.theme-dark button.ok{background:#3a57a3;color:#eef1ff}
+.theme-dark .act .ok:hover,.theme-dark button.ok:hover{filter:brightness(1.08)}
 .act .no{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:9999px;background:none;color:var(--on-surface-variant)}
 .act .no:hover{background:rgb(from var(--on-surface) r g b / .08)}
 .pg{display:grid;place-items:center;min-width:36px;height:36px;padding:0;border:0;border-radius:9999px;background:none;font-size:13px;font-weight:500}
