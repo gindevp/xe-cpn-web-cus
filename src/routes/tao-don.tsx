@@ -300,6 +300,8 @@ function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFar
 }
 
 const KH_RECENT_ROUTES_KEY = "kh-recent-routes-v1";
+/** Design: tối đa 4 chip «Hành trình gần đây». */
+const KH_RECENT_ROUTES_MAX = 4;
 
 type RecentRoute = { from: string; to: string; fromName: string; toName: string; label: string };
 
@@ -332,7 +334,9 @@ function readStoredRecentRoutes(): RecentRoute[] {
     const raw = localStorage.getItem(KH_RECENT_ROUTES_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as RecentRoute[];
-    return Array.isArray(parsed) ? parsed.filter((r) => r?.from && r?.to && r?.label).slice(0, 6) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((r) => r?.from && r?.to && r?.label).slice(0, KH_RECENT_ROUTES_MAX)
+      : [];
   } catch {
     return [];
   }
@@ -341,7 +345,10 @@ function readStoredRecentRoutes(): RecentRoute[] {
 function pushStoredRecentRoute(route: RecentRoute) {
   try {
     const prev = readStoredRecentRoutes().filter((r) => !(r.from === route.from && r.to === route.to));
-    localStorage.setItem(KH_RECENT_ROUTES_KEY, JSON.stringify([route, ...prev].slice(0, 6)));
+    localStorage.setItem(
+      KH_RECENT_ROUTES_KEY,
+      JSON.stringify([route, ...prev].slice(0, KH_RECENT_ROUTES_MAX)),
+    );
   } catch {
     /* ignore quota */
   }
@@ -360,7 +367,7 @@ function recentRoutesFromOrders(orders: CustomerOrderRow[], offices: OfficeRec[]
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(r);
-    if (out.length >= 5) break;
+    if (out.length >= KH_RECENT_ROUTES_MAX) break;
   }
   return out;
 }
@@ -414,7 +421,7 @@ export function PublicOrderForm({
           if (seen.has(key)) continue;
           seen.add(key);
           merged.push(r);
-          if (merged.length >= 5) break;
+          if (merged.length >= KH_RECENT_ROUTES_MAX) break;
         }
         setRecentRoutes(merged);
       })
@@ -1006,7 +1013,12 @@ export function PublicOrderForm({
       if (fromOfficeRec && toOfficeRec) {
         const recent = routeFromPair(fromOfficeRec, toOfficeRec);
         pushStoredRecentRoute(recent);
-        setRecentRoutes((prev) => [recent, ...prev.filter((r) => !(r.from === recent.from && r.to === recent.to))].slice(0, 5));
+        setRecentRoutes((prev) =>
+          [recent, ...prev.filter((r) => !(r.from === recent.from && r.to === recent.to))].slice(
+            0,
+            KH_RECENT_ROUTES_MAX,
+          ),
+        );
       }
       setCreatedOrder(o);
       toast.success("Đã tạo đơn hàng");
@@ -1114,7 +1126,7 @@ export function PublicOrderForm({
                   <div className="cf-recent">
                     <span className="cf-recent-label">Hành trình gần đây</span>
                     <div className="cf-recent-chips">
-                      {recentRoutes.map((r) => (
+                      {recentRoutes.slice(0, KH_RECENT_ROUTES_MAX).map((r) => (
                         <button
                           key={`${r.from}|${r.to}`}
                           type="button"
