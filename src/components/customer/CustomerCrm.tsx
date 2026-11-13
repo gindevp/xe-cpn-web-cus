@@ -19,44 +19,82 @@ import { downloadExcelRows, type ExportFormat } from "@/lib/csv";
 type Page = "overview" | "create" | "orders" | "bank" | "sender" | "defaults";
 
 const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
-  const systemIcons: Record<string, string> = {
-    grid: "/kh/d3d25.svg",
-    search: "/kh/6dc96.svg",
-    user: "/kh/13cde.svg",
-    bell: "/kh/fed54.svg",
-    box: "/kh/5839f.svg",
-    plus: "/kh/8f186.svg",
-    check: "/kh/80615.svg",
-  };
-  if (systemIcons[name]) {
-    return <span className={`ds-icon ds-icon-${size}`} role="img" aria-hidden="true" data-src={systemIcons[name]} />;
-  }
   const paths: Record<string, ReactNode> = {
-    bank: <path d="M3 10h18M5 10v8m5-8v8m4-8v8m5-8v8M3 21h18M12 3l9 5H3l9-5Z" />,
+    grid: (
+      <>
+        <rect x="3" y="3" width="7" height="9" rx="1.5" />
+        <rect x="14" y="3" width="7" height="5" rx="1.5" />
+        <rect x="14" y="12" width="7" height="9" rx="1.5" />
+        <rect x="3" y="16" width="7" height="5" rx="1.5" />
+      </>
+    ),
+    plus: (
+      <>
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+      </>
+    ),
+    box: (
+      <>
+        <path d="M21 8 12 3 3 8v8l9 5 9-5z" />
+        <path d="m3 8 9 5 9-5" />
+        <path d="M12 13v8" />
+      </>
+    ),
+    check: <path d="M20 6 9 17l-5-5" />,
+    bank: (
+      <>
+        <path d="M3 21h18" />
+        <path d="M5 21V10M10 21V10M14 21V10M19 21V10" />
+        <path d="m12 3 9 5H3z" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </>
+    ),
     sliders: (
       <>
-        <path d="M4 6h9m4 0h3M4 12h3m4 0h9M4 18h7m4 0h5" />
-        <circle cx="15" cy="6" r="2" />
-        <circle cx="9" cy="12" r="2" />
-        <circle cx="13" cy="18" r="2" />
+        <path d="M4 6h10M18 6h2" />
+        <circle cx="16" cy="6" r="2" />
+        <path d="M4 12h4M12 12h8" />
+        <circle cx="10" cy="12" r="2" />
+        <path d="M4 18h12M20 18h0" />
+        <circle cx="18" cy="18" r="2" />
       </>
     ),
     truck: (
       <>
-        <path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z" />
-        <circle cx="7" cy="19" r="2" />
-        <circle cx="18" cy="19" r="2" />
+        <path d="M3 6h11v10H3z" />
+        <path d="M14 9h4l3 3v4h-7" />
+        <circle cx="7" cy="17.5" r="1.8" />
+        <circle cx="17" cy="17.5" r="1.8" />
       </>
     ),
     wallet: (
       <>
-        <path d="M3 6h16v14H3z" />
-        <path d="M3 9h16M15 14h6v4h-6a2 2 0 0 1 0-4Z" />
+        <path d="M3 7a2 2 0 0 1 2-2h13v4" />
+        <path d="M3 7v11a2 2 0 0 0 2 2h15V9H5a2 2 0 0 1-2-2" />
+        <path d="M16 14.5h.01" />
+      </>
+    ),
+    coin: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M14.5 9.5a2.5 2 0 0 0-2.5-1.5c-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.8 2.5 2-1 2-2.5 2a2.5 2 0 0 1-2.5-1.5" />
+        <path d="M12 6.5v1.5M12 16v1.5" />
       </>
     ),
     arrow: <path d="m9 18 6-6-6-6" />,
     download: <path d="M12 3v12m-5-5 5 5 5-5M5 21h14" />,
-    x: <path d="M6 6l12 12M18 6 6 18" />,
+    x: (
+      <>
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </>
+    ),
     eye: (
       <>
         <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
@@ -75,7 +113,13 @@ const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
         <path d="M9 8h6M9 12h6" />
       </>
     ),
-    logout: <path d="M10 17l5-5-5-5M15 12H3M14 3h7v18h-7" />,
+    logout: (
+      <>
+        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+        <path d="m10 17 5-5-5-5" />
+        <path d="M15 12H3" />
+      </>
+    ),
   };
   return (
     <svg
@@ -117,21 +161,45 @@ const longTime = (iso?: string | null) => {
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())} ${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
 
-const relativeTime = (iso?: string | null) => {
-  if (!iso) return "";
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 1) return "Vừa xong";
-  if (mins < 60) return `${mins} phút trước`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.round(hours / 24);
-  return days < 30 ? `${days} ngày trước` : dateTime(iso).slice(0, 10);
-};
-
 const todayLabel = () => {
   const d = new Date();
   const wd = d.getDay() === 0 ? "Chủ Nhật" : `Thứ ${["", "Hai", "Ba", "Tư", "Năm", "Sáu", "Bảy"][d.getDay()]}`;
-  return `${wd}, ${d.getDate()} tháng ${d.getMonth() + 1}, ${d.getFullYear()}`;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${wd}, ${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+};
+
+const formatPhoneDisplay = (raw?: string | null) => {
+  const d = (raw ?? "").replace(/\D/g, "");
+  if (d.length === 10) return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
+  return raw?.trim() || "";
+};
+
+/** Thời gian hoạt động kiểu design: HH:mm | Hôm qua | dd/MM */
+const activityTime = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startThat = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const dayDiff = Math.round((startToday - startThat) / 86400000);
+  if (dayDiff === 0) return `${p(d.getHours())}:${p(d.getMinutes())}`;
+  if (dayDiff === 1) return "Hôm qua";
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}`;
+};
+
+const activityCopy = (o: CustomerOrderRow) => {
+  if (o.group === "CANCELLED") return "Đơn đã huỷ";
+  if (o.group === "DELIVERED") {
+    const cod = Number(o.codAmount ?? 0);
+    return cod > 0
+      ? `Giao thành công, COD ${money(cod)} ${o.codRefunded ? "đã hoàn" : "chờ hoàn"}`
+      : "Giao thành công";
+  }
+  if (o.group === "PENDING") return o.statusLabel || "Đã tạo đơn, chờ mang hàng tới VP";
+  if (o.group === "SHIPPING") return o.statusLabel || "Đang vận chuyển";
+  return o.statusLabel || "Cập nhật đơn";
 };
 
 const greeting = () => {
@@ -221,8 +289,12 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
     if (id === "create") window.scrollTo({ top: 0 });
   };
 
-  const shippingCount = orders?.filter((o) => o.group === "SHIPPING").length ?? 0;
   const displayName = name || session.phone;
+  const settingsSub: Record<"bank" | "sender" | "defaults", string> = {
+    bank: "Nơi nhận tiền thu hộ (COD)",
+    sender: "Tự điền khi bạn tạo đơn mới",
+    defaults: "Rút ngắn thời gian bằng các tùy chọn thường dùng",
+  };
 
   return (
     <div className="kh-crm">
@@ -248,7 +320,6 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
               >
                 <Icon name={item.icon} />
                 <span>{item.label}</span>
-                {item.id === "orders" && shippingCount > 0 && <b>{shippingCount}</b>}
               </button>
             ))}
             <p className="nav-title settings-title">CÀI ĐẶT</p>
@@ -268,7 +339,7 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
             <div className="avatar">{initials(name, session.phone)}</div>
             <div>
               <strong>{displayName}</strong>
-              <span>{session.phone}</span>
+              <span>{formatPhoneDisplay(session.phone)}</span>
             </div>
             <button type="button" title="Đăng xuất" aria-label="Đăng xuất" onClick={onLogout}>
               <Icon name="logout" size={18} />
@@ -281,13 +352,21 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
               <Overview name={name} summary={summary} orders={orders} onCreate={() => go("create")} onAll={() => setPage("orders")} />
             )}
             {page === "create" && (
-              <PublicOrderForm
-                variant="crm"
-                onHome={() => {
-                  setPage("overview");
-                  reload();
-                }}
-              />
+              <>
+                <div className="page-head">
+                  <div>
+                    <h1>Tạo đơn mới</h1>
+                    <p>Gửi hàng giữa các văn phòng X.E trên toàn quốc</p>
+                  </div>
+                </div>
+                <PublicOrderForm
+                  variant="crm"
+                  onHome={() => {
+                    setPage("overview");
+                    reload();
+                  }}
+                />
+              </>
             )}
             {page === "orders" && (
               <OrdersPage orders={orders} search={search} setSearch={setSearch} onCreate={() => go("create")} onReload={reload} />
@@ -297,7 +376,7 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
                 <div className="page-head">
                   <div>
                     <h1>{TITLES[page]}</h1>
-                    <p>{todayLabel()}</p>
+                    <p>{settingsSub[page]}</p>
                   </div>
                 </div>
                 <SettingsPage
@@ -419,21 +498,20 @@ function Overview({
           unit="đ"
           hint={`Tổng cước ${total} đơn`}
         />
-        <StatCard
-          icon="wallet"
-          label="COD chờ hoàn"
-          value={
-            orders
-              ? Math.round(
-                  orders
-                    .filter((o) => o.group === "DELIVERED" && o.codAmount && !o.codRefunded)
-                    .reduce((s, o) => s + Number(o.codAmount ?? 0), 0),
-                ).toLocaleString("vi-VN")
-              : "—"
-          }
-          unit="đ"
-          hint="Từ đơn đã giao chưa hoàn COD"
-        />
+        {(() => {
+          const codOrders =
+            orders?.filter((o) => o.group === "DELIVERED" && Number(o.codAmount ?? 0) > 0 && !o.codRefunded) ?? [];
+          const codSum = codOrders.reduce((s, o) => s + Number(o.codAmount ?? 0), 0);
+          return (
+            <StatCard
+              icon="coin"
+              label="COD chờ hoàn"
+              value={orders ? Math.round(codSum).toLocaleString("vi-VN") : "—"}
+              unit="đ"
+              hint={orders ? `Từ ${codOrders.length} đơn đã giao` : "—"}
+            />
+          );
+        })()}
       </section>
       <section className="dashboard-grid">
         <div className="panel">
@@ -447,7 +525,7 @@ function Overview({
             {total}
             <span>đơn</span>
           </div>
-          <div className="status-bar" role="img" aria-label="Phân bố trạng thái">
+          <div className="status-bar grow" role="img" aria-label="Phân bố trạng thái">
             {bar(done, "#376934")}
             {bar(shipping, "#274ea1")}
             {bar(pending, "#b2c5ff")}
@@ -495,9 +573,9 @@ function Overview({
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>{o.orderCode}</strong>
-                  <p>{o.statusLabel}</p>
+                  <p>{activityCopy(o)}</p>
                 </div>
-                <time>{relativeTime(o.createdAt)}</time>
+                <time>{activityTime(o.createdAt)}</time>
               </div>
             ))
           )}
@@ -586,7 +664,7 @@ function OrdersPage({
       <section className="page-head">
         <div>
           <h1>Quản lý đơn hàng</h1>
-          <p>Theo dõi tất cả đơn bạn gửi và nhận</p>
+          <p>Theo dõi tất cả đơn bạn đã gửi</p>
         </div>
         <button type="button" className="primary" onClick={onCreate}>
           <Icon name="plus" size={18} />
@@ -618,13 +696,9 @@ function OrdersPage({
           <button type="button" className="outline" onClick={onReload}>
             Tải lại
           </button>
-          <button type="button" className="outline" title="Xuất CSV" onClick={() => exportFile("csv")}>
+          <button type="button" className="outline" title="Xuất file Excel" onClick={() => exportFile("excel")}>
             <Icon name="download" size={17} />
-            CSV
-          </button>
-          <button type="button" className="outline" title="Xuất Excel" onClick={() => exportFile("excel")}>
-            <Icon name="download" size={17} />
-            Excel
+            Xuất file
           </button>
         </div>
         <OrderTable rows={rows} detailed loading={orders == null} />
@@ -679,7 +753,7 @@ function OrderTable({ rows, detailed = false, loading = false }: { rows: Custome
                     <strong style={{ fontWeight: 600 }}>{money(o.fareAmount)}</strong>
                     <span className="subline">{o.payer === "SENDER" ? "Người gửi trả" : "Người nhận trả"}</span>
                   </td>
-                  <td className="r">{o.codAmount ? money(o.codAmount) : "—"}</td>
+                  <td className="r">{o.codAmount ? money(o.codAmount) : "-"}</td>
                   <td>
                     <span className={`badge ${GROUP_TONE[o.group]}`}>{o.statusLabel || "—"}</span>
                   </td>

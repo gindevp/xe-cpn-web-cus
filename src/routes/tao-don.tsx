@@ -979,8 +979,8 @@ export function PublicOrderForm({
             ) : step === 1 ? (
               <>
                 <header className="cf-head">
-                  <span>Bước 1 / 3</span>
-                  <h2>Chọn hành trình</h2>
+                  <span>BƯỚC 1 / 3</span>
+                  <h2>Chọn văn phòng</h2>
                   <p>Hàng của bạn sẽ được chuyển từ văn phòng gửi đến văn phòng nhận.</p>
                 </header>
                 {!masterLoading && offices.length === 0 && (

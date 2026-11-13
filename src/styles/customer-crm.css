@@ -621,6 +621,8 @@
   height: 12px;
 }
 .kh-crm .status-bar > span { min-width: 4px; }
+.kh-crm .status-bar.grow { transform-origin: left center; animation: khGrow 0.7s var(--ease) both; }
+@keyframes khGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .kh-crm .legend { margin: 0; padding: 0; list-style: none; }
 .kh-crm .legend li {
   display: flex;
@@ -1140,12 +1142,23 @@
 
 /* Create CRM — horizontal stepper (design CreateStep*) */
 .kh-crm .cf {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
+  align-items: stretch !important; /* override legacy align-items:start (co form về ~0px) */
   gap: 16px;
+  width: 100%;
   max-width: 1100px;
   margin: 0 auto;
   grid-template-columns: none;
+}
+.kh-crm .cf-main {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+}
+.kh-crm .cf-route {
+  width: 100%;
+  grid-template-columns: minmax(180px, 1fr) 90px minmax(180px, 1fr) !important;
 }
 .kh-crm .cf-stepper {
   list-style: none;

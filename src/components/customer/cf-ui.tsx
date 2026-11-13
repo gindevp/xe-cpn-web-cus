@@ -176,7 +176,7 @@ export function CfBlockTitle({
 }
 
 const STEPS = [
-  ["1", "Chọn hành trình", "Văn phòng gửi & nhận"],
+  ["1", "Chọn văn phòng", "Điểm gửi và điểm nhận"],
   ["2", "Thông tin đơn", "Người gửi/nhận, hàng, thanh toán"],
   ["3", "Hoàn tất", "Xác nhận mã đơn"],
 ] as const;
