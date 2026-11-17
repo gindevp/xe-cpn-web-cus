@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { OfficeLocationMap } from "@/components/OfficeLocationMap";
 import { geoGeocodeAddress } from "@/lib/api/geo-api";
-import { estimatePickupKm } from "@/lib/api/ahamove-api";
+import { estimatePickupKm, formatAhamoveFeeLine } from "@/lib/api/ahamove-api";
 import { isApiEnabled } from "@/lib/api/client";
 
 /**
@@ -60,6 +60,9 @@ export function HomeDeliveryMap({
   const pinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastToastKey = useRef<string>("");
   const [fee, setFee] = useState<number | null>(null);
+  const [feeBefore, setFeeBefore] = useState<number | null>(null);
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const [voucherDiscount, setVoucherDiscount] = useState<number | null>(null);
   const [bulky, setBulky] = useState(false);
   const onKmChangeRef = useRef(onKmChange);
   onKmChangeRef.current = onKmChange;
@@ -212,6 +215,9 @@ export function HomeDeliveryMap({
           setDistanceKm(km);
           setServiceId(r.serviceId ?? null);
           setFee(r.totalPrice != null ? Number(r.totalPrice) : null);
+          setFeeBefore(r.totalPriceBeforePromo != null ? Number(r.totalPriceBeforePromo) : null);
+          setPromoCode(r.promoCode?.trim() || null);
+          setVoucherDiscount(r.voucherDiscount != null ? Number(r.voucherDiscount) : null);
           setBulky(!!r.bulkyTier);
           setKmError(null);
           setPinError(null);
@@ -292,7 +298,7 @@ export function HomeDeliveryMap({
             {serviceId ? <span className="ml-2 text-xs text-muted-foreground">({serviceId})</span> : null}
             {showFee && fee != null ? (
               <span className="ml-2">
-                · Phí Ahamove ~<strong>{fee.toLocaleString("vi-VN")}đ</strong>
+                · {formatAhamoveFeeLine({ fee, feeBefore, promoCode, voucherDiscount })}
                 {bulky ? <span className="text-xs text-muted-foreground"> (đã cộng phụ phí)</span> : null}
               </span>
             ) : null}

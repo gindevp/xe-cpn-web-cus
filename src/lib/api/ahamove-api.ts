@@ -4,8 +4,14 @@ export type AhamovePickupKmResult = {
   serviceId?: string;
   distanceMeters?: number | null;
   distanceKm?: number | null;
-  /** Phí Ahamove ước tính (VND) — chi phí đối tác, không phải cước khách. */
+  /** Phí Ahamove ước tính sau voucher (nếu có) — chi phí đối tác, không phải cước khách. */
   totalPrice?: number | null;
+  /** Phí trước khi áp voucher (cùng payment lúc book). */
+  totalPriceBeforePromo?: number | null;
+  /** Mã voucher Aha được chọn (giảm nhiều nhất). */
+  promoCode?: string | null;
+  /** Số tiền giảm voucher (VND). */
+  voucherDiscount?: number | null;
   /** TIER_2..TIER_4 khi phí đã cộng hàng cồng kềnh theo kích thước/cân nặng của đơn. */
   bulkyTier?: string | null;
   tipUnits?: number | null;
@@ -47,4 +53,35 @@ export async function estimateGrab(body: {
     method: "POST",
     body,
   });
+}
+
+/** Dòng phí Aha ước tính / sau book — hiện rõ voucher nếu có. */
+export function formatAhamoveFeeLine(opts: {
+  fee?: number | null;
+  feeBefore?: number | null;
+  promoCode?: string | null;
+  voucherDiscount?: number | null;
+  brand?: string;
+}): string {
+  const brand = opts.brand ?? "Ahamove";
+  if (opts.fee == null || Number.isNaN(opts.fee)) return "";
+  const feeStr = opts.fee.toLocaleString("vi-VN");
+  const code = opts.promoCode?.trim();
+  const disc =
+    opts.voucherDiscount != null && opts.voucherDiscount > 0
+      ? opts.voucherDiscount
+      : opts.feeBefore != null && opts.feeBefore > opts.fee
+        ? opts.feeBefore - opts.fee
+        : 0;
+  if (code && disc > 0) {
+    const before =
+      opts.feeBefore != null && opts.feeBefore > opts.fee
+        ? opts.feeBefore.toLocaleString("vi-VN")
+        : null;
+    return before
+      ? `Phí ${brand} ~${feeStr}đ (gốc ${before}đ · voucher ${code} −${disc.toLocaleString("vi-VN")}đ)`
+      : `Phí ${brand} ~${feeStr}đ (voucher ${code} −${disc.toLocaleString("vi-VN")}đ)`;
+  }
+  if (code) return `Phí ${brand} ~${feeStr}đ (voucher ${code})`;
+  return `Phí ${brand} ~${feeStr}đ`;
 }

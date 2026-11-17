@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { AddressPicker } from "@/components/AddressPicker";
 import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
 import { ahamoveDispatch, ahamovePickupDispatch, grabDispatch, grabPickupDispatch } from "@/lib/api/domain-api";
-import { estimateGrab, estimatePickupKm } from "@/lib/api/ahamove-api";
+import { estimateGrab, estimatePickupKm, formatAhamoveFeeLine } from "@/lib/api/ahamove-api";
 import { ahamoveBlockReason, ahamoveDue, ahamovePickupBlockReason } from "@/lib/ahamove";
 import {
   addressFromGoogleMapsLink,
@@ -161,7 +161,14 @@ export function AhamovePartnerPanel({
   /** Ahamove: ghim map hoặc link GG. Grab: chỉ link Google Maps (không OSM). */
   const gps = grab ? linkPin : useGps ? pin : linkPin;
 
-  const [addrEst, setAddrEst] = useState<{ km: number | null; fee: number | null; bulky: boolean } | null>(null);
+  const [addrEst, setAddrEst] = useState<{
+    km: number | null;
+    fee: number | null;
+    feeBefore: number | null;
+    promoCode: string | null;
+    voucherDiscount: number | null;
+    bulky: boolean;
+  } | null>(null);
   const [addrEstErr, setAddrEstErr] = useState<string | null>(null);
   const [addrEstLoading, setAddrEstLoading] = useState(false);
   const officeLat = office?.latitude ?? null;
@@ -220,6 +227,9 @@ export function AhamovePartnerPanel({
           setAddrEst({
             km: r.distanceKm != null ? Number(r.distanceKm) : null,
             fee: r.totalPrice != null ? Number(r.totalPrice) : null,
+            feeBefore: r.totalPriceBeforePromo != null ? Number(r.totalPriceBeforePromo) : null,
+            promoCode: r.promoCode?.trim() || null,
+            voucherDiscount: r.voucherDiscount != null ? Number(r.voucherDiscount) : null,
             bulky: !!r.bulkyTier,
           });
         } catch (e) {
@@ -335,7 +345,16 @@ export function AhamovePartnerPanel({
                     ) : null}
                     {addrEst.fee != null ? (
                       <span className="ml-2">
-                        · Phí {brand} ~<strong>{addrEst.fee.toLocaleString("vi-VN")}đ</strong>
+                        ·{" "}
+                        {!grab
+                          ? formatAhamoveFeeLine({
+                              fee: addrEst.fee,
+                              feeBefore: addrEst.feeBefore,
+                              promoCode: addrEst.promoCode,
+                              voucherDiscount: addrEst.voucherDiscount,
+                              brand,
+                            })
+                          : `Phí ${brand} ~${addrEst.fee.toLocaleString("vi-VN")}đ`}
                         {!grab && (addrEst.bulky || tipUnits > 0) ? (
                           <span className="text-xs text-muted-foreground">
                             {addrEst.bulky ? " (đã cộng phụ phí)" : ""}
@@ -435,7 +454,7 @@ export function AhamovePartnerPanel({
             />
           </div>
           {advance > 0 ? (
-            <div className="rounded-md border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
               Tài xế sẽ ứng <strong>{advance.toLocaleString("vi-VN")}đ</strong> khi đến lấy, rồi thu lại{" "}
               {advance.toLocaleString("vi-VN")}đ của người nhận. Đơn vẫn <strong>chưa thu</strong> lúc gọi. Khi ship đến,
               điều phối quét bàn giao trên app thì mới chuyển <strong>đã thanh toán nhận ứng</strong>.

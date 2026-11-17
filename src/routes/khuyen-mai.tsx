@@ -575,8 +575,9 @@ function Page() {
       ) : tab === "aha" ? (
         <Section title="Voucher Ahamove">
           <p className="mb-3 text-sm text-muted-foreground">
-            Nhập các mã voucher Aha cung cấp. Khi CPN book giao/lấy Ahamove (trả phí đối tác), hệ thống tự ước tính và
-            chọn mã giảm nhiều nhất. Mã hết hạn / không dùng được sẽ bỏ qua.
+            Nhập các mã voucher Aha cung cấp. Lúc <strong>ước tính phí</strong> và lúc <strong>book</strong>, hệ thống
+            gọi Aha kèm từng mã ({`promo_code`}), chọn mã giảm phí nhiều nhất, hiện rõ phí gốc / voucher / phí sau giảm.
+            Mã hết hạn hoặc Aha từ chối → bỏ qua; book lỗi với mã → thử lại không mã.
           </p>
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full min-w-[720px] text-sm">
