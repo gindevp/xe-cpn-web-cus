@@ -169,6 +169,8 @@ const BANK_OPTIONS = [
 ].map((b) => ({ value: b, label: b }));
 
 const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
+/** Định dạng tiền kiểu design khách (`30.000đ`). */
+const vndShort = (n?: number | null) => `${Math.round(Number(n ?? 0)).toLocaleString("vi-VN")}đ`;
 
 const fieldSelectClass =
   "h-12 rounded-xl border-0 bg-[#E9EEF5] px-3 text-base shadow-none hover:bg-[#E1E8F2] focus-visible:ring-1 focus-visible:ring-primary";
@@ -1172,7 +1174,7 @@ export function PublicOrderForm({
       ] as const
     ).filter(([, v], i) => i === 0 || v > 0);
     const totalNote = `${payerSeg[3]}${
-      codAmount > 0 ? ` · Chưa gồm ${formatVND(codAmount)} COD thu hộ từ người nhận` : " · Không thu hộ COD"
+      codAmount > 0 ? ` · Chưa gồm ${vndShort(codAmount)} COD thu hộ từ người nhận` : " · Không thu hộ COD"
     }`;
     const doorHint = (quoting: boolean, km: number | null, addr: string, what: string) =>
       `Chỉ cần số nhà và đường.${
@@ -1483,7 +1485,7 @@ export function PublicOrderForm({
                       </div>
                       <div className="c2-row">
                         <span>Cước kiện (tự tính)</span>
-                        <strong>{formatVND(it.fare)}</strong>
+                        <strong>{vndShort(it.fare)}</strong>
                       </div>
                     </div>
                   ))}
@@ -1576,13 +1578,13 @@ export function PublicOrderForm({
                     {feeLines.map(([label, v]) => (
                       <div key={label}>
                         <span>{label}</span>
-                        <b>{formatVND(v)}</b>
+                        <b>{vndShort(v)}</b>
                       </div>
                     ))}
                   </div>
                   <div className="c2-total">
                     <span>Tổng cước</span>
-                    <strong>{formatVND(totalFare)}</strong>
+                    <strong>{vndShort(totalFare)}</strong>
                     <small>{totalNote}</small>
                   </div>
                   <button type="submit" className="c2-submit" disabled={saving}>
@@ -2123,15 +2125,15 @@ function CrmOrderDone({
   const paySentence =
     payMethod === "Người nhận thanh toán" ? (
       <>
-        Cước <strong>{formatVND(fare)}</strong> sẽ thu của người nhận khi giao hàng.
+        Cước <strong>{vndShort(fare)}</strong> sẽ thu của người nhận khi giao hàng.
       </>
     ) : payMethod === "Thu cước 1 phần" ? (
       <>
-        Bạn trả trước <strong>{formatVND(prepaid)}</strong> tại quầy, phần còn lại thu của người nhận khi giao.
+        Bạn trả trước <strong>{vndShort(prepaid)}</strong> tại quầy, phần còn lại thu của người nhận khi giao.
       </>
     ) : (
       <>
-        Bạn sẽ thanh toán <strong>{formatVND(fare)}</strong> tiền cước tại quầy.
+        Bạn sẽ thanh toán <strong>{vndShort(fare)}</strong> tiền cước tại quầy.
       </>
     );
   const [downloading, setDownloading] = useState(false);
@@ -2162,9 +2164,9 @@ function CrmOrderDone({
       "Hàng hoá",
       `${goodsName} · ${pkgs.length || 1} kiện · ${totalKg.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} kg`,
     ],
-    ["Thu hộ COD", cod > 0 ? formatVND(cod) : "Không thu hộ"],
+    ["Thu hộ COD", cod > 0 ? vndShort(cod) : "Không thu hộ"],
     ["Người trả cước", payWho],
-    ["Tổng cước", formatVND(fare), true],
+    ["Tổng cước", vndShort(fare), true],
   ];
 
   return (

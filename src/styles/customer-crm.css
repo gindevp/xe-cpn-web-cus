@@ -2173,6 +2173,7 @@
   white-space: nowrap;
 }
 .kh-crm .c2-seg button.on { background: #274ea1; color: #fff; }
+.kh-crm .c2-select { flex: none; min-width: 0; }
 .kh-crm .c2-select .kh-select-label { font-size: 13px; line-height: 18px; color: #1a1b21; }
 .kh-crm .c2-select .kh-select-btn { border-color: #dce2f9; border-radius: 8px; }
 .kh-crm .c2-select .kh-select-btn > svg:first-child { color: #757780; }
