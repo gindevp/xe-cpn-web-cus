@@ -419,6 +419,11 @@ export function CustomerCrm({ session, onLogout }: { session: CustomerSession; o
                   setPage("overview");
                   reload();
                 }}
+                onViewOrder={(code) => {
+                  setSearch(code);
+                  setPage("orders");
+                  reload();
+                }}
               />
             </>
           )}
@@ -603,7 +608,7 @@ function Overview({
             {bar(cancelled, "#ba1a1a")}
             {!total ? <span className="status-bar-empty" /> : null}
           </div>
-          <ul className="legend">
+          <ul className="kh-legend">
             {(
               [
                 ["#376934", "Thành công", done],
@@ -614,7 +619,7 @@ function Overview({
             ).map(([color, label, n]) => (
               <li key={label}>
                 <i className="swatch" style={{ background: color }} />
-                <span style={{ flex: 1 }}>{label}</span>
+                <span className="lg-label">{label}</span>
                 <strong>{n}</strong>
                 <em>{pct(n)}%</em>
               </li>
@@ -684,7 +689,20 @@ const DATE_FILTERS = [
   { id: "all", label: "Tất cả thời gian" },
 ] as const;
 
-function inDateFilter(iso: string | null | undefined, id: (typeof DATE_FILTERS)[number]["id"]) {
+type DateFilterId = (typeof DATE_FILTERS)[number]["id"];
+
+function dateRangeSub(id: DateFilterId): string | undefined {
+  const now = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  const fmt = (d: Date) => `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+  if (id === "month") return `${fmt(new Date(now.getFullYear(), now.getMonth(), 1))} – ${fmt(now)}`;
+  if (id === "prev") {
+    return `${fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1))} – ${fmt(new Date(now.getFullYear(), now.getMonth(), 0))}`;
+  }
+  return undefined;
+}
+
+function inDateFilter(iso: string | null | undefined, id: DateFilterId) {
   if (id === "all" || !iso) return id === "all" ? true : false;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return false;
@@ -715,10 +733,14 @@ function OrdersPage({
   onReload: () => void;
 }) {
   const [filter, setFilter] = useState<CustomerGroup | "ALL">("ALL");
-  const [dateId, setDateId] = useState<(typeof DATE_FILTERS)[number]["id"]>("month");
+  const [pickedDate, setPickedDate] = useState<DateFilterId | null>(null);
   const [vp, setVp] = useState("Tất cả văn phòng");
   const [spin, setSpin] = useState(false);
   const all = orders ?? [];
+  /** Design mặc định «Tháng này»; nếu tháng này chưa có đơn thì mở «Tất cả thời gian» để không giấu đơn cũ (vd. đơn huỷ tháng trước). */
+  const dateId: DateFilterId =
+    pickedDate ?? (all.length > 0 && !all.some((o) => inDateFilter(o.createdAt, "month")) ? "all" : "month");
+  const dateOptions = DATE_FILTERS.map((d) => ({ value: d.id, label: d.label, sub: dateRangeSub(d.id) }));
   const vpOptions = useMemo(() => {
     const set = new Set<string>();
     for (const o of all) {
@@ -739,8 +761,6 @@ function OrdersPage({
           .some((v) => String(v).toLowerCase().includes(q))),
   );
   const count = (id: CustomerGroup | "ALL") => (id === "ALL" ? base.length : base.filter((o) => o.group === id).length);
-  const dateLabel = DATE_FILTERS.find((d) => d.id === dateId)?.label ?? "Tháng này";
-
   const exportFile = (format: ExportFormat = "csv") => {
     if (!rows.length) {
       toast.message("Không có đơn để xuất");
@@ -818,11 +838,11 @@ function OrdersPage({
           <KhSelect
             label="Ngày tạo"
             icon="calendar"
-            value={dateLabel}
-            options={DATE_FILTERS.map((d) => d.label)}
-            onPick={(label) => {
-              const hit = DATE_FILTERS.find((d) => d.label === label);
-              if (hit) setDateId(hit.id);
+            value={dateId}
+            options={dateOptions}
+            onPick={(id) => {
+              const hit = DATE_FILTERS.find((d) => d.id === id);
+              if (hit) setPickedDate(hit.id);
             }}
           />
           <KhSelect

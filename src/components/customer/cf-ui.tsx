@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 const GLYPHS: Record<string, ReactNode> = {
   pin: (
@@ -80,6 +80,20 @@ const GLYPHS: Record<string, ReactNode> = {
   ),
   download: <path d="M12 3v12m-5-5 5 5 5-5M5 21h14" />,
   printer: <path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" />,
+  chevron: <path d="m6 9 6 6 6-6" />,
+  camera: (
+    <>
+      <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </>
+  ),
+  upload: <path d="M12 16V4m-5 5 5-5 5 5M5 20h14" />,
+  eye: (
+    <>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
 };
 
 export function CfGlyph({ name, size = 20 }: { name: string; size?: number }) {
@@ -131,6 +145,129 @@ export function SuccessArt() {
       <circle cx="108" cy="92" r="5" fill="#f59e0b" />
       <circle cx="12" cy="90" r="3" fill="#274ea1" />
     </svg>
+  );
+}
+
+/** Ô nhập kiểu design CreateStep2: label trên, hộp 40px viền #dce2f9, icon/đơn vị nằm trong hộp. */
+export function C2Field({
+  label,
+  icon,
+  unit,
+  hint,
+  wide,
+  children,
+}: {
+  label: string;
+  icon?: string;
+  unit?: string;
+  hint?: ReactNode;
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <label className={`c2-field${wide ? " wide" : ""}`}>
+      <span className="c2-label">{label}</span>
+      <span className={`c2-inp${icon ? " has-icon" : ""}${unit ? " has-unit" : ""}`}>
+        {icon ? <CfGlyph name={icon} size={18} /> : null}
+        {children}
+        {unit ? <em>{unit}</em> : null}
+      </span>
+      {hint ? <small className="c2-hint">{hint}</small> : null}
+    </label>
+  );
+}
+
+export function C2Switch({
+  on,
+  onChange,
+  title,
+  sub,
+}: {
+  on: boolean;
+  onChange: (on: boolean) => void;
+  title: string;
+  sub?: string;
+}) {
+  return (
+    <button type="button" role="switch" aria-checked={on} className={`c2-switch${on ? " on" : ""}`} onClick={() => onChange(!on)}>
+      <span>
+        <strong>{title}</strong>
+        {sub ? <small>{sub}</small> : null}
+      </span>
+      <span className="track">
+        <span className="knob" />
+      </span>
+    </button>
+  );
+}
+
+export type CfSelectOption = { value: string; label: string; sub?: string };
+
+/** Dropdown cùng markup/class với KhSelect của CRM (`.kh-select*`). */
+export function CfSelect({
+  label,
+  icon,
+  value,
+  placeholder = "Chọn",
+  options,
+  onPick,
+}: {
+  label: string;
+  icon?: string;
+  value: string;
+  placeholder?: string;
+  options: CfSelectOption[];
+  onPick: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const cur = options.find((o) => o.value === value);
+  return (
+    <div className="kh-select c2-select">
+      <span className="kh-select-label">{label}</span>
+      <div className="kh-select-wrap">
+        <button
+          type="button"
+          className={`kh-select-btn${cur ? "" : " placeholder"}`}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={label}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {icon ? <CfGlyph name={icon} size={18} /> : null}
+          <span className="kh-select-value">{cur?.label ?? placeholder}</span>
+          <CfGlyph name="chevron" size={16} />
+        </button>
+        {open ? (
+          <>
+            <button type="button" className="kh-select-scrim" aria-label="Đóng danh sách" onClick={() => setOpen(false)} />
+            <div className="kh-select-menu left" role="listbox">
+              {options.map((o) => {
+                const on = o.value === value;
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    className={on ? "on" : ""}
+                    onClick={() => {
+                      onPick(o.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="opt-main">
+                      <span>{o.label}</span>
+                      {o.sub ? <span className="opt-sub">{o.sub}</span> : null}
+                    </span>
+                    {on ? <CfGlyph name="check" size={18} /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -202,8 +339,8 @@ export function CfRail({ step, tip }: { step: number; tip: string }) {
         const n = i + 1;
         const cls = n === step ? "current" : n < step ? "done" : "";
         return (
-          <li key={title} className={cls}>
-            <span className="cf-step-num">{n < step ? "✓" : num}</span>
+          <li key={title} className={cls} aria-current={n === step ? "step" : undefined}>
+            <span className="cf-step-num">{n < step ? <CfGlyph name="check" size={18} /> : num}</span>
             <span className="cf-step-text">
               <strong>{title}</strong>
               <small>{desc}</small>
