@@ -94,6 +94,7 @@ const MATRIX: Record<ScreenKey, Partial<Record<Role, Perm>>> = {
   "cham-cong": { AD: "Y" },
   "bao-gio-xe": { AD: "Y" },
   "phu-phi": { AD: "Y", DH: "R" },
+  "khuyen-mai": { AD: "Y", DH: "R" },
   "ton-kho": { Q: "Y", TCN: "Y", DH: "Y", BX: "R", KT: "R", BL: "R", AD: "Y" },
   "kiem-ke": { Q: "Y", TCN: "Y", DH: "Y", BX: "R", KT: "R", BL: "R", AD: "Y" },
   "bao-cao-gio": { Q: "R", TCN: "Y", DH: "Y", BX: "R", KT: "R", BL: "R", AD: "Y" },
