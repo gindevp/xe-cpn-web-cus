@@ -319,16 +319,12 @@ function Page() {
       </div>
 
       {tab === "tier" ? (
-        <Section
-          title="Giảm giá theo cước đơn"
-          description={
-            <>
-              Giống bảng giá theo khoảng: mỗi bậc là một <strong>mốc cước tối thiểu</strong>. Đơn đạt mốc nào thì được
-              giảm số tiền của mốc đó; nếu đạt nhiều mốc → lấy mốc <strong>cao nhất</strong>. Ví dụ 300K→20K và
-              500K→50K: đơn 400K giảm 20K, đơn 600K giảm 50K. Tự áp lúc tạo đơn (không cần nhập mã).
-            </>
-          }
-        >
+        <Section title="Giảm giá theo cước đơn">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Giống bảng giá theo khoảng: mỗi bậc là một <strong>mốc cước tối thiểu</strong>. Đơn đạt mốc nào thì được
+            giảm số tiền của mốc đó; nếu đạt nhiều mốc → lấy mốc <strong>cao nhất</strong>. Ví dụ 300K→20K và
+            500K→50K: đơn 400K giảm 20K, đơn 600K giảm 50K. Tự áp lúc tạo đơn (không cần nhập mã).
+          </p>
           {orderedRules.length > 0 && (
             <div className="mb-3 overflow-x-auto rounded-xl border bg-muted/20">
               <table className="w-full min-w-[520px] text-sm">
@@ -462,10 +458,11 @@ function Page() {
           </div>
         </Section>
       ) : tab === "code" ? (
-        <Section
-          title="Mã giảm giá"
-          description="Tạo mã để khách/NV nhập lúc tạo đơn. Đúng mã → giảm số tiền cố định. Có cả bậc cước và mã → lấy mức giảm lớn hơn."
-        >
+        <Section title="Mã giảm giá">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Tạo mã để khách/NV nhập lúc tạo đơn. Đúng mã → giảm số tiền cố định. Có cả bậc cước và mã → lấy mức giảm lớn
+            hơn.
+          </p>
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
@@ -576,10 +573,11 @@ function Page() {
           </div>
         </Section>
       ) : tab === "aha" ? (
-        <Section
-          title="Voucher Ahamove"
-          description="Nhập các mã voucher Aha cung cấp. Khi CPN book giao/lấy Ahamove (trả phí đối tác), hệ thống tự ước tính và chọn mã giảm nhiều nhất. Mã hết hạn / không dùng được sẽ bỏ qua."
-        >
+        <Section title="Voucher Ahamove">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Nhập các mã voucher Aha cung cấp. Khi CPN book giao/lấy Ahamove (trả phí đối tác), hệ thống tự ước tính và
+            chọn mã giảm nhiều nhất. Mã hết hạn / không dùng được sẽ bỏ qua.
+          </p>
           <div className="overflow-x-auto rounded-xl border">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
@@ -674,10 +672,11 @@ function Page() {
       ) : null}
 
       {tab !== "aha" && (
-        <Section
-          title="Thử tính (không lưu)"
-          description="Máy tính kiểm tra: nhập giả định tổng cước đơn (+ mã nếu có) để xem hệ thống sẽ chọn khoảng nào và giảm bao nhiêu. Không ghi vào cấu hình."
-        >
+        <Section title="Thử tính (không lưu)">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Máy tính kiểm tra: nhập giả định tổng cước đơn (+ mã nếu có) để xem hệ thống sẽ chọn khoảng nào và giảm bao
+            nhiêu. Không ghi vào cấu hình.
+          </p>
           <div className="flex flex-wrap items-end gap-4">
             <div>
               <div className="mb-1 text-xs text-muted-foreground">Tổng cước trước giảm</div>
