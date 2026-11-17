@@ -21,7 +21,7 @@ import {
   type AhamovePromoCode,
 } from "@/lib/api/finance-config-api";
 import { useAuth } from "@/lib/auth";
-import { canWrite } from "@/lib/rbac";
+import { canWrite, useRbacVersion } from "@/lib/rbac";
 import { calcOrderDiscount, normalizeDiscountCode } from "@/lib/pricing";
 
 export const Route = createFileRoute("/khuyen-mai")({
@@ -72,6 +72,7 @@ function emptyAha(): AhamovePromoCode {
 
 function Page() {
   const session = useAuth((s) => s.session);
+  useRbacVersion();
   const writable = canWrite(session?.role, "khuyen-mai");
   const [tab, setTab] = useState<"tier" | "code" | "aha">("tier");
   const storedRules = useStore((s) => s.fareDiscountRules);
@@ -252,6 +253,11 @@ function Page() {
 
   return (
     <div className="space-y-4">
+      {!writable && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+          Tài khoản chỉ được xem. Cần nhóm <strong>Admin</strong> (hoặc được cấp quyền ghi màn Khuyến mãi) để Thêm / Sửa / Xóa / Lưu.
+        </div>
+      )}
       <div className="flex gap-2 border-b pb-2">
         <Button type="button" variant={tab === "tier" ? "default" : "ghost"} size="sm" onClick={() => setTab("tier")}>
           Theo cước đơn
@@ -360,16 +366,12 @@ function Page() {
             </table>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {writable && (
-              <>
-                <Button type="button" variant="outline" onClick={() => setRules((p) => [...p, emptyRule()])}>
-                  <Plus className="mr-1 h-4 w-4" /> Thêm bậc
-                </Button>
-                <Button type="button" disabled={saving} onClick={() => void saveRules()}>
-                  {saving ? "Đang lưu…" : "Lưu"}
-                </Button>
-              </>
-            )}
+            <Button type="button" variant="outline" disabled={!writable} onClick={() => setRules((p) => [...p, emptyRule()])}>
+              <Plus className="mr-1 h-4 w-4" /> Thêm bậc
+            </Button>
+            <Button type="button" disabled={!writable || saving} onClick={() => void saveRules()}>
+              {saving ? "Đang lưu…" : "Lưu"}
+            </Button>
           </div>
         </Section>
       ) : tab === "code" ? (
@@ -478,16 +480,12 @@ function Page() {
             </table>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {writable && (
-              <>
-                <Button type="button" variant="outline" onClick={() => setCodes((p) => [...p, emptyCode()])}>
-                  <Plus className="mr-1 h-4 w-4" /> Thêm mã
-                </Button>
-                <Button type="button" disabled={saving} onClick={() => void saveCodes()}>
-                  {saving ? "Đang lưu…" : "Lưu"}
-                </Button>
-              </>
-            )}
+            <Button type="button" variant="outline" disabled={!writable} onClick={() => setCodes((p) => [...p, emptyCode()])}>
+              <Plus className="mr-1 h-4 w-4" /> Thêm mã
+            </Button>
+            <Button type="button" disabled={!writable || saving} onClick={() => void saveCodes()}>
+              {saving ? "Đang lưu…" : "Lưu"}
+            </Button>
           </div>
         </Section>
       ) : tab === "aha" ? (
@@ -578,16 +576,12 @@ function Page() {
             </table>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {writable && (
-              <>
-                <Button type="button" variant="outline" onClick={() => setAhaRows((p) => [...p, emptyAha()])}>
-                  <Plus className="mr-1 h-4 w-4" /> Thêm voucher
-                </Button>
-                <Button type="button" disabled={saving} onClick={() => void saveAha()}>
-                  {saving ? "Đang lưu…" : "Lưu"}
-                </Button>
-              </>
-            )}
+            <Button type="button" variant="outline" disabled={!writable} onClick={() => setAhaRows((p) => [...p, emptyAha()])}>
+              <Plus className="mr-1 h-4 w-4" /> Thêm voucher
+            </Button>
+            <Button type="button" disabled={!writable || saving} onClick={() => void saveAha()}>
+              {saving ? "Đang lưu…" : "Lưu"}
+            </Button>
           </div>
         </Section>
       ) : null}
