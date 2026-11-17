@@ -134,7 +134,7 @@ function findGaps(ordered: FareDiscountRule[]): string[] {
       const to = b.minFare - 1;
       if (from <= to) {
         gaps.push(
-          `Tổng cước từ ${formatVND(from)} đến ${formatVND(to)} không thuộc bậc nào — đơn trong khoảng này không được giảm (theo bậc cao nhất khớp).`,
+          `Tổng cước từ ${formatVND(from)} đến ${formatVND(to)} không thuộc bậc nào trong chương trình này.`,
         );
       }
     }
@@ -499,7 +499,7 @@ function Page() {
 
       <p className="text-sm text-muted-foreground">
         {tab === "program"
-          ? "Giảm tự động theo tổng cước đơn (bậc cao nhất khớp). Hiện chỉ hỗ trợ giảm số tiền cố định — % / giới hạn VP / đơn đối tác sẽ bổ sung sau."
+          ? "Giảm tự động theo tổng cước. Nhiều chương trình cùng bật → chọn mức giảm tiền lớn nhất. Hiện chỉ hỗ trợ giảm số tiền cố định."
           : tab === "code"
             ? "Khách/NV nhập mã lúc tạo đơn. Có cả bậc cước và mã → lấy mức giảm lớn hơn."
             : "Voucher Ahamove: ước tính và book tự chọn mã giảm phí đối tác nhiều nhất."}

@@ -486,7 +486,8 @@ export function calcCodeDiscount(grossFare: number, rawCode?: string | null, day
 
 /**
  * Giảm giá theo bảng Khuyến mãi: bậc cước và/hoặc mã.
- * Nhiều bậc khớp → bậc cao nhất. Có mã → lấy max(bậc, mã). Không vượt quá grossFare.
+ * Nhiều chương trình/bậc cùng khớp → lấy số tiền giảm lớn nhất (hòa → bậc cước từ cao hơn).
+ * Có mã → max(bậc, mã). Không vượt quá grossFare.
  */
 export function calcOrderDiscount(grossFare: number, rawCode?: string | null, day = vnCalendarDate()): number {
   const gross = Math.max(0, Math.round(Number(grossFare) || 0));
@@ -500,7 +501,7 @@ export function calcOrderDiscount(grossFare: number, rawCode?: string | null, da
     const min = Math.round(Number(r.minFare) || 0);
     const off = Math.round(Number(r.discountAmount) || 0);
     if (min <= 0 || off <= 0 || gross < min) continue;
-    if (min > bestMin || (min === bestMin && off > bestOff)) {
+    if (off > bestOff || (off === bestOff && min > bestMin)) {
       bestMin = min;
       bestOff = off;
     }
