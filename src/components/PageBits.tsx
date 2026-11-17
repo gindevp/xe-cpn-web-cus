@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
-/** Khối nội dung bảng/form — khớp design `.card` + toolbar tiêu đề. */
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 export function Section({
   title,
   icon,
@@ -11,77 +12,52 @@ export function Section({
   className,
 }: {
   title?: ReactNode;
-  /** Material Symbol — hiện `.sec-title` có `.sec-ic` như design. */
-  icon?: string;
+  /** Icon tròn cạnh title (theo design sec-ic). */
+  icon?: ReactNode;
   right?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
-  const showHeader = title != null || right != null;
+  const showHeader = Boolean(title) || icon != null || right != null;
   return (
-    <section
-      className={cn("card", className)}
-      style={{ display: "flex", flexDirection: "column", gap: 16 }}
-    >
+    <Card className={cn("flex flex-col", className)}>
       {showHeader ? (
-        <div
-          className="th-row"
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "8px 16px",
-            minHeight: 40,
-          }}
-        >
-          {title != null && icon ? (
-            <h2 className="group-title sec-title">
-              <span className="sec-ic" aria-hidden="true">
-                <span className="ms">{icon}</span>
-              </span>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
+          {title || icon ? (
+            <CardTitle className="flex items-center gap-2 text-base">
+              {icon ? (
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+                  {icon}
+                </span>
+              ) : null}
               {title}
-            </h2>
-          ) : title != null ? (
-            <div style={{ fontSize: 15, lineHeight: "22px", fontWeight: 600 }}>{title}</div>
+            </CardTitle>
           ) : (
             <span />
           )}
-          {right ? (
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
-              {right}
-            </div>
-          ) : null}
-        </div>
+          {right}
+        </CardHeader>
       ) : null}
-      {children}
-    </section>
+      <CardContent className="flex flex-1 flex-col">{children}</CardContent>
+    </Card>
   );
 }
 
 export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="field view-field">
-      <span className="l">{label}</span>
-      <div className="view-val">{value}</div>
+    <div className="flex flex-col gap-0.5 py-1.5 sm:flex-row sm:gap-3">
+      <div className="w-40 shrink-0 text-xs uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div className="text-sm font-medium">{value}</div>
     </div>
   );
 }
 
 export function EmptyState({ children = "Chưa có dữ liệu" }: { children?: ReactNode }) {
   return (
-    <div className="empty">
-      <span
-        className="ms"
-        aria-hidden="true"
-        style={{ fontSize: 40, color: "var(--on-surface-variant)" }}
-      >
-        inbox
-      </span>
-      <h2 className="group-title" style={{ margin: "12px 0 4px" }}>
-        Không có dữ liệu
-      </h2>
-      <div className="muted lab">{children}</div>
+    <div className="flex min-h-[160px] items-center justify-center rounded-md border border-dashed bg-muted/30 text-sm text-muted-foreground">
+      {children}
     </div>
   );
 }
@@ -91,17 +67,10 @@ export function OfflineBadge() {
   const queued = useStore((s) => s.offlineQueue.length);
   if (online && queued === 0) return null;
   return (
-    <div className="tag warn" style={{ gap: 6 }}>
-      <span
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: 9999,
-          background: "currentColor",
-          flex: "none",
-        }}
-      />
+    <div className="inline-flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/15 px-2 py-1 text-xs font-medium text-warning-foreground">
+      <span className="h-2 w-2 rounded-full bg-warning" />
       {online ? `Đồng bộ ${queued} thao tác…` : `Chế độ offline${queued ? ` · ${queued} chờ` : ""}`}
     </div>
   );
 }
+

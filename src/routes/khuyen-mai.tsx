@@ -18,7 +18,7 @@ import {
 import { useStore, type FareDiscountCode, type FareDiscountKind, type FareDiscountRule } from "@/lib/store";
 import { formatVND } from "@/lib/mock-data";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, NotebookPen, Pencil, Plus, Save, Tag, Ticket, Trash2 } from "lucide-react";
 import { isApiEnabled } from "@/lib/api/client";
 import {
   fetchAhamovePromoCodes,
@@ -618,7 +618,7 @@ function Page() {
 
       {tab === "program" ? (
         <>
-          <Section title="Chương trình giảm giá">
+          <Section title="Chương trình giảm giá" icon={<Tag className="h-4 w-4" />}>
             <div className="overflow-x-auto rounded-xl border">
               <table className="w-full min-w-[880px] table-fixed text-sm">
                 <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
@@ -681,6 +681,7 @@ function Page() {
           {selectedProgram ? (
             <Section
               title={selectedProgram.name.trim() ? `Chi tiết: ${selectedProgram.name}` : "Chương trình mới"}
+              icon={<NotebookPen className="h-4 w-4" />}
               right={
                 writable ? (
                   <div className="flex flex-wrap items-center justify-end gap-2">
@@ -696,6 +697,7 @@ function Page() {
                       Huỷ thay đổi
                     </Button>
                     <Button type="button" size="sm" disabled={saving || hardBlock} onClick={() => void saveRules()}>
+                      <Save className="mr-1 h-4 w-4" />
                       {saving ? "Đang lưu…" : "Lưu chương trình"}
                     </Button>
                   </div>
@@ -915,9 +917,10 @@ function Page() {
                   {[...issues.hard, ...issues.soft].map((g) => (
                     <div
                       key={g}
-                      className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
+                      className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
                     >
-                      {g}
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span>{g}</span>
                     </div>
                   ))}
                 </div>
@@ -930,6 +933,7 @@ function Page() {
       {tab === "code" ? (
         <Section
           title="Mã giảm giá"
+          icon={<Ticket className="h-4 w-4" />}
           right={<span className="text-sm text-muted-foreground">Điều phối nhập mã khi tạo đơn, mức giảm trừ vào cước hàng</span>}
         >
           <div className="overflow-x-auto rounded-xl border">
@@ -1008,7 +1012,7 @@ function Page() {
       ) : null}
 
       {tab === "aha" ? (
-        <Section title="Voucher Ahamove">
+        <Section title="Voucher Ahamove" icon={<Ticket className="h-4 w-4" />}>
           <p className="mb-3 text-sm text-muted-foreground">
             Ước tính và book tự chọn mã giảm phí đối tác nhiều nhất. Mã hết hạn / Aha từ chối → bỏ qua.
           </p>
