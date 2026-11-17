@@ -161,6 +161,8 @@ export function hasRuntimePermissions() {
 export function can(role: Role | undefined, screen: ScreenKey): Perm {
   if (!role) return "N";
   if (runtimeSystemAdmin) return "Y";
+  // Chức danh Admin luôn full UI — khớp BE nhóm AD / MaintenanceGate bypass.
+  if (role === "AD") return "Y";
   if (runtimePerms) return runtimePerms[screen] ?? "N";
   return MATRIX[screen]?.[role] ?? "N";
 }
@@ -176,7 +178,7 @@ export function canWrite(role: Role | undefined, screen: ScreenKey) {
 
 // Read-only account: no write grant anywhere (BL by default, or a group with no Y).
 export function isReadOnlyRole(role: Role | undefined) {
-  if (runtimeSystemAdmin) return false;
+  if (runtimeSystemAdmin || role === "AD") return false;
   if (runtimePerms) return !Object.values(runtimePerms).some((p) => p === "Y");
   return role === "BL";
 }

@@ -47,7 +47,12 @@ export async function authenticate(username: string, password: string): Promise<
 
 export async function fetchAccount(): Promise<AccountDTO> {
   const account = await apiRequest<AccountDTO>("/api/account");
-  setRuntimePermissions(account.permissions, (account.authorities ?? []).includes("ROLE_ADMIN"));
+  // ROLE_ADMIN JWT hoặc chức danh/nhóm AD = full quyền UI (màn mới không bị kẹt N từ API cũ).
+  const adminUi =
+    (account.authorities ?? []).includes("ROLE_ADMIN") ||
+    (account.roleGroupCode ?? "").toUpperCase() === "AD" ||
+    (account.roleCode ?? "").toUpperCase() === "AD";
+  setRuntimePermissions(account.permissions, adminUi);
   setAllowedOffices(account.allowedOffices ?? [], account.officeId ?? null);
   return account;
 }
