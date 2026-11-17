@@ -85,7 +85,7 @@ function emptyAha(): AhamovePromoCode {
 }
 
 function Page() {
-  const session = useAuth((s) => s.session);
+  const { session } = useAuth();
   useRbacVersion();
   const writable = canManagePromo(session?.role);
   const [tab, setTab] = useState<"tier" | "code" | "aha">("tier");
