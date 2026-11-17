@@ -1,8 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { M3ConfirmActions, M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
-import { M3Confirm } from "@/components/m3/M3Confirm";
+import {
+  Trash2,
+  Plus,
+  Copy,
+  Save,
+  User,
+  PackagePlus,
+  MapPin,
+  Truck,
+  Receipt,
+  Printer,
+} from "lucide-react";
 import { AddressPicker } from "@/components/AddressPicker";
 import { TransitHubNotice } from "@/components/TransitHubNotice";
 import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
@@ -34,6 +56,7 @@ import {
   calcDeclaredValueFee,
   calcCodFee,
   calcOrderDiscount,
+  calcOrderDiscountDetail,
   validateDiscountCodeInput,
   normalizeDiscountCode,
   computeGoodsLineFare,
@@ -67,6 +90,16 @@ import { isApiEnabled } from "@/lib/api/client";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
 import type { GuestCollect } from "@/lib/api/domain-api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   embedCreateInfo,
   embedPackageDims,
@@ -127,9 +160,9 @@ const BANK_OPTIONS = [
   "OCB",
 ].map((b) => ({ value: b, label: b }));
 
-/** Giảm giá hệ thống: bậc cước và/hoặc mã (lấy mức lớn hơn). */
-function systemDiscount(subtotal: number, code?: string) {
-  return calcOrderDiscount(subtotal, code);
+/** Giảm giá hệ thống trên tổng cước hàng (chưa gồm phụ phí). */
+function systemDiscount(goodsFare: number, code?: string) {
+  return calcOrderDiscount(goodsFare, code);
 }
 
 /** Tên người: chữ hoa, giữ dấu tiếng Việt — xem lib/vn-name. */
@@ -1127,8 +1160,9 @@ export function TaoDonDialog({
   const declaredFee =
     declaredValue > 0 ? calcDeclaredValueFee(declaredValue) : (initial?.declaredFee ?? 0);
   const subtotal = goodsFare + pickupFeeVal + deliverFeeVal + codFee + declaredFee;
-  // Giảm giá do hệ thống tự áp theo chính sách, không cho sửa tay
-  const discountVND = systemDiscount(subtotal, promoCode);
+  // Giảm giá trên tổng cước hàng (chưa gồm phụ phí) — lấy mức lớn hơn giữa bậc và mã.
+  const discountDetail = calcOrderDiscountDetail(goodsFare, promoCode);
+  const discountVND = discountDetail.amount;
   const totalFare = Math.max(0, subtotal - discountVND);
   // Người gửi thanh toán: không ghi thu TM lúc tạo — còn nợ để tác vụ «Tạo QR CK» luôn dùng được
   // (checkbox chỉ bật VA + popup ngay sau lưu). Thu TM: nhập kho gửi / thu tay sau.
@@ -1215,7 +1249,7 @@ export function TaoDonDialog({
     setDeliverFee(0);
   };
 
-  /** Form có nhập liệu — khớp design-ref TaoDonHang (confirm trước khi thoát / xoá). */
+  /** Form có nhập liệu — confirm trước khi thoát / xoá (khớp design TaoDon). */
   const isDirty = useMemo(() => {
     if (mode === "edit") {
       const initItems = initial?.items?.length ? initial.items : [];
@@ -1349,9 +1383,7 @@ export function TaoDonDialog({
     action: "save" | "print";
     message: string;
   } | null>(null);
-  /** null | exit (đóng sheet) | reset (nút Xoá) — design-ref TaoDonHang. */
   const [formAsk, setFormAsk] = useState<"exit" | "reset" | null>(null);
-  /** Popup COD TK / xuất HĐ — design-ref dlgBank / dlgInv. */
   const [optDlg, setOptDlg] = useState<"bank" | "inv" | null>(null);
   const [draftBankName, setDraftBankName] = useState("");
   const [draftBankAccountNo, setDraftBankAccountNo] = useState("");
@@ -1474,7 +1506,7 @@ export function TaoDonDialog({
     onOpenChange(false);
   };
 
-  const handleSheetOpenChange = (next: boolean) => {
+  const handleDialogOpenChange = (next: boolean) => {
     if (next) {
       onOpenChange(true);
       return;
@@ -1836,39 +1868,29 @@ export function TaoDonDialog({
       return [...prev.slice(0, idx + 1), copy, ...prev.slice(idx + 1)];
     });
 
-  const sheetTitle =
-    mode === "edit"
-      ? `Sửa đơn hàng${initial?.code ? ` · ${initial.code}` : ""}`
-      : "Tạo đơn hàng";
-
   return (
     <>
-      <M3Sheet open={open} onOpenChange={handleSheetOpenChange} variant="order-sheet" alignTop>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <M3SheetTitle
-            className="page-title"
-            id="o-title"
-            style={{ fontSize: 24, lineHeight: "32px", margin: 0 }}
-          >
-            {sheetTitle}
-          </M3SheetTitle>
-          <M3SheetClose />
-        </div>
+      <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+        <DialogContent className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1560px] flex-col overflow-hidden p-0">
+          <DialogTitle className="sr-only">
+            {mode === "edit"
+              ? `Sửa đơn hàng${initial?.code ? ` · ${initial.code}` : ""}`
+              : "Tạo đơn hàng"}
+          </DialogTitle>
 
-          <div className="order-layout">
-            <div className="stack" style={{ minWidth: 0 }}>
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto px-[19px] pb-[19px] pt-[32px] lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-5 lg:overflow-hidden xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="min-w-0 space-y-5 lg:h-full lg:overflow-y-auto lg:pr-2">
               {(route || itinerary) && (
-                <p className="lab muted" style={{ margin: 0 }}>
+                <p className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                   Tuyến / lộ trình (tự suy từ VP):{" "}
-                  <span style={{ fontWeight: 500, color: "var(--on-surface)" }}>
+                  <span className="font-medium text-foreground">
                     {[route, itinerary].filter(Boolean).join(" · ") || "—"}
                   </span>
                 </p>
               )}
 
-              <div className="party-grid">
               {/* Sender section */}
-              <Section title="Người gửi" msIcon="person">
+              <Section icon={<User className="h-4 w-4" />} title="Người gửi">
                 {partyLocked && (
                   <p className="mb-3 text-xs text-muted-foreground">
                     {senderLocked
@@ -1877,11 +1899,11 @@ export function TaoDonDialog({
                     {canEditToOffice ? " — được sửa VP nhận khi đơn đang nhập kho gửi." : "."}
                   </p>
                 )}
-                <div className="stack">
-                  <F label="SĐT người gửi *">
-                    <div className="relative" style={{ width: "100%" }}>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <F label="SĐT Người Gửi *">
+                    <div className="relative">
                       <PhoneInput
-                        placeholder="Nhập SĐT hoặc 5 số đầu/cuối"
+                        placeholder="VD: 0371234567 · 5 số đầu/cuối"
                         value={senderPhone}
                         readOnly={senderLocked}
                         quietUntilComplete
@@ -1908,55 +1930,48 @@ export function TaoDonDialog({
                       onChange={setSenderName}
                     />
                   </F>
-                  <F label="VP gửi *" boxed={false}>
-                    {lockFromOffice || partyLocked ? (
-                      <div className="box input-box ro-box">
-                        <span className="ms" aria-hidden="true" style={{ fontSize: 18, color: "var(--on-surface-variant)" }}>
-                          lock
-                        </span>
-                        <span>
-                          {fromOfficeOptions.find((o) => o.value === fromOffice)?.label || fromOffice || "—"}
-                        </span>
-                      </div>
-                    ) : (
-                      <SearchableSelect
-                        value={fromOffice}
-                        onValueChange={(v) => {
-                          if (lockFromOffice || partyLocked) return;
-                          setFromOffice(v);
-                        }}
-                        placeholder="Chọn VP gửi"
-                        emptyText="Không có văn phòng"
-                        disabled={lockFromOffice || partyLocked}
-                        options={fromOfficeOptions}
-                      />
-                    )}
+                  <F label="VP gửi *">
+                    <SearchableSelect
+                      value={fromOffice}
+                      onValueChange={(v) => {
+                        if (lockFromOffice || partyLocked) return;
+                        setFromOffice(v);
+                      }}
+                      className={`h-auto min-h-9 py-1.5 ${lockFromOffice ? "bg-muted text-muted-foreground" : ""}`}
+                      placeholder={lockFromOffice ? "Đang gắn VP tài khoản…" : "Chọn VP gửi"}
+                      emptyText="Không có văn phòng"
+                      disabled={lockFromOffice || partyLocked}
+                      options={fromOfficeOptions}
+                    />
                   </F>
                 </div>
-                <label className="toggle">
-                  <input
-                    className="switch"
-                    type="checkbox"
-                    checked={homePickup}
-                    disabled={partyLocked}
-                    onChange={(e) => setHomePickup(e.target.checked)}
-                  />
-                  <span>Lấy tận nơi</span>
-                </label>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
+                  <label className="flex items-center gap-2 whitespace-nowrap pb-2.5 text-sm">
+                    <Checkbox
+                      checked={homePickup}
+                      disabled={partyLocked}
+                      onCheckedChange={(v) => {
+                        setHomePickup(Boolean(v));
+                      }}
+                    />
+                    <MapPin className="h-3.5 w-3.5 text-success" />
+                    Lấy tận nơi
+                  </label>
+                  {SHOW_ORDER_ADDRESSES && homePickup ? (
+                    <AddressPicker
+                      label="Địa chỉ lấy hàng"
+                      required
+                      value={pickupAddr}
+                      onChange={setPickupAddr}
+                      onPinChange={setPickupPin}
+                      allowMapLink
+                      preferredProvince={pickupProvinceHint}
+                      disabled={senderLocked}
+                    />
+                  ) : null}
+                </div>
                 {homePickup ? (
-                  <div className="stack door-box">
-                    {SHOW_ORDER_ADDRESSES ? (
-                      <AddressPicker
-                        label="Địa chỉ lấy hàng"
-                        required
-                        value={pickupAddr}
-                        onChange={setPickupAddr}
-                        onPinChange={setPickupPin}
-                        allowMapLink
-                        preferredProvince={pickupProvinceHint}
-                        disabled={senderLocked}
-                      />
-                    ) : null}
+                  <div className="mt-3 w-full min-w-0">
                     <HomeDeliveryMap
                       enabled
                       address={pickupAddr}
@@ -1972,12 +1987,12 @@ export function TaoDonDialog({
               </Section>
 
               {/* Receiver section */}
-              <Section title="Người nhận" msIcon="person_pin_circle">
-                <div className="stack">
-                  <F label="SĐT người nhận *">
-                    <div className="relative" style={{ width: "100%" }}>
+              <Section icon={<Truck className="h-4 w-4" />} title="Người nhận">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                  <F label="SĐT Người Nhận *">
+                    <div className="relative">
                       <PhoneInput
-                        placeholder="Nhập SĐT"
+                        placeholder="VD: 0377654321 · 5 số đầu/cuối"
                         value={receiverPhone}
                         readOnly={partyLocked}
                         quietUntilComplete
@@ -2004,19 +2019,20 @@ export function TaoDonDialog({
                       onChange={setReceiverName}
                     />
                   </F>
-                  <F label="VP nhận *" boxed={false}>
+                  <F label="VP Nhận *">
                     <SearchableSelect
                       value={toOffice}
                       onValueChange={setToOffice}
-                      placeholder="Gõ để tìm VP nhận"
-                      emptyText="Không tìm thấy VP"
+                      className="h-auto min-h-9 py-1.5"
+                      placeholder="Chọn VP nhận"
+                      emptyText="Không có văn phòng"
                       disabled={toOfficeLocked}
                       options={toOfficeOptions}
                     />
                   </F>
                   <F label="CMND/Passport">
                     <Input
-                      placeholder="Nhập số giấy tờ"
+                      placeholder="VD: 191943210"
                       value={idNumber}
                       readOnly={partyLocked}
                       className={lockedInputClass}
@@ -2024,9 +2040,9 @@ export function TaoDonDialog({
                     />
                   </F>
                 </div>
-                {!partyLocked && recentReceivers.length > 0 ? (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                    <span className="lab muted">Người nhận gần đây:</span>
+                {!partyLocked && recentReceivers.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-muted-foreground">Người nhận gần đây của SĐT gửi:</span>
                     {recentReceivers.map((o) => {
                       const active = onlyDigits(o.receiverPhone) === onlyDigits(receiverPhone);
                       const toName = findOfficeByToken(o.finalToOffice || o.toOffice, offices)?.name;
@@ -2036,38 +2052,45 @@ export function TaoDonDialog({
                           type="button"
                           onClick={() => pickRecentReceiver(o)}
                           title={[o.address, toName].filter(Boolean).join(" · ") || undefined}
-                          className={cn("pill sm", active && "on")}
+                          className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                            active
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "hover:border-primary hover:bg-primary/5"
+                          }`}
                         >
-                          {toUpperName(o.receiverName ?? "") || "Không tên"} · {o.receiverPhone}
+                          <span className="font-medium">{toUpperName(o.receiverName ?? "") || "Không tên"}</span>
+                          <span className="text-muted-foreground"> · {o.receiverPhone}</span>
+                          {toName ? <span className="text-muted-foreground"> · {toName}</span> : null}
                         </button>
                       );
                     })}
                   </div>
-                ) : null}
-                <label className="toggle">
-                  <input
-                    className="switch"
-                    type="checkbox"
-                    checked={homeDeliver}
-                    disabled={partyLocked}
-                    onChange={(e) => setHomeDeliver(e.target.checked)}
-                  />
-                  <span>Giao tận nơi</span>
-                </label>
+                )}
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[auto_1fr] md:items-end">
+                  <label className="flex items-center gap-2 whitespace-nowrap pb-2.5 text-sm">
+                    <Checkbox
+                      checked={homeDeliver}
+                      disabled={partyLocked}
+                      onCheckedChange={(v) => setHomeDeliver(Boolean(v))}
+                    />
+                    <MapPin className="h-3.5 w-3.5 text-success" />
+                    Giao tận nơi
+                  </label>
+                  {SHOW_ORDER_ADDRESSES && homeDeliver ? (
+                    <AddressPicker
+                      label="Địa chỉ giao hàng"
+                      required
+                      value={deliverAddr}
+                      onChange={setDeliverAddr}
+                      onPinChange={setDeliverPin}
+                      allowMapLink
+                      preferredProvince={deliverProvinceHint}
+                      disabled={partyLocked}
+                    />
+                  ) : null}
+                </div>
                 {homeDeliver ? (
-                  <div className="stack door-box">
-                    {SHOW_ORDER_ADDRESSES ? (
-                      <AddressPicker
-                        label="Địa chỉ giao hàng"
-                        required
-                        value={deliverAddr}
-                        onChange={setDeliverAddr}
-                        onPinChange={setDeliverPin}
-                        allowMapLink
-                        preferredProvince={deliverProvinceHint}
-                        disabled={partyLocked}
-                      />
-                    ) : null}
+                  <div className="mt-3 w-full min-w-0">
                     <HomeDeliveryMap
                       enabled
                       address={deliverAddr}
@@ -2082,57 +2105,40 @@ export function TaoDonDialog({
                 ) : null}
                 <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
               </Section>
-              </div>
 
-              {/* Items — design `.pack` / `.pack-grid` */}
-              <Section
-                title={`Danh sách hàng hoá (${items.length} kiện)`}
-                msIcon="inventory_2"
-                action={
-                  <button
-                    type="button"
-                    className="btn tonal"
-                    style={{ height: 36 }}
-                    onClick={() => setItems((p) => [...p, newItem()])}
-                  >
-                    <span className="ms" aria-hidden="true">
-                      add
-                    </span>
-                    Thêm kiện
-                  </button>
-                }
-              >
-                <div className="stack">
+              {/* Items table */}
+              <Section icon={<PackagePlus className="h-4 w-4" />} title="Danh sách hàng hóa">
+                <div className="space-y-3">
                   {items.map((it, idx) => {
                     const group = resolveGroup(it);
                     const isOther = isOtherGoodsGroup(group);
                     const showProduct = Boolean(group) && !isOther;
+                    const cols = isOther
+                      ? "1fr 1fr 68px 68px 68px"
+                      : showProduct
+                        ? "1fr 1fr 68px 68px 68px"
+                        : "1fr 68px 68px 68px";
+                    const row2 = "72px 90px 1fr 1fr 2fr";
                     return (
-                      <div key={it.id} className="pack">
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                          <div className="title-small" style={{ fontWeight: 600 }}>
+                      <div key={it.id} className="rounded-lg border bg-background px-4 pb-3 pt-2.5">
+                        {/* Header row */}
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                             Kiện {idx + 1}
-                          </div>
-                          <div className="act">
-                            <button type="button" className="text-act" onClick={() => duplicateItem(it.id)}>
-                              Nhân bản
-                            </button>
+                          </span>
+                          {items.length > 1 && (
                             <button
                               type="button"
-                              className="no"
-                              aria-label={`Xoá kiện ${idx + 1}`}
-                              title="Xoá kiện"
-                              disabled={items.length <= 1}
                               onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
+                              className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             >
-                              <span className="ms" aria-hidden="true">
-                                delete
-                              </span>
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                          </div>
+                          )}
                         </div>
-                        <div className="pack-grid">
-                          <F label="Nhóm hàng *" boxed={false} labelClassName="pack-wide">
+                        {/* Row 1: nhóm hàng · [tên hàng] · dài · rộng · cao */}
+                        <div className="grid gap-3" style={{ gridTemplateColumns: cols }}>
+                          <F label="Nhóm hàng">
                             <SearchableSelect
                               value={group}
                               onValueChange={(v) =>
@@ -2142,23 +2148,26 @@ export function TaoDonDialog({
                                   name: "",
                                 })
                               }
+                              className="h-9"
                               placeholder="Chọn nhóm hàng"
                               options={goodsGroupOptions}
                             />
                           </F>
-                          {showProduct ? (
-                            <F label="Tên hàng hoá" boxed={false} labelClassName="pack-wide">
+                          {showProduct && (
+                            <F label="Tên hàng hóa">
                               <SearchableSelect
                                 value={it.kind}
                                 onValueChange={(v) => updateItem(it.id, { kind: v, name: "" })}
+                                className="h-9"
                                 placeholder="Chọn tên hàng hóa"
                                 options={productNameOptions(group)}
                               />
                             </F>
-                          ) : null}
-                          {isOther ? (
-                            <F label="Nhập tên hàng hoá *" labelClassName="pack-wide">
+                          )}
+                          {isOther && (
+                            <F label="Nhập tên hàng hoá *">
                               <Input
+                                className="h-9"
                                 placeholder="Nhập tên hàng hóa"
                                 value={it.name}
                                 onChange={(e) =>
@@ -2167,72 +2176,110 @@ export function TaoDonDialog({
                                 required
                               />
                             </F>
-                          ) : null}
-                          <F label="Cân nặng (kg) *">
-                            <NumberInput
-                              decimal
-                              min={1}
-                              placeholder="0"
-                              value={it.weight}
-                              onChange={(weight) => updateItem(it.id, { weight })}
-                            />
-                          </F>
-                          <F label="Số lượng món">
-                            <NumberInput value={it.sl} onChange={(sl) => updateItem(it.id, { sl })} />
-                          </F>
-                          <F label="Giá trị hàng (VNĐ)">
-                            <MoneyInput value={it.value} onChange={(value) => updateItem(it.id, { value })} />
-                          </F>
-                          <F label="Cước hàng (VNĐ)" boxed={false}>
-                            <div className="box input-box ro-box">
-                              <span className={it.fare ? undefined : "muted"}>
-                                {it.fare ? formatVND(it.fare) : "—"}
-                              </span>
-                            </div>
-                          </F>
+                          )}
                           <F label="Dài (cm)">
                             <NumberInput
-                              placeholder="10"
+                              className="h-9 w-full"
+                              placeholder="0"
                               value={it.dai}
                               onChange={(dai) => updateItem(it.id, { dai })}
                             />
                           </F>
                           <F label="Rộng (cm)">
                             <NumberInput
-                              placeholder="10"
+                              className="h-9 w-full"
+                              placeholder="0"
                               value={it.rong}
                               onChange={(rong) => updateItem(it.id, { rong })}
                             />
                           </F>
                           <F label="Cao (cm)">
                             <NumberInput
-                              placeholder="10"
+                              className="h-9 w-full"
+                              placeholder="0"
                               value={it.cao}
                               onChange={(cao) => updateItem(it.id, { cao })}
+                            />
+                          </F>
+                        </div>
+                        {/* Row 2: số lượng · cân nặng · giá trị · cước · ghi chú */}
+                        <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: row2 }}>
+                          <F label="Số lượng">
+                            <NumberInput
+                              className="h-9 w-full"
+                              value={it.sl}
+                              onChange={(sl) => updateItem(it.id, { sl })}
+                            />
+                          </F>
+                          <F label="Cân nặng (KG)">
+                            <NumberInput
+                              className="h-9 w-full"
+                              decimal
+                              min={1}
+                              value={it.weight}
+                              onChange={(weight) => updateItem(it.id, { weight })}
+                            />
+                          </F>
+                          <F label="Giá trị hàng">
+                            <MoneyInput
+                              value={it.value}
+                              onChange={(value) => updateItem(it.id, { value })}
+                            />
+                          </F>
+                          <F label="Cước hàng">
+                            <MoneyInput
+                              value={it.fare}
+                              onChange={() => undefined}
+                              readOnly
+                              tabIndex={-1}
                             />
                           </F>
                         </div>
                       </div>
                     );
                   })}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setItems((p) => [...p, newItem()])}
+                      className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm kiện
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const last = items[items.length - 1];
+                        if (last) duplicateItem(last.id);
+                      }}
+                      className="flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-dashed px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/5"
+                      aria-label="Nhân bản kiện cuối"
+                      title="Nhân bản kiện cuối"
+                    >
+                      <Copy className="h-4 w-4 shrink-0" />
+                      Nhân bản
+                    </button>
+                  </div>
                 </div>
               </Section>
             </div>
 
-            <aside className="order-box stack order-side">
+            <div className="min-w-0 space-y-5 lg:sticky lg:top-0 lg:h-full lg:self-start lg:overflow-y-auto lg:pl-1">
               {/* Payment section */}
-              <Section title="Thanh toán và ghi chú" msIcon="payments" bare>
-                <div className="stack">
+              <Section icon={<Receipt className="h-4 w-4" />} title="Thanh toán & ghi chú">
+                <div className="space-y-4">
                   {/* LEFT: Payment details */}
                   <div className="space-y-3">
-                    <div className="stack">
-                      <F label="Hình thức thanh toán" boxed={false}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <F label="Hình thức thanh toán">
                         <SearchableSelect
                           value={payMethod}
                           onValueChange={(v) => {
                             setPayMethod(v);
                             if (v !== "Người gửi thanh toán") setRequestSenderTransfer(false);
                           }}
+                          className="h-9"
                           options={PAY_METHODS.map((m) => ({
                             value: m,
                             label: m,
@@ -2244,8 +2291,16 @@ export function TaoDonDialog({
                           <MoneyInput value={prepaid} onChange={setPrepaid} />
                         </F>
                       )}
-                      <F label="Thu hộ (COD)">
+                      <F label="Thu Hộ (COD)">
                         <MoneyInput value={codAmount} onChange={setCodAmount} />
+                      </F>
+                      <F label="Phí thu hộ COD">
+                        <MoneyInput
+                          value={surchargeExtra}
+                          onChange={setSurchargeExtra}
+                          disabled={!codAmount}
+                          placeholder={!codAmount ? "Nhập Thu hộ COD trước" : ""}
+                        />
                       </F>
                       <F label="Mã giảm giá">
                         <Input
@@ -2256,173 +2311,210 @@ export function TaoDonDialog({
                           onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                         />
                       </F>
-                      <div className="side-two">
-                        <F label="Phí thu hộ COD">
-                          <MoneyInput
-                            value={surchargeExtra}
-                            onChange={setSurchargeExtra}
-                            disabled={!codAmount}
-                            placeholder={!codAmount ? "Nhập Thu hộ COD trước" : ""}
-                          />
-                        </F>
-                        <F label="Giảm giá (hệ thống)" boxed={false}>
-                          <div
-                            className="box input-box"
-                            style={{ background: "var(--low)", borderColor: "transparent", paddingLeft: 0 }}
-                          >
-                            <span className="muted">{discountVND ? formatVND(discountVND) : "-"}</span>
-                          </div>
-                        </F>
-                      </div>
+                      <F label="Giảm giá (hệ thống)">
+                        <Input
+                          value={
+                            discountVND > 0
+                              ? `−${formatVND(discountVND)}${
+                                  discountDetail.label?.includes("%")
+                                    ? ` (${discountDetail.label.replace(/^KM cước |^Mã \S+ /, "")})`
+                                    : discountDetail.label
+                                      ? ` · ${discountDetail.label}`
+                                      : ""
+                                }`
+                              : "—"
+                          }
+                          readOnly
+                          disabled
+                        />
+                      </F>
                     </div>
 
-                    <div className="opt-item">
-                      <label className="lab opt-check">
-                        <input
-                          className="check"
-                          type="checkbox"
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
                           checked={ckSender || optDlg === "bank"}
-                          onChange={(e) => toggleBankOpt(e.target.checked)}
+                          onCheckedChange={(v) => toggleBankOpt(Boolean(v))}
                         />
-                        <span className="ms opt-ic" aria-hidden="true">
-                          account_balance
-                        </span>
                         Nhận tiền COD qua tài khoản
                       </label>
                       {bankHas ? (
-                        <div className="opt-sum">
-                          <div style={{ minWidth: 0 }}>
-                            <div className="opt-sum-a">
+                        <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">
                               {bankName} · {bankAccountNo}
                             </div>
-                            <div className="opt-sum-b">{bankAccountName}</div>
+                            <div className="truncate text-xs text-muted-foreground">{bankAccountName}</div>
                           </div>
-                          <button type="button" className="text-act" onClick={openBankDlg}>
+                          <Button type="button" variant="ghost" size="sm" onClick={openBankDlg}>
                             Sửa
-                          </button>
+                          </Button>
                         </div>
                       ) : null}
                     </div>
 
-                    <div className="opt-item">
-                      <label className="lab opt-check">
-                        <input
-                          className="check"
-                          type="checkbox"
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
                           checked={invoiceRequested || optDlg === "inv"}
-                          onChange={(e) => toggleInvOpt(e.target.checked)}
+                          onCheckedChange={(v) => toggleInvOpt(Boolean(v))}
                         />
-                        <span className="ms opt-ic" aria-hidden="true">
-                          receipt_long
-                        </span>
                         Xuất hoá đơn
                       </label>
                       {invHas ? (
-                        <div className="opt-sum">
-                          <div style={{ minWidth: 0 }}>
-                            <div className="opt-sum-a">{invoiceCompanyName}</div>
-                            <div className="opt-sum-b">
+                        <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">{invoiceCompanyName}</div>
+                            <div className="truncate text-xs text-muted-foreground">
                               MST {normalizeTaxCode(invoiceTaxCode)} · {invoiceEmail}
                             </div>
                           </div>
-                          <button type="button" className="text-act" onClick={openInvDlg}>
+                          <Button type="button" variant="ghost" size="sm" onClick={openInvDlg}>
                             Sửa
-                          </button>
+                          </Button>
                         </div>
                       ) : invoiceRequested ? (
-                        <div className="opt-sum">
-                          <div style={{ minWidth: 0 }}>
-                            <div className="opt-sum-a">Thiếu thông tin hoá đơn</div>
-                            <div className="opt-sum-b">Bấm Sửa để bổ sung trước khi tạo đơn</div>
+                        <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">Thiếu thông tin hoá đơn</div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              Bấm Sửa để bổ sung trước khi tạo đơn
+                            </div>
                           </div>
-                          <button type="button" className="text-act" onClick={openInvDlg}>
+                          <Button type="button" variant="ghost" size="sm" onClick={openInvDlg}>
                             Sửa
-                          </button>
+                          </Button>
                         </div>
                       ) : null}
                     </div>
 
-                    <F label="Ghi chú đơn hàng" boxed={false}>
-                      <span className="box input-box">
-                        <input
-                          placeholder="Nhập ghi chú"
-                          value={orderNote}
-                          onChange={(e) => setOrderNote(e.target.value)}
-                        />
-                      </span>
+                    <F label="Ghi chú đơn hàng">
+                      <Textarea
+                        rows={3}
+                        placeholder="Nhập ghi chú"
+                        value={orderNote}
+                        onChange={(e) => setOrderNote(e.target.value)}
+                      />
                     </F>
                   </div>
 
-                  {/* design: .side-foot > .total-box + actions (không dùng Tailwind summary) */}
-                  <div className="side-foot stack">
-                    <div className="total-box num">
-                      <div className="fee-lines lab">
-                        <FeeLine label="Cước hàng" value={goodsFare} />
-                        <FeeLine label="Cước lấy hàng tận nơi" value={pickupFeeVal} />
-                        <FeeLine label="Cước giao hàng tận nơi" value={deliverFeeVal} />
-                        <FeeLine label="Phí thu hộ COD" value={codFee} />
-                        <FeeLine label="Phí khai báo giá trị" value={declaredFee} />
-                        {discountVND ? <FeeLine label="Giảm giá" value={-discountVND} always /> : null}
-                        <FeeLine label="Đã thu" value={paidNow} />
+                  {/* RIGHT: Summary */}
+                  <div>
+                    <div className="rounded-md border bg-muted/30 p-3 space-y-1.5 text-sm">
+                      <div className="mb-1 text-xs font-medium text-muted-foreground">
+                        Thông tin thanh toán
                       </div>
-                      <div className="fee-sep" aria-hidden="true" />
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                        <span className="lab">Tổng phải thu</span>
-                        <span className="kpi-val" style={{ fontSize: 24 }}>
-                          {formatVND(totalFare)}
+                      <Row label="Cước hàng" value={goodsFare} always />
+                      <Row label="Cước lấy hàng tận nơi" value={pickupFeeVal} />
+                      {homePickup && pickupKm != null && pickupKm > 0 ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Theo bảng phí · {pickupKm.toFixed(2)} km
+                        </p>
+                      ) : homePickup && pickupAddr.trim() ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Chưa ra km — tạm {VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ
+                        </p>
+                      ) : null}
+                      <Row label="Cước giao hàng tận nơi" value={deliverFeeVal} />
+                      {homeDeliver && deliverKm != null && deliverKm > 0 ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Theo bảng phí · {deliverKm.toFixed(2)} km
+                        </p>
+                      ) : homeDeliver && deliverAddr.trim() ? (
+                        <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+                          Chưa ra km — tạm {VAGUE_DOOR_FEE.toLocaleString("vi-VN")}đ
+                        </p>
+                      ) : null}
+                      <Row label="Phí thu hộ COD" value={codFee} />
+                      <Row label="Phí khai báo giá trị" value={declaredFee} />
+                      <Row
+                        label={discountDetail.label ? `Giảm giá · ${discountDetail.label}` : "Giảm giá"}
+                        value={-discountVND}
+                      />
+                      <Row label="Đã thu" value={paidNow} />
+
+                      <div className="border-t pt-1.5 flex items-center justify-between font-semibold">
+                        <span>Tổng phải thu</span>
+                        <span className="text-primary">
+                          {totalFare.toLocaleString("vi-VN")} VND
                         </span>
                       </div>
-                      {unpaid > 0 ? (
-                        <div
-                          className="lab"
-                          style={{ display: "flex", justifyContent: "space-between", marginTop: 6, opacity: 0.92 }}
-                        >
+                      {unpaid > 0 && (
+                        <div className="flex items-center justify-between text-xs text-destructive">
                           <span>Còn phải thu</span>
-                          <span>{unpaid.toLocaleString("vi-VN")} VNĐ</span>
+                          <span>{unpaid.toLocaleString("vi-VN")} VND</span>
                         </div>
-                      ) : null}
-                    </div>
-                    {mode !== "edit" && payMethod === "Người gửi thanh toán" ? (
-                      <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                        <input
-                          className="check"
-                          type="checkbox"
-                          checked={requestSenderTransfer}
-                          onChange={(e) => setRequestSenderTransfer(e.target.checked)}
-                        />
-                        Khách có nhu cầu chuyển khoản
-                      </label>
-                    ) : null}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
-                      {mode === "edit" ? (
-                        <>
-                          <button type="button" className="btn ghost" onClick={requestDismiss} disabled={saving}>
-                            Hủy
-                          </button>
-                          <button type="button" className="btn" onClick={() => void submit("save")} disabled={saving}>
-                            {saving ? "Đang lưu…" : "Lưu thay đổi"}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button type="button" className="btn ghost" onClick={requestClear} disabled={saving}>
-                            Xoá
-                          </button>
-                          <button type="button" className="btn tonal" onClick={() => void submit("save")} disabled={saving}>
-                            {saving ? "Đang lưu…" : "Tạo đơn"}
-                          </button>
-                          <button type="button" className="btn" onClick={() => void submit("print")} disabled={saving}>
-                            {saving ? "Đang lưu…" : "Tạo và in"}
-                          </button>
-                        </>
                       )}
+                      {mode !== "edit" && payMethod === "Người gửi thanh toán" ? (
+                        <label className="flex items-center gap-2 border-t pt-2 text-sm">
+                          <Checkbox
+                            checked={requestSenderTransfer}
+                            onCheckedChange={(v) => setRequestSenderTransfer(Boolean(v))}
+                          />
+                          <span className="font-medium">Khách có nhu cầu chuyển khoản</span>
+                        </label>
+                      ) : null}
                     </div>
                   </div>
                 </div>
               </Section>
-            </aside>
+            </div>
           </div>
-      </M3Sheet>
+
+          {/* Footer actions */}
+          <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-card px-[19px] py-[13px]">
+            {mode === "edit" ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={requestDismiss}
+                  disabled={saving}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-primary"
+                  onClick={() => void submit("save")}
+                  disabled={saving}
+                >
+                  <Save className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Lưu thay đổi"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="gap-1.5"
+                  onClick={requestClear}
+                  disabled={saving}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Xóa
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 bg-primary"
+                  onClick={() => void submit("save")}
+                  disabled={saving}
+                >
+                  <Save className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Tạo đơn"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => void submit("print")}
+                  disabled={saving}
+                >
+                  <Printer className="h-3.5 w-3.5" /> {saving ? "Đang lưu…" : "Tạo và in"}
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <PrintLabelDialog
         code={printCode}
@@ -2443,240 +2535,246 @@ export function TaoDonDialog({
         }}
       />
 
-      <M3Confirm
-        open={!!overflowAsk}
-        onOpenChange={(o) => !o && setOverflowAsk(null)}
-        title="Vượt 1000 đơn trong ngày"
-        body={`${overflowAsk?.message ?? ""}. Vẫn tạo đơn này (đã vượt ngưỡng 1000 đơn/VP trong ngày)?`}
-        cancelLabel="Hủy"
-        confirmLabel="Vẫn tạo đơn"
-        onConfirm={() => {
-          const ask = overflowAsk;
-          setOverflowAsk(null);
-          if (ask) void persist(ask.payload, ask.action, true);
-        }}
-      />
-
-      <M3Confirm
-        open={formAsk === "exit"}
-        onOpenChange={(o) => !o && setFormAsk(null)}
-        title={mode === "edit" ? "Bỏ các thay đổi?" : "Thoát mà không tạo đơn?"}
-        body={
-          mode === "edit"
-            ? "Những thông tin vừa sửa sẽ không được lưu."
-            : "Thông tin đã nhập sẽ không được lưu."
-        }
-        cancelLabel="Đóng"
-        confirmLabel={mode === "edit" ? "Bỏ thay đổi" : "Thoát không lưu"}
-        confirmDanger
-        onConfirm={() => {
-          setFormAsk(null);
-          if (mode === "create") resetForm();
-          onOpenChange(false);
-        }}
-      />
-
-      <M3Confirm
-        open={formAsk === "reset"}
-        onOpenChange={(o) => !o && setFormAsk(null)}
-        title="Xoá dữ liệu đã nhập?"
-        body="Toàn bộ thông tin trong form sẽ bị xoá."
-        cancelLabel="Đóng"
-        confirmLabel="Xoá dữ liệu"
-        confirmDanger
-        onConfirm={() => {
-          setFormAsk(null);
-          clear();
-        }}
-      />
-
-      <M3Sheet
-        open={optDlg === "bank"}
-        onOpenChange={(v) => !v && setOptDlg(null)}
-        variant="confirm"
-      >
-        <div className="dlg-head">
-          <M3SheetTitle>Nhận tiền COD qua tài khoản</M3SheetTitle>
-          <M3SheetClose />
-        </div>
-        <F label="Ngân hàng *" boxed={false}>
-          <SearchableSelect
-            value={draftBankName}
-            onValueChange={setDraftBankName}
-            placeholder="Chọn ngân hàng"
-            options={BANK_OPTIONS}
-          />
-        </F>
-        <F label="Số tài khoản *">
-          <Input
-            inputMode="numeric"
-            placeholder="Nhập số tài khoản"
-            value={draftBankAccountNo}
-            onChange={(e) => setDraftBankAccountNo(e.target.value)}
-          />
-        </F>
-        <F label="Tên tài khoản *">
-          <Input
-            placeholder="Chủ tài khoản"
-            value={draftBankAccountName}
-            onChange={(e) => setDraftBankAccountName(e.target.value)}
-          />
-        </F>
-        <M3ConfirmActions>
-          <button type="button" className="btn ghost" onClick={() => setOptDlg(null)}>
-            Đóng
-          </button>
-          <button type="button" className="btn" disabled={bankDraftBad} onClick={saveBankDlg}>
-            Lưu thông tin
-          </button>
-        </M3ConfirmActions>
-      </M3Sheet>
-
-      <M3Sheet open={optDlg === "inv"} onOpenChange={(v) => !v && setOptDlg(null)} variant="form-sheet">
-        <div className="dlg-head">
-          <M3SheetTitle>Thông tin xuất hoá đơn</M3SheetTitle>
-          <M3SheetClose />
-        </div>
-        <p className="lab muted" style={{ margin: 0 }}>
-          Lấy MST của người trả cước: {payerIsReceiver ? "người nhận" : "người gửi"}
-          {invoicePayerPhone ? ` · ${invoicePayerPhone}` : ""}. Đổi hình thức thanh toán thì tra lại.
-        </p>
-        <BuyerProfileChips
-          phone={invoicePayerPhone}
-          profiles={invoiceProfiles}
-          selectedTaxCode={draftInvoiceTaxCode}
-          onPick={(p) => void applyBuyerProfileDraft(p)}
-        />
-        <div className="opt-grid">
-          <F label="Mã số thuế *" labelClassName="opt-wide" boxed={false}>
-            <TaxCodeInput
-              value={draftInvoiceTaxCode}
-              onChange={setDraftInvoiceTaxCode}
-              onFound={(info) => {
-                setDraftInvoiceCompanyName(info.companyName);
-                setDraftInvoiceCompanyAddress(info.address);
+      <AlertDialog open={!!overflowAsk} onOpenChange={(o) => !o && setOverflowAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vượt 1000 đơn trong ngày</AlertDialogTitle>
+            <AlertDialogDescription>
+              {overflowAsk?.message}. Vẫn tạo đơn này (đã vượt ngưỡng 1000 đơn/VP trong ngày)?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const ask = overflowAsk;
+                setOverflowAsk(null);
+                if (ask) void persist(ask.payload, ask.action, true);
               }}
-            />
-          </F>
-          <F label="Tên công ty *" labelClassName="opt-wide">
-            <Input
-              placeholder="Tự điền theo MST"
-              value={draftInvoiceCompanyName}
-              readOnly
-              tabIndex={-1}
-            />
-          </F>
-          <F label="Địa chỉ công ty *" labelClassName="opt-wide">
-            <Input
-              placeholder="Tự điền theo MST"
-              value={draftInvoiceCompanyAddress}
-              readOnly
-              tabIndex={-1}
-            />
-          </F>
-          <F label="Email nhận hoá đơn *">
-            <Input
-              type="email"
-              placeholder="example@company.com"
-              value={draftInvoiceEmail}
-              onChange={(e) => setDraftInvoiceEmail(e.target.value)}
-            />
-          </F>
-          <F label="Tên người trên hoá đơn *">
-            <NameInput
-              placeholder="Mặc định tên người trả cước"
-              value={draftInvoiceBuyerName}
-              onChange={(v) => {
-                draftInvoiceBuyerTouched.current = true;
-                setDraftInvoiceBuyerName(v);
+            >
+              Vẫn tạo đơn
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={formAsk === "exit"} onOpenChange={(o) => !o && setFormAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {mode === "edit" ? "Bỏ các thay đổi?" : "Thoát mà không tạo đơn?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {mode === "edit"
+                ? "Những thông tin vừa sửa sẽ không được lưu."
+                : "Thông tin đã nhập sẽ không được lưu."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Đóng</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setFormAsk(null);
+                if (mode === "create") resetForm();
+                onOpenChange(false);
               }}
-            />
-          </F>
-          <F label="CCCD / CMND">
-            <Input
-              inputMode="numeric"
-              placeholder="Không bắt buộc"
-              value={draftInvoiceBuyerIdNumber}
-              maxLength={12}
-              onChange={(e) => setDraftInvoiceBuyerIdNumber(e.target.value.replace(/\D/g, ""))}
-            />
-          </F>
-          <F label="SĐT trên hoá đơn">
-            <PhoneInput
-              placeholder="Không bắt buộc"
-              value={draftInvoiceBuyerPhone}
-              onChange={setDraftInvoiceBuyerPhone}
-            />
-          </F>
-        </div>
-        <M3ConfirmActions>
-          <button type="button" className="btn ghost" onClick={() => setOptDlg(null)}>
-            Đóng
-          </button>
-          <button type="button" className="btn" disabled={invDraftBad} onClick={saveInvDlg}>
-            Lưu thông tin
-          </button>
-        </M3ConfirmActions>
-      </M3Sheet>
+            >
+              {mode === "edit" ? "Bỏ thay đổi" : "Thoát không lưu"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={formAsk === "reset"} onOpenChange={(o) => !o && setFormAsk(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xoá dữ liệu đã nhập?</AlertDialogTitle>
+            <AlertDialogDescription>Toàn bộ thông tin trong form sẽ bị xoá.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Đóng</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setFormAsk(null);
+                clear();
+              }}
+            >
+              Xoá dữ liệu
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={optDlg === "bank"} onOpenChange={(v) => !v && setOptDlg(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nhận tiền COD qua tài khoản</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <F label="Ngân hàng *">
+              <SearchableSelect
+                value={draftBankName}
+                onValueChange={setDraftBankName}
+                placeholder="Chọn ngân hàng"
+                options={BANK_OPTIONS}
+              />
+            </F>
+            <F label="Số tài khoản *">
+              <Input
+                inputMode="numeric"
+                placeholder="Nhập số tài khoản"
+                value={draftBankAccountNo}
+                onChange={(e) => setDraftBankAccountNo(e.target.value)}
+              />
+            </F>
+            <F label="Tên tài khoản *">
+              <Input
+                placeholder="Chủ tài khoản"
+                value={draftBankAccountName}
+                onChange={(e) => setDraftBankAccountName(e.target.value)}
+              />
+            </F>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setOptDlg(null)}>
+              Đóng
+            </Button>
+            <Button type="button" disabled={bankDraftBad} onClick={saveBankDlg}>
+              Lưu thông tin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={optDlg === "inv"} onOpenChange={(v) => !v && setOptDlg(null)}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Thông tin xuất hoá đơn</DialogTitle>
+            <DialogDescription>
+              Lấy MST của người trả cước: {payerIsReceiver ? "người nhận" : "người gửi"}
+              {invoicePayerPhone ? ` · ${invoicePayerPhone}` : ""}. Đổi hình thức thanh toán thì tra lại.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <BuyerProfileChips
+                phone={invoicePayerPhone}
+                profiles={invoiceProfiles}
+                selectedTaxCode={draftInvoiceTaxCode}
+                onPick={(p) => void applyBuyerProfileDraft(p)}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <F label="Mã số thuế *">
+                <TaxCodeInput
+                  value={draftInvoiceTaxCode}
+                  onChange={setDraftInvoiceTaxCode}
+                  onFound={(info) => {
+                    setDraftInvoiceCompanyName(info.companyName);
+                    setDraftInvoiceCompanyAddress(info.address);
+                  }}
+                />
+              </F>
+            </div>
+            <div className="sm:col-span-2">
+              <F label="Tên công ty *">
+                <Input
+                  className="bg-muted"
+                  placeholder="Tự điền theo MST"
+                  value={draftInvoiceCompanyName}
+                  readOnly
+                  tabIndex={-1}
+                />
+              </F>
+            </div>
+            <div className="sm:col-span-2">
+              <F label="Địa chỉ công ty *">
+                <Input
+                  className="bg-muted"
+                  placeholder="Tự điền theo MST"
+                  value={draftInvoiceCompanyAddress}
+                  readOnly
+                  tabIndex={-1}
+                />
+              </F>
+            </div>
+            <F label="Email nhận hoá đơn *">
+              <Input
+                type="email"
+                placeholder="example@company.com"
+                value={draftInvoiceEmail}
+                onChange={(e) => setDraftInvoiceEmail(e.target.value)}
+              />
+            </F>
+            <F label="Tên người trên hoá đơn *">
+              <NameInput
+                placeholder="Mặc định tên người trả cước"
+                value={draftInvoiceBuyerName}
+                onChange={(v) => {
+                  draftInvoiceBuyerTouched.current = true;
+                  setDraftInvoiceBuyerName(v);
+                }}
+              />
+            </F>
+            <F label="CCCD / CMND">
+              <Input
+                inputMode="numeric"
+                placeholder="Không bắt buộc"
+                value={draftInvoiceBuyerIdNumber}
+                maxLength={12}
+                onChange={(e) => setDraftInvoiceBuyerIdNumber(e.target.value.replace(/\D/g, ""))}
+              />
+            </F>
+            <F label="SĐT trên hoá đơn">
+              <PhoneInput
+                placeholder="Không bắt buộc"
+                value={draftInvoiceBuyerPhone}
+                onChange={setDraftInvoiceBuyerPhone}
+              />
+            </F>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setOptDlg(null)}>
+              Đóng
+            </Button>
+            <Button type="button" disabled={invDraftBad} onClick={saveInvDlg}>
+              Lưu thông tin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
 function Section({
+  icon,
   title,
   children,
-  msIcon,
-  bare,
-  action,
 }: {
+  icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
-  msIcon: string;
-  /** Không bọc `.order-box` (khi parent đã là order-box). */
-  bare?: boolean;
-  /** Nút cùng hàng với tiêu đề (căn phải). */
-  action?: React.ReactNode;
 }) {
-  const h2 = (
-    <h2 className="group-title sec-title">
-      <span className="sec-ic" aria-hidden="true">
-        <span className="ms" aria-hidden="true">
-          {msIcon}
-        </span>
-      </span>
-      {title}
-    </h2>
-  );
-  const head = action ? (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      {h2}
-      {action}
-    </div>
-  ) : (
-    h2
-  );
-  if (bare) {
-    return (
-      <>
-        {head}
-        {children}
-      </>
-    );
-  }
   return (
-    <section className="order-box stack">
-      {head}
+    <section className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
+        {icon}
+        {title}
+      </div>
       {children}
     </section>
   );
 }
 
 /** Khoản phụ = 0 thì ẩn dòng; chỉ dòng `always` (cước hàng) luôn hiện. */
-function FeeLine({ label, value, always }: { label: string; value: number; always?: boolean }) {
+function Row({ label, value, always }: { label: string; value: number; always?: boolean }) {
   if (!always && !value) return null;
   return (
-    <div className="fee-line">
-      <span>{label}</span>
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
       <span>{formatVND(value)}</span>
     </div>
   );
@@ -2686,18 +2784,17 @@ function F({
   label,
   children,
   labelClassName,
-  /** false khi child đã tự mang `.box` (SearchableSelect). */
-  boxed = true,
 }: {
   label: React.ReactNode;
   children: React.ReactNode;
   labelClassName?: string;
-  boxed?: boolean;
 }) {
   return (
-    <label className={cn("field cfg-field", labelClassName)}>
-      <span className="l">{label}</span>
-      {boxed ? <span className="box input-box">{children}</span> : children}
-    </label>
+    <div className="space-y-1">
+      <Label className={cn("text-xs font-medium text-muted-foreground", labelClassName)}>
+        {label}
+      </Label>
+      {children}
+    </div>
   );
 }

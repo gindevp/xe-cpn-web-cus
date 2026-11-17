@@ -1050,13 +1050,8 @@ export type BusinessTotals = {
 export type BusinessHourBucket = {
   label: string;
   slot: number;
-  /** sent + received (tương thích cũ). */
   count: number;
-  /** Nhập kho gửi trong khung (giờ VN). */
-  sent?: number;
-  /** Nhập kho giao trong khung (giờ VN). */
-  received?: number;
-  /** Mã VP → số sự kiện (gửi hoặc nhận tùy loại). */
+  /** Mã VP gửi → số đơn. */
   perOffice: Record<string, number>;
 };
 
@@ -1070,7 +1065,7 @@ export type BusinessReport = {
   previous: BusinessTotals;
   offices: { officeCode: string; officeName: string; delivered: number; backlog: number }[];
   days?: { date: string; sent: number; received: number; revenue: number }[];
-  /** Khung 2 giờ (giờ VN): gửi + nhận; `count` = tổng. */
+  /** Đơn gửi theo khung 2 giờ (giờ VN) — cùng quy tắc cột Đơn gửi. */
   hours?: BusinessHourBucket[];
 };
 
@@ -1295,14 +1290,20 @@ export async function deleteDoorFeeRule(id: string) {
 }
 
 function mapFareDiscountRule(r: any): FareDiscountRule {
+  const type = String(r.discountType ?? "FIXED").toUpperCase() === "PERCENT" ? "PERCENT" : "FIXED";
   return {
     id: String(r.id),
     name: String(r.name ?? ""),
     minFare: Number(r.minFare ?? 0),
+    maxFare: r.maxFare != null && Number(r.maxFare) > 0 ? Number(r.maxFare) : undefined,
     discountAmount: Number(r.discountAmount ?? 0),
+    discountType: type,
+    maxDiscount: r.maxDiscount != null && Number(r.maxDiscount) > 0 ? Number(r.maxDiscount) : undefined,
     effectiveFrom: r.effectiveFrom ? String(r.effectiveFrom).slice(0, 10) : undefined,
     effectiveTo: r.effectiveTo ? String(r.effectiveTo).slice(0, 10) : undefined,
     active: r.active !== false,
+    applyCpn: r.applyCpn !== false,
+    applyPartner: r.applyPartner === true,
   };
 }
 
@@ -1316,10 +1317,15 @@ export async function saveFareDiscountRule(rule: FareDiscountRule) {
   const body = {
     name: rule.name.trim(),
     minFare: rule.minFare,
+    maxFare: rule.maxFare && rule.maxFare > 0 ? rule.maxFare : null,
     discountAmount: rule.discountAmount,
+    discountType: rule.discountType === "PERCENT" ? "PERCENT" : "FIXED",
+    maxDiscount: rule.discountType === "PERCENT" && rule.maxDiscount && rule.maxDiscount > 0 ? rule.maxDiscount : null,
     effectiveFrom: rule.effectiveFrom || null,
     effectiveTo: rule.effectiveTo || null,
     active: rule.active !== false,
+    applyCpn: rule.applyCpn !== false,
+    applyPartner: rule.applyPartner === true,
   };
   const id = persistedId(rule.id);
   if (id != null) {
@@ -1342,15 +1348,20 @@ export async function deleteFareDiscountRule(id: string) {
 }
 
 function mapFareDiscountCode(r: any): FareDiscountCode {
+  const type = String(r.discountType ?? "FIXED").toUpperCase() === "PERCENT" ? "PERCENT" : "FIXED";
   return {
     id: String(r.id),
     code: String(r.code ?? "").toUpperCase(),
     name: String(r.name ?? ""),
     discountAmount: Number(r.discountAmount ?? 0),
+    discountType: type,
+    maxDiscount: r.maxDiscount != null && Number(r.maxDiscount) > 0 ? Number(r.maxDiscount) : undefined,
     minFare: r.minFare != null ? Number(r.minFare) : undefined,
     effectiveFrom: r.effectiveFrom ? String(r.effectiveFrom).slice(0, 10) : undefined,
     effectiveTo: r.effectiveTo ? String(r.effectiveTo).slice(0, 10) : undefined,
     active: r.active !== false,
+    createdBy: r.createdBy ? String(r.createdBy) : undefined,
+    createdAt: r.createdAt ? String(r.createdAt).slice(0, 10) : undefined,
   };
 }
 
@@ -1361,14 +1372,22 @@ export async function fetchFareDiscountCodes() {
 }
 
 export async function saveFareDiscountCode(row: FareDiscountCode) {
+  const code = String(row.code ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
   const body = {
-    code: String(row.code ?? "").trim().toUpperCase().replace(/\s+/g, ""),
-    name: row.name.trim(),
+    code,
+    name: (row.name || code).trim() || code,
     discountAmount: row.discountAmount,
+    discountType: row.discountType === "PERCENT" ? "PERCENT" : "FIXED",
+    maxDiscount: row.discountType === "PERCENT" && row.maxDiscount && row.maxDiscount > 0 ? row.maxDiscount : null,
     minFare: row.minFare && row.minFare > 0 ? row.minFare : null,
     effectiveFrom: row.effectiveFrom || null,
     effectiveTo: row.effectiveTo || null,
     active: row.active !== false,
+    createdBy: row.createdBy || null,
+    createdAt: row.createdAt || null,
   };
   const id = persistedId(row.id);
   if (id != null) {
@@ -1849,7 +1868,9 @@ export type CollectionTransactionRow = {
   purpose?: string | null;
   /** Nội dung CK gửi OnePay khi tạo VA. */
   description?: string | null;
-  /** Mã NV (phiếu thu) hoặc SĐT khách (thu cước đơn). */
+  /**
+   * Mã NV (phiếu thu) hoặc SĐT khách (thu cước đơn).
+   */
   payerRef?: string | null;
   /** Văn phòng nộp: VP phiếu hoặc VP gửi (doanh thu). */
   payOffice?: string | null;

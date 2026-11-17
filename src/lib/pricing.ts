@@ -460,12 +460,26 @@ export function vnCalendarDate(d = new Date()): string {
   }).format(d);
 }
 
-/** Chuẩn hoá mã giảm giá (hoa, bỏ khoảng trắng). */
+/** Chuẩn hoá mã giảm giá: in hoa, bỏ dấu/khoảng trắng, chỉ A–Z0–9. */
 export function normalizeDiscountCode(raw?: string | null): string {
   return String(raw ?? "")
-    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "D")
     .toUpperCase()
-    .replace(/\s+/g, "");
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function computeTierOff(
+  gross: number,
+  type: "FIXED" | "PERCENT" | undefined,
+  muc: number,
+  maxDiscount?: number,
+): number {
+  if (gross <= 0 || muc <= 0) return 0;
+  let off = type === "PERCENT" ? Math.round((gross * muc) / 100) : Math.round(muc);
+  if (type === "PERCENT" && maxDiscount && maxDiscount > 0) off = Math.min(off, Math.round(maxDiscount));
+  return Math.min(gross, Math.max(0, off));
 }
 
 /** Giảm theo mã (0 nếu trống / không khớp / chưa đủ cước / hết hạn). */
@@ -480,40 +494,67 @@ export function calcCodeDiscount(grossFare: number, rawCode?: string | null, day
   if (row.effectiveTo && day > row.effectiveTo) return 0;
   const min = Math.round(Number(row.minFare) || 0);
   if (gross < min) return 0;
-  const off = Math.round(Number(row.discountAmount) || 0);
-  return Math.min(gross, Math.max(0, off));
+  return computeTierOff(gross, row.discountType, Number(row.discountAmount) || 0, row.maxDiscount);
 }
 
+export type OrderDiscountDetail = { amount: number; label: string | null };
+
 /**
- * Giảm giá theo bảng Khuyến mãi: bậc cước và/hoặc mã.
- * Nhiều chương trình/bậc cùng khớp → lấy số tiền giảm lớn nhất (hòa → bậc cước từ cao hơn).
- * Có mã → max(bậc, mã). Không vượt quá grossFare.
+ * Giảm giá theo chương trình + mã (không cộng dồn).
+ * Nhiều chương trình khớp → mức giảm tiền lớn nhất. Có mã → max(bậc, mã).
  */
-export function calcOrderDiscount(grossFare: number, rawCode?: string | null, day = vnCalendarDate()): number {
+export function calcOrderDiscountDetail(
+  grossFare: number,
+  rawCode?: string | null,
+  day = vnCalendarDate(),
+  partnerOrder = false,
+): OrderDiscountDetail {
   const gross = Math.max(0, Math.round(Number(grossFare) || 0));
-  if (gross <= 0) return 0;
+  if (gross <= 0) return { amount: 0, label: null };
   let bestMin = -1;
   let bestOff = 0;
+  let bestLabel: string | null = null;
   for (const r of useStore.getState().fareDiscountRules) {
     if (!r.active) continue;
+    if (partnerOrder ? !r.applyPartner : r.applyCpn === false) continue;
     if (r.effectiveFrom && day < r.effectiveFrom) continue;
     if (r.effectiveTo && day > r.effectiveTo) continue;
     const min = Math.round(Number(r.minFare) || 0);
-    const off = Math.round(Number(r.discountAmount) || 0);
-    if (min <= 0 || off <= 0 || gross < min) continue;
+    const max = r.maxFare != null && Number(r.maxFare) > 0 ? Math.round(Number(r.maxFare)) : null;
+    if (min <= 0 || gross < min) continue;
+    if (max != null && gross > max) continue;
+    const off = computeTierOff(gross, r.discountType, Number(r.discountAmount) || 0, r.maxDiscount);
+    if (off <= 0) continue;
     if (off > bestOff || (off === bestOff && min > bestMin)) {
       bestMin = min;
       bestOff = off;
+      bestLabel = r.discountType === "PERCENT" ? `KM cước ${Math.round(Number(r.discountAmount) || 0)}%` : "KM cước";
     }
   }
-  const tier = Math.min(gross, Math.max(0, bestOff));
-  return Math.max(tier, calcCodeDiscount(gross, rawCode, day));
+  const code = normalizeDiscountCode(rawCode);
+  const codeOff = calcCodeDiscount(gross, code, day);
+  if (codeOff > bestOff) {
+    const row = useStore.getState().fareDiscountCodes.find((c) => normalizeDiscountCode(c.code) === code);
+    const label =
+      row?.discountType === "PERCENT"
+        ? `Mã ${code} ${Math.round(Number(row.discountAmount) || 0)}%`
+        : code
+          ? `Mã ${code}`
+          : null;
+    return { amount: codeOff, label };
+  }
+  return { amount: bestOff, label: bestLabel };
+}
+
+export function calcOrderDiscount(grossFare: number, rawCode?: string | null, day = vnCalendarDate()): number {
+  return calcOrderDiscountDetail(grossFare, rawCode, day).amount;
 }
 
 /** Kiểm tra mã trước khi gửi đơn — null = hợp lệ (hoặc để trống). */
 export function validateDiscountCodeInput(grossFare: number, rawCode?: string | null, day = vnCalendarDate()): string | null {
   const code = normalizeDiscountCode(rawCode);
   if (!code) return null;
+  if (code.length < 3) return "Mã tối thiểu 3 ký tự";
   const row = useStore.getState().fareDiscountCodes.find((c) => normalizeDiscountCode(c.code) === code);
   if (!row) return "Mã giảm giá không đúng";
   if (!row.active) return "Mã giảm giá đã tắt";
@@ -523,5 +564,6 @@ export function validateDiscountCodeInput(grossFare: number, rawCode?: string | 
   const min = Math.round(Number(row.minFare) || 0);
   if (gross < min) return `Đơn chưa đủ cước để dùng mã (tối thiểu ${min.toLocaleString("vi-VN")}đ)`;
   if (Math.round(Number(row.discountAmount) || 0) <= 0) return "Mã giảm giá không hợp lệ";
+  if (row.discountType === "PERCENT" && Number(row.discountAmount) > 100) return "Mức giảm không quá 100%";
   return null;
 }

@@ -1,4 +1,4 @@
-// Global store X.E M3 — persist key `xe-m3-vthh-v1` (chỉ session; master/đơn/chuyến lấy từ API).
+// Global store X.E — persist key `xe-vthh-v1` (chỉ session; master/đơn/chuyến lấy từ API).
 // Mọi thao tác ghi phải đi qua store; state machine chặn transition sai.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -388,15 +388,26 @@ export type DoorFeeRule = {
   fee: number;
 };
 
-/** Bậc giảm giá theo cước (màn Khuyến mãi). Ngày hiệu lực dạng yyyy-mm-dd (giờ VN). */
+/** Kiểu mức giảm: số tiền cố định hoặc phần trăm. */
+export type FareDiscountKind = "FIXED" | "PERCENT";
+
+/** Bậc giảm giá theo chương trình (màn Cài đặt giảm giá). Ngày yyyy-mm-dd (giờ VN). */
 export type FareDiscountRule = {
   id: string;
   name: string;
   minFare: number;
+  /** Mốc "đến" (tính cả); undefined = không giới hạn. */
+  maxFare?: number;
+  /** VNĐ khi FIXED; % (1–100) khi PERCENT. */
   discountAmount: number;
+  discountType: FareDiscountKind;
+  /** Trần VNĐ khi PERCENT; undefined = không giới hạn. */
+  maxDiscount?: number;
   effectiveFrom?: string;
   effectiveTo?: string;
   active: boolean;
+  applyCpn: boolean;
+  applyPartner: boolean;
 };
 
 /** Mã giảm giá nhập lúc tạo đơn. */
@@ -405,10 +416,14 @@ export type FareDiscountCode = {
   code: string;
   name: string;
   discountAmount: number;
+  discountType: FareDiscountKind;
+  maxDiscount?: number;
   minFare?: number;
   effectiveFrom?: string;
   effectiveTo?: string;
   active: boolean;
+  createdBy?: string;
+  createdAt?: string;
 };
 
 /** Bảng giá đặc thù theo sản phẩm (ngoài bảng giá theo cân nặng) */
@@ -2559,7 +2574,7 @@ export const useStore = create<Store>()(
       },
     }),
     {
-      name: "xe-m3-vthh-v1",
+      name: "xe-vthh-v1",
       partialize: (st) => ({
         session: st.session,
         viewOffice: st.viewOffice,
