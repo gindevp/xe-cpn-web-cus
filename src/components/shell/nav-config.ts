@@ -48,7 +48,7 @@ export const M3_NAV_GROUPS: M3NavGroup[] = [
     items: [
       { to: "/bang-gia", label: "Bảng giá", icon: "sell", screen: "bang-gia" },
       { to: "/phu-phi", label: "Cài đặt phụ phí", icon: "price_change", screen: "phu-phi" },
-      { to: "/khuyen-mai", label: "Khuyến mãi", icon: "loyalty", screen: "khuyen-mai" },
+      { to: "/khuyen-mai", label: "Cài đặt giảm giá", icon: "loyalty", screen: "khuyen-mai" },
       { to: "/master", label: "Master dữ liệu", icon: "database", screen: "master" },
     ],
   },
