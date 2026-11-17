@@ -287,7 +287,8 @@ function Page() {
 
   const selectedProgram = programs.find((p) => p.key === selectedProgramKey) ?? null;
   const issues = selectedProgram ? findIssues(selectedProgram.tiers) : { hard: [], soft: [] };
-  const hardBlock = issues.hard.length > 0 || (selectedProgram != null && !selectedProgram.name.trim()) || (selectedProgram != null && !selectedProgram.effectiveFrom);
+  const hardBlock =
+    issues.hard.length > 0 || (selectedProgram != null && !selectedProgram.name.trim());
 
   const updateProgramMeta = (
     key: string,
@@ -564,13 +565,10 @@ function Page() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Cài đặt giảm giá</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Giảm trên tổng cước hàng của đơn theo bậc, theo % hoặc số tiền. Hệ thống tự áp khi tạo đơn.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Giảm trên tổng cước hàng của đơn theo bậc, theo % hoặc số tiền. Hệ thống tự áp khi tạo đơn.
+        </p>
         {tab === "program" && writable ? (
           <Button type="button" onClick={addProgram}>
             <Plus className="mr-1 h-4 w-4" /> Thêm chương trình
@@ -588,7 +586,7 @@ function Page() {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-full bg-muted/60 p-1 self-start w-fit">
+      <div className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-muted p-1">
         {(
           [
             ["program", "Chương trình giảm giá", programs.length],
@@ -601,12 +599,17 @@ function Page() {
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              "inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors",
               tab === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {label}
-            <span className={cn("rounded-full px-1.5 text-xs tabular-nums", tab === id ? "bg-primary-foreground/20" : "bg-background/80")}>
+            <span
+              className={cn(
+                "rounded-full px-1.5 text-xs tabular-nums",
+                tab === id ? "bg-primary-foreground text-primary" : "bg-background/80",
+              )}
+            >
               {count}
             </span>
           </button>
@@ -642,11 +645,14 @@ function Page() {
                       return (
                         <tr
                           key={p.key}
-                          className={cn("border-t cursor-pointer", selected ? "bg-primary/5" : "hover:bg-muted/30")}
+                          className={cn(
+                            "border-t cursor-pointer",
+                            selected ? "bg-primary/[0.08]" : "hover:bg-muted/30",
+                          )}
                           onClick={() => setSelectedProgramKey(p.key)}
                         >
-                          <td className="px-3 py-3">
-                            <button type="button" className="font-semibold text-primary hover:underline text-left">
+                          <td className={cn("px-3 py-3", selected && "shadow-[inset_3px_0_0_hsl(var(--primary))]")}>
+                            <button type="button" className="text-left font-semibold text-primary hover:underline">
                               {p.name || "Chương trình mới"}
                             </button>
                           </td>
@@ -696,7 +702,7 @@ function Page() {
                 ) : null
               }
             >
-              <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Tên chương trình *</Label>
@@ -729,7 +735,7 @@ function Page() {
                   </div>
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Áp dụng cho đơn</div>
-                    <label className="flex items-start gap-2.5 rounded-lg border bg-muted/20 px-3 py-2.5">
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-muted/50 px-3 py-2.5">
                       <input
                         type="checkbox"
                         className="mt-0.5 accent-primary"
@@ -742,7 +748,7 @@ function Page() {
                         <span className="block text-xs text-muted-foreground">Đơn trong tuyến của X.E</span>
                       </span>
                     </label>
-                    <label className="flex items-start gap-2.5 rounded-lg border bg-muted/20 px-3 py-2.5">
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-muted/50 px-3 py-2.5">
                       <input
                         type="checkbox"
                         className="mt-0.5 accent-primary"
@@ -798,11 +804,11 @@ function Page() {
                       <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                         <tr>
                           <th className="w-12 px-2 py-2.5 text-center font-medium">Bậc</th>
-                          <th className="w-[16%] px-2 py-2.5 text-right font-medium">Tổng cước từ</th>
-                          <th className="w-[16%] px-2 py-2.5 text-right font-medium">Đến</th>
+                          <th className="w-[16%] px-2 py-2.5 text-right font-medium">Tổng cước từ (VNĐ)</th>
+                          <th className="w-[16%] px-2 py-2.5 text-right font-medium">Đến (VNĐ)</th>
                           <th className="w-[18%] px-2 py-2.5 font-medium">Giảm theo</th>
                           <th className="w-[14%] px-2 py-2.5 text-right font-medium">Mức giảm</th>
-                          <th className="w-[16%] px-2 py-2.5 text-right font-medium">Giảm tối đa</th>
+                          <th className="w-[16%] px-2 py-2.5 text-right font-medium">Giảm tối đa (VNĐ)</th>
                           <th className="w-10 px-1 py-2.5" />
                         </tr>
                       </thead>
@@ -819,17 +825,17 @@ function Page() {
                                 disabled={!writable}
                                 value={t.minFare}
                                 onChange={(minFare) => updateTier(t.id, { minFare })}
-                                className="max-w-[9rem] ml-auto"
+                                className="ml-auto max-w-[9rem]"
                               />
                             </td>
                             <td className="px-2 py-2.5">
                               <MoneyInput
                                 disabled={!writable}
+                                blankWhenZero
                                 value={t.maxFare ?? 0}
-                                suffix="VNĐ"
                                 placeholder="Không giới hạn"
                                 onChange={(maxFare) => updateTier(t.id, { maxFare: maxFare > 0 ? maxFare : undefined })}
-                                className="max-w-[9rem] ml-auto"
+                                className="ml-auto max-w-[9rem]"
                               />
                             </td>
                             <td className="px-2 py-2.5">
@@ -874,11 +880,13 @@ function Page() {
                               {t.discountType === "PERCENT" ? (
                                 <MoneyInput
                                   disabled={!writable}
+                                  blankWhenZero
                                   value={t.maxDiscount ?? 0}
+                                  placeholder="Không giới hạn"
                                   onChange={(maxDiscount) =>
                                     updateTier(t.id, { maxDiscount: maxDiscount > 0 ? maxDiscount : undefined })
                                   }
-                                  className="max-w-[9rem] ml-auto"
+                                  className="ml-auto max-w-[9rem]"
                                 />
                               ) : (
                                 <span className="block text-right text-muted-foreground">—</span>
@@ -1146,7 +1154,9 @@ function Page() {
                   <div className="space-y-1.5">
                     <Label>Giảm tối đa</Label>
                     <MoneyInput
+                      blankWhenZero
                       value={cd.maxDiscount ?? 0}
+                      placeholder="Không giới hạn"
                       onChange={(maxDiscount) =>
                         setCodeDlg({
                           ...codeDlg!,

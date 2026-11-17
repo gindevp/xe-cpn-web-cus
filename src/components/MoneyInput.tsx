@@ -8,6 +8,8 @@ type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" |
   onChange: (value: number) => void;
   /** Hiện đơn vị bên phải ô — mặc định "VNĐ". Truyền "" để ẩn. */
   suffix?: string;
+  /** value=0 thì để trống (placeholder), dùng cho ô không bắt buộc như "Đến / Giảm tối đa". */
+  blankWhenZero?: boolean;
 };
 
 /**
@@ -15,11 +17,12 @@ type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" |
  * Xóa hết được trên UI (không ép hiện 0 khi đang sửa); blur trống → 0.
  */
 export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
-  ({ value, onChange, className, suffix = "VNĐ", disabled, readOnly, onBlur, onFocus, ...rest }, ref) => {
+  ({ value, onChange, className, suffix = "VNĐ", blankWhenZero, disabled, readOnly, onBlur, onFocus, ...rest }, ref) => {
     const showSuffix = Boolean(suffix);
     const [draft, setDraft] = React.useState<string | null>(null);
 
-    const shown = draft !== null ? draft : formatVndInput(value);
+    const shown =
+      draft !== null ? draft : blankWhenZero && !(Number(value) > 0) ? "" : formatVndInput(value);
 
     return (
       <div className={cn("relative w-full", className)}>
@@ -31,7 +34,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
           disabled={disabled}
           readOnly={readOnly}
           className={cn(
-            "h-9 w-full text-left tabular-nums",
+            "h-9 w-full text-right tabular-nums",
             showSuffix && "pr-12",
             (disabled || readOnly) && "bg-muted/40",
           )}
