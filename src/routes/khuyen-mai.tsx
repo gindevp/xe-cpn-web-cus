@@ -21,7 +21,21 @@ import {
   type AhamovePromoCode,
 } from "@/lib/api/finance-config-api";
 import { useAuth } from "@/lib/auth";
-import { canWrite, useRbacVersion } from "@/lib/rbac";
+import { canRead, canWrite, useRbacVersion } from "@/lib/rbac";
+
+/** Ghi KM: quyền màn này / quản trị; fallback — ai vào được màn (canRead) thì CRUD (BE vẫn chặn 403). */
+function canManagePromo(role: Parameters<typeof canWrite>[0]) {
+  if (
+    canWrite(role, "khuyen-mai") ||
+    canWrite(role, "tai-khoan") ||
+    canWrite(role, "nhom-quyen") ||
+    canWrite(role, "tich-hop") ||
+    canWrite(role, "bao-tri")
+  ) {
+    return true;
+  }
+  return canRead(role, "khuyen-mai");
+}
 import { calcOrderDiscount, normalizeDiscountCode } from "@/lib/pricing";
 
 export const Route = createFileRoute("/khuyen-mai")({
@@ -73,7 +87,7 @@ function emptyAha(): AhamovePromoCode {
 function Page() {
   const session = useAuth((s) => s.session);
   useRbacVersion();
-  const writable = canWrite(session?.role, "khuyen-mai");
+  const writable = canManagePromo(session?.role);
   const [tab, setTab] = useState<"tier" | "code" | "aha">("tier");
   const storedRules = useStore((s) => s.fareDiscountRules);
   const storedCodes = useStore((s) => s.fareDiscountCodes);
@@ -255,7 +269,9 @@ function Page() {
     <div className="space-y-4">
       {!writable && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
-          Tài khoản chỉ được xem. Cần nhóm <strong>Admin</strong> (hoặc được cấp quyền ghi màn Khuyến mãi) để Thêm / Sửa / Xóa / Lưu.
+          Tài khoản chỉ được xem (vai trò hiện tại: <strong>{session?.role ?? "?"}</strong>). Cần quyền ghi{" "}
+          <strong>Khuyến mãi</strong> hoặc màn quản trị (Tài khoản / Nhóm quyền). Vào <strong>Nhóm quyền</strong> cấp Ghi
+          cho màn Khuyến mãi rồi đăng nhập lại.
         </div>
       )}
       <div className="flex gap-2 border-b pb-2">
