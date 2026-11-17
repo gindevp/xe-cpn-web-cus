@@ -507,17 +507,17 @@ function Page() {
 
       {tab === "program" ? (
         <>
-          <Section title="Danh sách chương trình">
+          <Section>
             <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full min-w-[880px] text-sm">
+              <table className="w-full min-w-[880px] table-fixed text-sm">
                 <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2.5 font-medium">Tên chương trình</th>
-                    <th className="px-3 py-2.5 font-medium">Thời gian</th>
-                    <th className="px-3 py-2.5 font-medium">Áp dụng cho</th>
-                    <th className="px-3 py-2.5 font-medium">Bậc giảm</th>
-                    <th className="px-3 py-2.5 font-medium">Trạng thái</th>
-                    <th className="px-3 py-2.5 font-medium">Bật/tắt</th>
+                    <th className="w-[26%] px-3 py-2.5 font-medium">Tên chương trình</th>
+                    <th className="w-[16%] px-3 py-2.5 font-medium">Thời gian</th>
+                    <th className="w-[12%] px-3 py-2.5 font-medium">Áp dụng cho</th>
+                    <th className="w-[22%] px-3 py-2.5 font-medium">Bậc giảm</th>
+                    <th className="w-[14%] px-3 py-2.5 font-medium">Trạng thái</th>
+                    <th className="w-[10%] px-3 py-2.5 font-medium">Bật/tắt</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -540,9 +540,7 @@ function Page() {
                           <td className="px-3 py-3 font-medium">{p.name || "—"}</td>
                           <td className="px-3 py-3 text-muted-foreground">{formatDateRange(p.effectiveFrom, p.effectiveTo)}</td>
                           <td className="px-3 py-3 text-muted-foreground">Đơn CPN</td>
-                          <td className="px-3 py-3">
-                            {p.tiers.length} bậc ({tierSummary(p.tiers)})
-                          </td>
+                          <td className="px-3 py-3">{tierSummary(p.tiers)}</td>
                           <td className="px-3 py-3">
                             <Badge className={st.className}>{st.label}</Badge>
                           </td>
@@ -563,8 +561,30 @@ function Page() {
           </Section>
 
           {selectedProgram ? (
-            <Section title={`Chi tiết: ${selectedProgram.name || "Chương trình mới"}`}>
-              <div className="grid gap-6 lg:grid-cols-[minmax(240px,320px)_1fr]">
+            <Section
+              title={`Chi tiết: ${selectedProgram.name || "Chương trình mới"}`}
+              right={
+                writable ? (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setRules(storedRules);
+                        toast.message("Đã huỷ thay đổi chưa lưu");
+                      }}
+                    >
+                      Huỷ thay đổi
+                    </Button>
+                    <Button type="button" size="sm" disabled={saving} onClick={() => void saveRules()}>
+                      {saving ? "Đang lưu…" : "Lưu chương trình"}
+                    </Button>
+                  </div>
+                ) : null
+              }
+            >
+              <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label>Tên chương trình</Label>
@@ -575,7 +595,7 @@ function Page() {
                       onChange={(e) => updateProgramMeta(selectedProgram.key, { name: e.target.value })}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Hiệu lực từ</Label>
                       <Input
@@ -595,23 +615,48 @@ function Page() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm">
-                    <div className="font-medium">Áp dụng cho đơn</div>
-                    <label className="flex items-center gap-2 text-muted-foreground">
-                      <input type="checkbox" checked readOnly className="accent-primary" /> Đơn CPN
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Áp dụng cho đơn</div>
+                    <label className="flex cursor-default items-start gap-2.5 rounded-lg border bg-muted/20 px-3 py-2.5">
+                      <input type="checkbox" checked readOnly className="mt-0.5 accent-primary" />
+                      <span>
+                        <span className="block text-sm font-medium">Đơn CPN</span>
+                        <span className="block text-xs text-muted-foreground">Đơn trong tuyến của X.E</span>
+                      </span>
                     </label>
-                    <label className="flex items-center gap-2 text-muted-foreground/70">
-                      <input type="checkbox" disabled className="accent-primary" /> Đơn giao qua đối tác (sắp có)
+                    <label className="flex cursor-not-allowed items-start gap-2.5 rounded-lg border border-dashed px-3 py-2.5 opacity-60">
+                      <input type="checkbox" disabled className="mt-0.5 accent-primary" />
+                      <span>
+                        <span className="block text-sm font-medium">Đơn giao qua đối tác</span>
+                        <span className="block text-xs text-muted-foreground">Cước theo bảng giá đối tác (sắp có)</span>
+                      </span>
                     </label>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Văn phòng áp dụng</Label>
-                    <Input disabled value="Tất cả văn phòng" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Văn phòng áp dụng</Label>
+                      <Input disabled value="Tất cả VP" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tính trên</Label>
+                      <Input disabled value="Tổng cước hàng" />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Tính trên</Label>
-                    <Input disabled value="Tổng cước hàng" />
-                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Mỗi đơn chỉ nhận một bậc khớp theo tổng cước hàng (không cộng dồn nhiều bậc). Phụ phí COD / bảo
+                    hiểm không tính vào ngưỡng.
+                  </p>
+                  {writable ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeProgram(selectedProgram.key)}
+                    >
+                      Xóa chương trình
+                    </Button>
+                  ) : null}
                 </div>
 
                 <div className="space-y-3">
@@ -624,52 +669,75 @@ function Page() {
                     ) : null}
                   </div>
                   <div className="overflow-x-auto rounded-xl border">
-                    <table className="w-full min-w-[640px] text-sm">
+                    <table className="w-full min-w-[720px] table-fixed text-sm">
                       <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                         <tr>
-                          <th className="px-2 py-2 font-medium">Bậc</th>
-                          <th className="px-2 py-2 font-medium">Tổng cước từ</th>
-                          <th className="px-2 py-2 font-medium">Đến</th>
-                          <th className="px-2 py-2 font-medium">Giảm theo</th>
-                          <th className="px-2 py-2 font-medium">Mức giảm</th>
-                          <th className="px-2 py-2 font-medium" />
+                          <th className="w-12 px-2 py-2.5 text-center font-medium">Bậc</th>
+                          <th className="w-[18%] px-2 py-2.5 font-medium">Tổng cước từ</th>
+                          <th className="w-[18%] px-2 py-2.5 font-medium">Đến</th>
+                          <th className="w-[16%] px-2 py-2.5 font-medium">Giảm theo</th>
+                          <th className="w-[18%] px-2 py-2.5 font-medium">Mức giảm</th>
+                          <th className="w-[18%] px-2 py-2.5 font-medium">Giảm tối đa</th>
+                          <th className="w-10 px-1 py-2.5 font-medium" />
                         </tr>
                       </thead>
                       <tbody>
                         {selectedProgram.tiers.map((t, i) => (
                           <tr key={t.id} className="border-t">
-                            <td className="px-2 py-2 tabular-nums text-muted-foreground">{i + 1}</td>
-                            <td className="px-2 py-2">
+                            <td className="px-2 py-2.5 text-center">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium tabular-nums text-muted-foreground">
+                                {i + 1}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2.5 align-middle">
                               <MoneyInput
                                 disabled={!writable}
                                 value={t.minFare}
                                 onChange={(minFare) => updateTier(t.id, { minFare })}
-                                className="w-32"
+                                className="max-w-[9.5rem]"
                               />
                             </td>
-                            <td className="px-2 py-2 text-xs text-muted-foreground whitespace-nowrap">
-                              {bandToLabel(t, selectedProgram.tiers)}
+                            <td className="px-2 py-2.5 align-middle">
+                              <Input
+                                readOnly
+                                disabled
+                                value={bandToLabel(t, selectedProgram.tiers)}
+                                className="max-w-[9.5rem] bg-muted/40 text-right text-xs tabular-nums"
+                              />
                             </td>
-                            <td className="px-2 py-2">
-                              <div className="inline-flex rounded-full border bg-muted/40 p-0.5 text-xs">
-                                <span className="rounded-full px-2 py-0.5 text-muted-foreground">%</span>
-                                <span className="rounded-full bg-background px-2 py-0.5 font-medium shadow-sm">Số tiền</span>
+                            <td className="px-2 py-2.5 align-middle">
+                              <div className="inline-flex rounded-full border bg-muted/50 p-0.5 text-[11px] leading-none">
+                                <span className="rounded-full px-2 py-1 text-muted-foreground" title="Sắp hỗ trợ">
+                                  %
+                                </span>
+                                <span className="rounded-full bg-background px-2 py-1 font-medium text-foreground shadow-sm">
+                                  Số tiền
+                                </span>
                               </div>
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-2 py-2.5 align-middle">
                               <MoneyInput
                                 disabled={!writable}
                                 value={t.discountAmount}
                                 onChange={(discountAmount) => updateTier(t.id, { discountAmount })}
-                                className="w-32"
+                                className="max-w-[9.5rem]"
                               />
                             </td>
-                            <td className="px-2 py-2">
+                            <td className="px-2 py-2.5 align-middle">
+                              <Input
+                                readOnly
+                                disabled
+                                value="Không giới hạn"
+                                className="max-w-[9.5rem] bg-muted/40 text-xs text-muted-foreground"
+                              />
+                            </td>
+                            <td className="px-1 py-2.5 text-center align-middle">
                               {writable ? (
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
+                                  className="h-8 w-8"
                                   aria-label="Xóa bậc"
                                   onClick={() => removeTier(t.id)}
                                 >
@@ -690,18 +758,6 @@ function Page() {
                       {g}
                     </div>
                   ))}
-                  <div className="flex flex-wrap justify-end gap-2 pt-1">
-                    {writable ? (
-                      <>
-                        <Button type="button" variant="outline" onClick={() => removeProgram(selectedProgram.key)}>
-                          Xóa chương trình
-                        </Button>
-                        <Button type="button" disabled={saving} onClick={() => void saveRules()}>
-                          {saving ? "Đang lưu…" : "Lưu chương trình"}
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
                 </div>
               </div>
             </Section>
@@ -769,7 +825,29 @@ function Page() {
           </Section>
 
           {selectedCode ? (
-            <Section title={`Chi tiết mã: ${selectedCode.code || "mới"}`}>
+            <Section
+              title={`Chi tiết mã: ${selectedCode.code || "mới"}`}
+              right={
+                writable ? (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setCodes(storedCodes);
+                        toast.message("Đã huỷ thay đổi chưa lưu");
+                      }}
+                    >
+                      Huỷ thay đổi
+                    </Button>
+                    <Button type="button" size="sm" disabled={saving} onClick={() => void saveCodes()}>
+                      {saving ? "Đang lưu…" : "Lưu mã giảm giá"}
+                    </Button>
+                  </div>
+                ) : null
+              }
+            >
               <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label>Mã</Label>
@@ -825,25 +903,22 @@ function Page() {
                   />
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                {writable ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setCodes((prev) => prev.filter((x) => x.id !== selectedCode.id));
-                        setSelectedCodeId(null);
-                      }}
-                    >
-                      Xóa mã
-                    </Button>
-                    <Button type="button" disabled={saving} onClick={() => void saveCodes()}>
-                      {saving ? "Đang lưu…" : "Lưu mã giảm giá"}
-                    </Button>
-                  </>
-                ) : null}
-              </div>
+              {writable ? (
+                <div className="mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setCodes((prev) => prev.filter((x) => x.id !== selectedCode.id));
+                      setSelectedCodeId(null);
+                    }}
+                  >
+                    Xóa mã
+                  </Button>
+                </div>
+              ) : null}
             </Section>
           ) : null}
         </>
