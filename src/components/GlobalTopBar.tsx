@@ -5,7 +5,7 @@ import { realVehiclePlate } from "@/components/AssignVehiclePicker";
 import { toast } from "sonner";
 import { useStore, type OrderX } from "@/lib/store";
 import { formatVND, officeName, orderReceiverOffice } from "@/lib/mock-data";
-import { orderDueAmount, senderFareTreatedCollected } from "@/lib/finance-debt";
+import { customerCollectBadge, senderFareTreatedCollected } from "@/lib/finance-debt";
 import { orderTabStatusLabel } from "@/lib/customer-track-status";
 import { orderGoodsLabel } from "@/lib/package-label";
 import { isApiEnabled } from "@/lib/api/client";
@@ -325,7 +325,7 @@ function SearchResultItem({
 }) {
   const fare = Math.max(0, o.fare ?? 0);
   const paidRaw = Math.max(0, o.paidAmount ?? 0);
-  const due = orderDueAmount(o);
+  const collect = customerCollectBadge(o);
   const balance = Math.max(0, fare - paidRaw);
   // Không bơm đã thu = đủ cước khi còn phí tồn / phần chênh chưa thu (fare > paid).
   const paid =
@@ -361,8 +361,10 @@ function SearchResultItem({
         ) : null}
         <span className={searchStatusTone(statusLabel)}>{statusLabel}</span>
         {createdAt ? <span className="sr-time num">Tạo {createdAt}</span> : null}
-        <span className={cn("sr-money", due > 0 ? "unpaid" : "paid")}>
-          {due > 0 ? `Chưa thu: ${formatVND(due)}` : `Đã thu: ${formatVND(paid || fare)}`}
+        <span className={cn("sr-money", collect.kind === "paid" ? "paid" : "unpaid")}>
+          {collect.kind === "paid"
+            ? `${collect.label}: ${formatVND(paid || fare)}`
+            : `${collect.label}: ${formatVND(collect.due)}`}
         </span>
         {plate ? (
           <span className="sr-time num" title="Biển kiểm soát">

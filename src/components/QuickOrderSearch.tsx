@@ -14,7 +14,12 @@ import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { isApiEnabled } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth";
-import { orderDueAmount, receiverDueAmount, receiverStorageDue } from "@/lib/finance-debt";
+import {
+  customerCollectBadge,
+  orderDueAmount,
+  receiverDueAmount,
+  receiverStorageDue,
+} from "@/lib/finance-debt";
 import {
   PAY_METHODS,
   canonicalOfficeCode,
@@ -310,8 +315,18 @@ function QuickOrderSearchDialog({ open, onOpenChange }: { open: boolean; onOpenC
                       {"  "}| Gửi: {o.senderName ?? "—"} · {o.senderPhone}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {packageCount(o)} kiện · {(o.weightKg ?? 0).toFixed(1)} kg · Còn thu{" "}
-                      <span className="font-semibold text-foreground">{formatVND(orderDueAmount(o))}</span>
+                      {packageCount(o)} kiện · {(o.weightKg ?? 0).toFixed(1)} kg ·{" "}
+                      {(() => {
+                        const b = customerCollectBadge(o);
+                        return b.kind === "paid" ? (
+                          <span className="font-semibold text-emerald-700">{b.label}</span>
+                        ) : (
+                          <>
+                            {b.label}{" "}
+                            <span className="font-semibold text-foreground">{formatVND(b.due)}</span>
+                          </>
+                        );
+                      })()}
                       {(o.codAmount ?? 0) > 0 ? ` · COD ${formatVND(o.codAmount ?? 0)}` : ""}
                     </div>
                   </div>
@@ -510,14 +525,23 @@ function CounterHandoverDialog({
               </div>
               {!ret ? (
                 <div className="mt-1">
-                  Còn phải thu cước: <span className="font-semibold">{formatVND(due)}</span>
+                  {storageDue > 0 && storageDue >= due && due > 0 ? (
+                    <>
+                      Thu tiền lưu kho: <span className="font-semibold">{formatVND(due)}</span>
+                      <div className="mt-1 text-xs text-amber-700">Người nhận trả khi nhận hàng.</div>
+                    </>
+                  ) : (
+                    <>
+                      Còn phải thu cước: <span className="font-semibold">{formatVND(due)}</span>
+                      {storageDue > 0 ? (
+                        <div className="mt-1 text-xs text-amber-700">
+                          Gồm phí tồn kho {formatVND(storageDue)} — người nhận trả.
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                   {cod > 0 ? (
                     <span className="text-xs text-muted-foreground"> · COD {formatVND(cod)} nộp qua phiếu thu</span>
-                  ) : null}
-                  {storageDue > 0 ? (
-                    <div className="mt-1 text-xs text-amber-700">
-                      Gồm phí tồn kho {formatVND(storageDue)} — người nhận trả.
-                    </div>
                   ) : null}
                   {senderOwes > 0 ? (
                     <div className="mt-1 text-xs text-amber-700">

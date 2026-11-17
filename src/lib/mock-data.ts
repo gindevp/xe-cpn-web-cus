@@ -558,6 +558,8 @@ export type Order = {
   /** Phí hoàn đơn — đã nằm trong fare. */
   returnFee?: number;
   discountAmount?: number;
+  /** Mã KM đã áp (nếu mức giảm từ mã thắng bậc cước). */
+  discountCode?: string;
   pickupFee?: number;
   deliveryFee?: number;
   /** KM Ahamove lấy tận nơi (để BE/audit tính lại phí bảng) */

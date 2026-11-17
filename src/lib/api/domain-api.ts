@@ -68,6 +68,7 @@ export type OrderSummary = {
   partnerCode?: string;
   partnerFeeAmount?: number;
   partnerPayMethod?: string;
+  partnerPromoCode?: string;
   partnerOrderId?: string;
   partnerStatus?: string;
   partnerSubStatus?: string;
@@ -94,6 +95,7 @@ export type OrderSummary = {
   goodsFareAmount?: number;
   declaredFeeAmount?: number;
   discountAmount?: number;
+  discountCode?: string;
   bankName?: string;
   bankAccountNo?: string;
   bankAccountName?: string;
@@ -297,6 +299,7 @@ export function mapOrder(dto: OrderSummary): OrderX {
     partnerCode: dto.partnerCode,
     partnerFee: dto.partnerFeeAmount != null ? Number(dto.partnerFeeAmount) : undefined,
     partnerPayMethod: dto.partnerPayMethod,
+    partnerPromoCode: dto.partnerPromoCode ? String(dto.partnerPromoCode) : undefined,
     partnerOrderId: dto.partnerOrderId,
     partnerStatus: dto.partnerStatus,
     partnerSubStatus: dto.partnerSubStatus,
@@ -322,6 +325,7 @@ export function mapOrder(dto: OrderSummary): OrderX {
     goodsFare: dto.goodsFareAmount != null ? Number(dto.goodsFareAmount) : undefined,
     declaredFee: dto.declaredFeeAmount != null ? Number(dto.declaredFeeAmount) : undefined,
     discountAmount: dto.discountAmount != null ? Number(dto.discountAmount) : undefined,
+    discountCode: dto.discountCode ? String(dto.discountCode) : undefined,
     bankName: dto.bankName,
     bankAccountNo: dto.bankAccountNo,
     bankAccountName: dto.bankAccountName,

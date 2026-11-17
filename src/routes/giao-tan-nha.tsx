@@ -15,7 +15,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
 import { useAuth } from "@/lib/auth";
 import { useStore, type OrderX } from "@/lib/store";
-import { receiverDueAmount } from "@/lib/finance-debt";
+import { customerCollectBadge, receiverDueAmount } from "@/lib/finance-debt";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { XCircle } from "lucide-react";
@@ -97,6 +97,7 @@ function DeliveryCard({ order }: { order: OrderX }) {
   const [failOpen, setFailOpen] = useState(false);
 
   const due = receiverDueAmount(order);
+  const collect = customerCollectBadge(order);
   const failCount = order.failCount ?? 0;
   const withinRetryWindow = () => {
     const last = order.failHistory?.[order.failHistory.length - 1]?.at;
@@ -125,7 +126,15 @@ function DeliveryCard({ order }: { order: OrderX }) {
         {order.address ?? "—"} · {order.receiverName} · {order.receiverPhone}
       </div>
       <div className="mt-1 text-sm">
-        Còn thu: <span className="font-semibold">{formatVND(due)}</span>
+        {collect.kind === "paid" ? (
+          <>
+            {collect.label}: <span className="font-semibold text-emerald-700">{formatVND(order.paidAmount ?? 0)}</span>
+          </>
+        ) : (
+          <>
+            {collect.label}: <span className="font-semibold">{formatVND(collect.due)}</span>
+          </>
+        )}
         {failCount > 0 && (
           <span className="ml-3 text-xs text-destructive">Fail {failCount}/3{!canRetry && " · hết retry"}</span>
         )}

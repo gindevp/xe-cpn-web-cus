@@ -33,6 +33,9 @@ import {
   genOrderCode,
   calcDeclaredValueFee,
   calcCodFee,
+  calcOrderDiscount,
+  validateDiscountCodeInput,
+  normalizeDiscountCode,
   computeGoodsLineFare,
   isValidVNPhone,
   calcHomeDoorFees,
@@ -124,9 +127,9 @@ const BANK_OPTIONS = [
   "OCB",
 ].map((b) => ({ value: b, label: b }));
 
-/** Giảm giá hệ thống — chỉ khi BE/policy cung cấp (chưa có thì 0) */
-function systemDiscount(_subtotal: number) {
-  return 0;
+/** Giảm giá hệ thống: bậc cước và/hoặc mã (lấy mức lớn hơn). */
+function systemDiscount(subtotal: number, code?: string) {
+  return calcOrderDiscount(subtotal, code);
 }
 
 /** Tên người: chữ hoa, giữ dấu tiếng Việt — xem lib/vn-name. */
@@ -520,6 +523,7 @@ export function TaoDonDialog({
   const [invoiceBuyerPhone, setInvoiceBuyerPhone] = useState(initial?.invoiceBuyerPhone ?? "");
   const [surchargeExtra, setSurchargeExtra] = useState(initial?.surchargeExtra ?? 0);
   const [prepaid, setPrepaid] = useState(initial?.prepaid ?? 0);
+  const [promoCode, setPromoCode] = useState(initial?.discountCode ?? "");
   const [payMethod, setPayMethod] = useState(initial?.payMethod ?? PAY_METHODS[0]);
   /** Chỉ hiện khi «Người gửi thanh toán» — khách muốn CK OnePay thay vì thu TM ngay. */
   const [requestSenderTransfer, setRequestSenderTransfer] = useState(false);
@@ -1124,7 +1128,7 @@ export function TaoDonDialog({
     declaredValue > 0 ? calcDeclaredValueFee(declaredValue) : (initial?.declaredFee ?? 0);
   const subtotal = goodsFare + pickupFeeVal + deliverFeeVal + codFee + declaredFee;
   // Giảm giá do hệ thống tự áp theo chính sách, không cho sửa tay
-  const discountVND = systemDiscount(subtotal);
+  const discountVND = systemDiscount(subtotal, promoCode);
   const totalFare = Math.max(0, subtotal - discountVND);
   // Người gửi thanh toán: không ghi thu TM lúc tạo — còn nợ để tác vụ «Tạo QR CK» luôn dùng được
   // (checkbox chỉ bật VA + popup ngay sau lưu). Thu TM: nhập kho gửi / thu tay sau.
@@ -1574,6 +1578,13 @@ export function TaoDonDialog({
         return;
       }
     }
+    if (mode !== "edit") {
+      const codeErr = validateDiscountCodeInput(subtotal, promoCode);
+      if (codeErr) {
+        toast.error(codeErr);
+        return;
+      }
+    }
     if (mode !== "edit" && payMethod === "Thu cước 1 phần") {
       const part = Number(prepaid) || 0;
       if (part <= 0 || part >= totalFare) {
@@ -1668,6 +1679,7 @@ export function TaoDonDialog({
             goodsFare,
             declaredFee,
             discountAmount: discountVND,
+            discountCode: normalizeDiscountCode(promoCode) || undefined,
             codAmount: codAmount > 0 ? codAmount : 0,
             codFee: codAmount > 0 ? codFee : 0,
             pickupAddress: homePickup ? pickupAddr || undefined : undefined,
@@ -1727,6 +1739,7 @@ export function TaoDonDialog({
         goodsFare,
         declaredFee,
         discountAmount: discountVND,
+        discountCode: normalizeDiscountCode(promoCode) || undefined,
         pickupFee: Number(pickupFee) || 0,
         deliveryFee: Number(deliverFee) || 0,
         pickupKm: homePickup && pickupKm != null ? pickupKm : undefined,
@@ -2233,6 +2246,15 @@ export function TaoDonDialog({
                       )}
                       <F label="Thu hộ (COD)">
                         <MoneyInput value={codAmount} onChange={setCodAmount} />
+                      </F>
+                      <F label="Mã giảm giá">
+                        <Input
+                          value={promoCode}
+                          placeholder="Nhập mã (nếu có)"
+                          className="font-mono uppercase"
+                          disabled={mode === "edit"}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                        />
                       </F>
                       <div className="side-two">
                         <F label="Phí thu hộ COD">

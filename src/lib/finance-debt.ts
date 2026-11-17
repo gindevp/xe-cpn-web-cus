@@ -102,6 +102,41 @@ export function receiverStorageDue(
 }
 
 /**
+ * Nhãn thu trên search / chi tiết / giao khách.
+ * Đơn GUI_TRA đã thu cước gửi nhưng còn phí lưu kho → không hiện «Đã thu».
+ */
+export type CustomerCollectKind = "paid" | "storage" | "unpaid";
+
+export function customerCollectKind(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit" | "collectForm" | "storageFee"> &
+    Partial<SenderCollectOrder>,
+): CustomerCollectKind {
+  const due = customerCollectDue(o);
+  if (due <= 0) return "paid";
+  const storageDue = receiverStorageDue(o);
+  if (
+    o.collectForm === "GUI_TRA" &&
+    senderFareTreatedCollected(o as SenderCollectOrder) &&
+    storageDue > 0 &&
+    storageDue >= due
+  ) {
+    return "storage";
+  }
+  return "unpaid";
+}
+
+/** Số còn thu khách (cùng {@link customerCollectDue}) — kèm loại nhãn UI. */
+export function customerCollectBadge(
+  o: Pick<Order, "fare" | "paidAmount" | "onCredit" | "collectForm" | "storageFee"> &
+    Partial<SenderCollectOrder>,
+): { kind: CustomerCollectKind; due: number; label: string } {
+  const due = customerCollectDue(o);
+  const kind = customerCollectKind(o);
+  const label = kind === "paid" ? "Đã thu" : kind === "storage" ? "Thu tiền lưu kho" : "Chưa thu";
+  return { kind, due, label };
+}
+
+/**
  * Số NV nộp trên phiếu thu = cước còn thiếu + COD thu hộ.
  * Chỉ dùng cho phiếu thu — không dùng cho H1 / POD overpay (vẫn theo fare − paid).
  * Khi có apiDue từ /receipts/candidates: BE đã gồm COD → dùng luôn.
@@ -389,8 +424,7 @@ function translateDetail(detail: string): string {
     .trim();
 }
 
-/** Tên thao tác + nội dung tách riêng; `null` nếu dòng kỹ thuật cần ẩn. */
-export function orderEventParts(action?: string, detail?: string): { title: string; detail: string } | null {
+export function orderEventContent(action?: string, detail?: string): string {
   const key = String(action ?? "").trim().toUpperCase();
   const rawDetail = (detail ?? "").trim();
   // PATCH chỉ ghi chú kỹ thuật (kiện lên xe) — không hiện như "điều phối sửa đơn".
@@ -400,7 +434,7 @@ export function orderEventParts(action?: string, detail?: string): { title: stri
       /^order fields updated$/i.test(rawDetail) ||
       /^cập nhật thông tin đơn$/i.test(rawDetail))
   ) {
-    return null;
+    return "";
   }
   let base = EVENT_LABELS[key];
   if (!base) {
@@ -414,18 +448,12 @@ export function orderEventParts(action?: string, detail?: string): { title: stri
     }
   }
   const d = translateDetail(detail ?? "");
-  if (!d || d.toLowerCase() === base.toLowerCase()) return { title: base, detail: "" };
-  return { title: base, detail: d };
-}
-
-const INLINE_DETAIL_ACTIONS = new Set(["ASSIGN_TRIP", "SCAN_OUT", "SCAN_REMOVE", "HANDOVER", "KY_BAN_GIAO_TAI_XE", "HANDOVER_DRIVER"]);
-
-export function orderEventContent(action?: string, detail?: string): string {
-  const parts = orderEventParts(action, detail);
-  if (!parts) return "";
-  if (!parts.detail) return parts.title;
-  const key = String(action ?? "").trim().toUpperCase();
-  return INLINE_DETAIL_ACTIONS.has(key) ? `${parts.title} ${parts.detail}`.trim() : `${parts.title} · ${parts.detail}`;
+  if (!d) return base;
+  if (d.toLowerCase() === base.toLowerCase()) return base;
+  if (key === "ASSIGN_TRIP" || key === "SCAN_OUT" || key === "SCAN_REMOVE" || key === "HANDOVER" || key === "KY_BAN_GIAO_TAI_XE" || key === "HANDOVER_DRIVER") {
+    return `${base} ${d}`.trim();
+  }
+  return `${base} · ${d}`;
 }
 
 /** Ẩn dòng lịch sử kỹ thuật / rỗng (vd. PATCH mặc định lúc quét kiện). */

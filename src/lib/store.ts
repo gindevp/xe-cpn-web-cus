@@ -92,6 +92,8 @@ export type OrderX = Order & {
   partnerFee?: number;
   /** BALANCE = ví Ahamove, CASH = tiền mặt. */
   partnerPayMethod?: "BALANCE" | "CASH" | string;
+  /** Voucher Ahamove đã áp lúc book (giảm phí CPN trả Aha). */
+  partnerPromoCode?: string;
   partnerOrderId?: string;
   partnerStatus?: string;
   partnerSubStatus?: string;
@@ -386,6 +388,29 @@ export type DoorFeeRule = {
   fee: number;
 };
 
+/** Bậc giảm giá theo cước (màn Khuyến mãi). Ngày hiệu lực dạng yyyy-mm-dd (giờ VN). */
+export type FareDiscountRule = {
+  id: string;
+  name: string;
+  minFare: number;
+  discountAmount: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  active: boolean;
+};
+
+/** Mã giảm giá nhập lúc tạo đơn. */
+export type FareDiscountCode = {
+  id: string;
+  code: string;
+  name: string;
+  discountAmount: number;
+  minFare?: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  active: boolean;
+};
+
 /** Bảng giá đặc thù theo sản phẩm (ngoài bảng giá theo cân nặng) */
 export type ProductPriceRule = {
   id: string;
@@ -530,6 +555,8 @@ type State = {
   integrations: Integrations;
   surcharges: SurchargeConfig;
   doorFees: DoorFeeRule[];
+  fareDiscountRules: FareDiscountRule[];
+  fareDiscountCodes: FareDiscountCode[];
   productPricing: ProductPriceRule[];
   online: boolean;
   // masters
@@ -621,6 +648,8 @@ type Actions = {
   setIntegrations: (i: Partial<Integrations>) => void;
   setSurcharges: (s: SurchargeConfig) => void;
   setDoorFees: (r: DoorFeeRule[]) => void;
+  setFareDiscountRules: (r: FareDiscountRule[]) => void;
+  setFareDiscountCodes: (r: FareDiscountCode[]) => void;
   upsertProductPrice: (r: ProductPriceRule) => void;
   removeProductPrice: (id: string) => void;
   // customer
@@ -690,6 +719,8 @@ export const useStore = create<Store>()(
       integrations: {},
       surcharges: DEFAULT_SURCHARGES,
       doorFees: [],
+      fareDiscountRules: [],
+      fareDiscountCodes: [],
       productPricing: [],
       online: typeof navigator !== "undefined" ? navigator.onLine : true,
       offices: [],
@@ -966,6 +997,7 @@ export const useStore = create<Store>()(
             goodsFareAmount: o.goodsFare,
             declaredFeeAmount: o.declaredFee,
             discountAmount: o.discountAmount,
+            discountCode: o.discountCode || undefined,
             pickupFeeAmount: o.pickupFee,
             deliveryFeeAmount: o.deliveryFee,
             pickupKm: o.pickupKm,
@@ -1903,6 +1935,52 @@ export const useStore = create<Store>()(
             get().audit({
               action: "API_SYNC_FAIL",
               entityType: "door-fee",
+              entityId: "set",
+              detail: e?.message,
+            });
+          }
+        })();
+      },
+      setFareDiscountRules: (rows) => {
+        const prev = get().fareDiscountRules;
+        set(() => ({ fareDiscountRules: rows }));
+        void (async () => {
+          try {
+            const { isApiEnabled } = await import("./api/client");
+            if (!isApiEnabled() || !get().online) return;
+            const fin = await import("./api/finance-config-api");
+            const removed = prev.filter((p) => !rows.some((r) => r.id === p.id));
+            for (const r of removed) await fin.deleteFareDiscountRule(r.id);
+            for (const r of rows) await fin.saveFareDiscountRule(r);
+            const saved = await fin.fetchFareDiscountRules();
+            set({ fareDiscountRules: saved });
+          } catch (e: any) {
+            get().audit({
+              action: "API_SYNC_FAIL",
+              entityType: "fare-discount",
+              entityId: "set",
+              detail: e?.message,
+            });
+          }
+        })();
+      },
+      setFareDiscountCodes: (rows) => {
+        const prev = get().fareDiscountCodes;
+        set(() => ({ fareDiscountCodes: rows }));
+        void (async () => {
+          try {
+            const { isApiEnabled } = await import("./api/client");
+            if (!isApiEnabled() || !get().online) return;
+            const fin = await import("./api/finance-config-api");
+            const removed = prev.filter((p) => !rows.some((r) => r.id === p.id));
+            for (const r of removed) await fin.deleteFareDiscountCode(r.id);
+            for (const r of rows) await fin.saveFareDiscountCode(r);
+            const saved = await fin.fetchFareDiscountCodes();
+            set({ fareDiscountCodes: saved });
+          } catch (e: any) {
+            get().audit({
+              action: "API_SYNC_FAIL",
+              entityType: "fare-discount-code",
               entityId: "set",
               detail: e?.message,
             });

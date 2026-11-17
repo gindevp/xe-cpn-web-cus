@@ -34,6 +34,7 @@ import { Route as GiaoThanhCongRouteImport } from './routes/giao-thanh-cong'
 import { Route as HangChoLenXeRouteImport } from './routes/hang-cho-len-xe'
 import { Route as HangSapVeRouteImport } from './routes/hang-sap-ve'
 import { Route as HoanHangRouteImport } from './routes/hoan-hang'
+import { Route as KhuyenMaiRouteImport } from './routes/khuyen-mai'
 import { Route as KiemKeRouteImport } from './routes/kiem-ke'
 import { Route as LayHangRouteImport } from './routes/lay-hang'
 import { Route as LoginRouteImport } from './routes/login'
@@ -183,6 +184,11 @@ const HangSapVeRoute = HangSapVeRouteImport.update({
 const HoanHangRoute = HoanHangRouteImport.update({
   id: '/hoan-hang',
   path: '/hoan-hang',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KhuyenMaiRoute = KhuyenMaiRouteImport.update({
+  id: '/khuyen-mai',
+  path: '/khuyen-mai',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KiemKeRoute = KiemKeRouteImport.update({
@@ -337,6 +343,7 @@ export interface FileRoutesByFullPath {
   '/hang-cho-len-xe': typeof HangChoLenXeRoute
   '/hang-sap-ve': typeof HangSapVeRoute
   '/hoan-hang': typeof HoanHangRoute
+  '/khuyen-mai': typeof KhuyenMaiRoute
   '/kiem-ke': typeof KiemKeRoute
   '/lay-hang': typeof LayHangRoute
   '/login': typeof LoginRoute
@@ -389,6 +396,7 @@ export interface FileRoutesByTo {
   '/hang-cho-len-xe': typeof HangChoLenXeRoute
   '/hang-sap-ve': typeof HangSapVeRoute
   '/hoan-hang': typeof HoanHangRoute
+  '/khuyen-mai': typeof KhuyenMaiRoute
   '/kiem-ke': typeof KiemKeRoute
   '/lay-hang': typeof LayHangRoute
   '/login': typeof LoginRoute
@@ -442,6 +450,7 @@ export interface FileRoutesById {
   '/hang-cho-len-xe': typeof HangChoLenXeRoute
   '/hang-sap-ve': typeof HangSapVeRoute
   '/hoan-hang': typeof HoanHangRoute
+  '/khuyen-mai': typeof KhuyenMaiRoute
   '/kiem-ke': typeof KiemKeRoute
   '/lay-hang': typeof LayHangRoute
   '/login': typeof LoginRoute
@@ -496,6 +505,7 @@ export interface FileRouteTypes {
     | '/hang-cho-len-xe'
     | '/hang-sap-ve'
     | '/hoan-hang'
+    | '/khuyen-mai'
     | '/kiem-ke'
     | '/lay-hang'
     | '/login'
@@ -548,6 +558,7 @@ export interface FileRouteTypes {
     | '/hang-cho-len-xe'
     | '/hang-sap-ve'
     | '/hoan-hang'
+    | '/khuyen-mai'
     | '/kiem-ke'
     | '/lay-hang'
     | '/login'
@@ -600,6 +611,7 @@ export interface FileRouteTypes {
     | '/hang-cho-len-xe'
     | '/hang-sap-ve'
     | '/hoan-hang'
+    | '/khuyen-mai'
     | '/kiem-ke'
     | '/lay-hang'
     | '/login'
@@ -653,6 +665,7 @@ export interface RootRouteChildren {
   HangChoLenXeRoute: typeof HangChoLenXeRoute
   HangSapVeRoute: typeof HangSapVeRoute
   HoanHangRoute: typeof HoanHangRoute
+  KhuyenMaiRoute: typeof KhuyenMaiRoute
   KiemKeRoute: typeof KiemKeRoute
   LayHangRoute: typeof LayHangRoute
   LoginRoute: typeof LoginRoute
@@ -855,6 +868,13 @@ declare module '@tanstack/react-router' {
       path: '/hoan-hang'
       fullPath: '/hoan-hang'
       preLoaderRoute: typeof HoanHangRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/khuyen-mai': {
+      id: '/khuyen-mai'
+      path: '/khuyen-mai'
+      fullPath: '/khuyen-mai'
+      preLoaderRoute: typeof KhuyenMaiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kiem-ke': {
@@ -1061,6 +1081,7 @@ const rootRouteChildren: RootRouteChildren = {
   HangChoLenXeRoute: HangChoLenXeRoute,
   HangSapVeRoute: HangSapVeRoute,
   HoanHangRoute: HoanHangRoute,
+  KhuyenMaiRoute: KhuyenMaiRoute,
   KiemKeRoute: KiemKeRoute,
   LayHangRoute: LayHangRoute,
   LoginRoute: LoginRoute,

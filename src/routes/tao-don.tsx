@@ -51,6 +51,9 @@ import {
   calcCodFee,
   calcDeclaredValueFee,
   calcHomeDoorFees,
+  calcOrderDiscount,
+  validateDiscountCodeInput,
+  normalizeDiscountCode,
   VAGUE_DOOR_FEE,
   sumPackageChargeKg,
   computeGoodsLineFare,
@@ -468,6 +471,7 @@ export function PublicOrderForm({
   const [goodsPhoto, setGoodsPhoto] = useState("");
   const [payMethod, setPayMethod] = useState<string>(DEFAULT_PAY_METHOD);
   const [prepaid, setPrepaid] = useState(0);
+  const [promoCode, setPromoCode] = useState("");
   const [codAmount, setCodAmount] = useState(0);
   const [surchargeExtra, setSurchargeExtra] = useState(0);
   const [ckSender, setCkSender] = useState(false);
@@ -803,7 +807,7 @@ export function PublicOrderForm({
 
   // Giống TaoDonDialog: giảm giá hệ thống (chưa có policy thì 0).
   const subtotal = goodsFare + pickupFeeVal + deliveryFeeVal + codFee + declaredFee;
-  const discountVND = 0;
+  const discountVND = calcOrderDiscount(subtotal, promoCode);
   const totalFare = Math.max(0, subtotal - discountVND);
   /** Khách tự tạo đơn chưa trả tiền cho ai — người gửi trả thì NV thu khi nhập kho gửi. */
   const paidNow = 0;
@@ -940,7 +944,16 @@ export function PublicOrderForm({
         setDeliveryFee(q.fee);
         setDeliveryKm(q.km);
       }
-      const fare = goodsFare + (homePickup ? quotedPickup : 0) + (homeDelivery ? quotedDelivery : 0) + codFee + declaredFee;
+      const grossFare =
+        goodsFare + (homePickup ? quotedPickup : 0) + (homeDelivery ? quotedDelivery : 0) + codFee + declaredFee;
+      const codeErr = validateDiscountCodeInput(grossFare, promoCode);
+      if (codeErr) {
+        toast.error(codeErr);
+        return;
+      }
+      const guestDiscount = calcOrderDiscount(grossFare, promoCode);
+      const fare = Math.max(0, grossFare - guestDiscount);
+      const appliedCode = normalizeDiscountCode(promoCode) || undefined;
       const paidForOrder = 0;
       const noteFull = embedCreateInfo(noteBody, {
         packageGroups: items.map((i) => i.group ?? ""),
@@ -982,7 +995,8 @@ export function PublicOrderForm({
           pickupFeeAmount: homePickup ? quotedPickup : 0,
           deliveryFeeAmount: homeDelivery ? quotedDelivery : 0,
           declaredFeeAmount: declaredFee,
-          discountAmount: discountVND,
+          discountAmount: guestDiscount,
+          discountCode: appliedCode,
           codAmount: codAmount > 0 ? codAmount : 0,
           codFeeAmount: codAmount > 0 ? codFee : 0,
           bankName: ckSender ? bankName || undefined : undefined,
@@ -1007,7 +1021,7 @@ export function PublicOrderForm({
             pickupFeeAmount: homePickup ? quotedPickup : 0,
             deliveryFeeAmount: homeDelivery ? quotedDelivery : 0,
             declaredFeeAmount: declaredFee,
-            discountAmount: discountVND,
+            discountAmount: guestDiscount,
             codAmount: codAmount > 0 ? codAmount : 0,
             codFeeAmount: codAmount > 0 ? codFee : 0,
             note: noteFull || undefined,
@@ -1046,7 +1060,8 @@ export function PublicOrderForm({
       fare,
         goodsFare,
         declaredFee,
-        discountAmount: discountVND,
+        discountAmount: guestDiscount,
+        discountCode: appliedCode,
         pickupFee: homePickup ? quotedPickup : 0,
         pickupAddress: homePickup ? pickupAddr.trim() : undefined,
         deliveryFee: homeDelivery ? quotedDelivery : 0,
@@ -1171,8 +1186,9 @@ export function PublicOrderForm({
         ["Giao hàng tận nơi", deliveryFeeVal],
         ["Phí thu hộ COD", codFee],
         ["Phí khai báo giá trị", declaredFee],
+        ["Giảm giá", discountVND > 0 ? -discountVND : 0],
       ] as const
-    ).filter(([, v], i) => i === 0 || v > 0);
+    ).filter(([, v], i) => i === 0 || v !== 0);
     const totalNote = `${payerSeg[3]}${
       codAmount > 0 ? ` · Chưa gồm ${vndShort(codAmount)} COD thu hộ từ người nhận` : " · Không thu hộ COD"
     }`;
@@ -1538,6 +1554,14 @@ export function PublicOrderForm({
                   )}
                   <C2Field label="Thu hộ tiền COD" unit="đ" hint="Để 0 nếu không thu hộ">
                     <MoneyInput value={codAmount} onChange={setCodAmount} suffix="" />
+                  </C2Field>
+                  <C2Field label="Mã giảm giá" hint="Nhập đúng mã để được giảm">
+                    <input
+                      placeholder="Nhập mã (nếu có)"
+                      value={promoCode}
+                      className="font-mono uppercase"
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    />
                   </C2Field>
                   <CfSelect
                     label="Tài khoản nhận tiền thu hộ"
@@ -2003,6 +2027,14 @@ export function PublicOrderForm({
                       value={codAmount}
                       onChange={setCodAmount}
                       suffix=""
+                    />
+                  </Field>
+                  <Field label="Mã giảm giá">
+                    <Input
+                      className={cn(fieldInputClass, "font-mono uppercase")}
+                      placeholder="Nhập mã (nếu có)"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
                     />
                   </Field>
                   <label className="flex items-center gap-2.5 text-sm text-foreground">

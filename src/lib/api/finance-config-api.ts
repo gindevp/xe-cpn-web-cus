@@ -8,6 +8,8 @@ import type {
   PricingRule,
   CodFeeTier,
   DoorFeeRule,
+  FareDiscountRule,
+  FareDiscountCode,
 } from "../store";
 import { DEFAULT_SURCHARGES, DEFAULT_COD_TIERS } from "../store";
 export type ReceiptDTO = {
@@ -1290,6 +1292,157 @@ export async function deleteDoorFeeRule(id: string) {
   const num = persistedId(id);
   if (num == null) return;
   await apiRequest(`/api/door-fee-rules/${num}`, { method: "DELETE" });
+}
+
+function mapFareDiscountRule(r: any): FareDiscountRule {
+  return {
+    id: String(r.id),
+    name: String(r.name ?? ""),
+    minFare: Number(r.minFare ?? 0),
+    discountAmount: Number(r.discountAmount ?? 0),
+    effectiveFrom: r.effectiveFrom ? String(r.effectiveFrom).slice(0, 10) : undefined,
+    effectiveTo: r.effectiveTo ? String(r.effectiveTo).slice(0, 10) : undefined,
+    active: r.active !== false,
+  };
+}
+
+export async function fetchFareDiscountRules() {
+  const data = await apiRequest<any>("/api/fare-discount-rules", { auth: false, timeoutMs: 15_000 });
+  const rows = Array.isArray(data) ? data : (data?.content ?? []);
+  return rows.map(mapFareDiscountRule);
+}
+
+export async function saveFareDiscountRule(rule: FareDiscountRule) {
+  const body = {
+    name: rule.name.trim(),
+    minFare: rule.minFare,
+    discountAmount: rule.discountAmount,
+    effectiveFrom: rule.effectiveFrom || null,
+    effectiveTo: rule.effectiveTo || null,
+    active: rule.active !== false,
+  };
+  const id = persistedId(rule.id);
+  if (id != null) {
+    return mapFareDiscountRule(await apiRequest(`/api/fare-discount-rules/${id}`, { method: "PUT", body: { ...body, id } }));
+  }
+  return mapFareDiscountRule(await apiRequest("/api/fare-discount-rules", { method: "POST", body }));
+}
+
+export async function persistFareDiscountRules(rows: FareDiscountRule[], previous: FareDiscountRule[]) {
+  const removed = previous.filter((p) => !rows.some((r) => r.id === p.id));
+  for (const r of removed) await deleteFareDiscountRule(r.id);
+  for (const r of rows) await saveFareDiscountRule(r);
+  return fetchFareDiscountRules();
+}
+
+export async function deleteFareDiscountRule(id: string) {
+  const num = persistedId(id);
+  if (num == null) return;
+  await apiRequest(`/api/fare-discount-rules/${num}`, { method: "DELETE" });
+}
+
+function mapFareDiscountCode(r: any): FareDiscountCode {
+  return {
+    id: String(r.id),
+    code: String(r.code ?? "").toUpperCase(),
+    name: String(r.name ?? ""),
+    discountAmount: Number(r.discountAmount ?? 0),
+    minFare: r.minFare != null ? Number(r.minFare) : undefined,
+    effectiveFrom: r.effectiveFrom ? String(r.effectiveFrom).slice(0, 10) : undefined,
+    effectiveTo: r.effectiveTo ? String(r.effectiveTo).slice(0, 10) : undefined,
+    active: r.active !== false,
+  };
+}
+
+export async function fetchFareDiscountCodes() {
+  const data = await apiRequest<any>("/api/fare-discount-codes", { auth: false, timeoutMs: 15_000 });
+  const rows = Array.isArray(data) ? data : (data?.content ?? []);
+  return rows.map(mapFareDiscountCode);
+}
+
+export async function saveFareDiscountCode(row: FareDiscountCode) {
+  const body = {
+    code: String(row.code ?? "").trim().toUpperCase().replace(/\s+/g, ""),
+    name: row.name.trim(),
+    discountAmount: row.discountAmount,
+    minFare: row.minFare && row.minFare > 0 ? row.minFare : null,
+    effectiveFrom: row.effectiveFrom || null,
+    effectiveTo: row.effectiveTo || null,
+    active: row.active !== false,
+  };
+  const id = persistedId(row.id);
+  if (id != null) {
+    return mapFareDiscountCode(await apiRequest(`/api/fare-discount-codes/${id}`, { method: "PUT", body: { ...body, id } }));
+  }
+  return mapFareDiscountCode(await apiRequest("/api/fare-discount-codes", { method: "POST", body }));
+}
+
+export async function persistFareDiscountCodes(rows: FareDiscountCode[], previous: FareDiscountCode[]) {
+  const removed = previous.filter((p) => !rows.some((r) => r.id === p.id));
+  for (const r of removed) await deleteFareDiscountCode(r.id);
+  for (const r of rows) await saveFareDiscountCode(r);
+  return fetchFareDiscountCodes();
+}
+
+export async function deleteFareDiscountCode(id: string) {
+  const num = persistedId(id);
+  if (num == null) return;
+  await apiRequest(`/api/fare-discount-codes/${num}`, { method: "DELETE" });
+}
+
+/** Voucher Ahamove do đối tác cấp — lúc book tự chọn mã giảm phí nhiều nhất. */
+export type AhamovePromoCode = {
+  id: string;
+  code: string;
+  name: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  active: boolean;
+};
+
+function mapAhamovePromoCode(r: any): AhamovePromoCode {
+  return {
+    id: String(r.id),
+    code: String(r.code ?? "").toUpperCase(),
+    name: String(r.name ?? ""),
+    effectiveFrom: r.effectiveFrom ? String(r.effectiveFrom).slice(0, 10) : undefined,
+    effectiveTo: r.effectiveTo ? String(r.effectiveTo).slice(0, 10) : undefined,
+    active: r.active !== false,
+  };
+}
+
+export async function fetchAhamovePromoCodes() {
+  const data = await apiRequest<any>("/api/ahamove-promo-codes", { timeoutMs: 15_000 });
+  const rows = Array.isArray(data) ? data : (data?.content ?? []);
+  return rows.map(mapAhamovePromoCode);
+}
+
+export async function saveAhamovePromoCode(row: AhamovePromoCode) {
+  const body = {
+    code: String(row.code ?? "").trim().toUpperCase().replace(/\s+/g, ""),
+    name: row.name.trim(),
+    effectiveFrom: row.effectiveFrom || null,
+    effectiveTo: row.effectiveTo || null,
+    active: row.active !== false,
+  };
+  const id = persistedId(row.id);
+  if (id != null) {
+    return mapAhamovePromoCode(await apiRequest(`/api/ahamove-promo-codes/${id}`, { method: "PUT", body: { ...body, id } }));
+  }
+  return mapAhamovePromoCode(await apiRequest("/api/ahamove-promo-codes", { method: "POST", body }));
+}
+
+export async function persistAhamovePromoCodes(rows: AhamovePromoCode[], previous: AhamovePromoCode[]) {
+  const removed = previous.filter((p) => !rows.some((r) => r.id === p.id));
+  for (const r of removed) await deleteAhamovePromoCode(r.id);
+  for (const r of rows) await saveAhamovePromoCode(r);
+  return fetchAhamovePromoCodes();
+}
+
+export async function deleteAhamovePromoCode(id: string) {
+  const num = persistedId(id);
+  if (num == null) return;
+  await apiRequest(`/api/ahamove-promo-codes/${num}`, { method: "DELETE" });
 }
 
 export async function fetchProductPriceRules() {

@@ -40,6 +40,7 @@ export type ScreenKey =
   | "cham-cong"
   | "bao-gio-xe"
   | "phu-phi"
+  | "khuyen-mai"
   | "kiem-ke"
   | "bao-cao-gio"
   | "ton-kho"

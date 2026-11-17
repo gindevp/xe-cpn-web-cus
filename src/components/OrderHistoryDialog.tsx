@@ -431,13 +431,16 @@ function moneyOf(o: OrderX, form?: EditForm | null, deliveryOverride?: number | 
   // Còn thu khách: phí tồn / phần người nhận; không gộp nợ VP gửi đã vào phiếu thu.
   const fareDue = customerCollectDue({ ...o, fare, paidAmount: paidRaw, storageFee: storage });
   const shippingPaid = fareDue <= 0;
+  const storageOnlyDue = fareDue > 0 && storageUnpaid > 0 && storageUnpaid >= fareDue;
   const paidByLabel =
     o.collectForm === "GUI_TRA"
-      ? treatedSenderCollected && o.onePayAwaitingTransfer && paidRaw < fare
-        ? "nhập kho gửi · chờ CK OnePay"
-        : paidRaw > 0 && balanceDue > 0
-          ? "người gửi đã trả một phần"
-          : "người gửi đã trả"
+      ? storageOnlyDue
+        ? "cước gửi đã thu · còn thu phí lưu kho"
+        : treatedSenderCollected && o.onePayAwaitingTransfer && paidRaw < fare
+          ? "nhập kho gửi · chờ CK OnePay"
+          : paidRaw > 0 && balanceDue > 0
+            ? "người gửi đã trả một phần"
+            : "người gửi đã trả"
       : o.collectForm === "NHAN_TRA"
         ? paidRaw > 0 && balanceDue > 0
           ? "đã thu một phần · còn thu người nhận"
@@ -446,13 +449,14 @@ function moneyOf(o: OrderX, form?: EditForm | null, deliveryOverride?: number | 
           ? "người gửi + người nhận đã trả"
           : "đã thanh toán";
   const remaining = fareDue > 0 ? fareDue : codGoods > 0 ? codGoods : 0;
+  const remainingTitle = storageOnlyDue ? "Thu tiền lưu kho" : "Còn phải thu";
   const remainingHint =
     fareDue <= 0 && o.onePayAwaitingTransfer && o.collectForm === "GUI_TRA"
       ? "Nhập kho gửi đã thu nghiệp vụ — đang chờ tiền về OnePay"
-      : fareDue > 0 && storageUnpaid > 0 && storageUnpaid >= fareDue
-        ? "Phí tồn kho giao — người nhận trả khi nhận hàng"
+      : storageOnlyDue
+        ? "Người nhận trả khi nhận hàng"
         : fareDue > 0
-          ? ""
+          ? "Cước vận chuyển còn lại"
           : codGoods > 0
             ? "Thu hộ COD từ người nhận"
             : "";
@@ -470,8 +474,10 @@ function moneyOf(o: OrderX, form?: EditForm | null, deliveryOverride?: number | 
     fare,
     fareDue,
     shippingPaid,
+    storageOnlyDue,
     paidByLabel,
     remaining,
+    remainingTitle,
     remainingHint,
   };
 }
@@ -1718,14 +1724,20 @@ export function OrderHistoryDialog({
                     <FeeRow label="Phí hoàn đơn" amount={money.returnFee} hideZero />
                     {money.discount > 0 ? <FeeRow label="Giảm giá" amount={-money.discount} /> : null}
                     <FeeRow
-                      label={money.paid > 0 && money.shippingPaid ? `Tổng đã thu (${money.paidByLabel})` : "Đã thu"}
+                      label={
+                        money.paid > 0 && money.shippingPaid
+                          ? `Tổng đã thu (${money.paidByLabel})`
+                          : money.storageOnlyDue
+                            ? `Đã thu (${money.paidByLabel})`
+                            : "Đã thu"
+                      }
                       amount={money.paid}
                       hideZero
                     />
                   </div>
                   <div className="fee-sep" aria-hidden="true" />
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span className="lab">Tổng phải thu</span>
+                    <span className="lab">{money.remainingTitle}</span>
                     <span className="kpi-val" style={{ fontSize: 24 }}>
                       {formatVND(money.remaining)}
                     </span>

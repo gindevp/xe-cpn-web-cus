@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { askConfirm } from "@/components/m3/askConfirm";
 import { toast } from "sonner";
 import { Image as ImageIcon, Loader2, MapPin, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -7,13 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ImageLightbox, isViewableImageUrl } from "@/components/ImageLightbox";
 import { ahamoveFailReasonVi, ahamoveRefundDue, podMomentLabel } from "@/lib/ahamove";
 import { isApiEnabled } from "@/lib/api/client";
-import {
-  ahamoveAdvanceRefund,
-  ahamoveCancel,
-  ahamoveClaimShipDebt,
-  getOrder,
-  grabCancel,
-} from "@/lib/api/domain-api";
+import { ahamoveAdvanceRefund, ahamoveCancel, ahamoveClaimShipDebt, getOrder, grabCancel } from "@/lib/api/domain-api";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/rbac";
 import type { OrderX } from "@/lib/store";
@@ -48,11 +41,7 @@ function ahamoveStatusLabel(status?: string, sub?: string): string {
   // Đã hủy thì chỉ hiện "đã hủy", không ghép mốc cũ (sắp tới điểm lấy, ...).
   if (mainKey === "CANCELLED") return main;
   // BOARDED / ARRIVED là lúc còn đến điểm lấy. Đã lấy hàng thì bỏ.
-  const pickedUp =
-    mainKey === "IN PROCESS" ||
-    mainKey === "IN_PROCESS" ||
-    mainKey === "COMPLETED" ||
-    mainKey === "FAILED";
+  const pickedUp = mainKey === "IN PROCESS" || mainKey === "IN_PROCESS" || mainKey === "COMPLETED" || mainKey === "FAILED";
   if (pickedUp && (subKey === "BOARDED" || subKey === "ARRIVED")) {
     return main;
   }
@@ -82,22 +71,13 @@ function AhamoveCancelLink({ order }: { order: OrderX }) {
   const doorPickup = Boolean(order.homePickup) && !order.pickedUpAt;
   if (doorPickup) {
     if (order.status !== "CONFIRMED" && order.status !== "WAITING") return null;
-  } else if (
-    order.status !== "AT_DEST" &&
-    order.status !== "OUT_FOR_DELIVERY" &&
-    order.status !== "FAILED_DELIVERY"
-  ) {
+  } else if (order.status !== "AT_DEST" && order.status !== "OUT_FOR_DELIVERY" && order.status !== "FAILED_DELIVERY") {
     return null;
   }
   const cancel = async () => {
     const grab = order.partnerCode === "GRAB";
     const brand = grab ? "Grab" : "Ahamove";
-    if (
-      !(await askConfirm(
-        `Hủy đơn ${brand} của ${order.code}? Chỉ hủy được khi tài xế chưa lấy hàng.`,
-      ))
-    )
-      return;
+    if (!window.confirm(`Hủy đơn ${brand} của ${order.code}? Chỉ hủy được khi tài xế chưa lấy hàng.`)) return;
     setBusy(true);
     try {
       if (grab) await grabCancel(order.code, "CPN hủy giao Grab");
@@ -138,21 +118,14 @@ const SHIP_CLAIM_STATUS = new Set(["OUT_FOR_DELIVERY", "DELIVERED", "FAILED_DELI
 function ShipClaimButton({ order }: { order: OrderX }) {
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
-  if (
-    (order.partnerCode !== "AHAMOVE" && order.partnerCode !== "GRAB") ||
-    !order.partnerOrderId ||
-    !SHIP_CLAIM_STATUS.has(order.status)
-  )
-    return null;
+  if ((order.partnerCode !== "AHAMOVE" && order.partnerCode !== "GRAB") || !order.partnerOrderId || !SHIP_CLAIM_STATUS.has(order.status)) return null;
   const me = session?.username?.trim().toLowerCase();
   const confirmed = order.partnerShipConfirmedBy?.trim();
   // Đã có người xác nhận giao ship (quét bàn giao trên app hoặc bấm bù) → không cần xác nhận bù nữa.
   if (confirmed) {
     return (
       <span className="text-[11px] text-emerald-700">
-        {me && confirmed.toLowerCase() === me
-          ? "Bạn đã xác nhận giao ship"
-          : `Đã xác nhận giao ship: ${confirmed}`}
+        {me && confirmed.toLowerCase() === me ? "Bạn đã xác nhận giao ship" : `Đã xác nhận giao ship: ${confirmed}`}
       </span>
     );
   }
@@ -166,7 +139,7 @@ function ShipClaimButton({ order }: { order: OrderX }) {
   if (!writable) return null;
   const claim = async () => {
     const note = `Xác nhận chịu nợ ship đơn ${order.code}? Nợ chuyển sang tài khoản bạn.`;
-    if (!(await askConfirm(note))) return;
+    if (!window.confirm(note)) return;
     setBusy(true);
     try {
       await ahamoveClaimShipDebt(order.code);
@@ -181,7 +154,7 @@ function ShipClaimButton({ order }: { order: OrderX }) {
   return (
     <button
       type="button"
-      className={`${PILL} border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-60`}
+      className={`${PILL} border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 hover:bg-amber-500/20 disabled:opacity-60`}
       disabled={busy}
       onClick={(e) => {
         e.stopPropagation();
@@ -196,8 +169,7 @@ function ShipClaimButton({ order }: { order: OrderX }) {
 
 /** Đơn giao nội bộ: tên, số điện thoại và phí giao — cùng chỗ với khối Ahamove. */
 export function InternalShipperInfo({ order }: { order: OrderX }) {
-  if ((order.partnerCode === "AHAMOVE" || order.partnerCode === "GRAB") && order.partnerOrderId)
-    return null;
+  if ((order.partnerCode === "AHAMOVE" || order.partnerCode === "GRAB") && order.partnerOrderId) return null;
   const name = order.shipperName?.trim();
   const phone = order.shipperPhone?.trim();
   if (!name && !phone) return null;
@@ -218,11 +190,7 @@ export function InternalShipperInfo({ order }: { order: OrderX }) {
 export function AhamoveInfo({ order }: { order: OrderX }) {
   const st = order.partnerStatus ?? "";
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [lightbox, setLightbox] = useState<{
-    urls: string[];
-    labels: string[];
-    title: string;
-  } | null>(null);
+  const [lightbox, setLightbox] = useState<{ urls: string[]; labels: string[]; title: string } | null>(null);
   const openPhotos = async () => {
     if (!isApiEnabled()) {
       const local = slidesOf(order.podPhotos);
@@ -257,8 +225,7 @@ export function AhamoveInfo({ order }: { order: OrderX }) {
     <div className="mt-1 space-y-0.5 text-xs">
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge variant="outline" className="border-orange-500 text-orange-700">
-          {order.partnerCode === "GRAB" ? "Grab" : "Ahamove"} ·{" "}
-          {ahamoveStatusLabel(st, order.partnerSubStatus)}
+          {order.partnerCode === "GRAB" ? "Grab" : "Ahamove"} · {ahamoveStatusLabel(st, order.partnerSubStatus)}
         </Badge>
         {order.partnerTrackingUrl ? (
           <a
@@ -266,7 +233,7 @@ export function AhamoveInfo({ order }: { order: OrderX }) {
             target="_blank"
             rel="noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className={`${PILL} border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100`}
+            className={`${PILL} border-primary/30 bg-primary/10 text-primary hover:bg-primary/15`}
           >
             <MapPin className="h-3 w-3" />
             Theo dõi
@@ -275,18 +242,14 @@ export function AhamoveInfo({ order }: { order: OrderX }) {
         {hasAhamovePod(order) ? (
           <button
             type="button"
-            className={`${PILL} border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-60`}
+            className={`${PILL} border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/20 disabled:opacity-60`}
             disabled={photoBusy}
             onClick={(e) => {
               e.stopPropagation();
               void openPhotos();
             }}
           >
-            {photoBusy ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <ImageIcon className="h-3 w-3" />
-            )}
+            {photoBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageIcon className="h-3 w-3" />}
             Ảnh nhận / giao
           </button>
         ) : null}
@@ -309,6 +272,7 @@ export function AhamoveInfo({ order }: { order: OrderX }) {
             : order.partnerPayMethod === "BALANCE"
               ? " (ví)"
               : ""}
+          {order.partnerPromoCode ? ` · voucher ${order.partnerPromoCode}` : ""}
         </div>
       ) : null}
       {order.partnerFailReason && (st === "FAILED" || st === "CANCELLED") ? (
@@ -369,12 +333,8 @@ function AhamoveAdvanceRow({ order }: { order: OrderX }) {
       setBusy(false);
     }
   };
-  const refund = async () => {
-    if (
-      !(await askConfirm(
-        `Đã trả lại ${money} cho tài xế Ahamove (hàng đã về VP)? Đơn ${order.code} sẽ quay lại còn nợ.`,
-      ))
-    )
+  const refund = () => {
+    if (!window.confirm(`Đã trả lại ${money} cho tài xế Ahamove (hàng đã về VP)? Đơn ${order.code} sẽ quay lại còn nợ.`))
       return;
     void run(() => ahamoveAdvanceRefund(order.code), `Đã hoàn ${money} tiền ứng cho tài xế`);
   };
@@ -397,13 +357,7 @@ function AhamoveAdvanceRow({ order }: { order: OrderX }) {
         <span className="text-amber-700">Chưa nhận tiền ứng · chờ ship đến lấy · {money}</span>
       )}
       {writable && refundDue ? (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-6 px-2 text-xs text-destructive"
-          disabled={busy}
-          onClick={refund}
-        >
+        <Button size="sm" variant="outline" className="h-6 px-2 text-xs text-destructive" disabled={busy} onClick={refund}>
           Hoàn ứng cho tài xế
         </Button>
       ) : null}

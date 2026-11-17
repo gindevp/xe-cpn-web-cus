@@ -291,16 +291,20 @@ export async function syncPublicOfficesFromApi() {
 /** Bảng giá / phụ phí — đọc được cả khi chưa đăng nhập (tạo đơn KH tạm tính cước như NV). */
 export async function syncPublicPricingFromApi() {
   if (!isApiEnabled()) return;
-  const [surcharges, pricingRules, doorFees, productPricing] = await Promise.all([
+  const [surcharges, pricingRules, doorFees, fareDiscountRules, fareDiscountCodes, productPricing] = await Promise.all([
     fin.fetchSurchargePolicy().catch(() => useStore.getState().surcharges),
     fin.fetchPricingRules().catch(() => useStore.getState().pricingRules),
     fin.fetchDoorFeeRules().catch(() => useStore.getState().doorFees),
+    fin.fetchFareDiscountRules().catch(() => useStore.getState().fareDiscountRules),
+    fin.fetchFareDiscountCodes().catch(() => useStore.getState().fareDiscountCodes),
     fin.fetchProductPriceRules().catch(() => useStore.getState().productPricing),
   ]);
   useStore.setState({
     surcharges,
     pricingRules,
     doorFees,
+    fareDiscountRules,
+    fareDiscountCodes,
     productPricing,
   });
 }

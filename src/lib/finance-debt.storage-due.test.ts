@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  customerCollectBadge,
   customerCollectDue,
+  customerCollectKind,
   fareBalanceDue,
   orderDueAmount,
   receiverDueAmount,
@@ -31,10 +33,26 @@ describe("storage fee after sender prepaid", () => {
     expect(customerCollectDue(base)).toBe(3000);
   });
 
+  it("UI badge is thu tiền lưu kho — not Đã thu", () => {
+    expect(customerCollectKind(base)).toBe("storage");
+    expect(customerCollectBadge(base)).toEqual({
+      kind: "storage",
+      due: 3000,
+      label: "Thu tiền lưu kho",
+    });
+  });
+
+  it("fully paid shows Đã thu", () => {
+    const o = { ...base, paidAmount: 33000 };
+    expect(customerCollectKind(o)).toBe("paid");
+    expect(customerCollectBadge(o).label).toBe("Đã thu");
+  });
+
   it("NHAN_TRA partial after fare bump shows full unpaid", () => {
     const o = { ...base, collectForm: "NHAN_TRA" as const, storageFee: 0 };
     expect(orderDueAmount(o)).toBe(3000);
     expect(receiverDueAmount(o)).toBe(3000);
     expect(customerCollectDue(o)).toBe(3000);
+    expect(customerCollectKind(o)).toBe("unpaid");
   });
 });
