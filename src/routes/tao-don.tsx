@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   Camera,
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { M3Page } from "@/components/M3Page";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -74,8 +75,12 @@ import {
 import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
 import { itinerariesAllowedFrom } from "@/lib/api/vehicle-events-api";
 import { cn } from "@/lib/utils";
-import { getCustomerSession } from "@/lib/api/customer-portal-api";
-import { CfBlockTitle, CfField, CfGlyph, CfRail, SuccessArt } from "@/components/customer/cf-ui";
+import {
+  fetchCustomerOrders,
+  getCustomerSession,
+  type CustomerOrderRow,
+} from "@/lib/api/customer-portal-api";
+import { C2Field, C2Switch, CfBlockTitle, CfField, CfGlyph, CfRail, CfSelect, SuccessArt } from "@/components/customer/cf-ui";
 import { GuestTransferPanel } from "@/components/customer/GuestTransferPanel";
 import { toast } from "sonner";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
@@ -103,7 +108,11 @@ export const Route = createFileRoute("/tao-don")({
     search.vp != null && String(search.vp).trim() ? { vp: String(search.vp).trim() } : {},
   component: function TaoDonPage() {
     const { vp } = Route.useSearch();
-    return <PublicOrderForm presetFromOffice={vp} />;
+    return (
+      <M3Page bare>
+        <PublicOrderForm presetFromOffice={vp} />
+      </M3Page>
+    );
   },
 });
 
@@ -164,6 +173,8 @@ const BANK_OPTIONS = [
 ].map((b) => ({ value: b, label: b }));
 
 const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
+/** Định dạng tiền kiểu design khách (`30.000đ`). */
+const vndShort = (n?: number | null) => `${Math.round(Number(n ?? 0)).toLocaleString("vi-VN")}đ`;
 
 const fieldSelectClass =
   "h-12 rounded-xl border-0 bg-[#E9EEF5] px-3 text-base shadow-none hover:bg-[#E1E8F2] focus-visible:ring-1 focus-visible:ring-primary";
@@ -294,15 +305,101 @@ function orderNoteWithPackages(body: string | undefined, items: Item[], goodsFar
   return note;
 }
 
+/** Cài đặt khách lưu ở trang CRM (`CustomerCrm` → `xe-kh-settings:{phone}`). */
+function readKhSettings(phone: string | undefined): Record<string, string> {
+  if (!phone || typeof localStorage === "undefined") return {};
+  try {
+    return JSON.parse(localStorage.getItem(`xe-kh-settings:${phone}`) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+const KH_RECENT_ROUTES_KEY = "kh-recent-routes-v1";
+/** Design: tối đa 4 chip «Hành trình gần đây». */
+const KH_RECENT_ROUTES_MAX = 4;
+
+type RecentRoute = { from: string; to: string; fromName: string; toName: string; label: string };
+
+function shortOfficeLabel(name: string) {
+  const base = name.split(/\s+[–-]\s+/)[0]?.trim() || name.trim();
+  return base.length > 28 ? `${base.slice(0, 26)}…` : base;
+}
+
+function findOfficeByNameHint(name: string | null | undefined, offices: OfficeRec[]) {
+  const n = name?.trim().toLowerCase();
+  if (!n) return undefined;
+  return (
+    offices.find((o) => o.name.trim().toLowerCase() === n) ||
+    offices.find((o) => o.name.toLowerCase().includes(n) || n.includes(o.name.toLowerCase().split(/\s+[–-]\s+/)[0] || ""))
+  );
+}
+
+function routeFromPair(fromRec: OfficeRec, toRec: OfficeRec): RecentRoute {
+  return {
+    from: officeOptionValue(fromRec),
+    to: officeOptionValue(toRec),
+    fromName: fromRec.name,
+    toName: toRec.name,
+    label: `${shortOfficeLabel(fromRec.name)} → ${shortOfficeLabel(toRec.name)}`,
+  };
+}
+
+function readStoredRecentRoutes(): RecentRoute[] {
+  try {
+    const raw = localStorage.getItem(KH_RECENT_ROUTES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RecentRoute[];
+    return Array.isArray(parsed)
+      ? parsed.filter((r) => r?.from && r?.to && r?.label).slice(0, KH_RECENT_ROUTES_MAX)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushStoredRecentRoute(route: RecentRoute) {
+  try {
+    const prev = readStoredRecentRoutes().filter((r) => !(r.from === route.from && r.to === route.to));
+    localStorage.setItem(
+      KH_RECENT_ROUTES_KEY,
+      JSON.stringify([route, ...prev].slice(0, KH_RECENT_ROUTES_MAX)),
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function recentRoutesFromOrders(orders: CustomerOrderRow[], offices: OfficeRec[]): RecentRoute[] {
+  const out: RecentRoute[] = [];
+  const seen = new Set<string>();
+  for (const o of orders) {
+    if (o.direction !== "SENT") continue;
+    const fromRec = findOfficeByNameHint(o.fromOfficeName, offices);
+    const toRec = findOfficeByNameHint(o.toOfficeName, offices);
+    if (!fromRec || !toRec || fromRec.code === toRec.code) continue;
+    const r = routeFromPair(fromRec, toRec);
+    const key = `${r.from}|${r.to}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+    if (out.length >= KH_RECENT_ROUTES_MAX) break;
+  }
+  return out;
+}
+
 export function PublicOrderForm({
   presetFromOffice,
   variant = "guest",
   onHome,
+  onViewOrder,
 }: {
   presetFromOffice?: string;
   /** `crm`: bố cục 3 bước trong trang khách (cpn) — cùng state/validate/submit với màn QR. */
   variant?: "guest" | "crm";
   onHome?: () => void;
+  /** crm: mở đơn vừa tạo ở «Quản lý đơn hàng». */
+  onViewOrder?: (code: string) => void;
 }) {
   const navigate = useNavigate();
   const offices = useStore((s) => s.offices);
@@ -327,6 +424,33 @@ export function PublicOrderForm({
     setSenderPhone((p) => p || kh.phone);
     setSenderName((n) => n || kh.name || "");
   }, []);
+
+  useEffect(() => {
+    if (variant !== "crm" || offices.length === 0) return;
+    let cancelled = false;
+    void fetchCustomerOrders()
+      .then((rows) => {
+        if (cancelled) return;
+        const fromOrders = recentRoutesFromOrders(rows, offices);
+        const stored = readStoredRecentRoutes();
+        const seen = new Set<string>();
+        const merged: RecentRoute[] = [];
+        for (const r of [...fromOrders, ...stored]) {
+          const key = `${r.from}|${r.to}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(r);
+          if (merged.length >= KH_RECENT_ROUTES_MAX) break;
+        }
+        setRecentRoutes(merged);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentRoutes(readStoredRecentRoutes());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, offices]);
   const [homePickup, setHomePickup] = useState(false);
   const [pickupAddr, setPickupAddr] = useState("");
   const [pickupFee, setPickupFee] = useState(0);
@@ -341,6 +465,9 @@ export function PublicOrderForm({
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
   const [toOffice, setToOffice] = useState("");
+  const [recentRoutes, setRecentRoutes] = useState<RecentRoute[]>(() =>
+    variant === "crm" ? readStoredRecentRoutes() : [],
+  );
   const [items, setItems] = useState<Item[]>([newItem()]);
   const [goodsPhoto, setGoodsPhoto] = useState("");
   const [payMethod, setPayMethod] = useState<string>(DEFAULT_PAY_METHOD);
@@ -569,6 +696,53 @@ export function PublicOrderForm({
     const cfg = useStore.getState().surcharges?.cod;
     setSurchargeExtra(calcCodFee(codAmount, cfg));
   }, [codAmount]);
+
+  const khSaved = useMemo(
+    () => (variant === "crm" ? readKhSettings(getCustomerSession()?.phone) : {}),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [variant, createdOrder],
+  );
+  const savedBank = useMemo(
+    () =>
+      khSaved.bankName && khSaved.bankAccount
+        ? { name: khSaved.bankName, account: khSaved.bankAccount, holder: khSaved.bankHolder ?? "" }
+        : null,
+    [khSaved],
+  );
+  const applyKhDefaults = useCallback(() => {
+    if (variant !== "crm") return;
+    const s = readKhSettings(getCustomerSession()?.phone);
+    if (s.senderName?.trim()) setSenderName(toUpperName(s.senderName));
+    if (s.defaultHomePickup === "1") {
+      setHomePickup(true);
+      if (s.senderAddress?.trim()) setPickupAddr(s.senderAddress.trim());
+    }
+    if (s.defaultHomeDelivery === "1") setHomeDelivery(true);
+    if (s.defaultPayer === "SENDER") setPayMethod("Người gửi thanh toán");
+    else if (s.defaultPayer === "RECEIVER") setPayMethod("Người nhận thanh toán");
+    const kg = Number(String(s.defaultWeight ?? "").replace(",", "."));
+    if (s.defaultGoods?.trim() || kg >= 1) {
+      setItems((prev) =>
+        prev.map((it, i) =>
+          i === 0
+            ? { ...it, name: it.name || s.defaultGoods?.trim() || "", weight: kg >= 1 ? kg : it.weight }
+            : it,
+        ),
+      );
+    }
+  }, [variant]);
+  useEffect(() => {
+    applyKhDefaults();
+  }, [applyKhDefaults]);
+  /** COD có giá trị mà chưa chọn TK → mặc định TK đã lưu ở «Tài khoản ngân hàng». */
+  const bankTouched = useRef(false);
+  useEffect(() => {
+    if (variant !== "crm" || bankTouched.current || !savedBank || codAmount <= 0 || ckSender) return;
+    setCkSender(true);
+    setBankName(savedBank.name);
+    setBankAccountNo(savedBank.account);
+    setBankAccountName(savedBank.holder);
+  }, [variant, savedBank, codAmount, ckSender]);
 
   const goodsFare = items.reduce((s, i) => s + (Number(i.fare) || 0), 0);
   const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
@@ -915,6 +1089,16 @@ export function PublicOrderForm({
     };
     addOrder(o, { skipApi: true });
       upsertCustomer(senderPhone, toUpperName(senderName));
+      if (fromOfficeRec && toOfficeRec) {
+        const recent = routeFromPair(fromOfficeRec, toOfficeRec);
+        pushStoredRecentRoute(recent);
+        setRecentRoutes((prev) =>
+          [recent, ...prev.filter((r) => !(r.from === recent.from && r.to === recent.to))].slice(
+            0,
+            KH_RECENT_ROUTES_MAX,
+          ),
+        );
+      }
       setCreatedOrder(o);
       toast.success("Đã tạo đơn hàng");
     } finally {
@@ -946,6 +1130,8 @@ export function PublicOrderForm({
     setBankName("");
     setBankAccountNo("");
     setBankAccountName("");
+    bankTouched.current = false;
+    applyKhDefaults();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -957,13 +1143,57 @@ export function PublicOrderForm({
       "Điền chính xác số điện thoại để nhà xe liên hệ khi giao hàng.",
       "Tải biên nhận và in tem dán lên từng kiện trước khi mang hàng ra văn phòng.",
     ];
-    const pickerClass = "min-h-[46px] rounded-xl border border-[#d1d5db] bg-white px-3 py-2 hover:border-[#274ea1]";
-    const selectClass = "h-[46px] rounded-xl border border-[#d1d5db] bg-white";
-    const payCards = [
-      ["Người gửi thanh toán", "send", "Người gửi trả", "Trả cước tại văn phòng gửi"],
-      ["Người nhận thanh toán", "user", "Người nhận trả", "Thu khi giao hàng"],
-      ["Thu cước 1 phần", "split", "Thu cước 1 phần", "Người gửi trả trước một phần"],
+    const pickerClass = "cf-office-pick";
+    const payerSegs = [
+      ["Người gửi thanh toán", "Người gửi", "Người gửi trả cước tại văn phòng gửi khi mang hàng tới.", "Người gửi trả"],
+      ["Người nhận thanh toán", "Người nhận", "Nhân viên thu cước của người nhận khi giao hàng.", "Người nhận trả"],
+      ["Thu cước 1 phần", "Trả một phần", "Người gửi trả trước một phần, phần còn lại thu khi giao.", "Trả một phần"],
     ] as const;
+    const payerSeg = payerSegs.find(([v]) => v === payMethod) ?? payerSegs[0];
+    const bankChoice = !ckSender
+      ? "none"
+      : savedBank && bankName === savedBank.name && bankAccountNo === savedBank.account
+        ? "saved"
+        : "other";
+    const bankChoices = [
+      ...(savedBank
+        ? [{ value: "saved", label: `${savedBank.name} · ${savedBank.account}`, sub: savedBank.holder || undefined }]
+        : []),
+      { value: "other", label: "Tài khoản khác", sub: "Nhập ngân hàng và số tài khoản" },
+      { value: "none", label: "Không chọn tài khoản", sub: "Không chuyển khoản tiền thu hộ" },
+    ];
+    const pickBank = (v: string) => {
+      bankTouched.current = true;
+      if (v === "none") {
+        setCkSender(false);
+        return;
+      }
+      setCkSender(true);
+      if (v === "saved" && savedBank) {
+        setBankName(savedBank.name);
+        setBankAccountNo(savedBank.account);
+        setBankAccountName(savedBank.holder);
+        return;
+      }
+      if (bankChoice === "saved") {
+        setBankName("");
+        setBankAccountNo("");
+        setBankAccountName("");
+      }
+    };
+    const feeLines = (
+      [
+        [`Cước hàng (${items.length} kiện)`, goodsFare],
+        ["Lấy hàng tận nơi", pickupFeeVal],
+        ["Giao hàng tận nơi", deliveryFeeVal],
+        ["Phí thu hộ COD", codFee],
+        ["Phí khai báo giá trị", declaredFee],
+        [discountDetail.label ? `Giảm giá · ${discountDetail.label}` : "Giảm giá", discountVND > 0 ? -discountVND : 0],
+      ] as const
+    ).filter(([, v], i) => i === 0 || v !== 0);
+    const totalNote = `${payerSeg[3]}${
+      codAmount > 0 ? ` · Chưa gồm ${vndShort(codAmount)} COD thu hộ từ người nhận` : " · Không thu hộ COD"
+    }`;
     const doorHint = (quoting: boolean, km: number | null, addr: string, what: string) =>
       `Chỉ cần số nhà và đường.${
         quoting
@@ -974,26 +1204,43 @@ export function PublicOrderForm({
               ? ` Ahamove chưa xác định được điểm ${what} — cước ${what} hàng 50.000đ.`
               : ""
       }`;
+    const applyRecentRoute = (r: RecentRoute) => {
+      setFromOffice(r.from);
+      setToOffice(r.to);
+    };
+    const bothOffices = !!(fromOffice && toOffice);
+    const routeBanner =
+      bothOffices && route
+        ? `Tuyến ${route}`
+        : bothOffices
+          ? "Đã chọn đủ văn phòng"
+          : "";
 
     return (
       <>
         <div className="cf">
           <CfRail step={crmStep} tip={tips[crmStep - 1]} />
-          <section className="cf-main">
+          <section className={`cf-main${step === 1 && !createdOrder ? "" : " bare"}`}>
             {createdOrder ? (
               <CrmOrderDone
                 order={createdOrder}
                 collect={createdCollect}
                 onHome={goHome}
+                payMethod={payMethod}
+                prepaid={prepaid}
+                onViewOrder={onViewOrder}
                 onCreateAnother={startNewOrder}
                 onPrintLabels={() => setPrintLabels(true)}
               />
             ) : step === 1 ? (
               <>
                 <header className="cf-head">
-                  <span>Bước 1 / 3</span>
+                  <span>BƯỚC 1 / 3</span>
                   <h2>Chọn hành trình</h2>
-                  <p>Hàng của bạn sẽ được chuyển từ văn phòng gửi đến văn phòng nhận.</p>
+                  <p>
+                    Hàng được chuyển từ văn phòng gửi đến văn phòng nhận. Chọn VP gần bạn nhất để được tiếp nhận nhanh
+                    hơn.
+                  </p>
                 </header>
                 {!masterLoading && offices.length === 0 && (
                   <p className="cf-error">
@@ -1003,13 +1250,35 @@ export function PublicOrderForm({
                     </button>
                   </p>
                 )}
+                {recentRoutes.length > 0 ? (
+                  <div className="cf-recent">
+                    <span className="cf-recent-label">Hành trình gần đây</span>
+                    <div className="cf-recent-chips">
+                      {recentRoutes.slice(0, KH_RECENT_ROUTES_MAX).map((r) => (
+                        <button
+                          key={`${r.from}|${r.to}`}
+                          type="button"
+                          className={`cf-recent-chip${fromOffice === r.from && toOffice === r.to ? " on" : ""}`}
+                          onClick={() => applyRecentRoute(r)}
+                        >
+                          <CfGlyph name="clock" size={16} />
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="cf-route">
                   <div className="cf-route-card">
-                    <div className="cf-badge blue">
-                      <CfGlyph name="pin" />
+                    <div className="cf-route-card-head">
+                      <span className="cf-badge blue">
+                        <CfGlyph name="pin" size={18} />
+                      </span>
+                      <span>
+                        <strong>Văn phòng gửi</strong>
+                        <small>Nơi bạn mang hàng đến gửi</small>
+                      </span>
                     </div>
-                    <strong>Văn phòng gửi</strong>
-                    <small>Nơi bạn mang hàng đến gửi</small>
                     <OfficePickerSheet
                       value={fromOffice}
                       onChange={setFromOffice}
@@ -1020,19 +1289,19 @@ export function PublicOrderForm({
                       disabled={masterLoading || offices.length === 0}
                     />
                   </div>
-                  <div className="cf-route-line">
-                    <span />
-                    <i>
-                      <CfGlyph name="truck" />
-                    </i>
-                    <span />
+                  <div className="cf-route-mid" aria-hidden>
+                    <CfGlyph name="truck" size={20} />
                   </div>
                   <div className="cf-route-card">
-                    <div className="cf-badge green">
-                      <CfGlyph name="flag" />
+                    <div className="cf-route-card-head">
+                      <span className="cf-badge blue">
+                        <CfGlyph name="flag" size={18} />
+                      </span>
+                      <span>
+                        <strong>Văn phòng nhận</strong>
+                        <small>Nơi hàng được chuyển đến</small>
+                      </span>
                     </div>
-                    <strong>Văn phòng nhận</strong>
-                    <small>Nơi hàng được chuyển đến</small>
                     <OfficePickerSheet
                       value={toOffice}
                       onChange={setToOffice}
@@ -1046,106 +1315,108 @@ export function PublicOrderForm({
                     />
                   </div>
                 </div>
+                {bothOffices ? (
+                  <div className="cf-banner ok">
+                    <CfGlyph name="info" size={20} />
+                    <span>
+                      <strong>{routeBanner}</strong>
+                      {route && itinerary ? ` · ${itinerary}` : " · Hàng nhận tại VP gửi sẽ đi chuyến gần nhất trong ngày."}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="cf-banner">
+                    <CfGlyph name="info" size={20} />
+                    <span>Chọn đủ văn phòng gửi và văn phòng nhận để tiếp tục.</span>
+                  </div>
+                )}
                 <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
-                <footer className="cf-foot mt-6">
-                  <span>
-                    {!fromOffice || !toOffice
-                      ? "Chọn đủ hai văn phòng để tiếp tục"
-                      : route && itinerary
-                        ? `Tuyến ${route} · ${itinerary}`
-                        : "Chưa khớp được tuyến/lộ trình — kiểm tra điểm lộ trình VP"}
-                  </span>
-                  <button type="button" className="primary" disabled={!fromOffice || !toOffice} onClick={goNext}>
-                    Tiếp tục <CfGlyph name="arrow" size={16} />
+                <footer className="cf-foot">
+                  <button type="button" className="kh-btn" disabled={!bothOffices} onClick={goNext}>
+                    Tiếp tục
                   </button>
                 </footer>
               </>
             ) : (
               <form
+                className="c2"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void submit();
                 }}
               >
-                <header className="cf-head">
-                  <span>Bước 2 / 3</span>
-                  <h2>Thông tin đơn hàng</h2>
-                  <p className="cf-route-chip">
-                    <CfGlyph name="pin" />
-                    {fromOfficeRec?.name ?? fromOffice}
-                    <CfGlyph name="arrow" size={14} />
-                    {toOfficeRec?.name ?? toOffice}
-                  </p>
-                </header>
-
-                <div className="cf-cols">
-                <div className="cf-col-main">
-                <div className="cf-block">
-                  <CfBlockTitle icon="user" tone="blue" title="Người gửi & người nhận" sub="Thông tin liên hệ hai đầu" />
-                  <div className="cf-grid">
-                    <div className="cf-sub wide">
-                      <b>Người gửi</b>
-                      <ContactPickButton
-                        className="cf-link"
-                        onPick={(c) => {
-                          if (c.phone) setSenderPhone(c.phone);
-                          if (c.name) setSenderName(toUpperName(c.name));
-                        }}
-                      />
+                <div className="c2-main">
+                <section className="c2-card">
+                  <div className="c2-card-head">
+                    <div>
+                      <h2>Người gửi và người nhận</h2>
+                      <p>Điền đúng số điện thoại để nhà xe liên hệ khi giao hàng</p>
                     </div>
-                    <CfField icon="user" label="Tên người gửi">
-                      <NameInput placeholder="Nguyễn Văn A" value={senderName} onChange={setSenderName} />
-                    </CfField>
-                    <CfField icon="phone" label="SĐT người gửi">
-                      <PhoneInput placeholder="09xx xxx xxx" value={senderPhone} onChange={setSenderPhone} />
-                    </CfField>
-                    <label className="cf-check wide">
-                      <Checkbox
-                        checked={homePickup}
-                        onCheckedChange={(v) => {
-                          const on = Boolean(v);
+                  </div>
+                  <div className="c2-parties">
+                    <div className="c2-soft">
+                      <div className="c2-soft-head">
+                        <span className="c2-ico">
+                          <CfGlyph name="send" size={18} />
+                        </span>
+                        <h3>Người gửi</h3>
+                        <small>Tự điền từ hồ sơ</small>
+                      </div>
+                      <C2Field label="Tên người gửi">
+                        <NameInput placeholder="Nguyễn Văn A" value={senderName} onChange={setSenderName} />
+                      </C2Field>
+                      <C2Field label="SĐT người gửi" icon="phone">
+                        <PhoneInput placeholder="09xx xxx xxx" value={senderPhone} onChange={setSenderPhone} />
+                      </C2Field>
+                      <C2Switch
+                        on={homePickup}
+                        title="Lấy hàng tận nơi"
+                        sub="Nhân viên đến lấy hàng tại địa chỉ của bạn"
+                        onChange={(on) => {
                           setHomePickup(on);
-                          if (!on) {
+                          if (on) {
+                            if (!pickupAddr && khSaved.senderAddress) setPickupAddr(khSaved.senderAddress);
+                          } else {
                             setPickupAddr("");
                             setPickupFee(0);
                             setPickupKm(null);
                           }
                         }}
                       />
-                      Lấy hàng tận nơi
-                    </label>
-                    {homePickup && (
-                      <CfField
-                        icon="home"
-                        label="Địa chỉ lấy hàng"
-                        wide
-                        hint={doorHint(pickupQuoting, pickupKm, pickupAddr, "lấy")}
-                      >
-                        <input placeholder="VD: 21 Đại Từ - HN" value={pickupAddr} onChange={(e) => setPickupAddr(e.target.value)} />
-                      </CfField>
-                    )}
-
-                    <div className="cf-sub wide">
-                      <b>Người nhận</b>
-                      <ContactPickButton
-                        className="cf-link"
-                        onPick={(c) => {
-                          if (c.phone) setReceiverPhone(c.phone);
-                          if (c.name) setReceiverName(toUpperName(c.name));
-                        }}
-                      />
+                      {homePickup && (
+                        <C2Field
+                          label="Địa chỉ lấy hàng"
+                          icon="home"
+                          hint={doorHint(pickupQuoting, pickupKm, pickupAddr, "lấy")}
+                        >
+                          <input placeholder="VD: 21 Đại Từ - HN" value={pickupAddr} onChange={(e) => setPickupAddr(e.target.value)} />
+                        </C2Field>
+                      )}
                     </div>
-                    <CfField icon="user" label="Tên người nhận">
-                      <NameInput placeholder="Trần Thị B" value={receiverName} onChange={setReceiverName} />
-                    </CfField>
-                    <CfField icon="phone" label="SĐT người nhận">
-                      <PhoneInput placeholder="09xx xxx xxx" value={receiverPhone} onChange={setReceiverPhone} />
-                    </CfField>
-                    <label className="cf-check wide">
-                      <Checkbox
-                        checked={homeDelivery}
-                        onCheckedChange={(v) => {
-                          const on = Boolean(v);
+                    <div className="c2-soft">
+                      <div className="c2-soft-head">
+                        <span className="c2-ico">
+                          <CfGlyph name="flag" size={18} />
+                        </span>
+                        <h3>Người nhận</h3>
+                        <ContactPickButton
+                          className="c2-link"
+                          onPick={(c) => {
+                            if (c.phone) setReceiverPhone(c.phone);
+                            if (c.name) setReceiverName(toUpperName(c.name));
+                          }}
+                        />
+                      </div>
+                      <C2Field label="Tên người nhận">
+                        <NameInput placeholder="Trần Thị B" value={receiverName} onChange={setReceiverName} />
+                      </C2Field>
+                      <C2Field label="SĐT người nhận" icon="phone">
+                        <PhoneInput placeholder="09xx xxx xxx" value={receiverPhone} onChange={setReceiverPhone} />
+                      </C2Field>
+                      <C2Switch
+                        on={homeDelivery}
+                        title="Giao hàng tận nơi"
+                        sub="Giao đến địa chỉ người nhận"
+                        onChange={(on) => {
                           setHomeDelivery(on);
                           if (!on) {
                             setDeliverAddr("");
@@ -1154,205 +1425,202 @@ export function PublicOrderForm({
                           }
                         }}
                       />
-                      Giao hàng tận nơi
-                    </label>
-                    {homeDelivery && (
-                      <CfField
-                        icon="pin"
-                        label="Địa chỉ người nhận"
-                        wide
-                        hint={doorHint(deliveryQuoting, deliveryKm, deliverAddr, "giao")}
-                      >
-                        <input placeholder="VD: 21 Đại Từ - HN" value={deliverAddr} onChange={(e) => setDeliverAddr(e.target.value)} />
-                      </CfField>
-                    )}
+                      {homeDelivery && (
+                        <C2Field
+                          label="Địa chỉ giao hàng"
+                          icon="pin"
+                          hint={doorHint(deliveryQuoting, deliveryKm, deliverAddr, "giao")}
+                        >
+                          <input placeholder="VD: 21 Đại Từ - HN" value={deliverAddr} onChange={(e) => setDeliverAddr(e.target.value)} />
+                        </C2Field>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </section>
 
-                <div className="cf-block">
-                  <CfBlockTitle
-                    icon="pkg"
-                    tone="orange"
-                    title="Hàng hoá"
-                    sub={`${items.length} kiện · ${totalWeight.toLocaleString("vi-VN")} kg`}
-                    action={
-                      <button
-                        type="button"
-                        className="cf-link"
-                        onClick={() => {
-                          const last = items[items.length - 1];
-                          if (last) duplicateItem(last.id);
-                        }}
-                      >
-                        <CfGlyph name="copy" size={15} />
-                        Copy kiện
-                      </button>
-                    }
-                  />
+                <section className="c2-card">
+                  <div className="c2-card-head">
+                    <div>
+                      <h2>Hàng hoá</h2>
+                      <p>
+                        {items.length} kiện · {totalWeight.toLocaleString("vi-VN")} kg
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="c2-pill"
+                      onClick={() => {
+                        const last = items[items.length - 1];
+                        if (last) duplicateItem(last.id);
+                      }}
+                    >
+                      <CfGlyph name="copy" size={16} />
+                      Sao chép kiện
+                    </button>
+                  </div>
                   {items.map((it, idx) => (
-                    <div key={it.id} className="cf-item">
-                      <div className="cf-sub">
-                        <b>Kiện {idx + 1}</b>
+                    <div key={it.id} className="c2-soft">
+                      <div className="c2-soft-head">
+                        <h3>Kiện {idx + 1}</h3>
                         {items.length > 1 && (
                           <button
                             type="button"
-                            className="cf-link danger"
+                            className="c2-round"
                             onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
                             aria-label={`Xóa kiện ${idx + 1}`}
+                            title="Xóa kiện"
                           >
-                            <CfGlyph name="trash" size={15} />
-                            Xóa
+                            <CfGlyph name="trash" size={16} />
                           </button>
                         )}
                       </div>
-                      <div className="cf-grid">
-                        <CfField icon="pkg" label="Tên hàng hoá" wide>
+                      <div className="c2-grid">
+                        <C2Field label="Tên hàng hoá" wide>
                           <input
                             placeholder="Ví dụ: Quần áo, mỹ phẩm..."
                             value={it.name}
                             onChange={(e) => updateItem(it.id, { name: e.target.value })}
                           />
-                        </CfField>
-                        <CfField label="Số lượng">
+                        </C2Field>
+                        <C2Field label="Số lượng">
                           <NumberInput value={it.sl} onChange={(sl) => updateItem(it.id, { sl })} />
-                        </CfField>
-                        <CfField icon="scale" label="Cân nặng (kg)">
+                        </C2Field>
+                        <C2Field label="Cân nặng (kg)">
                           <NumberInput decimal min={1} value={it.weight} onChange={(weight) => updateItem(it.id, { weight })} />
-                        </CfField>
-                        <div className="cf-grid three wide">
-                          <CfField label="Dài (cm)">
-                            <NumberInput value={it.dai} onChange={(dai) => updateItem(it.id, { dai })} />
-                          </CfField>
-                          <CfField label="Rộng (cm)">
-                            <NumberInput value={it.rong} onChange={(rong) => updateItem(it.id, { rong })} />
-                          </CfField>
-                          <CfField label="Cao (cm)">
-                            <NumberInput value={it.cao} onChange={(cao) => updateItem(it.id, { cao })} />
-                          </CfField>
-                        </div>
-                        <CfField icon="card" label="Giá trị hàng (VND)">
+                        </C2Field>
+                        <C2Field label="Dài (cm)">
+                          <NumberInput value={it.dai} onChange={(dai) => updateItem(it.id, { dai })} />
+                        </C2Field>
+                        <C2Field label="Rộng (cm)">
+                          <NumberInput value={it.rong} onChange={(rong) => updateItem(it.id, { rong })} />
+                        </C2Field>
+                        <C2Field label="Cao (cm)">
+                          <NumberInput value={it.cao} onChange={(cao) => updateItem(it.id, { cao })} />
+                        </C2Field>
+                        <C2Field label="Giá trị hàng" unit="đ" hint="Dùng để bồi thường nếu có sự cố">
                           <MoneyInput value={it.value} onChange={(value) => updateItem(it.id, { value })} suffix="" />
-                        </CfField>
-                        <CfField label="Cước kiện (tự tính)">
-                          <MoneyInput value={it.fare} onChange={() => undefined} readOnly tabIndex={-1} suffix="" />
-                        </CfField>
+                        </C2Field>
+                      </div>
+                      <div className="c2-row">
+                        <span>Cước kiện (tự tính)</span>
+                        <strong>{vndShort(it.fare)}</strong>
                       </div>
                     </div>
                   ))}
-                  <button type="button" className="cf-add" onClick={() => setItems((p) => [...p, newItem()])}>
-                    <CfGlyph name="plus" size={16} />
+                  <button type="button" className="c2-add" onClick={() => setItems((p) => [...p, newItem()])}>
+                    <CfGlyph name="plus" size={18} />
                     Thêm kiện hàng
                   </button>
-                  <div className="cf-photo">
-                    <GoodsPhotoPicker value={goodsPhoto} onChange={setGoodsPhoto} />
-                  </div>
-                </div>
+                  <GoodsPhotoPicker value={goodsPhoto} onChange={setGoodsPhoto} variant="crm" />
+                </section>
                 </div>
 
-                <aside className="cf-col-side">
-                <div className="cf-block">
-                  <CfBlockTitle icon="card" tone="green" title="Thanh toán" sub="Ai sẽ trả tiền cước?" />
-                  <div className="cf-payer three">
-                    {payCards.map(([v, icon, t, d]) => (
-                      <label key={v} className={cn(payMethod === v && "on")}>
-                        <input
-                          type="radio"
-                          name="payer"
-                          checked={payMethod === v}
-                          onChange={() => setPayMethod(v)}
-                        />
-                        <i>
-                          <CfGlyph name={icon} />
-                        </i>
-                        <strong>{t}</strong>
-                        <small>{d}</small>
-                      </label>
-                    ))}
+                <aside className="c2-side">
+                <section className="c2-card c2-pay">
+                  <h2>Thanh toán</h2>
+                  <div className="c2-route">
+                    <div>
+                      <small>Gửi tại</small>
+                      <strong>{fromOfficeRec?.name ?? fromOffice}</strong>
+                    </div>
+                    <div>
+                      <small>Đến</small>
+                      <strong>{toOfficeRec?.name ?? toOffice}</strong>
+                    </div>
+                    <button type="button" className="c2-link" onClick={() => setStep(1)}>
+                      Đổi hành trình
+                    </button>
                   </div>
-                  <div className="cf-grid">
-                    {payMethod === "Thu cước 1 phần" && (
-                      <CfField icon="card" label="Người gửi trả trước (VND)" wide>
-                        <MoneyInput value={prepaid} onChange={setPrepaid} suffix="" />
-                      </CfField>
-                    )}
-                    <CfField icon="card" label="Thu hộ tiền COD (VND)" wide>
-                      <MoneyInput value={codAmount} onChange={setCodAmount} suffix="" />
-                    </CfField>
-                    <CfField icon="card" label="Mã giảm giá" wide>
-                      <input
-                        placeholder="Nhập mã (nếu có)"
-                        value={promoCode}
-                        className="font-mono uppercase"
-                        onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  <div className="c2-payer">
+                    <span className="c2-label">Người trả cước</span>
+                    <div className="c2-seg" role="radiogroup" aria-label="Người trả cước">
+                      {payerSegs.map(([v, label]) => (
+                        <button
+                          key={v}
+                          type="button"
+                          role="radio"
+                          aria-checked={payMethod === v}
+                          className={payMethod === v ? "on" : ""}
+                          onClick={() => setPayMethod(v)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <small className="c2-hint">{payerSeg[2]}</small>
+                  </div>
+                  {payMethod === "Thu cước 1 phần" && (
+                    <C2Field label="Người gửi trả trước" unit="đ" hint="Phần còn lại người nhận trả khi nhận hàng">
+                      <MoneyInput value={prepaid} onChange={setPrepaid} suffix="" />
+                    </C2Field>
+                  )}
+                  <C2Field label="Thu hộ tiền COD" unit="đ" hint="Để 0 nếu không thu hộ">
+                    <MoneyInput value={codAmount} onChange={setCodAmount} suffix="" />
+                  </C2Field>
+                  <C2Field label="Mã giảm giá" hint="Nhập đúng mã để được giảm">
+                    <input
+                      placeholder="Nhập mã (nếu có)"
+                      value={promoCode}
+                      className="font-mono uppercase"
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    />
+                  </C2Field>
+                  <CfSelect
+                    label="Tài khoản nhận tiền thu hộ"
+                    icon="bank"
+                    value={bankChoice}
+                    options={bankChoices}
+                    onPick={pickBank}
+                  />
+                  {bankChoice === "other" && (
+                    <div className="c2-bank">
+                      <CfSelect
+                        label="Ngân hàng"
+                        value={bankName}
+                        placeholder="Chọn ngân hàng"
+                        options={BANK_OPTIONS}
+                        onPick={(v) => {
+                          bankTouched.current = true;
+                          setBankName(v);
+                        }}
                       />
-                    </CfField>
-                    <label className="cf-check wide">
-                      <Checkbox checked={ckSender} onCheckedChange={(v) => setCkSender(Boolean(v))} />
-                      Tài khoản nhận tiền thu hộ
-                    </label>
-                    {ckSender && (
-                      <>
-                        <CfField icon="bank" label="Ngân hàng" wide>
-                          <SearchableSelect
-                            value={bankName}
-                            onValueChange={setBankName}
-                            placeholder="Chọn ngân hàng"
-                            className={selectClass}
-                            options={BANK_OPTIONS}
-                          />
-                        </CfField>
-                        <CfField icon="card" label="Số tài khoản">
-                          <input
-                            inputMode="numeric"
-                            placeholder="Nhập số tài khoản"
-                            value={bankAccountNo}
-                            onChange={(e) => setBankAccountNo(onlyDigits(e.target.value))}
-                          />
-                        </CfField>
-                        <CfField icon="user" label="Tên tài khoản">
-                          <NameInput placeholder="Chủ tài khoản" value={bankAccountName} onChange={setBankAccountName} />
-                        </CfField>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="cf-summary">
-                  <div>
-                    <span>Cước hàng</span>
-                    <b>{formatVND(goodsFare)}</b>
-                  </div>
-                  {(
-                    [
-                      ["Cước lấy tận nơi", pickupFeeVal],
-                      ["Cước giao tận nơi", deliveryFeeVal],
-                      ["Phí thu hộ COD", codFee],
-                      ["Phí khai báo giá trị", declaredFee],
-                      [discountDetail.label ? `Giảm giá · ${discountDetail.label}` : "Giảm giá", discountVND > 0 ? -discountVND : 0],
-                    ] as const
-                  ).map(([label, v]) =>
-                    v ? (
+                      <C2Field label="Số tài khoản">
+                        <input
+                          inputMode="numeric"
+                          placeholder="Nhập số tài khoản"
+                          value={bankAccountNo}
+                          onChange={(e) => {
+                            bankTouched.current = true;
+                            setBankAccountNo(onlyDigits(e.target.value));
+                          }}
+                        />
+                      </C2Field>
+                      <C2Field label="Tên chủ tài khoản">
+                        <NameInput placeholder="Chủ tài khoản" value={bankAccountName} onChange={setBankAccountName} />
+                      </C2Field>
+                    </div>
+                  )}
+                  <div className="c2-fees">
+                    {feeLines.map(([label, v]) => (
                       <div key={label}>
                         <span>{label}</span>
-                        <b>{formatVND(v)}</b>
+                        <b>{vndShort(v)}</b>
                       </div>
-                    ) : null,
-                  )}
-                  <div className="cf-total">
-                    <span>Tổng cộng</span>
-                    <strong className="total-amount-warning">{formatVND(totalFare)}</strong>
+                    ))}
                   </div>
-                </div>
-                </aside>
-                </div>
-                <footer className="cf-foot">
-                  <button type="button" className="secondary" onClick={() => setStep(1)}>
-                    Quay lại
-                  </button>
-                  <button type="submit" className="primary" disabled={saving}>
+                  <div className="c2-total">
+                    <span>Tổng cước</span>
+                    <strong>{vndShort(totalFare)}</strong>
+                    <small>{totalNote}</small>
+                  </div>
+                  <button type="submit" className="c2-submit" disabled={saving}>
                     {saving ? "Đang tạo..." : "Tạo đơn hàng"}
                   </button>
-                </footer>
+                  <button type="button" className="c2-back" onClick={() => setStep(1)}>
+                    Quay lại
+                  </button>
+                </section>
+                </aside>
               </form>
             )}
           </section>
@@ -1816,14 +2084,10 @@ export function PublicOrderForm({
                 <FeeRow label="Cước giao tận nơi" value={deliveryFeeVal} />
                 <FeeRow label="Phí thu hộ COD" value={codFee} />
                 <FeeRow label="Phí khai báo giá trị" value={declaredFee} />
-                <FeeRow
-                  label={discountDetail.label ? `Giảm giá · ${discountDetail.label}` : "Giảm giá"}
-                  value={discountVND > 0 ? -discountVND : 0}
-                />
                 <FeeRow label="Đã thu" value={paidNow} />
                 <div className="my-3 h-px bg-border" />
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">Tổng phải thu</span>
+                  <span className="font-medium">Tổng</span>
                   <span className="text-base font-bold text-orange-500">{formatVND(totalFare)}</span>
                 </div>
               </div>
@@ -1867,25 +2131,45 @@ const payLabelOf = guestBillPayLabel;
 function CrmOrderDone({
   order,
   collect,
+  payMethod,
+  prepaid,
   onHome,
+  onViewOrder,
   onCreateAnother,
   onPrintLabels,
 }: {
   order: OrderX;
   collect?: import("@/lib/api/domain-api").GuestCollect | null;
+  payMethod: string;
+  prepaid: number;
   onHome: () => void;
+  onViewOrder?: (code: string) => void;
   onCreateAnother: () => void;
   onPrintLabels: () => void;
 }) {
   const pkgs = packageRows(order);
-  const pickup = order.pickupFee ?? 0;
-  const delivery = order.deliveryFee ?? 0;
-  const codFee = order.codFee ?? 0;
-  const declared = order.declaredFee ?? 0;
-  const goodsFare =
-    order.goodsFare != null
-      ? Number(order.goodsFare)
-      : Math.max(0, (order.fare ?? 0) - pickup - delivery - codFee - declared);
+  const fare = order.fare ?? 0;
+  const cod = order.codAmount ?? 0;
+  const totalKg = pkgs.reduce((s, p) => s + (Number(p.weightKg) || 0), 0);
+  const goodsName = pkgs.map((p) => p.label).filter(Boolean)[0] || "Hàng hoá";
+  const fromName = officeName(order.fromOffice);
+  const toName = officeName(order.finalToOffice || order.toOffice);
+  const payWho =
+    payMethod === "Người nhận thanh toán" ? "Người nhận" : payMethod === "Thu cước 1 phần" ? "Trả một phần" : "Người gửi";
+  const paySentence =
+    payMethod === "Người nhận thanh toán" ? (
+      <>
+        Cước <strong>{vndShort(fare)}</strong> sẽ thu của người nhận khi giao hàng.
+      </>
+    ) : payMethod === "Thu cước 1 phần" ? (
+      <>
+        Bạn trả trước <strong>{vndShort(prepaid)}</strong> tại quầy, phần còn lại thu của người nhận khi giao.
+      </>
+    ) : (
+      <>
+        Bạn sẽ thanh toán <strong>{vndShort(fare)}</strong> tiền cước tại quầy.
+      </>
+    );
   const [downloading, setDownloading] = useState(false);
 
   const saveBill = async () => {
@@ -1907,119 +2191,79 @@ function CrmOrderDone({
       .catch(() => undefined);
   };
 
+  const facts: [string, ReactNode, boolean?][] = [
+    ["Người nhận", `${order.receiverName || "—"} · ${order.receiverPhone ?? ""}`],
+    ["Văn phòng nhận", order.homeDelivery ? `${toName} · Giao tận nơi` : toName],
+    [
+      "Hàng hoá",
+      `${goodsName} · ${pkgs.length || 1} kiện · ${totalKg.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} kg`,
+    ],
+    ["Thu hộ COD", cod > 0 ? vndShort(cod) : "Không thu hộ"],
+    ["Người trả cước", payWho],
+    ["Tổng cước", vndShort(fare), true],
+  ];
+
   return (
-    <>
-      <header className="cf-head center">
-        <SuccessArt />
-        <h2>Tạo đơn thành công!</h2>
-        <p>
-          Mã đơn{" "}
-          <button type="button" className="cf-code" onClick={copyCode} title="Copy mã đơn">
-            <b>{order.code}</b> <CfGlyph name="copy" size={15} />
+    <section className="c2-card c2-done">
+      <header className="c2-done-head">
+        <span className="c2-done-ok">
+          <CfGlyph name="check" size={32} />
+        </span>
+        <h2>Đã tạo đơn thành công</h2>
+        <small>Mã đơn của bạn</small>
+        <div className="c2-done-code">
+          <strong>{order.code}</strong>
+          <button type="button" className="c2-round" onClick={copyCode} title="Sao chép mã đơn" aria-label="Sao chép mã đơn">
+            <CfGlyph name="copy" size={18} />
           </button>
-        </p>
-      </header>
-      <div className="mx-auto mb-4 w-full max-w-md">
-        <GuestTransferPanel order={order} initial={collect} />
-      </div>
-      <div className="cf-done">
-        <div className="cf-block">
-          <div className="cf-party">
-            <div className="cf-badge blue">
-              <CfGlyph name="send" />
-            </div>
-            <div>
-              <small>Người gửi</small>
-              <strong>
-                {order.senderName || "—"} · {order.senderPhone}
-              </strong>
-              <span>
-                {officeName(order.fromOffice)}
-                {order.homePickup ? ` · Lấy tận nơi: ${order.pickupAddress ?? ""}` : ""}
-              </span>
-            </div>
-            {pickup > 0 && <b>{formatVND(pickup)}</b>}
-          </div>
-          <div className="cf-party">
-            <div className="cf-badge green">
-              <CfGlyph name="flag" />
-            </div>
-            <div>
-              <small>Người nhận</small>
-              <strong>
-                {order.receiverName || "—"} · {order.receiverPhone}
-              </strong>
-              <span>
-                {officeName(order.finalToOffice || order.toOffice)}
-                {order.homeDelivery ? ` · Giao tận nơi: ${order.address ?? ""}` : ""}
-              </span>
-            </div>
-            {delivery > 0 && <b>{formatVND(delivery)}</b>}
-          </div>
-          {pkgs.map((p) => (
-            <div key={p.seq} className="cf-party">
-              <div className="cf-badge orange">
-                <CfGlyph name="pkg" />
-              </div>
-              <div>
-                <small>Kiện {p.seq}</small>
-                <strong>{p.label}</strong>
-                <span>
-                  SL: {p.itemQty} · KL: {p.weightKg != null ? Number(p.weightKg).toFixed(1) : "—"}kg
-                </span>
-              </div>
-              <b>{formatVND(p.fare)}</b>
-            </div>
-          ))}
-          <div className="cf-summary flat">
-            <div>
-              <span>Hình thức</span>
-              <b>{payLabelOf(order)}</b>
-            </div>
-            {(order.codAmount ?? 0) > 0 && (
-              <div>
-                <span>Thu hộ COD</span>
-                <b>{formatVND(order.codAmount ?? 0)}</b>
-              </div>
-            )}
-            <div>
-              <span>Cước hàng</span>
-              <b>{formatVND(goodsFare)}</b>
-            </div>
-            {codFee > 0 && (
-              <div>
-                <span>Phí thu hộ COD</span>
-                <b>{formatVND(codFee)}</b>
-              </div>
-            )}
-            {declared > 0 && (
-              <div>
-                <span>Phí khai báo giá trị</span>
-                <b>{formatVND(declared)}</b>
-              </div>
-            )}
-            <div className="cf-total">
-              <span>Tổng cộng</span>
-              <strong>{formatVND(order.fare ?? 0)}</strong>
-            </div>
-          </div>
         </div>
-      </div>
-      <footer className="cf-foot mt-6">
-        <button type="button" className="secondary" onClick={onHome}>
-          Về trang chủ
+      </header>
+      <p className="c2-banner">
+        <CfGlyph name="info" size={20} />
+        <span>
+          {order.homePickup ? (
+            <>
+              Nhân viên sẽ đến lấy hàng tại <strong>{order.pickupAddress || "địa chỉ của bạn"}</strong> — đọc mã đơn
+              khi bàn giao.{" "}
+            </>
+          ) : (
+            <>
+              Mang hàng đến <strong>{fromName}</strong> và đọc mã đơn cho nhân viên.{" "}
+            </>
+          )}
+          {paySentence}
+        </span>
+      </p>
+      <GuestTransferPanel order={order} initial={collect} />
+      <dl className="c2-facts">
+        {facts.map(([k, v, strong]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd className={strong ? "strong" : ""}>{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <footer className="c2-done-foot">
+        <div className="c2-done-tools">
+          <button type="button" className="c2-pill" onClick={onPrintLabels}>
+            <CfGlyph name="printer" size={16} /> In tem
+          </button>
+          <button type="button" className="c2-pill" disabled={downloading} onClick={() => void saveBill()}>
+            <CfGlyph name="download" size={16} /> {downloading ? "Đang tạo…" : "Tải biên nhận"}
+          </button>
+        </div>
+        <button
+          type="button"
+          className="c2-btn sec"
+          onClick={() => (onViewOrder ? onViewOrder(order.code) : onHome())}
+        >
+          Xem chi tiết đơn
         </button>
-        <button type="button" className="secondary" onClick={onPrintLabels}>
-          <CfGlyph name="printer" size={16} /> In tem
-        </button>
-        <button type="button" className="secondary" disabled={downloading} onClick={() => void saveBill()}>
-          <CfGlyph name="download" size={16} /> {downloading ? "Đang tạo…" : "Tải biên nhận"}
-        </button>
-        <button type="button" className="primary" onClick={onCreateAnother}>
+        <button type="button" className="c2-btn" onClick={onCreateAnother}>
           Tạo đơn khác
         </button>
       </footer>
-    </>
+    </section>
   );
 }
 
@@ -2293,7 +2537,15 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 /** Ảnh đơn hàng khách gửi (không bắt buộc, 1 ảnh/đơn): chụp ngay, chọn từ máy, hoặc Ctrl+V. */
-function GoodsPhotoPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function GoodsPhotoPicker({
+  value,
+  onChange,
+  variant = "guest",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  variant?: "guest" | "crm";
+}) {
   const rootRef = useRef<HTMLDivElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -2350,6 +2602,56 @@ function GoodsPhotoPicker({ value, onChange }: { value: string; onChange: (v: st
     // eslint-disable-next-line react-hooks/exhaustive-deps -- addFile dùng onChange ổn định theo phiên
   }, [busy, onChange]);
 
+  const fileInputs = (
+    <>
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => void pick(e.currentTarget)}
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void pick(e.currentTarget)}
+      />
+    </>
+  );
+
+  if (variant === "crm") {
+    return (
+      <div ref={rootRef} className="c2-photo">
+        <span className="c2-label">Ảnh đơn hàng (không bắt buộc)</span>
+        <div className="c2-photo-box">
+          {value ? (
+            <div className="c2-photo-prev">
+              <img src={value} alt="Ảnh đơn hàng" />
+              <button type="button" onClick={() => onChange("")} aria-label="Xóa ảnh đơn hàng">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
+          <div className="c2-photo-btns">
+            <button type="button" disabled={busy} className="c2-pill" onClick={() => cameraRef.current?.click()}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CfGlyph name="camera" size={18} />}
+              {value ? "Chụp lại" : "Chụp ảnh"}
+            </button>
+            <button type="button" disabled={busy} className="c2-pill" onClick={() => fileRef.current?.click()}>
+              <CfGlyph name="upload" size={18} />
+              {value ? "Chọn ảnh khác" : "Tải ảnh lên"}
+            </button>
+          </div>
+          <small>Hoặc nhấn Ctrl+V để dán ảnh chụp màn hình</small>
+        </div>
+        {fileInputs}
+      </div>
+    );
+  }
+
   const btn =
     "flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-primary/40 text-sm font-semibold text-primary hover:bg-primary/5 disabled:opacity-50";
 
@@ -2386,21 +2688,7 @@ function GoodsPhotoPicker({ value, onChange }: { value: string; onChange: (v: st
         <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">V</kbd> để dán ảnh
         (screenshot / clipboard).
       </p>
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => void pick(e.currentTarget)}
-      />
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => void pick(e.currentTarget)}
-      />
+      {fileInputs}
     </div>
   );
 }
