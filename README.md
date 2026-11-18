@@ -6,12 +6,13 @@ Repo GitHub: https://github.com/gindevp/xe-cpn-web-cus.git
 
 ## Khác biệt với FE cũ
 
-| | Pixel Perfect (cũ) | cpn-m3 / cus (mới) |
+| | Pixel Perfect (cũ) | cpn-m3 (mới) |
 |---|---|---|
 | Thư mục | `FE_react/Pixel Perfect` | `FE_react/cpn-m3` |
 | GitHub | `gindevp/xe-cpn-web` | `gindevp/xe-cpn-web-cus` |
 | Dev port | 7081 | **7182** |
 | Deploy 133 | `/opt/cpn-web` → docker `cpn-web` `:8088` | `/opt/cpn-web-cus` → docker `cpn-web-cus` `:8089` |
+| **Domain public (nginx 133)** | **`https://cus.cpn.xevietnam.com`** → `:8088` | **`https://cpn.xevietnam.com`** → `:8089` |
 | JWT storage | `xe-jwt` | `xe-m3-jwt` |
 | Store persist | `xe-vthh-v1` | `xe-m3-vthh-v1` |
 | UI | Pixel Perfect / shadcn | Material 3 (`design-ref` + `src/styles/cpn-m3.css`) |
@@ -83,4 +84,7 @@ Trên repo `xe-cpn-web-cus` cần đúng 3 secrets như FE cũ:
 | `CPN_WEB_SSH_KEY` | Private key SSH user `root` |
 | `CPN_WEB_SSH_PORT` | Port SSH |
 
-Không ghi đè container `cpn-web` (8088). Gắn domain/nginx tới `127.0.0.1:8089` khi muốn public FE mới.
+Không ghi đè container `cpn-web` (8088). Nginx public:
+
+- `cpn.xevietnam.com` → `127.0.0.1:8089` (FE mới / repo cus)
+- `cus.cpn.xevietnam.com` → `127.0.0.1:8088` (FE cũ / Pixel Perfect)
