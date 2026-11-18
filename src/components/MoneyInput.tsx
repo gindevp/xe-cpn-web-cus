@@ -6,8 +6,12 @@ import { formatVndInput, parseVndInput } from "@/lib/mock-data";
 type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" | "inputMode"> & {
   value: number;
   onChange: (value: number) => void;
-  /** Hiện đơn vị bên phải ô — mặc định "VNĐ". Truyền "" để ẩn. */
+  /** Hiện đơn vị trong ô — mặc định "VNĐ". Truyền "" để ẩn. */
   suffix?: string;
+  /** Vị trí đơn vị trong ô — mặc định phải. */
+  suffixSide?: "left" | "right";
+  /** Căn số trong ô — mặc định phải (bảng/staff); tạo đơn khách dùng left. */
+  align?: "left" | "right";
   /** value=0 thì để trống (placeholder), dùng cho ô không bắt buộc như "Đến / Giảm tối đa". */
   blankWhenZero?: boolean;
 };
@@ -17,8 +21,26 @@ type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" |
  * Xóa hết được trên UI (không ép hiện 0 khi đang sửa); blur trống → 0.
  */
 export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
-  ({ value, onChange, className, suffix = "VNĐ", blankWhenZero, disabled, readOnly, onBlur, onFocus, ...rest }, ref) => {
+  (
+    {
+      value,
+      onChange,
+      className,
+      suffix = "VNĐ",
+      suffixSide = "right",
+      align = "right",
+      blankWhenZero,
+      disabled,
+      readOnly,
+      onBlur,
+      onFocus,
+      ...rest
+    },
+    ref,
+  ) => {
     const showSuffix = Boolean(suffix);
+    const suffixLeft = showSuffix && suffixSide === "left";
+    const suffixRight = showSuffix && suffixSide !== "left";
     const [draft, setDraft] = React.useState<string | null>(null);
 
     const shown =
@@ -34,8 +56,10 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
           disabled={disabled}
           readOnly={readOnly}
           className={cn(
-            "h-9 w-full text-right tabular-nums",
-            showSuffix && "pr-12",
+            "h-9 w-full tabular-nums",
+            align === "left" ? "text-left" : "text-right",
+            suffixLeft && "pl-12",
+            suffixRight && "pr-12",
             (disabled || readOnly) && "bg-muted/40",
           )}
           value={shown}
@@ -67,7 +91,12 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
           {...rest}
         />
         {showSuffix ? (
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          <span
+            className={cn(
+              "pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs text-muted-foreground",
+              suffixLeft ? "left-2" : "right-2",
+            )}
+          >
             {suffix}
           </span>
         ) : null}

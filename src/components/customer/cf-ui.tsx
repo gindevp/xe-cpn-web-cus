@@ -169,8 +169,8 @@ export function C2Field({
       <span className="c2-label">{label}</span>
       <span className={`c2-inp${icon ? " has-icon" : ""}${unit ? " has-unit" : ""}`}>
         {icon ? <CfGlyph name={icon} size={18} /> : null}
-        {children}
         {unit ? <em>{unit}</em> : null}
+        {children}
       </span>
       {hint ? <small className="c2-hint">{hint}</small> : null}
     </label>

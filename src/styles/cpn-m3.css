@@ -220,6 +220,8 @@ dc-import{display:contents}
 .att th.c,.att td.c{text-align:center;padding-left:4px;padding-right:4px;min-width:40px}
 .att td.off{color:var(--on-surface-variant);background:var(--low)}
 .role-layout{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr);gap:16px;align-items:start}
+.role-stt{flex:none;min-width:1.25rem;font-size:12px;line-height:16px;font-variant-numeric:tabular-nums;color:var(--on-surface-variant);text-align:center}
+.role-btn.on .role-stt{color:var(--on-primary)}
 .role-btn{display:block;width:100%;padding:10px 12px;border:0;border-radius:16px;background:none;text-align:left;font-size:13px;line-height:18px}
 .role-btn:hover{background:var(--low)}
 .role-btn.on{background:var(--primary);color:var(--on-primary)}

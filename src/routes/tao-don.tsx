@@ -1498,7 +1498,7 @@ export function PublicOrderForm({
                           <NumberInput value={it.cao} onChange={(cao) => updateItem(it.id, { cao })} />
                         </C2Field>
                         <C2Field label="Giá trị hàng" unit="đ" hint="Dùng để bồi thường nếu có sự cố">
-                          <MoneyInput value={it.value} onChange={(value) => updateItem(it.id, { value })} suffix="" />
+                          <MoneyInput value={it.value} onChange={(value) => updateItem(it.id, { value })} suffix="" align="left" />
                         </C2Field>
                       </div>
                       <div className="c2-row">
@@ -1551,11 +1551,11 @@ export function PublicOrderForm({
                   </div>
                   {payMethod === "Thu cước 1 phần" && (
                     <C2Field label="Người gửi trả trước" unit="đ" hint="Phần còn lại người nhận trả khi nhận hàng">
-                      <MoneyInput value={prepaid} onChange={setPrepaid} suffix="" />
+                      <MoneyInput value={prepaid} onChange={setPrepaid} suffix="" align="left" />
                     </C2Field>
                   )}
                   <C2Field label="Thu hộ tiền COD" unit="đ" hint="Để 0 nếu không thu hộ">
-                    <MoneyInput value={codAmount} onChange={setCodAmount} suffix="" />
+                    <MoneyInput value={codAmount} onChange={setCodAmount} suffix="" align="left" />
                   </C2Field>
                   <C2Field label="Mã giảm giá" hint="Nhập đúng mã để được giảm">
                     <input
