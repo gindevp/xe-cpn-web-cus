@@ -6,7 +6,6 @@ import { getToken } from "@/lib/api/client";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import xeLogo from "@/assets/logo-xe.png";
-import { openSiblingUi, SIBLING_UI_LABEL } from "@/lib/sibling-ui";
 import { ThemeCycleButton } from "@/components/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -252,17 +251,6 @@ function LoginPage() {
                 ) : (
                   "Đăng nhập"
                 )}
-              </button>
-              <button
-                type="button"
-                className="btn tonal login-btn"
-                style={{ marginTop: 4 }}
-                onClick={() => openSiblingUi()}
-              >
-                <span className="ms" aria-hidden="true">
-                  swap_horiz
-                </span>
-                {SIBLING_UI_LABEL}
               </button>
             </form>
           )}

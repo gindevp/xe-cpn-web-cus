@@ -9,7 +9,6 @@ import {
 } from "@/lib/office-scope";
 import { ThemeModeSeg } from "@/components/ThemeToggle";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
-import { openSiblingUi, SIBLING_UI_LABEL } from "@/lib/sibling-ui";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import {
@@ -20,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-/** Tài khoản + theme + chuyển giao diện — đáy navbar. */
+/** Tài khoản + theme — đáy navbar. */
 export function NavAccountMenu({
   compact,
   onNavigate,
@@ -85,17 +84,6 @@ export function NavAccountMenu({
           </div>
           <ThemeModeSeg className="mb-2 px-0.5" />
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => {
-              onNavigate?.();
-              openSiblingUi();
-            }}
-          >
-            <span className="ms mr-2" aria-hidden="true">
-              swap_horiz
-            </span>
-            {SIBLING_UI_LABEL}
-          </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
               onNavigate?.();
