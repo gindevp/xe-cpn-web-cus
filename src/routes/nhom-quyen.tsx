@@ -103,6 +103,16 @@ function Page() {
     return [...map.entries()];
   }, [screens, showHidden]);
 
+  /** STT liên tục trên mọi màn (không đánh số chức danh). */
+  const screenSttIndex = useMemo(() => {
+    const idx = new Map<string, number>();
+    let n = 0;
+    for (const [, rows] of modules) {
+      for (const row of rows) idx.set(row.key, ++n);
+    }
+    return idx;
+  }, [modules]);
+
   const hiddenCount = useMemo(() => screens.filter((s) => s.hidden).length, [screens]);
 
   const pick = (code: string) => {
@@ -202,7 +212,7 @@ function Page() {
               Thêm
             </button>
           </div>
-          {groups.map((g, i) => {
+          {groups.map((g) => {
             const on = selected === g.code;
             return (
               <button
@@ -213,9 +223,6 @@ function Page() {
                 onClick={() => pick(g.code)}
               >
                 <span className="who">
-                  <span className="role-stt num" aria-hidden="true">
-                    {i + 1}
-                  </span>
                   <span className="rev-ic sm" aria-hidden="true">
                     <span className="ms">{ROLE_ICON[g.code] ?? "badge"}</span>
                   </span>
@@ -336,13 +343,13 @@ function Page() {
                     </div>
                   )}
                 </div>
-                {rows.map((s, si) => {
+                {rows.map((s) => {
                   const level = (draft.screens[s.key] ?? "N") as PermLevel;
                   return (
                     <div key={s.key} className="perm-row">
                       <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
                         <span className="role-stt num" aria-hidden="true">
-                          {si + 1}
+                          {screenSttIndex.get(s.key) ?? ""}
                         </span>
                         <span>{s.label}</span>
                       </div>
