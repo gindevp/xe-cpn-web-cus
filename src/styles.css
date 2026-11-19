@@ -409,6 +409,14 @@ html.xe-scan-immersive main {
   overflow-x: auto;
   scrollbar-width: none;
 }
+.m3-hero-filters {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.m3-hero-filters .filters {
+  margin-left: 0;
+  width: 100%;
+}
 .m3-hero-right {
   display: flex;
   align-items: center;
@@ -764,9 +772,17 @@ button.no:hover {
   box-shadow: none;
 }
 @media (min-width: 761px) {
-  /* Desktop: search + pills + VP/user luôn một hàng */
+  /* Desktop: search + pills + VP/user một hàng; hàng lọc mã/ngày (nếu có) full-width dưới */
   .m3-hero {
+    flex-wrap: wrap;
+  }
+  .m3-hero-search,
+  .m3-hero .hero-links,
+  .m3-hero-right {
     flex-wrap: nowrap;
+  }
+  .m3-hero-filters {
+    order: 4;
   }
 }
 @media (max-width: 760px) {
@@ -777,6 +793,9 @@ button.no:hover {
   .m3-hero .hero-links {
     order: 3;
     flex-basis: 100%;
+  }
+  .m3-hero-filters {
+    order: 4;
   }
   .m3-hero-right {
     /* Mobile: VP/user ngay dưới ô tìm, không bị pills đẩy xuống cuối */

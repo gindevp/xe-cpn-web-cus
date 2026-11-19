@@ -18,7 +18,9 @@ import {
 import { pendingHandoverOrders } from "@/lib/pending-handover";
 import { isNativeWebView } from "@/lib/native-shell";
 import { ACTIVITY_TOP_NAV } from "@/lib/activity-nav";
+import { useActivityFilters } from "@/lib/activity-filters";
 import { GlobalHeaderSearch } from "@/components/GlobalTopBar";
+import { StageTabFilters } from "@/components/StageTabs";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { useTheme } from "@/lib/theme";
@@ -42,6 +44,8 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
   const activeOfficeId = useAllowedOffices((s) => s.activeId);
   const pendingOffline = useStore((s) => s.offlineQueue.length);
   const [switching, setSwitching] = useState(false);
+  const filters = useActivityFilters();
+  const onActivityScreen = ACTIVITY_TOP_NAV.some((i) => pathname === i.to);
 
   useEffect(() => {
     if (!session) return;
@@ -112,6 +116,20 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
             );
           })}
         </nav>
+      ) : null}
+
+      {onActivityScreen && !hideLifecycle ? (
+        <div className="m3-hero-filters">
+          <StageTabFilters
+            from={filters.from}
+            to={filters.to}
+            q={filters.q}
+            onFrom={filters.setFrom}
+            onTo={filters.setTo}
+            onQ={filters.setQ}
+            placeholder="Lọc mã đơn, SĐT, tên khách…"
+          />
+        </div>
       ) : null}
 
       <div className="m3-hero-right">
