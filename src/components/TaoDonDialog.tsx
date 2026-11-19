@@ -2387,18 +2387,9 @@ export function TaoDonDialog({
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                         <span className="lab">Tổng phải thu</span>
                         <span className="kpi-val" style={{ fontSize: 24 }}>
-                          {formatVND(totalFare)}
+                          {formatVND(unpaid)}
                         </span>
                       </div>
-                      {unpaid > 0 ? (
-                        <div
-                          className="lab"
-                          style={{ display: "flex", justifyContent: "space-between", marginTop: 6, opacity: 0.92 }}
-                        >
-                          <span>Còn phải thu</span>
-                          <span>{unpaid.toLocaleString("vi-VN")} VNĐ</span>
-                        </div>
-                      ) : null}
                     </div>
                     {mode !== "edit" && payMethod === "Người gửi thanh toán" ? (
                       <label className="lab" style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}>

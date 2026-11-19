@@ -5,7 +5,7 @@ import { usePageFilterSlot } from "@/lib/page-filter-slot";
 import { useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
-/** Nút Lọc dưới topbar — ngày + mã đơn + lọc riêng của trang. */
+/** Nút Lọc ngang title trang — ngày + mã đơn + lọc riêng của trang. */
 export function HeroFilterMenu() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const filters = useActivityFilters();
@@ -60,25 +60,24 @@ export function HeroFilterMenu() {
   };
 
   return (
-    <div className="m3-filter-bar">
-      <div className="m3-filter-wrap" ref={wrapRef}>
-        <button
-          type="button"
-          className={cn("pill", open && "on", badge > 0 && !open && "m3-filter-active")}
-          aria-haspopup="true"
-          aria-expanded={open}
-          aria-label="Bộ lọc"
-          onClick={() => setOpen((v) => !v)}
-        >
-          <span className="ms" aria-hidden="true">
-            filter_list
-          </span>
-          Lọc
-          {badge > 0 ? <span className="count num">{badge}</span> : null}
-          <span className="ms" aria-hidden="true">
-            {open ? "expand_less" : "expand_more"}
-          </span>
-        </button>
+    <div className="m3-filter-wrap" ref={wrapRef}>
+      <button
+        type="button"
+        className={cn("pill", open && "on", badge > 0 && !open && "m3-filter-active")}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label="Bộ lọc"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="ms" aria-hidden="true">
+          filter_list
+        </span>
+        Lọc
+        {badge > 0 ? <span className="count num">{badge}</span> : null}
+        <span className="ms" aria-hidden="true">
+          {open ? "expand_less" : "expand_more"}
+        </span>
+      </button>
 
         {open ? (
           <div className="m3-filter-fly" role="dialog" aria-label="Bộ lọc">
@@ -138,14 +137,13 @@ export function HeroFilterMenu() {
 
             {pageSlot?.node ? <div className="m3-filter-page-slot">{pageSlot.node}</div> : null}
 
-            {badge > 0 ? (
-              <button type="button" className="btn tonal m3-filter-clear" onClick={clearAll}>
-                Xóa lọc
-              </button>
-            ) : null}
-          </div>
+        {badge > 0 ? (
+          <button type="button" className="btn tonal m3-filter-clear" onClick={clearAll}>
+            Xóa lọc
+          </button>
         ) : null}
       </div>
+      ) : null}
     </div>
   );
 }

@@ -449,7 +449,7 @@ function moneyOf(o: OrderX, form?: EditForm | null, deliveryOverride?: number | 
           ? "người gửi + người nhận đã trả"
           : "đã thanh toán";
   const remaining = fareDue > 0 ? fareDue : codGoods > 0 ? codGoods : 0;
-  const remainingTitle = storageOnlyDue ? "Thu tiền lưu kho" : "Còn phải thu";
+  const remainingTitle = storageOnlyDue ? "Thu tiền lưu kho" : "Tổng phải thu";
   const remainingHint =
     fareDue <= 0 && o.onePayAwaitingTransfer && o.collectForm === "GUI_TRA"
       ? "Nhập kho gửi đã thu nghiệp vụ — đang chờ tiền về OnePay"

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { HeroFilterMenu } from "@/components/shell/HeroFilterMenu";
 import { cn } from "@/lib/utils";
 
 /** Khối nội dung trang — mặc định stack; bọc card khi cần (bảng/form). */
@@ -43,7 +44,10 @@ export function M3PageHeader({
           </div>
         ) : null}
       </div>
-      {actions ? <div className="m3-title-extra">{actions}</div> : null}
+      <div className="m3-title-extra">
+        <HeroFilterMenu />
+        {actions}
+      </div>
     </div>
   );
 }

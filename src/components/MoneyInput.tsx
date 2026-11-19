@@ -8,9 +8,9 @@ type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" |
   onChange: (value: number) => void;
   /** Hiện đơn vị trong ô — mặc định "VNĐ". Truyền "" để ẩn. */
   suffix?: string;
-  /** Vị trí đơn vị trong ô — mặc định trái (tránh đè số). */
+  /** Vị trí đơn vị trong ô — mặc định phải. */
   suffixSide?: "left" | "right";
-  /** Căn số trong ô — mặc định trái. */
+  /** Căn số trong ô — mặc định trái (không đè VNĐ bên phải). */
   align?: "left" | "right";
   /** value=0 thì để trống (placeholder), dùng cho ô không bắt buộc như "Đến / Giảm tối đa". */
   blankWhenZero?: boolean;
@@ -27,7 +27,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
       onChange,
       className,
       suffix = "VNĐ",
-      suffixSide = "left",
+      suffixSide = "right",
       align = "left",
       blankWhenZero,
       disabled,
@@ -58,9 +58,9 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
           className={cn(
             "h-9 w-full tabular-nums",
             align === "left" ? "text-left" : "text-right",
-            /* chừa chỗ VNĐ — twMerge ghi đè px-3 của Input */
+            /* số trái + VNĐ phải: chừa pr đủ rộng */
             suffixLeft && "pl-11 pr-3",
-            suffixRight && "pl-3 pr-11",
+            suffixRight && "pl-3 pr-12",
             (disabled || readOnly) && "bg-muted/40",
           )}
           value={shown}
