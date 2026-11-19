@@ -2016,9 +2016,9 @@
   box-shadow: none !important;
 }
 .kh-crm .cf .c2-inp.has-icon input:not([type="radio"]) { padding-left: 40px !important; }
-/* Đơn vị tiền (đ) neo lề trái trong ô — như bản cus trước. */
-.kh-crm .cf .c2-inp.has-unit input:not([type="radio"]) { padding-left: 32px !important; text-align: left !important; }
-.kh-crm .cf .c2-inp.has-icon.has-unit input:not([type="radio"]) { padding-left: 56px !important; }
+/* Đơn vị tiền (đ) neo lề trái — số căn trái, không đè đơn vị. */
+.kh-crm .cf .c2-inp.has-unit input:not([type="radio"]) { padding-left: 40px !important; padding-right: 12px !important; text-align: left !important; }
+.kh-crm .cf .c2-inp.has-icon.has-unit input:not([type="radio"]) { padding-left: 64px !important; }
 .kh-crm .cf .c2-inp input:not([type="radio"]):focus { border-color: #274ea1 !important; box-shadow: inset 0 0 0 1px #274ea1 !important; }
 .kh-crm .cf .c2-inp input[readonly] { background: #f4f3fa !important; }
 .kh-crm .c2-inp > svg {

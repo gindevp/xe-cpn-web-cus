@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { askConfirm } from "@/components/m3/askConfirm";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
 import { ProtectedPage } from "@/components/AppShell";
@@ -17,6 +17,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { StaffSenderTransferQrAction } from "@/components/StaffSenderTransferQrAction";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import { formatDateTime, officeName } from "@/lib/mock-data";
 import {
   FEE_COL_COUNT,
@@ -97,6 +98,28 @@ function Page() {
   const [tab, setTab] = useState<TabKey>("cho-nhan");
   const { from, to, q } = useActivityFilters();
   const [senderOffice, setSenderOffice] = useState("");
+  const clearPageFilters = useCallback(() => setSenderOffice(""), []);
+  const pageFilterNode = useMemo(
+    () => (
+      <label className="field">
+        <span className="l">Văn phòng gửi</span>
+        <SearchableSelect
+          value={senderOffice || "all"}
+          onValueChange={(v) => setSenderOffice(v === "all" ? "" : v)}
+          placeholder="Tất cả văn phòng"
+          options={[
+            { value: "all", label: "Tất cả văn phòng" },
+            ...offices.map((o) => ({ value: o.code, label: o.name })),
+          ]}
+        />
+      </label>
+    ),
+    [senderOffice, offices],
+  );
+  useRegisterPageFilters(pageFilterNode, {
+    activeCount: senderOffice ? 1 : 0,
+    clear: clearPageFilters,
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [shipperCode, setShipperCode] = useState<string | null>(null);
@@ -313,24 +336,7 @@ function Page() {
 
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader
-        title="Chờ bàn giao"
-        description={activeTab.hint}
-        actions={
-          <div className="field" style={{ flex: "0 0 200px", minWidth: 160 }}>
-            <span className="l">Văn phòng gửi</span>
-            <SearchableSelect
-              value={senderOffice || "all"}
-              onValueChange={(v) => setSenderOffice(v === "all" ? "" : v)}
-              placeholder="Tất cả văn phòng"
-              options={[
-                { value: "all", label: "Tất cả văn phòng" },
-                ...offices.map((o) => ({ value: o.code, label: o.name })),
-              ]}
-            />
-          </div>
-        }
-      />
+      <M3PageHeader title="Chờ bàn giao" description={activeTab.hint} />
 
       <StageTabRow>
         {TABS.map((t) => (

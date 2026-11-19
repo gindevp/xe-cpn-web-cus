@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { usePagedRows, type Pager } from "@/lib/use-paged-rows";
 import { useServerPagedRows } from "@/lib/use-server-paged-rows";
 import { TablePagination } from "@/components/TablePagination";
@@ -31,6 +31,7 @@ import { isApiEnabled } from "@/lib/api/client";
 import { assignedOfficeCode, hasAllOfficeScope, resolveViewOffice } from "@/lib/office-scope";
 import { orderGoodsLabel, packageRows } from "@/lib/package-label";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import { ImageLightbox, isViewableImageUrl } from "@/components/ImageLightbox";
 import { podMomentLabel } from "@/lib/ahamove";
 import { INVOICE_STATE_LABEL, INVOICE_STATE_TAG_CLASS, invoiceStateOf } from "@/lib/invoice-policy";
@@ -172,6 +173,60 @@ function Page() {
   const [office, setOffice] = useState("");
   const [mode, setMode] = useState("");
   const [kind, setKind] = useState("");
+  const clearPageFilters = useCallback(() => {
+    setOffice("");
+    setMode("");
+    setKind("");
+  }, []);
+  const pageFilterNode = useMemo(
+    () => (
+      <>
+        <label className="field">
+          <span className="l">VP</span>
+          <SearchableSelect
+            value={office || "all"}
+            onValueChange={(v) => setOffice(v === "all" ? "" : v)}
+            placeholder="Tất cả"
+            options={[
+              { value: "all", label: "Tất cả" },
+              ...offices.map((o) => ({ value: o.code, label: o.name })),
+            ]}
+          />
+        </label>
+        <label className="field">
+          <span className="l">Loại</span>
+          <SearchableSelect
+            value={kind || "all"}
+            onValueChange={(v) => setKind(v === "all" ? "" : v)}
+            placeholder="Tất cả"
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "GIAO", label: "Giao thành công" },
+              { value: "HOAN", label: "Hoàn thành công" },
+            ]}
+          />
+        </label>
+        <label className="field">
+          <span className="l">Hình thức</span>
+          <SearchableSelect
+            value={mode || "all"}
+            onValueChange={(v) => setMode(v === "all" ? "" : v)}
+            placeholder="Tất cả"
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "SHIPPER", label: "Shipper" },
+              { value: "OFFICE", label: "Tại bưu cục" },
+            ]}
+          />
+        </label>
+      </>
+    ),
+    [office, kind, mode, offices],
+  );
+  useRegisterPageFilters(pageFilterNode, {
+    activeCount: (office ? 1 : 0) + (kind ? 1 : 0) + (mode ? 1 : 0),
+    clear: clearPageFilters,
+  });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{
     urls: string[];
@@ -262,48 +317,6 @@ function Page() {
           loading
             ? "Danh sách chung giao thành công và hoàn thành công. Đang tải…"
             : "Danh sách chung giao thành công và hoàn thành công."
-        }
-        actions={
-          <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
-            <div className="field" style={{ flex: "0 0 150px" }}>
-              <span className="l">VP</span>
-              <SearchableSelect
-                value={office || "all"}
-                onValueChange={(v) => setOffice(v === "all" ? "" : v)}
-                placeholder="Tất cả"
-                options={[
-                  { value: "all", label: "Tất cả" },
-                  ...offices.map((o) => ({ value: o.code, label: o.name })),
-                ]}
-              />
-            </div>
-            <div className="field" style={{ flex: "0 0 150px" }}>
-              <span className="l">Loại</span>
-              <SearchableSelect
-                value={kind || "all"}
-                onValueChange={(v) => setKind(v === "all" ? "" : v)}
-                placeholder="Tất cả"
-                options={[
-                  { value: "all", label: "Tất cả" },
-                  { value: "GIAO", label: "Giao thành công" },
-                  { value: "HOAN", label: "Hoàn thành công" },
-                ]}
-              />
-            </div>
-            <div className="field" style={{ flex: "0 0 150px" }}>
-              <span className="l">Hình thức</span>
-              <SearchableSelect
-                value={mode || "all"}
-                onValueChange={(v) => setMode(v === "all" ? "" : v)}
-                placeholder="Tất cả"
-                options={[
-                  { value: "all", label: "Tất cả" },
-                  { value: "SHIPPER", label: "Shipper" },
-                  { value: "OFFICE", label: "Tại bưu cục" },
-                ]}
-              />
-            </div>
-          </div>
         }
       />
 

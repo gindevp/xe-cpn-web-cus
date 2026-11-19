@@ -28,6 +28,7 @@ import {
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import {
   AUTO_EXCEPTION_DAYS,
   formatVND,
@@ -161,6 +162,30 @@ function Page() {
   const [tab, setTab] = useState<Tab>("EXCEPTION");
   const { from, to, q } = useActivityFilters();
   const [office, setOffice] = useState("");
+  const clearPageFilters = useCallback(() => setOffice(""), []);
+  const showOfficeFilter = tab !== "CANCELLED" && tab !== "CANCEL_REQUEST";
+  const pageFilterNode = useMemo(
+    () =>
+      showOfficeFilter ? (
+        <label className="field">
+          <span className="l">Văn phòng</span>
+          <SearchableSelect
+            value={office || "all"}
+            onValueChange={(v) => setOffice(v === "all" ? "" : v)}
+            placeholder="Tất cả văn phòng"
+            options={[
+              { value: "all", label: "Tất cả văn phòng" },
+              ...offices.map((o) => ({ value: o.code, label: o.name })),
+            ]}
+          />
+        </label>
+      ) : null,
+    [showOfficeFilter, office, offices],
+  );
+  useRegisterPageFilters(pageFilterNode, {
+    activeCount: showOfficeFilter && office ? 1 : 0,
+    clear: clearPageFilters,
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [printTarget, setPrintTarget] = useState<{ code: string; packageSeq?: number } | null>(
@@ -308,26 +333,7 @@ function Page() {
 
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader
-        title={activeTab.label}
-        description={activeTab.hint}
-        actions={
-          tab !== "CANCELLED" && tab !== "CANCEL_REQUEST" ? (
-            <div className="field" style={{ flex: "0 0 200px" }}>
-              <span className="l">Văn phòng</span>
-              <SearchableSelect
-                value={office || "all"}
-                onValueChange={(v) => setOffice(v === "all" ? "" : v)}
-                placeholder="Tất cả văn phòng"
-                options={[
-                  { value: "all", label: "Tất cả văn phòng" },
-                  ...offices.map((o) => ({ value: o.code, label: o.name })),
-                ]}
-              />
-            </div>
-          ) : undefined
-        }
-      />
+      <M3PageHeader title={activeTab.label} description={activeTab.hint} />
 
       <StageTabRow>
         {TABS.map((t) => (

@@ -409,9 +409,45 @@ html.xe-scan-immersive main {
   overflow-x: auto;
   scrollbar-width: none;
 }
+.m3-hero-block {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  margin: 0 -24px;
+  background: var(--low);
+  box-shadow: 0 1px 0 var(--outline-variant);
+}
+.m3-hero-block .m3-hero {
+  position: static;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.m3-filter-bar {
+  display: flex;
+  align-items: center;
+  padding: 0 24px 12px;
+}
 .m3-filter-wrap {
   position: relative;
   flex: none;
+}
+.m3-filter-page-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.m3-filter-page-slot .field {
+  flex: none;
+  min-width: 0;
+  width: 100%;
+}
+.m3-filter-page-slot .filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
 }
 .m3-filter-active {
   box-shadow: inset 0 0 0 1px var(--primary);
@@ -900,6 +936,12 @@ button.no:hover {
     order: 2;
     flex-basis: auto;
     margin-left: auto;
+  }
+  .m3-hero-block {
+    margin: 0 -16px;
+  }
+  .m3-filter-bar {
+    padding: 0 16px 12px;
   }
   .m3-filter-fly {
     position: fixed;

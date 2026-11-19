@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { askConfirm } from "@/components/m3/askConfirm";
 import { usePagedRows } from "@/lib/use-paged-rows";
 import { resolveTripRouteCode } from "@/lib/api/trip-route";
@@ -46,6 +46,7 @@ import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
 import { isApiEnabled } from "@/lib/api/client";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import { cn } from "@/lib/utils";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { RowActionsMenu } from "@/components/RowActionsMenu";
@@ -102,8 +103,6 @@ import { loadOriginOffice, unloadTargetOffice } from "@/lib/order-leg";
 import { usePackageActions } from "@/components/PackageActions";
 import {
   assignedOfficeCode,
-  canPickViewOffices,
-  encodeViewOffices,
   hasAllOfficeScope,
   isAdminRole,
   isViewAllOffices,
@@ -111,7 +110,6 @@ import {
   selectedViewOfficeCodes,
   VIEW_ALL_OFFICES,
 } from "@/lib/office-scope";
-import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 
 export const Route = createFileRoute("/nhap-kho-luan-chuyen")({
   head: () => ({
@@ -583,8 +581,6 @@ function Page() {
   const trips = useStore((s) => s.trips);
   const offices = useStore((s) => s.offices);
   const viewOfficeRaw = useStore((s) => s.viewOffice);
-  const setViewOffice = useStore((s) => s.setViewOffice);
-  const admin = canPickViewOffices(session);
   const canAssignOnWeb = isAdminRole(session?.role) || session?.role === "DH";
   const viewOffice = resolveViewOffice(session, viewOfficeRaw);
 
@@ -1582,21 +1578,35 @@ function Page() {
 
   const showCounterOffice = COUNTER_OFFICE_TABS.has(tab);
   const counterLabel = isDestPipelineTab(tab) ? "VP gửi" : "VP nhận";
-  const counterOfficeSelect = (
-    <div className="w-56" title={`Lọc theo ${counterLabel}`}>
-      <SearchableSelect
-        value={counterOfficeOf(tab)}
-        onValueChange={(v) => {
-          setCounterOffice((prev) => ({ ...prev, [tab]: v }));
-          setSelected(new Set());
-        }}
-        allowClear
-        clearLabel={`Tất cả ${counterLabel}`}
-        placeholder={`Tất cả ${counterLabel}`}
-        options={offices.map((o) => ({ value: o.code, label: o.name }))}
-      />
-    </div>
+  const counterOfficeValue = counterOfficeOf(tab);
+  const clearPageFilters = useCallback(() => {
+    setCounterOffice((prev) => ({ ...prev, [tab]: "" }));
+    setSelected(new Set());
+  }, [tab]);
+  const pageFilterNode = useMemo(
+    () =>
+      showCounterOffice ? (
+        <label className="field" title={`Lọc theo ${counterLabel}`}>
+          <span className="l">{counterLabel}</span>
+          <SearchableSelect
+            value={counterOfficeValue}
+            onValueChange={(v) => {
+              setCounterOffice((prev) => ({ ...prev, [tab]: v }));
+              setSelected(new Set());
+            }}
+            allowClear
+            clearLabel={`Tất cả ${counterLabel}`}
+            placeholder={`Tất cả ${counterLabel}`}
+            options={offices.map((o) => ({ value: o.code, label: o.name }))}
+          />
+        </label>
+      ) : null,
+    [showCounterOffice, counterLabel, counterOfficeValue, tab, offices],
   );
+  useRegisterPageFilters(pageFilterNode, {
+    activeCount: showCounterOffice && counterOfficeValue ? 1 : 0,
+    clear: clearPageFilters,
+  });
 
   /** Icon tab — khớp design-ref NhapKho.dc.html (TI). */
   const tabIcons: Partial<Record<Stage, string>> = {
@@ -1609,44 +1619,9 @@ function Page() {
     FAILED: "assignment_late",
   };
 
-  const officeFilters = (
-    <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap", margin: 0 }}>
-      {showCounterOffice && isDestPipelineTab(tab) ? counterOfficeSelect : null}
-      {showCounterOffice && session?.role === "DH" ? null : (
-        <div
-          className="field"
-          style={{ flex: "0 0 200px" }}
-          title={isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}
-        >
-          <span className="l">{isDestPipelineTab(tab) ? "Văn phòng nhận" : "Văn phòng gửi"}</span>
-          {admin ? (
-            <SearchableMultiSelect
-              values={scopedCodes}
-              allSelected={isViewAllOffices(viewScope)}
-              onValuesChange={(codes) => setViewOffice(encodeViewOffices(codes))}
-              options={offices.map((o) => ({ value: o.code, label: o.name, keywords: o.code }))}
-              allValue={VIEW_ALL_OFFICES}
-              allLabel="Toàn hệ thống"
-              placeholder="Chọn văn phòng"
-            />
-          ) : (
-            <SearchableSelect
-              value={scopedOffice || viewOffice}
-              onValueChange={setViewOffice}
-              disabled
-              placeholder="Chọn văn phòng"
-              options={offices.map((o) => ({ value: o.code, label: o.name }))}
-            />
-          )}
-        </div>
-      )}
-      {showCounterOffice && !isDestPipelineTab(tab) ? counterOfficeSelect : null}
-    </div>
-  );
-
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
-      <M3PageHeader title={activeTab.label} description={activeTab.hint} actions={officeFilters} />
+      <M3PageHeader title={activeTab.label} description={activeTab.hint} />
 
       <StageTabRow>
         {TABS.map((t) => (

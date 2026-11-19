@@ -8,9 +8,9 @@ type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" |
   onChange: (value: number) => void;
   /** Hiện đơn vị trong ô — mặc định "VNĐ". Truyền "" để ẩn. */
   suffix?: string;
-  /** Vị trí đơn vị trong ô — mặc định phải. */
+  /** Vị trí đơn vị trong ô — mặc định trái (tránh đè số). */
   suffixSide?: "left" | "right";
-  /** Căn số trong ô — mặc định phải (bảng/staff); tạo đơn khách dùng left. */
+  /** Căn số trong ô — mặc định trái. */
   align?: "left" | "right";
   /** value=0 thì để trống (placeholder), dùng cho ô không bắt buộc như "Đến / Giảm tối đa". */
   blankWhenZero?: boolean;
@@ -27,8 +27,8 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
       onChange,
       className,
       suffix = "VNĐ",
-      suffixSide = "right",
-      align = "right",
+      suffixSide = "left",
+      align = "left",
       blankWhenZero,
       disabled,
       readOnly,
@@ -58,8 +58,9 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
           className={cn(
             "h-9 w-full tabular-nums",
             align === "left" ? "text-left" : "text-right",
-            suffixLeft && "pl-12",
-            suffixRight && "pr-12",
+            /* chừa chỗ VNĐ — twMerge ghi đè px-3 của Input */
+            suffixLeft && "pl-11 pr-3",
+            suffixRight && "pl-3 pr-11",
             (disabled || readOnly) && "bg-muted/40",
           )}
           value={shown}
@@ -93,8 +94,8 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, Props>(
         {showSuffix ? (
           <span
             className={cn(
-              "pointer-events-none absolute top-1/2 -translate-y-1/2 text-xs text-muted-foreground",
-              suffixLeft ? "left-2" : "right-2",
+              "pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2 text-xs font-medium text-muted-foreground",
+              suffixLeft ? "left-2.5" : "right-2.5",
             )}
           >
             {suffix}
