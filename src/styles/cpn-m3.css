@@ -16,7 +16,7 @@ select option{background:#ffffff;color:#1a1b21}
 .theme-dark select,html.dark select,html.theme-dark select{color-scheme:dark}
 .theme-light select,html.theme-light select{color-scheme:light}
 /* Lớp nền sáng dần ngoài → trong: trang --low < thẻ --lowest < khối trong thẻ --low/#high redefined */
-.theme-dark :is(.card,.sheet,.row-menu,.acct-menu,.nav-fly,.sr-pop,.combo-list){--low:#26272e;--high:#30313a}
+.theme-dark :is(.card,.sheet,.row-menu,.acct-menu,.nav-fly,.m3-filter-fly,.sr-pop,.combo-list){--low:#26272e;--high:#30313a}
 /* Mảng chọn lớn: xanh đậm dịu, tránh --primary sáng loá */
 .theme-dark :is(.total-box,.seg button.on,.pill.on,.side-link.on,.nav-item.on,.nav-head.on .nav-pill,.role-btn.on,.pg.on,.card.card-hi){background:#26386b;color:#dbe3ff}
 .theme-dark :is(.seg button.on,.pill.on) .count{background:#dbe3ff;color:#26386b}
