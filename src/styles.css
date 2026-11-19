@@ -415,7 +415,26 @@ html.xe-scan-immersive main {
 }
 .m3-hero-filters .filters {
   margin-left: 0;
+  width: auto;
+  max-width: 100%;
+}
+/* Ô date: bỏ icon MS trùng với picker native; click cả ô mở lịch */
+.m3-stage-filters .date-box {
+  padding-right: 8px;
+  cursor: pointer;
+}
+.m3-stage-filters .date-box input[type="date"] {
   width: 100%;
+  min-width: 0;
+  height: 100%;
+  cursor: pointer;
+  color-scheme: inherit;
+}
+.m3-stage-filters .date-box input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 6px;
+  margin: 0;
 }
 .m3-hero-right {
   display: flex;

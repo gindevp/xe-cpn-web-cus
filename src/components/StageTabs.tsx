@@ -47,10 +47,16 @@ export function StageTabFilters({
   placeholder: string;
 }) {
   return (
-    <div className="filters" style={{ alignItems: "flex-end", flexWrap: "wrap", marginLeft: "auto" }}>
-      <label className="field" style={{ flex: "0 0 160px" }}>
+    <div className="filters m3-stage-filters" style={{ alignItems: "flex-end", flexWrap: "wrap", marginLeft: "auto" }}>
+      <label className="field" style={{ flex: "0 0 148px" }}>
         <span className="l">Từ ngày</span>
-        <span className="box input-box">
+        <span
+          className="box input-box date-box"
+          onClick={(e) => {
+            const input = (e.currentTarget.querySelector("input") as HTMLInputElement | null);
+            input?.showPicker?.();
+          }}
+        >
           <input
             type="date"
             className="num"
@@ -58,14 +64,17 @@ export function StageTabFilters({
             value={from}
             onChange={(e) => onFrom(e.target.value)}
           />
-          <span className="ms" aria-hidden="true">
-            calendar_today
-          </span>
         </span>
       </label>
-      <label className="field" style={{ flex: "0 0 160px" }}>
+      <label className="field" style={{ flex: "0 0 148px" }}>
         <span className="l">Đến ngày</span>
-        <span className="box input-box">
+        <span
+          className="box input-box date-box"
+          onClick={(e) => {
+            const input = (e.currentTarget.querySelector("input") as HTMLInputElement | null);
+            input?.showPicker?.();
+          }}
+        >
           <input
             type="date"
             className="num"
@@ -73,12 +82,9 @@ export function StageTabFilters({
             value={to}
             onChange={(e) => onTo(e.target.value)}
           />
-          <span className="ms" aria-hidden="true">
-            calendar_today
-          </span>
         </span>
       </label>
-      <label className="field" style={{ flex: "1 1 220px", minWidth: 180 }}>
+      <label className="field" style={{ flex: "0 0 168px", minWidth: 140, maxWidth: 180 }}>
         <span className="l">Tìm kiếm</span>
         <span className="box input-box">
           <span className="ms" aria-hidden="true">

@@ -469,7 +469,7 @@ export function GlobalTopBar() {
           onFrom={filters.setFrom}
           onTo={filters.setTo}
           onQ={filters.setQ}
-          placeholder="Lọc mã đơn, SĐT, tên khách…"
+          placeholder="Mã đơn, SĐT…"
         />
       ) : null}
     </nav>

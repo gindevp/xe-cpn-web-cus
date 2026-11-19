@@ -127,7 +127,7 @@ export function AppHero({ hideLifecycle }: { hideLifecycle?: boolean }) {
             onFrom={filters.setFrom}
             onTo={filters.setTo}
             onQ={filters.setQ}
-            placeholder="Lọc mã đơn, SĐT, tên khách…"
+            placeholder="Mã đơn, SĐT…"
           />
         </div>
       ) : null}
