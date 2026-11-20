@@ -408,6 +408,8 @@ export type FareDiscountRule = {
   active: boolean;
   applyCpn: boolean;
   applyPartner: boolean;
+  /** Nhóm hàng áp dụng (Bảng giá); mặc định ["Khác"]. */
+  goodsGroups: string[];
 };
 
 /** Mã giảm giá nhập lúc tạo đơn. */

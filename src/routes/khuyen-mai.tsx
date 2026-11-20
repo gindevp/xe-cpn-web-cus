@@ -16,9 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useStore, type FareDiscountCode, type FareDiscountKind, type FareDiscountRule } from "@/lib/store";
-import { formatVND } from "@/lib/mock-data";
+import { formatVND, OTHER_GOODS, goodsGroupSelectOptions } from "@/lib/mock-data";
 import { toast } from "sonner";
 import { AlertTriangle, NotebookPen, Pencil, Plus, Save, Tag, Ticket, Trash2 } from "lucide-react";
+import { SearchableMultiSelect } from "@/components/ui/searchable-multi-select";
 import { isApiEnabled } from "@/lib/api/client";
 import {
   fetchAhamovePromoCodes,
@@ -57,8 +58,25 @@ type ProgramGroup = {
   active: boolean;
   applyCpn: boolean;
   applyPartner: boolean;
+  goodsGroups: string[];
   tiers: FareDiscountRule[];
 };
+
+function mergeGoodsGroups(...lists: Array<string[] | undefined>): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const list of lists) {
+    for (const g of list ?? []) {
+      const t = g.trim();
+      if (!t) continue;
+      const k = t.toLocaleLowerCase("vi");
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(t);
+    }
+  }
+  return out.length ? out : [OTHER_GOODS];
+}
 
 function groupPrograms(rules: FareDiscountRule[]): ProgramGroup[] {
   const map = new Map<string, ProgramGroup>();
@@ -75,6 +93,7 @@ function groupPrograms(rules: FareDiscountRule[]): ProgramGroup[] {
         active: r.active,
         applyCpn: r.applyCpn !== false,
         applyPartner: r.applyPartner === true,
+        goodsGroups: mergeGoodsGroups(r.goodsGroups),
         tiers: [r],
       });
     } else {
@@ -82,6 +101,7 @@ function groupPrograms(rules: FareDiscountRule[]): ProgramGroup[] {
       g.active = g.active || r.active;
       g.applyCpn = g.applyCpn || r.applyCpn !== false;
       g.applyPartner = g.applyPartner || r.applyPartner === true;
+      g.goodsGroups = mergeGoodsGroups(g.goodsGroups, r.goodsGroups);
       if (!g.effectiveFrom && r.effectiveFrom) g.effectiveFrom = r.effectiveFrom;
       if (!g.effectiveTo && r.effectiveTo) g.effectiveTo = r.effectiveTo;
     }
@@ -133,6 +153,12 @@ function applyScopeLabel(p: ProgramGroup) {
   return "Đơn CPN";
 }
 
+function goodsGroupsLabel(groups: string[]) {
+  const list = groups?.length ? groups : [OTHER_GOODS];
+  if (list.length <= 2) return list.join(", ");
+  return `${list.slice(0, 2).join(", ")} +${list.length - 2}`;
+}
+
 function findIssues(ordered: FareDiscountRule[]): { hard: string[]; soft: string[] } {
   const hard: string[] = [];
   const soft: string[] = [];
@@ -163,6 +189,7 @@ function emptyTier(
   active: boolean,
   applyCpn = true,
   applyPartner = false,
+  goodsGroups: string[] = [OTHER_GOODS],
 ): FareDiscountRule {
   return {
     id: newId(),
@@ -177,6 +204,7 @@ function emptyTier(
     active,
     applyCpn,
     applyPartner,
+    goodsGroups: mergeGoodsGroups(goodsGroups),
   };
 }
 
@@ -246,8 +274,10 @@ function Page() {
   const [tab, setTab] = useState<"program" | "code" | "aha">("program");
   const storedRules = useStore((s) => s.fareDiscountRules);
   const storedCodes = useStore((s) => s.fareDiscountCodes);
+  const productPricing = useStore((s) => s.productPricing);
   const setFareDiscountRules = useStore((s) => s.setFareDiscountRules);
   const setFareDiscountCodes = useStore((s) => s.setFareDiscountCodes);
+  const goodsGroupOptions = useMemo(() => goodsGroupSelectOptions(productPricing), [productPricing]);
   const [rules, setRules] = useState<FareDiscountRule[]>(storedRules);
   const [codes, setCodes] = useState<FareDiscountCode[]>(storedCodes);
   const [ahaRows, setAhaRows] = useState<AhamovePromoCode[]>([]);
@@ -288,16 +318,21 @@ function Page() {
   const selectedProgram = programs.find((p) => p.key === selectedProgramKey) ?? null;
   const issues = selectedProgram ? findIssues(selectedProgram.tiers) : { hard: [], soft: [] };
   const hardBlock =
-    issues.hard.length > 0 || (selectedProgram != null && !selectedProgram.name.trim());
+    issues.hard.length > 0 ||
+    (selectedProgram != null && (!selectedProgram.name.trim() || !selectedProgram.goodsGroups.length));
 
   const updateProgramMeta = (
     key: string,
-    patch: Partial<Pick<ProgramGroup, "name" | "effectiveFrom" | "effectiveTo" | "active" | "applyCpn" | "applyPartner">>,
+    patch: Partial<
+      Pick<ProgramGroup, "name" | "effectiveFrom" | "effectiveTo" | "active" | "applyCpn" | "applyPartner" | "goodsGroups">
+    >,
   ) => {
     const prog = programs.find((p) => p.key === key);
     if (!prog) return;
     const ids = new Set(prog.tiers.map((t) => t.id));
     const nextName = patch.name !== undefined ? patch.name : prog.name;
+    const nextGroups =
+      patch.goodsGroups !== undefined ? mergeGoodsGroups(patch.goodsGroups) : undefined;
     setRules((prev) =>
       prev.map((r) => {
         if (!ids.has(r.id)) return r;
@@ -309,6 +344,7 @@ function Page() {
           active: patch.active !== undefined ? patch.active : r.active,
           applyCpn: patch.applyCpn !== undefined ? patch.applyCpn : r.applyCpn,
           applyPartner: patch.applyPartner !== undefined ? patch.applyPartner : r.applyPartner,
+          goodsGroups: nextGroups ?? mergeGoodsGroups(r.goodsGroups),
         };
       }),
     );
@@ -342,6 +378,7 @@ function Page() {
       selectedProgram.active,
       selectedProgram.applyCpn,
       selectedProgram.applyPartner,
+      selectedProgram.goodsGroups,
     );
     tier.minFare = minFare;
     tier.discountType = last?.discountType ?? "PERCENT";
@@ -377,6 +414,10 @@ function Page() {
     }
     if (!selectedProgram.applyCpn && !selectedProgram.applyPartner) {
       toast.error("Chọn ít nhất một loại đơn áp dụng");
+      return;
+    }
+    if (!selectedProgram.goodsGroups.length) {
+      toast.error("Chọn ít nhất một nhóm hàng áp dụng");
       return;
     }
     if (issues.hard.length) {
@@ -567,7 +608,8 @@ function Page() {
 
       <div className="flex flex-wrap items-end justify-between gap-3">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Giảm trên tổng cước hàng của đơn theo bậc, theo % hoặc số tiền. Hệ thống tự áp khi tạo đơn.
+          Giảm trên tổng cước hàng theo bậc (% hoặc số tiền), theo nhóm hàng cấu hình (mặc định Khác). Hệ thống tự áp khi
+          tạo đơn.
         </p>
         {tab === "program" && writable ? (
           <Button type="button" onClick={addProgram}>
@@ -620,21 +662,22 @@ function Page() {
         <>
           <Section title="Chương trình giảm giá" icon={<Tag className="h-4 w-4" />}>
             <div className="overflow-x-auto rounded-xl border">
-              <table className="w-full min-w-[880px] table-fixed text-sm">
+              <table className="w-full min-w-[980px] table-fixed text-sm">
                 <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                   <tr>
-                    <th className="w-[26%] px-3 py-2.5 font-medium">Tên chương trình</th>
-                    <th className="w-[16%] px-3 py-2.5 font-medium">Thời gian</th>
-                    <th className="w-[14%] px-3 py-2.5 font-medium">Áp dụng cho</th>
-                    <th className="w-[20%] px-3 py-2.5 font-medium">Bậc giảm</th>
-                    <th className="w-[14%] px-3 py-2.5 font-medium">Trạng thái</th>
+                    <th className="w-[22%] px-3 py-2.5 font-medium">Tên chương trình</th>
+                    <th className="w-[14%] px-3 py-2.5 font-medium">Thời gian</th>
+                    <th className="w-[12%] px-3 py-2.5 font-medium">Loại đơn</th>
+                    <th className="w-[14%] px-3 py-2.5 font-medium">Nhóm hàng</th>
+                    <th className="w-[16%] px-3 py-2.5 font-medium">Bậc giảm</th>
+                    <th className="w-[12%] px-3 py-2.5 font-medium">Trạng thái</th>
                     <th className="w-[10%] px-3 py-2.5 text-right font-medium">Bật/tắt</th>
                   </tr>
                 </thead>
                 <tbody>
                   {programs.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 py-10 text-center text-muted-foreground">
+                      <td colSpan={7} className="px-3 py-10 text-center text-muted-foreground">
                         Chưa có chương trình. Bấm Thêm chương trình để tạo.
                       </td>
                     </tr>
@@ -658,6 +701,7 @@ function Page() {
                           </td>
                           <td className="px-3 py-3 tabular-nums text-muted-foreground">{formatDateRange(p.effectiveFrom, p.effectiveTo)}</td>
                           <td className="px-3 py-3 text-muted-foreground">{applyScopeLabel(p)}</td>
+                          <td className="px-3 py-3 text-muted-foreground">{goodsGroupsLabel(p.goodsGroups)}</td>
                           <td className="px-3 py-3 tabular-nums">{tierSummary(p.tiers)}</td>
                           <td className="px-3 py-3">
                             <Badge className={st.className}>{st.label}</Badge>
@@ -764,6 +808,27 @@ function Page() {
                       </span>
                     </label>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label>Nhóm hàng áp dụng *</Label>
+                    <SearchableMultiSelect
+                      disabled={!writable}
+                      values={selectedProgram.goodsGroups}
+                      onValuesChange={(values) =>
+                        updateProgramMeta(selectedProgram.key, {
+                          goodsGroups: values.length ? values : [OTHER_GOODS],
+                        })
+                      }
+                      options={goodsGroupOptions}
+                      allSelected={false}
+                      allLabel="Chọn nhóm hàng"
+                      placeholder="Chọn nhóm hàng…"
+                      emptyText="Không có nhóm hàng"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Mặc định chỉ áp cho nhóm <strong>Khác</strong>. Đơn có kiện ngoài danh sách sẽ không được giảm theo
+                      chương trình này.
+                    </p>
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label>Văn phòng áp dụng</Label>
@@ -776,8 +841,8 @@ function Page() {
                   </div>
                   <div className="rounded-lg border bg-muted/30 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
                     Mỗi đơn chỉ hưởng một bậc, theo tổng cước hàng (chưa gồm phụ phí COD, khai báo giá trị, lấy/giao tận
-                    nơi). Không cộng dồn với chương trình khác: nếu nhiều chương trình cùng hợp lệ, hệ thống chọn mức
-                    giảm cao nhất.
+                    nơi). Chỉ áp khi mọi kiện thuộc nhóm đã chọn. Không cộng dồn với chương trình khác: nếu nhiều chương
+                    trình cùng hợp lệ, hệ thống chọn mức giảm cao nhất.
                   </div>
                   {writable ? (
                     <Button

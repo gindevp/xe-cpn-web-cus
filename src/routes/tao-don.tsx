@@ -808,7 +808,8 @@ export function PublicOrderForm({
 
   // Giảm trên tổng cước hàng (chưa gồm phụ phí) — bậc / mã lấy mức lớn hơn.
   const subtotal = goodsFare + pickupFeeVal + deliveryFeeVal + codFee + declaredFee;
-  const discountDetail = calcOrderDiscountDetail(goodsFare, promoCode);
+  const orderGoodsGroups = items.map((i) => (i.group ?? "").trim() || OTHER_GOODS);
+  const discountDetail = calcOrderDiscountDetail(goodsFare, promoCode, undefined, false, orderGoodsGroups);
   const discountVND = discountDetail.amount;
   const totalFare = Math.max(0, subtotal - discountVND);
   /** Khách tự tạo đơn chưa trả tiền cho ai — người gửi trả thì NV thu khi nhập kho gửi. */
@@ -953,7 +954,13 @@ export function PublicOrderForm({
         toast.error(codeErr);
         return;
       }
-      const guestDiscount = calcOrderDiscount(goodsFare, promoCode);
+      const guestDiscount = calcOrderDiscount(
+        goodsFare,
+        promoCode,
+        undefined,
+        false,
+        items.map((i) => (i.group ?? "").trim() || OTHER_GOODS),
+      );
       const fare = Math.max(0, grossFare - guestDiscount);
       const appliedCode = normalizeDiscountCode(promoCode) || undefined;
       const paidForOrder = 0;

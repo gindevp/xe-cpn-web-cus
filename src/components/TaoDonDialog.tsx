@@ -129,8 +129,8 @@ const BANK_OPTIONS = [
 ].map((b) => ({ value: b, label: b }));
 
 /** Giảm giá hệ thống trên tổng cước hàng (chưa gồm phụ phí). */
-function systemDiscount(goodsFare: number, code?: string) {
-  return calcOrderDiscount(goodsFare, code);
+function systemDiscount(goodsFare: number, code?: string, goodsGroups?: string[]) {
+  return calcOrderDiscount(goodsFare, code, undefined, false, goodsGroups);
 }
 
 /** Tên người: chữ hoa, giữ dấu tiếng Việt — xem lib/vn-name. */
@@ -1129,7 +1129,8 @@ export function TaoDonDialog({
     declaredValue > 0 ? calcDeclaredValueFee(declaredValue) : (initial?.declaredFee ?? 0);
   const subtotal = goodsFare + pickupFeeVal + deliverFeeVal + codFee + declaredFee;
   // Giảm trên tổng cước hàng (chưa gồm phụ phí) — lấy mức lớn hơn giữa bậc và mã.
-  const discountDetail = calcOrderDiscountDetail(goodsFare, promoCode);
+  const orderGoodsGroups = items.map(resolveGroup).filter(Boolean);
+  const discountDetail = calcOrderDiscountDetail(goodsFare, promoCode, undefined, false, orderGoodsGroups);
   const discountVND = discountDetail.amount;
   const totalFare = Math.max(0, subtotal - discountVND);
   // Người gửi thanh toán: không ghi thu TM lúc tạo — còn nợ để tác vụ «Tạo QR CK» luôn dùng được

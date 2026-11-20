@@ -499,15 +499,32 @@ export function calcCodeDiscount(grossFare: number, rawCode?: string | null, day
 
 export type OrderDiscountDetail = { amount: number; label: string | null };
 
+function normalizeGoodsGroupKey(s: string) {
+  return s.trim().toLocaleLowerCase("vi");
+}
+
+/** Đơn khớp CT khi mọi nhóm hàng nằm trong danh sách cấu hình (mặc định Khác). */
+function ruleMatchesGoodsGroups(ruleGroups: string[] | undefined, orderGroups: string[] | undefined): boolean {
+  const allowed = new Set(
+    (ruleGroups?.length ? ruleGroups : ["Khác"]).map(normalizeGoodsGroupKey).filter(Boolean),
+  );
+  if (!allowed.size) allowed.add(normalizeGoodsGroupKey("Khác"));
+  const order = (orderGroups?.length ? orderGroups : ["Khác"]).map((g) => g.trim()).filter(Boolean);
+  const check = order.length ? order : ["Khác"];
+  return check.every((g) => allowed.has(normalizeGoodsGroupKey(g)));
+}
+
 /**
  * Giảm giá theo chương trình + mã (không cộng dồn).
  * Nhiều chương trình khớp → mức giảm tiền lớn nhất. Có mã → max(bậc, mã).
+ * {@code goodsGroups}: nhóm hàng trên đơn (mặc định Khác khi trống).
  */
 export function calcOrderDiscountDetail(
   grossFare: number,
   rawCode?: string | null,
   day = vnCalendarDate(),
   partnerOrder = false,
+  goodsGroups?: string[],
 ): OrderDiscountDetail {
   const gross = Math.max(0, Math.round(Number(grossFare) || 0));
   if (gross <= 0) return { amount: 0, label: null };
@@ -517,6 +534,7 @@ export function calcOrderDiscountDetail(
   for (const r of useStore.getState().fareDiscountRules) {
     if (!r.active) continue;
     if (partnerOrder ? !r.applyPartner : r.applyCpn === false) continue;
+    if (!ruleMatchesGoodsGroups(r.goodsGroups, goodsGroups)) continue;
     if (r.effectiveFrom && day < r.effectiveFrom) continue;
     if (r.effectiveTo && day > r.effectiveTo) continue;
     const min = Math.round(Number(r.minFare) || 0);
@@ -546,8 +564,14 @@ export function calcOrderDiscountDetail(
   return { amount: bestOff, label: bestLabel };
 }
 
-export function calcOrderDiscount(grossFare: number, rawCode?: string | null, day = vnCalendarDate()): number {
-  return calcOrderDiscountDetail(grossFare, rawCode, day).amount;
+export function calcOrderDiscount(
+  grossFare: number,
+  rawCode?: string | null,
+  day = vnCalendarDate(),
+  partnerOrder = false,
+  goodsGroups?: string[],
+): number {
+  return calcOrderDiscountDetail(grossFare, rawCode, day, partnerOrder, goodsGroups).amount;
 }
 
 /** Kiểm tra mã trước khi gửi đơn — null = hợp lệ (hoặc để trống). */

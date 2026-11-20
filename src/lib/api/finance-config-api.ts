@@ -1289,6 +1289,14 @@ export async function deleteDoorFeeRule(id: string) {
   await apiRequest(`/api/door-fee-rules/${num}`, { method: "DELETE" });
 }
 
+function parseGoodsGroups(raw: unknown): string[] {
+  const parts = String(raw ?? "")
+    .split("|")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length ? [...new Set(parts)] : ["Khác"];
+}
+
 function mapFareDiscountRule(r: any): FareDiscountRule {
   const type = String(r.discountType ?? "FIXED").toUpperCase() === "PERCENT" ? "PERCENT" : "FIXED";
   return {
@@ -1304,6 +1312,7 @@ function mapFareDiscountRule(r: any): FareDiscountRule {
     active: r.active !== false,
     applyCpn: r.applyCpn !== false,
     applyPartner: r.applyPartner === true,
+    goodsGroups: parseGoodsGroups(r.goodsGroups),
   };
 }
 
@@ -1314,6 +1323,9 @@ export async function fetchFareDiscountRules() {
 }
 
 export async function saveFareDiscountRule(rule: FareDiscountRule) {
+  const goodsGroups = (rule.goodsGroups?.length ? rule.goodsGroups : ["Khác"])
+    .map((g) => g.trim())
+    .filter(Boolean);
   const body = {
     name: rule.name.trim(),
     minFare: rule.minFare,
@@ -1326,6 +1338,7 @@ export async function saveFareDiscountRule(rule: FareDiscountRule) {
     active: rule.active !== false,
     applyCpn: rule.applyCpn !== false,
     applyPartner: rule.applyPartner === true,
+    goodsGroups: (goodsGroups.length ? goodsGroups : ["Khác"]).join("|"),
   };
   const id = persistedId(rule.id);
   if (id != null) {
