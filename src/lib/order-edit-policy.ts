@@ -122,7 +122,7 @@ const POST_WAREHOUSE_STAGES = new Set([
 
 type OrderEditShape = Pick<
   Order,
-  "status" | "stage" | "homePickup" | "pickingAt" | "pickupStaff" | "pickedUpAt"
+  "status" | "stage" | "homePickup" | "pickingAt" | "pickupStaff" | "pickedUpAt" | "codAmount"
 > & {
   returnStage?: string | null;
   issue?: { resolvedAt?: string } | null;
@@ -132,6 +132,8 @@ export type OrderEditableFields = {
   sender: boolean;
   receiver: boolean;
   cod: boolean;
+  /** Ngân hàng / STK / chủ TK nhận tiền COD. */
+  codBank: boolean;
   packages: boolean;
   note: boolean;
   senderAddress: boolean;
@@ -147,6 +149,7 @@ const NONE: OrderEditableFields = {
   sender: false,
   receiver: false,
   cod: false,
+  codBank: false,
   packages: false,
   note: false,
   senderAddress: false,
@@ -161,6 +164,7 @@ const FULL_PRE: OrderEditableFields = {
   sender: true,
   receiver: true,
   cod: true,
+  codBank: true,
   packages: true,
   note: true,
   senderAddress: true,
@@ -176,6 +180,7 @@ const PICKING: OrderEditableFields = {
   sender: false,
   receiver: true,
   cod: true,
+  codBank: true,
   packages: true,
   note: true,
   senderAddress: false,
@@ -191,6 +196,7 @@ const POST_WH: OrderEditableFields = {
   sender: false,
   receiver: true,
   cod: true,
+  codBank: true,
   packages: false,
   note: true,
   senderAddress: false,
@@ -200,6 +206,16 @@ const POST_WH: OrderEditableFields = {
   returnContact: true,
   declaredValue: true,
 };
+
+/** Đơn COD đã giao thành công: chỉ sửa TK nhận COD (để đối soát / chi trả). */
+const DELIVERED_COD_BANK: OrderEditableFields = {
+  ...NONE,
+  codBank: true,
+};
+
+export function orderHasCod(o: Pick<Order, "codAmount"> | null | undefined): boolean {
+  return Math.round(Number(o?.codAmount) || 0) > 0;
+}
 
 /** Nằm ở kho gửi, chưa gán xe: sửa thêm được kiện (loại / tên hàng, SL, KL, kích thước). */
 const SENDER_WH: OrderEditableFields = {
@@ -258,7 +274,8 @@ function fieldsByStatus(
 ): OrderEditableFields {
   if (!o) return NONE;
 
-  if (o.status === "DELIVERED" || o.status === "CANCELLED" || o.status === "RETURNED") return NONE;
+  if (o.status === "DELIVERED") return orderHasCod(o) ? DELIVERED_COD_BANK : NONE;
+  if (o.status === "CANCELLED" || o.status === "RETURNED") return NONE;
   if (o.issue && !o.issue.resolvedAt) return ISSUE_NOTE_ONLY;
 
   // Hoàn fail: liên hệ hoàn + ghi chú

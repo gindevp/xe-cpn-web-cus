@@ -72,9 +72,9 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { canWrite, isReadOnlyRole, useRbacVersion } from "@/lib/rbac";
 import {
-  orderStatusAllowsFieldEdit,
   orderEditableFields,
   canEditReceiverOffice,
+  type OrderEditableFields,
 } from "@/lib/order-edit-policy";
 import { senderPaidFull } from "@/lib/extra-fare-payer";
 import { NameInput } from "@/components/NameInput";
@@ -177,6 +177,9 @@ type EditForm = {
   note: string;
   codAmount: number;
   codFee: number;
+  bankName: string;
+  bankAccountNo: string;
+  bankAccountName: string;
   senderName: string;
   senderPhone: string;
   receiverName: string;
@@ -197,6 +200,24 @@ type EditForm = {
    */
   declaredValueDirty: boolean;
 };
+
+const COD_BANK_OPTIONS = [
+  "Vietcombank",
+  "VietinBank",
+  "BIDV",
+  "Agribank",
+  "Techcombank",
+  "MB Bank",
+  "ACB",
+  "VPBank",
+  "TPBank",
+  "Sacombank",
+  "SHB",
+  "HDBank",
+  "VIB",
+  "MSB",
+  "OCB",
+].map((b) => ({ value: b, label: b }));
 
 /** Cước kiện: giống EditPackageDialog — giá SP × SL, không thì theo cân/tuyến. */
 /** "tài khoản · mã NV · họ tên"; sự kiện vừa thao tác (chưa đồng bộ) tra theo danh sách tài khoản. */
@@ -290,6 +311,9 @@ function formFromOrder(o: OrderX, offices: OfficeRec[] = []): EditForm {
     note: displayOrderNote(o.note),
     codAmount: o.codAmount ?? 0,
     codFee: o.codFee ?? 0,
+    bankName: o.bankName ?? "",
+    bankAccountNo: o.bankAccountNo ?? "",
+    bankAccountName: o.bankAccountName ?? "",
     senderName: o.senderName ?? "",
     senderPhone: o.senderPhone ?? "",
     receiverName: o.receiverName ?? "",
@@ -538,7 +562,7 @@ export function OrderHistoryDialog({
   );
 
   /** Quyền màn vận hành (không gồm Thành công / Hoàn / Ngoại lệ — khóa thêm theo trạng thái đơn). */
-  const canEditRole =
+  const canEditOpsRole =
     !!session &&
     !isReadOnlyRole(session.role) &&
     (canWrite(session.role, "van-don") ||
@@ -546,6 +570,12 @@ export function OrderHistoryDialog({
       canWrite(session.role, "kiem-ke") ||
       canWrite(session.role, "cho-ban-giao") ||
       canWrite(session.role, "nhap-kho-luan-chuyen"));
+  /** Sửa TK nhận COD: vận hành hoặc màn Thành công / Quản lý đơn COD. */
+  const canEditCodBankRole =
+    canEditOpsRole ||
+    (!!session &&
+      !isReadOnlyRole(session.role) &&
+      (canWrite(session.role, "giao-thanh-cong") || canWrite(session.role, "quan-ly-don-cod")));
   /** Xuất HĐĐT MISA: quyền ghi màn Giao thành công hoặc Quản lý hoá đơn (BE chặn cùng screen key). */
   const canIssueInvoice =
     !!session &&
@@ -617,11 +647,17 @@ export function OrderHistoryDialog({
 
   const o = order ?? storeOrder ?? null;
   const fareRoutes = useOrderFareRoutes(o);
-  const canEditFields = canEditRole && orderStatusAllowsFieldEdit(o, session?.role);
-  const editFields = orderEditableFields(canEditFields ? o : null, session?.role);
+  const policyFields = orderEditableFields(o, session?.role);
+  const emptyFields = orderEditableFields(null) as OrderEditableFields;
+  const editFields: OrderEditableFields = canEditOpsRole
+    ? policyFields
+    : canEditCodBankRole && policyFields.codBank
+      ? { ...emptyFields, codBank: true }
+      : emptyFields;
+  const canEditFields = Object.values(editFields).some(Boolean);
   /** AD / DH sửa VP nhận chỉ khi đơn đang nhập kho gửi. */
   const canEditToOffice =
-    canEditReceiverOffice(o, session?.role) && (session?.role === "AD" || canEditRole);
+    canEditReceiverOffice(o, session?.role) && (session?.role === "AD" || canEditOpsRole);
   /** Đổi VP nhận (hàng chuyển tay) / hình thức thanh toán: bấm vào ô tương ứng khi đang sửa đơn. */
   const canReroute = !!o && isApiEnabled() && !canEditToOffice && canRerouteDest(o, session?.role, session?.office);
   const canPayTerm = !!o && isApiEnabled() && canChangePayTerm(o, session?.role, session?.office);
@@ -771,7 +807,7 @@ export function OrderHistoryDialog({
     if (!o || !form) return;
     setSaving(true);
     try {
-      const fields = orderEditableFields(canEditFields ? o : null, session?.role);
+      const fields = editFields;
       if (!canEditFields && !canEditToOffice) {
         setEditing(false);
         setForm(null);
@@ -891,6 +927,11 @@ export function OrderHistoryDialog({
         patch.codAmount = codAmount;
         patch.codFee = codFee;
         if (o.collectForm === "COD" && codAmount <= 0) patch.collectForm = "GUI_TRA";
+      }
+      if (fields.codBank) {
+        patch.bankName = form.bankName.trim();
+        patch.bankAccountNo = form.bankAccountNo.trim();
+        patch.bankAccountName = toUpperName(form.bankAccountName);
       }
       if (fields.sender) {
         patch.senderName = senderName || undefined;
@@ -1065,7 +1106,13 @@ export function OrderHistoryDialog({
                       <span className="ms" aria-hidden="true">
                         edit
                       </span>
-                      Sửa đơn
+                      {editFields.codBank &&
+                      !editFields.cod &&
+                      !editFields.sender &&
+                      !editFields.receiver &&
+                      !editFields.packages
+                        ? "Sửa TK COD"
+                        : "Sửa đơn"}
                     </button>
                   ) : null}
                   <button type="button" className="btn" onClick={() => setPrintOpen(true)}>
@@ -1074,7 +1121,7 @@ export function OrderHistoryDialog({
                     </span>
                     In đơn
                   </button>
-                  {canEditRole && canStaffSenderTransferQr(o) ? (
+                  {canEditOpsRole && canStaffSenderTransferQr(o) ? (
                     <button
                       type="button"
                       className="btn tonal"
@@ -1540,8 +1587,10 @@ export function OrderHistoryDialog({
                 }}
               />
 
-              {(editing ? (form?.codAmount ?? 0) > 0 || editFields.cod : money.codGoods > 0) ||
-              (editing && editFields.cod) ? (
+              {(editing
+                ? (form?.codAmount ?? 0) > 0 || editFields.cod || editFields.codBank
+                : money.codGoods > 0) ||
+              (editing && (editFields.cod || editFields.codBank)) ? (
                 <div className="view-opt">
                   <div className="field view-field only-label">
                     <span className="l l-ic">
@@ -1576,7 +1625,40 @@ export function OrderHistoryDialog({
                       value={formatVND(editing && form && editFields.cod ? form.codFee : money.codFee)}
                     />
                   </FieldShell>
-                  {o.bankName || o.bankAccountNo || o.bankAccountName ? (
+                  {editing && form && editFields.codBank ? (
+                    <>
+                      <FieldShell label="Ngân hàng">
+                        <SearchableSelect
+                          value={form.bankName}
+                          onValueChange={(v) => setForm({ ...form, bankName: v })}
+                          options={
+                            form.bankName && !COD_BANK_OPTIONS.some((b) => b.value === form.bankName)
+                              ? [{ value: form.bankName, label: form.bankName }, ...COD_BANK_OPTIONS]
+                              : COD_BANK_OPTIONS
+                          }
+                          placeholder="Chọn ngân hàng"
+                        />
+                      </FieldShell>
+                      <FieldShell label="Số tài khoản">
+                        <Input
+                          className="h-10"
+                          inputMode="numeric"
+                          value={form.bankAccountNo}
+                          onChange={(e) =>
+                            setForm({ ...form, bankAccountNo: e.target.value.replace(/\D/g, "") })
+                          }
+                          placeholder="Số tài khoản"
+                        />
+                      </FieldShell>
+                      <FieldShell label="Chủ tài khoản">
+                        <NameInput
+                          value={form.bankAccountName}
+                          onChange={(v) => setForm({ ...form, bankAccountName: v })}
+                          placeholder="Chủ tài khoản"
+                        />
+                      </FieldShell>
+                    </>
+                  ) : o.bankName || o.bankAccountNo || o.bankAccountName ? (
                     <>
                       <FieldShell label="Ngân hàng">
                         <ViewValue value={o.bankName || "—"} />
@@ -1652,7 +1734,7 @@ export function OrderHistoryDialog({
                 <OrderInvoicePanel
                   order={o}
                   canIssue={canIssueInvoice}
-                  canEditInfo={canEditRole || canIssueInvoice}
+                  canEditInfo={canEditOpsRole || canIssueInvoice}
                   onChanged={() => void reload(o.code)}
                 />
               ) : o.invoiceRequested ? (
