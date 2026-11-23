@@ -224,6 +224,8 @@ export function canCancelHomeDelivery(
   if (o.status === "DELIVERED" || o.status === "CANCELLED" || o.status === "RETURNED") return false;
   return true;
 }
+
+export function orderHasCod(o: Pick<Order, "codAmount"> | null | undefined): boolean {
   return Math.round(Number(o?.codAmount) || 0) > 0;
 }
 
