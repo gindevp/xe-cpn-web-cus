@@ -62,7 +62,7 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const ALL_OFFICES = "Tất cả văn phòng";
-const EXPORT_PAGE_SIZE = 500;
+const EXPORT_PAGE_SIZE = 100;
 /** An toàn tuyệt đối — dừng sớm khi all.length >= total. */
 const EXPORT_SAFETY_MAX_PAGES = 2_000;
 /**

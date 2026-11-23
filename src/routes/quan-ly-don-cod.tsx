@@ -211,11 +211,12 @@ function Page() {
         createdTo: to || undefined,
         routeLabel: route || undefined,
         itineraryLabel: itinerary || undefined,
-        size: 500,
+        size: 100,
         sort: "createdAt,desc",
       };
       const list: OrderX[] = [];
-      for (let page = 0; page < 2_000; page++) {
+      // Tối đa ~1000 đơn — lọc ngày/tuyến thay vì kéo hết bảng.
+      for (let page = 0; page < 10; page++) {
         const { rows: chunk, total } = await listOrdersPage({ ...query, page });
         list.push(...chunk);
         if (chunk.length === 0 || list.length >= total) break;

@@ -71,13 +71,19 @@ export function DoorRefundPanel() {
     }
     setLoading(true);
     try {
-      const { rows: chunk } = await listOrdersPage({
-        doorRefundOnly: true,
-        keyword: qDebounced || undefined,
-        size: 500,
-        sort: "updatedAt,desc",
-      });
-      setRows(chunk);
+      const list: OrderX[] = [];
+      for (let page = 0; page < 5; page++) {
+        const { rows: chunk, total } = await listOrdersPage({
+          doorRefundOnly: true,
+          keyword: qDebounced || undefined,
+          size: 100,
+          sort: "updatedAt,desc",
+          page,
+        });
+        list.push(...chunk);
+        if (chunk.length === 0 || list.length >= total) break;
+      }
+      setRows(list);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Không tải được danh sách hoàn phí");
     } finally {

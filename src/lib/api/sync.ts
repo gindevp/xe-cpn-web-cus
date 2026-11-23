@@ -102,7 +102,7 @@ async function loadOrdersWorkingSet() {
     openOrUpdatedWithinDays: WORKING_SET_RECENT_DAYS,
   };
   const pendingReq = domain
-    .listOrdersPage({ cancelRequests: "only", size: 500, officeCode: officeCode || undefined })
+    .listOrdersPage({ cancelRequests: "only", size: 100, officeCode: officeCode || undefined })
     .catch(() => null);
   const keep = new Set<string>();
   const take = (rows: Awaited<ReturnType<typeof domain.listOrders>>) => {
@@ -147,9 +147,10 @@ function pruneStaleFinishedOrders(keep: Set<string>) {
   });
 }
 
-const WORKING_SET_PAGE_SIZE = 250;
-const WORKING_SET_MAX_PAGES = 20;
-const WORKING_SET_CONCURRENCY = 4;
+/** Giảm bão request lên DB: ít trang hơn, ít song song hơn (SSE bổ sung đơn mới). */
+const WORKING_SET_PAGE_SIZE = 100;
+const WORKING_SET_MAX_PAGES = 10;
+const WORKING_SET_CONCURRENCY = 2;
 export const WORKING_SET_RECENT_DAYS = 7;
 let lastFullOrdersSyncAt = 0;
 
