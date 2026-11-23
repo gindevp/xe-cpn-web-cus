@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { OfficeLocationMap } from "@/components/OfficeLocationMap";
 import { geoGeocodeAddress } from "@/lib/api/geo-api";
-import { estimatePickupKm, formatAhamoveFeeLine } from "@/lib/api/ahamove-api";
+import { estimatePickupKm } from "@/lib/api/ahamove-api";
+import { AhamoveFeeEstimateSummary } from "@/components/AhamoveFeeEstimateSummary";
 import { isApiEnabled } from "@/lib/api/client";
 
 /**
@@ -293,19 +294,27 @@ export function HomeDeliveryMap({
         ) : pinning || kmLoading ? (
           <span className="text-muted-foreground">{statusHint || (pinning ? "Đang định vị…" : "Đang tính KM Ahamove…")}</span>
         ) : distanceKm != null ? (
-          <span>
-            Khoảng cách: <strong>{distanceKm.toFixed(2)} km</strong>
-            {serviceId ? <span className="ml-2 text-xs text-muted-foreground">({serviceId})</span> : null}
-            {showFee && fee != null ? (
-              <span className="ml-2">
-                · {formatAhamoveFeeLine({ fee, feeBefore, promoCode, voucherDiscount })}
-                {bulky ? <span className="text-xs text-muted-foreground"> (đã cộng phụ phí)</span> : null}
-              </span>
-            ) : null}
-            {!pinReady ? (
-              <span className="ml-2 text-xs text-muted-foreground">(theo địa chỉ Ahamove)</span>
-            ) : null}
-          </span>
+          showFee && fee != null ? (
+            <AhamoveFeeEstimateSummary
+              km={distanceKm}
+              fee={fee}
+              feeBefore={feeBefore}
+              promoCode={promoCode}
+              voucherDiscount={voucherDiscount}
+              hint={!pinReady ? "(theo địa chỉ Ahamove)" : serviceId ? `(${serviceId})` : null}
+              extra={
+                bulky ? <div className="text-xs text-muted-foreground">Đã cộng phụ phí cồng kềnh.</div> : null
+              }
+            />
+          ) : (
+            <span>
+              Khoảng cách: <strong>{distanceKm.toFixed(2)} km</strong>
+              {serviceId ? <span className="ml-2 text-xs text-muted-foreground">({serviceId})</span> : null}
+              {!pinReady ? (
+                <span className="ml-2 text-xs text-muted-foreground">(theo địa chỉ Ahamove)</span>
+              ) : null}
+            </span>
+          )
         ) : kmError ? (
           <span>{kmError}</span>
         ) : pinError ? (

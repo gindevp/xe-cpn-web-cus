@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { AddressPicker } from "@/components/AddressPicker";
 import { HomeDeliveryMap } from "@/components/HomeDeliveryMap";
 import { ahamoveDispatch, ahamovePickupDispatch, grabDispatch, grabPickupDispatch } from "@/lib/api/domain-api";
-import { estimateGrab, estimatePickupKm, formatAhamoveFeeLine } from "@/lib/api/ahamove-api";
+import { estimateGrab, estimatePickupKm } from "@/lib/api/ahamove-api";
+import { AhamoveFeeEstimateSummary } from "@/components/AhamoveFeeEstimateSummary";
 import { ahamoveBlockReason, ahamoveDue, ahamovePickupBlockReason } from "@/lib/ahamove";
 import {
   addressFromGoogleMapsLink,
@@ -337,39 +338,44 @@ export function AhamovePartnerPanel({
                 {addrEstLoading ? (
                   <span className="text-muted-foreground">Đang ước tính phí {brand}…</span>
                 ) : addrEst ? (
-                  <span>
-                    {addrEst.km != null ? (
-                      <>
-                        Khoảng cách: <strong>{addrEst.km.toFixed(2)} km</strong>
-                      </>
-                    ) : null}
-                    {addrEst.fee != null ? (
-                      <span className="ml-2">
-                        ·{" "}
-                        {!grab
-                          ? formatAhamoveFeeLine({
-                              fee: addrEst.fee,
-                              feeBefore: addrEst.feeBefore,
-                              promoCode: addrEst.promoCode,
-                              voucherDiscount: addrEst.voucherDiscount,
-                              brand,
-                            })
-                          : `Phí ${brand} ~${addrEst.fee.toLocaleString("vi-VN")}đ`}
-                        {!grab && (addrEst.bulky || tipUnits > 0) ? (
-                          <span className="text-xs text-muted-foreground">
-                            {addrEst.bulky ? " (đã cộng phụ phí)" : ""}
-                            {tipUnits > 0 ? ` (gồm tip ${(tipUnits * TIP_UNIT).toLocaleString("vi-VN")}đ)` : ""}
-                          </span>
-                        ) : null}
-                        {grab && tipUnits > 0 ? (
-                          <span className="text-xs text-muted-foreground">
-                            {` · tip ${(tipUnits * TIP_UNIT).toLocaleString("vi-VN")}đ trả khi giao thành công`}
-                          </span>
-                        ) : null}
-                      </span>
-                    ) : null}
-                    <span className="ml-2 text-xs text-muted-foreground">{grab ? "(báo giá Grab)" : "(theo địa chỉ)"}</span>
-                  </span>
+                  grab ? (
+                    <span>
+                      {addrEst.km != null ? (
+                        <>
+                          Khoảng cách: <strong>{addrEst.km.toFixed(2)} km</strong>
+                        </>
+                      ) : null}
+                      {addrEst.fee != null ? (
+                        <span className="ml-2">
+                          · Phí {brand} ~{addrEst.fee.toLocaleString("vi-VN")}đ
+                          {tipUnits > 0 ? (
+                            <span className="text-xs text-muted-foreground">
+                              {` · tip ${(tipUnits * TIP_UNIT).toLocaleString("vi-VN")}đ trả khi giao thành công`}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
+                      <span className="ml-2 text-xs text-muted-foreground">(báo giá Grab)</span>
+                    </span>
+                  ) : (
+                    <AhamoveFeeEstimateSummary
+                      km={addrEst.km}
+                      fee={addrEst.fee}
+                      feeBefore={addrEst.feeBefore}
+                      promoCode={addrEst.promoCode}
+                      voucherDiscount={addrEst.voucherDiscount}
+                      brand={brand}
+                      hint="(theo địa chỉ)"
+                      extra={
+                        addrEst.bulky || tipUnits > 0 ? (
+                          <div className="text-xs text-muted-foreground">
+                            {addrEst.bulky ? "Đã cộng phụ phí cồng kềnh. " : ""}
+                            {tipUnits > 0 ? `Gồm tip ${(tipUnits * TIP_UNIT).toLocaleString("vi-VN")}đ.` : ""}
+                          </div>
+                        ) : null
+                      }
+                    />
+                  )
                 ) : addrEstErr ? (
                   <span className="text-destructive">{addrEstErr}</span>
                 ) : (

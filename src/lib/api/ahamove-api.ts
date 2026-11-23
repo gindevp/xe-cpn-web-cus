@@ -55,6 +55,40 @@ export async function estimateGrab(body: {
   });
 }
 
+/** Chuẩn hoá phí trước / sau / mã từ estimate (Aha đôi khi giữ total_price = gốc + voucher_discount riêng). */
+export function resolveAhamoveFeeParts(opts: {
+  fee?: number | null;
+  feeBefore?: number | null;
+  promoCode?: string | null;
+  voucherDiscount?: number | null;
+}): {
+  before: number | null;
+  after: number | null;
+  code: string | null;
+  discount: number;
+} {
+  const code = opts.promoCode?.trim() || null;
+  const rawAfter = opts.fee != null && !Number.isNaN(opts.fee) ? opts.fee : null;
+  const rawBefore =
+    opts.feeBefore != null && !Number.isNaN(opts.feeBefore) ? opts.feeBefore : null;
+  let discount =
+    opts.voucherDiscount != null && opts.voucherDiscount > 0
+      ? Math.round(opts.voucherDiscount)
+      : rawBefore != null && rawAfter != null && rawBefore > rawAfter
+        ? Math.round(rawBefore - rawAfter)
+        : 0;
+  let before = rawBefore ?? rawAfter;
+  let after = rawAfter;
+  // total_price chưa trừ voucher nhưng có voucher_discount → tự tính phí sau.
+  if (code && discount > 0 && before != null && (after == null || after >= before)) {
+    after = Math.max(0, Math.round(before - discount));
+  }
+  if (before != null && after != null && before > after && discount <= 0) {
+    discount = Math.round(before - after);
+  }
+  return { before, after, code, discount };
+}
+
 /** Dòng phí Aha ước tính / sau book — hiện rõ voucher nếu có. */
 export function formatAhamoveFeeLine(opts: {
   fee?: number | null;
@@ -64,23 +98,14 @@ export function formatAhamoveFeeLine(opts: {
   brand?: string;
 }): string {
   const brand = opts.brand ?? "Ahamove";
-  if (opts.fee == null || Number.isNaN(opts.fee)) return "";
-  const feeStr = opts.fee.toLocaleString("vi-VN");
-  const code = opts.promoCode?.trim();
-  const disc =
-    opts.voucherDiscount != null && opts.voucherDiscount > 0
-      ? opts.voucherDiscount
-      : opts.feeBefore != null && opts.feeBefore > opts.fee
-        ? opts.feeBefore - opts.fee
-        : 0;
-  if (code && disc > 0) {
-    const before =
-      opts.feeBefore != null && opts.feeBefore > opts.fee
-        ? opts.feeBefore.toLocaleString("vi-VN")
-        : null;
-    return before
-      ? `Phí ${brand} ~${feeStr}đ (gốc ${before}đ · voucher ${code} −${disc.toLocaleString("vi-VN")}đ)`
-      : `Phí ${brand} ~${feeStr}đ (voucher ${code} −${disc.toLocaleString("vi-VN")}đ)`;
+  const { before, after, code, discount } = resolveAhamoveFeeParts(opts);
+  if (after == null) return "";
+  const feeStr = after.toLocaleString("vi-VN");
+  if (code && discount > 0 && before != null && before > after) {
+    return `Phí ${brand} ~${feeStr}đ (gốc ${before.toLocaleString("vi-VN")}đ · voucher ${code} −${discount.toLocaleString("vi-VN")}đ)`;
+  }
+  if (code && discount > 0) {
+    return `Phí ${brand} ~${feeStr}đ (voucher ${code} −${discount.toLocaleString("vi-VN")}đ)`;
   }
   if (code) return `Phí ${brand} ~${feeStr}đ (voucher ${code})`;
   return `Phí ${brand} ~${feeStr}đ`;
