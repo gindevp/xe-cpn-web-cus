@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
 import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cancelHomeDelivery } from "@/lib/api/domain-api";
 import { officeName } from "@/lib/mock-data";
 import { senderPaidDoorFee } from "@/lib/order-edit-policy";
 import type { OrderX } from "@/lib/store";
 import { toast } from "sonner";
 
-const REASON_OPTIONS = [
+const REASON_SUGGESTIONS = [
   "Người nhận muốn tự đến VP lấy",
   "Địa chỉ ngoài vùng giao tận nơi",
   "Không liên lạc được người nhận",
-].map((r) => ({ value: r, label: r }));
+];
 
-const BANK_OPTIONS = [
+const BANK_SUGGESTIONS = [
   "Vietcombank",
   "VietinBank",
   "BIDV",
@@ -29,7 +28,7 @@ const BANK_OPTIONS = [
   "VIB",
   "MSB",
   "OCB",
-].map((b) => ({ value: b, label: b }));
+];
 
 export { senderPaidDoorFee };
 
@@ -63,8 +62,9 @@ export function CancelHomeDeliveryDialog({
   }, [open, order.code, order.bankName, order.bankAccountNo, order.bankAccountName]);
 
   const submit = async () => {
-    if (!reason) {
-      toast.error("Chọn lý do huỷ");
+    const reasonText = reason.trim();
+    if (!reasonText) {
+      toast.error("Nhập lý do huỷ");
       return;
     }
     if (refund && (!bankName.trim() || !accountNo.trim() || !accountName.trim())) {
@@ -74,7 +74,7 @@ export function CancelHomeDeliveryDialog({
     setBusy(true);
     try {
       await cancelHomeDelivery(order.code, {
-        reason,
+        reason: reasonText,
         bankName: refund ? bankName.trim() : undefined,
         bankAccountNo: refund ? accountNo.trim() : undefined,
         bankAccountName: refund ? accountName.trim() : undefined,
@@ -107,28 +107,44 @@ export function CancelHomeDeliveryDialog({
 
       <label className="field" style={{ flex: "none", width: "100%", minWidth: 0 }}>
         <span className="l">Lý do huỷ *</span>
-        <SearchableSelect
-          value={reason}
-          onValueChange={setReason}
-          placeholder="Chọn lý do"
-          options={REASON_OPTIONS}
-        />
+        <span className="box input-box">
+          <input
+            list="cancel-door-reason-list"
+            placeholder="Chọn hoặc nhập lý do"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            aria-label="Lý do huỷ"
+          />
+        </span>
+        <datalist id="cancel-door-reason-list">
+          {REASON_SUGGESTIONS.map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
       </label>
 
       {refund ? (
         <fieldset className="refund-box">
           <legend>Tài khoản nhận tiền hoàn</legend>
           <p className="lab muted" style={{ margin: 0 }}>
-            Điền sẵn theo tài khoản nhận COD, sửa nếu khách muốn nhận vào tài khoản khác.
+            Điền sẵn theo tài khoản nhận COD nếu có, sửa nếu khách muốn nhận vào tài khoản khác.
           </p>
           <label className="field" style={{ flex: "none", width: "100%", minWidth: 0 }}>
             <span className="l">Ngân hàng *</span>
-            <SearchableSelect
-              value={bankName}
-              onValueChange={setBankName}
-              placeholder="Chọn ngân hàng"
-              options={BANK_OPTIONS}
-            />
+            <span className="box input-box">
+              <input
+                list="cancel-door-bank-list"
+                placeholder="Chọn hoặc nhập ngân hàng"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                aria-label="Ngân hàng"
+              />
+            </span>
+            <datalist id="cancel-door-bank-list">
+              {BANK_SUGGESTIONS.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
           </label>
           <div className="refund-box-row">
             <label className="field" style={{ flex: 1, minWidth: 0 }}>
