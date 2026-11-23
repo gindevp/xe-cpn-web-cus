@@ -143,6 +143,22 @@ type ExportField = {
 const money = (v?: number | null) => (v ? v : "");
 const dateTime = (iso?: string | null) => (iso ? formatDateTime(iso) : "");
 
+/** Giờ xuất phát chuyến HH:mm (Asia/Ho_Chi_Minh) — cột Chuyến khi xuất. */
+function tripDepartClock(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const h = parts.find((p) => p.type === "hour")?.value ?? "";
+  const m = parts.find((p) => p.type === "minute")?.value ?? "";
+  return h && m ? `${h}:${m}` : "";
+}
+
 /** Nhóm hàng (tên hàng) từng kiện. Tên SP tra bảng giá để lấy nhóm. */
 function exportGoodsLabel(o: OrderX): string {
   const meta = parseOrderNoteMeta(o.note);
@@ -245,6 +261,18 @@ const ORDER_EXPORT_FIELDS: ExportField[] = [
     label: "VP nhận",
     hint: "Văn phòng trả hàng cho người nhận. Nếu đơn đã đổi điểm nhận thì là văn phòng mới.",
     get: (o) => officeName(orderReceiverOffice(o)) || orderReceiverOffice(o),
+  },
+  {
+    key: "route",
+    label: "Tuyến",
+    hint: "Lộ trình / tuyến vận chuyển của đơn (tên lộ trình, không có thì lấy nhánh tuyến).",
+    get: (o) => (o.itinerary || o.route || "").trim(),
+  },
+  {
+    key: "tripDepart",
+    label: "Chuyến",
+    hint: "Giờ xuất phát chuyến đang gắn (HH:mm). Trống nếu đơn chưa lên xe.",
+    get: (o) => tripDepartClock(o.departAt),
   },
   {
     key: "address",

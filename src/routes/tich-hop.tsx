@@ -75,7 +75,12 @@ export const Route = createFileRoute("/tich-hop")({
 function Page() {
   const { tab = "van-chuyen" } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const tabIcon = TAB_META.find((t) => t.id === tab)?.icon ?? "tune";
+  const tabIconName = TAB_META.find((t) => t.id === tab)?.icon ?? "tune";
+  const tabIcon = (
+    <span className="ms text-[18px] leading-none" aria-hidden="true">
+      {tabIconName}
+    </span>
+  );
   const [collectSub, setCollectSub] = useState<CollectSub>("ket-noi");
   const integrations = useStore((s) => s.integrations);
   const setIntegrations = useStore((s) => s.setIntegrations);
