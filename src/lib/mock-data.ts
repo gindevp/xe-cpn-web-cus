@@ -653,6 +653,16 @@ export type Order = {
   /** Tài khoản / họ tên người bấm "Xác nhận đã xử lý" COD. */
   codExportedBy?: string;
   codExportedByName?: string;
+  /** Lúc huỷ giao tận nơi. */
+  doorCancelAt?: string;
+  doorCancelReason?: string;
+  /** Phí giao tận nơi cần hoàn cho người gửi (0 = chỉ tắt, không hoàn). */
+  doorFeeRefund?: number;
+  doorRefundBankName?: string;
+  doorRefundAccountNo?: string;
+  doorRefundAccountName?: string;
+  doorRefundExportedAt?: string;
+  doorRefundExportedBy?: string;
   /** Tài khoản tạo đơn; "customer" = khách tự tạo. */
   createdBy?: string;
   createdByName?: string;

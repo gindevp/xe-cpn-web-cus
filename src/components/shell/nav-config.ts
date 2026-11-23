@@ -35,7 +35,7 @@ export const M3_NAV_GROUPS: M3NavGroup[] = [
       { to: "/phieu-thu", label: "Phiếu thu", icon: "receipt", screen: "phieu-thu" },
       { to: "/danh-sach-phieu-thu", label: "Danh sách phiếu thu", icon: "receipt_long", screen: "danh-sach-phieu-thu" },
       { to: "/giao-dich-thu-ho", label: "Giao dịch thu hộ", icon: "swap_horiz", screen: "giao-dich-thu-ho" },
-      { to: "/quan-ly-don-cod", label: "Quản lý đơn COD", icon: "payments", screen: "quan-ly-don-cod" },
+      { to: "/quan-ly-don-cod", label: "Quản lý hoàn tiền", icon: "payments", screen: "quan-ly-don-cod" },
       { to: "/quan-ly-hoa-don", label: "Quản lý hoá đơn", icon: "description", screen: "quan-ly-hoa-don" },
       { to: "/crm-sdt", label: "CRM SĐT - MST", icon: "contact_phone", screen: "crm-sdt" },
       { to: "/bao-cao-doanh-thu", label: "Báo cáo doanh thu", icon: "bar_chart", screen: "bao-cao-doanh-thu" },

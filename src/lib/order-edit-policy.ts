@@ -213,7 +213,17 @@ const DELIVERED_COD_BANK: OrderEditableFields = {
   codBank: true,
 };
 
-export function orderHasCod(o: Pick<Order, "codAmount"> | null | undefined): boolean {
+/** Đơn đang giao (ship chưa huỷ) thì không tắt giao tận nơi. */
+export function canCancelHomeDelivery(
+  o: Pick<Order, "status" | "homeDelivery" | "doorCancelAt"> & { stage?: string | null; returnStage?: string | null } | null | undefined,
+  canOps: boolean,
+): boolean {
+  if (!canOps || !o?.homeDelivery || o.doorCancelAt) return false;
+  if (o.returnStage || o.status === "RETURNING") return false;
+  if (o.stage === "DELIVERING" || o.status === "OUT_FOR_DELIVERY") return false;
+  if (o.status === "DELIVERED" || o.status === "CANCELLED" || o.status === "RETURNED") return false;
+  return true;
+}
   return Math.round(Number(o?.codAmount) || 0) > 0;
 }
 

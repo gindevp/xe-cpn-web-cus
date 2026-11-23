@@ -90,6 +90,14 @@ export type OrderSummary = {
   codAmount?: number;
   codFeeAmount?: number;
   codFeeRefundAmount?: number;
+  doorCancelAt?: string;
+  doorCancelReason?: string;
+  doorFeeRefundAmount?: number;
+  doorRefundBankName?: string;
+  doorRefundAccountNo?: string;
+  doorRefundAccountName?: string;
+  doorRefundExportedAt?: string;
+  doorRefundExportedBy?: string;
   storageFeeAmount?: number;
   returnFeeAmount?: number;
   goodsFareAmount?: number;
@@ -320,6 +328,14 @@ export function mapOrder(dto: OrderSummary): OrderX {
     codAmount: dto.codAmount != null ? Number(dto.codAmount) : undefined,
     codFee: dto.codFeeAmount != null ? Number(dto.codFeeAmount) : undefined,
     codFeeRefund: dto.codFeeRefundAmount != null ? Number(dto.codFeeRefundAmount) : undefined,
+    doorCancelAt: dto.doorCancelAt,
+    doorCancelReason: dto.doorCancelReason,
+    doorFeeRefund: dto.doorFeeRefundAmount != null ? Number(dto.doorFeeRefundAmount) : undefined,
+    doorRefundBankName: dto.doorRefundBankName,
+    doorRefundAccountNo: dto.doorRefundAccountNo,
+    doorRefundAccountName: dto.doorRefundAccountName,
+    doorRefundExportedAt: dto.doorRefundExportedAt,
+    doorRefundExportedBy: dto.doorRefundExportedBy,
     storageFee: dto.storageFeeAmount != null ? Number(dto.storageFeeAmount) : undefined,
     returnFee: dto.returnFeeAmount != null ? Number(dto.returnFeeAmount) : undefined,
     goodsFare: dto.goodsFareAmount != null ? Number(dto.goodsFareAmount) : undefined,
@@ -467,8 +483,8 @@ export type ListOrdersParams = {
   searchAllOffices?: boolean;
   /** Đơn chờ duyệt huỷ: mặc định BE ẩn; "only" = chỉ lấy các đơn đó. */
   cancelRequests?: "only" | "include";
-  /** Chỉ đơn có thu hộ (tiền COD > 0 hoặc đơn cũ PaymentTerm.COD). */
-  codOnly?: boolean;
+  /** Chỉ đơn có yêu cầu hoàn phí giao tận nơi. */
+  doorRefundOnly?: boolean;
   /** Đúng 5 số đầu hoặc cuối SĐT người gửi / người nhận (gợi ý tạo đơn). */
   phoneEndsWith?: string;
   /** Đơn trung chuyển qua VP này. */
@@ -496,6 +512,7 @@ export async function listOrdersPage(
   if (params?.searchAllOffices) q.set("searchAllOffices", "true");
   if (params?.cancelRequests) q.set("cancelRequests", params.cancelRequests);
   if (params?.codOnly) q.set("codOnly", "true");
+  if (params?.doorRefundOnly) q.set("doorRefundOnly", "true");
   if (params?.phoneEndsWith) q.set("phoneEndsWith", params.phoneEndsWith);
   if (params?.hubOfficeCode) q.set("hubOfficeCode", params.hubOfficeCode);
   if (params?.status) q.set("status", params.status);
@@ -522,6 +539,35 @@ export async function markCodExported(orderCodes: string[]) {
     method: "POST",
     body: { orderCodes },
   });
+}
+
+export async function cancelHomeDelivery(
+  orderCode: string,
+  body: { reason: string; bankName?: string; bankAccountNo?: string; bankAccountName?: string },
+) {
+  return apiRequest<OrderSummary>(`/api/orders/${encodeURIComponent(orderCode)}/cancel-home-delivery`, {
+    method: "POST",
+    body,
+  });
+}
+
+export async function markDoorRefundExported(orderCodes: string[]) {
+  return apiRequest<{ updated: number }>("/api/orders/door-refund/mark-exported", {
+    method: "POST",
+    body: { orderCodes },
+  });
+}
+
+export async function fetchDoorRefundRequestHtml(orderCode: string): Promise<string> {
+  const base = getApiBase();
+  if (!base) throw new ApiError("API base URL not configured", 0);
+  const token = getToken();
+  const res = await fetch(
+    `${base}/api/orders/cod/door-refund-request?code=${encodeURIComponent(orderCode)}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  );
+  if (!res.ok) throw new ApiError(`HTTP ${res.status}`, res.status);
+  return res.text();
 }
 
 /** Giấy đề nghị thanh toán COD (trang HTML theo mẫu BMTT-01) — apiRequest chỉ đọc JSON nên tải bằng fetch. */

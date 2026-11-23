@@ -71,23 +71,23 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { DoorRefundPanel } from "@/components/DoorRefundPanel";
 
 export const Route = createFileRoute("/quan-ly-don-cod")({
   head: () => ({
     meta: [
-      { title: "Quản lý đơn COD — X.E" },
+      { title: "Quản lý hoàn tiền — X.E" },
       {
         name: "description",
         content: "Đơn có thu hộ COD: tra cứu, xuất Excel và xác nhận đã xử lý khi giao thành công.",
       },
-      { property: "og:title", content: "Quản lý đơn COD — X.E" },
+      { property: "og:title", content: "Quản lý hoàn tiền — X.E" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
   component: () => (
-    <ProtectedPage title="Quản lý đơn COD" screen="quan-ly-don-cod" hidePageTitle>
+    <ProtectedPage title="Quản lý hoàn tiền" screen="quan-ly-don-cod" hidePageTitle>
       <M3Page>
         <Page />
       </M3Page>
@@ -159,6 +159,7 @@ function Page() {
   const [status, setStatus] = useState("");
   /** "" | DONE (đã xác nhận xử lý COD) | PENDING (chưa xử lý). */
   const [codHandled, setCodHandled] = useState("");
+  const [moneyTab, setMoneyTab] = useState<"cod" | "door">("cod");
   const [loading, setLoading] = useState(false);
   const statusOptions = useMemo(() => {
     const labels = new Set(rows.map((o) => orderTabStatusLabel(o)));
@@ -441,9 +442,19 @@ function Page() {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
+      <div className="seg" role="tablist" aria-label="Quản lý hoàn tiền">
+        <button type="button" className={moneyTab === "cod" ? "on" : ""} onClick={() => setMoneyTab("cod")}>
+          Đơn COD
+        </button>
+        <button type="button" className={moneyTab === "door" ? "on" : ""} onClick={() => setMoneyTab("door")}>
+          Hoàn phí giao tận nơi
+        </button>
+      </div>
+      {moneyTab === "door" ? <DoorRefundPanel /> : (
+      <>
       <div className="title-row" style={{ marginTop: 0 }}>
         <div>
-          <h1 className="page-title">Quản lý đơn COD</h1>
+          <h1 className="page-title">Quản lý hoàn tiền</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className="btn ghost" onClick={clearFilters}>
@@ -930,6 +941,8 @@ function Page() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </>
+      )}
     </div>
   );
 }

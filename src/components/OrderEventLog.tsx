@@ -35,6 +35,8 @@ const ICONS: Array<[RegExp, string]> = [
   [/^(HANDOVER|HANDOVER_DRIVER|KY_BAN_GIAO_TAI_XE)$/, "draw"],
   [/^PAYMENT_TERM_CHANGE$/, "currency_exchange"],
   [/^COD_FEE_REFUND$/, "undo"],
+  [/^DOOR_FEE_REFUND$/, "undo"],
+  [/^DOOR_/, "location_off"],
   [/^DECLARED_FEE_KEEP$/, "price_change"],
   [/^RECEIPT_CANCEL$/, "cancel"],
   [/^RECEIPT_CONFIRM/, "fact_check"],

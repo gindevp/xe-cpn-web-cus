@@ -74,8 +74,10 @@ import { canWrite, isReadOnlyRole, useRbacVersion } from "@/lib/rbac";
 import {
   orderEditableFields,
   canEditReceiverOffice,
+  canCancelHomeDelivery,
   type OrderEditableFields,
 } from "@/lib/order-edit-policy";
+import { CancelHomeDeliveryDialog } from "@/components/CancelHomeDeliveryDialog";
 import { senderPaidFull } from "@/lib/extra-fare-payer";
 import { NameInput } from "@/components/NameInput";
 import { PhoneInput } from "@/components/PhoneInput";
@@ -556,6 +558,7 @@ export function OrderHistoryDialog({
   const [rerouteOpen, setRerouteOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [transferQrOpen, setTransferQrOpen] = useState(false);
+  const [cancelDoorOpen, setCancelDoorOpen] = useState(false);
   const shownEvents = useMemo(
     () => events.filter((e) => isVisibleOrderEvent(e.action, e.detail)),
     [events],
@@ -1270,6 +1273,12 @@ export function OrderHistoryDialog({
                       onOpenChange={setRerouteOpen}
                       onChanged={() => void reload(o.code)}
                     />
+                    <CancelHomeDeliveryDialog
+                      order={o}
+                      open={cancelDoorOpen}
+                      onOpenChange={setCancelDoorOpen}
+                      onDone={() => void reload(o.code)}
+                    />
                   </FieldShell>
                   {!editing || editFields.receiverAddress || o.address ? (
                     <FieldShell label="Địa chỉ giao hàng">
@@ -1285,7 +1294,7 @@ export function OrderHistoryDialog({
                       )}
                     </FieldShell>
                   ) : null}
-                  {editing && form && editFields.homeDelivery ? (
+                  {editing && form && editFields.homeDelivery && !o.doorCancelAt ? (
                     <label
                       className="lab"
                       style={{
@@ -1302,14 +1311,34 @@ export function OrderHistoryDialog({
                       Giao tận nơi
                       <Switch
                         checked={form.homeDelivery}
-                        onCheckedChange={(v) => setForm({ ...form, homeDelivery: v })}
+                        onCheckedChange={(v) => {
+                          if (!v && o.homeDelivery) {
+                            toast.error("Dùng nút Huỷ giao tận nơi — không tắt bằng công tắc");
+                            return;
+                          }
+                          setForm({ ...form, homeDelivery: v });
+                        }}
                       />
                     </label>
                   ) : (
                     <FieldShell label="Giao tận nơi">
-                      <ViewValue
-                        value={doorLabel(o.homeDelivery, money.delivery, createInfo.deliveryKm ?? o.deliveryKm)}
-                      />
+                      {o.doorCancelAt ? (
+                        <div className="view-val">Đã huỷ giao tận nơi</div>
+                      ) : (
+                        <ViewValue
+                          value={doorLabel(o.homeDelivery, money.delivery, createInfo.deliveryKm ?? o.deliveryKm)}
+                        />
+                      )}
+                      {canCancelHomeDelivery(o, canEditOpsRole) ? (
+                        <button
+                          type="button"
+                          className="text-act"
+                          style={{ color: "var(--error)", marginTop: 4 }}
+                          onClick={() => setCancelDoorOpen(true)}
+                        >
+                          Huỷ giao tận nơi
+                        </button>
+                      ) : null}
                     </FieldShell>
                   )}
                   <AutoCallMini call={autoCalls.receiver} />
