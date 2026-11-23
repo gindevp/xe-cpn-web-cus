@@ -75,6 +75,7 @@ import {
   orderEditableFields,
   canEditReceiverOffice,
   canCancelHomeDelivery,
+  senderPaidDoorFee,
   type OrderEditableFields,
 } from "@/lib/order-edit-policy";
 import { CancelHomeDeliveryDialog } from "@/components/CancelHomeDeliveryDialog";
@@ -954,6 +955,14 @@ export function OrderHistoryDialog({
         patch.homePickup = form.homePickup;
       }
       if (fields.homeDelivery && form.homeDelivery !== Boolean(o.homeDelivery)) {
+        if (form.homeDelivery && o.doorCancelAt) {
+          toast.error("Đơn đã huỷ giao tận nơi — không bật lại");
+          return;
+        }
+        if (!form.homeDelivery && o.homeDelivery && senderPaidDoorFee(o)) {
+          toast.error("Dùng nút Huỷ giao tận nơi — không tắt bằng sửa đơn");
+          return;
+        }
         patch.homeDelivery = form.homeDelivery;
       }
 
@@ -1280,66 +1289,122 @@ export function OrderHistoryDialog({
                       onDone={() => void reload(o.code)}
                     />
                   </FieldShell>
-                  {!editing || editFields.receiverAddress || o.address ? (
-                    <FieldShell label="Địa chỉ giao hàng">
-                      {editing && form && editFields.receiverAddress ? (
-                        <Input
-                          className="h-10"
-                          value={form.address}
-                          placeholder="Địa chỉ hoặc link Google Maps"
-                          onChange={(e) => setForm({ ...form, address: e.target.value })}
-                        />
-                      ) : (
-                        <ViewValue value={o.address ?? ""} />
-                      )}
-                    </FieldShell>
-                  ) : null}
-                  {editing && form && editFields.homeDelivery && !o.doorCancelAt ? (
-                    <label
-                      className="lab"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 8,
-                        minHeight: 40,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span className="ms" aria-hidden="true">
-                        location_on
-                      </span>
-                      Giao tận nơi
-                      <Switch
-                        checked={form.homeDelivery}
-                        onCheckedChange={(v) => {
-                          if (!v && o.homeDelivery) {
-                            toast.error("Dùng nút Huỷ giao tận nơi — không tắt bằng công tắc");
-                            return;
-                          }
-                          setForm({ ...form, homeDelivery: v });
-                        }}
-                      />
-                    </label>
-                  ) : (
+                  {o.doorCancelAt ? (
                     <FieldShell label="Giao tận nơi">
-                      {o.doorCancelAt ? (
-                        <div className="view-val">Đã huỷ giao tận nơi</div>
-                      ) : (
-                        <ViewValue
-                          value={doorLabel(o.homeDelivery, money.delivery, createInfo.deliveryKm ?? o.deliveryKm)}
-                        />
-                      )}
+                      <div className="view-val">Đã huỷ giao tận nơi</div>
+                    </FieldShell>
+                  ) : o.homeDelivery && senderPaidDoorFee(o) ? (
+                    <>
+                      <FieldShell label="Giao tận nơi">
+                        <ViewValue value="Có" />
+                      </FieldShell>
+                      {editing && form && editFields.receiverAddress ? (
+                        <FieldShell label="Địa chỉ giao hàng" className="view-nest">
+                          <Input
+                            className="h-10"
+                            value={form.address}
+                            placeholder="Địa chỉ hoặc link Google Maps"
+                            onChange={(e) => setForm({ ...form, address: e.target.value })}
+                          />
+                        </FieldShell>
+                      ) : o.address ? (
+                        <FieldShell label="Địa chỉ giao hàng" className="view-nest">
+                          <ViewValue value={o.address} />
+                        </FieldShell>
+                      ) : null}
                       {canCancelHomeDelivery(o, canEditOpsRole) ? (
                         <button
                           type="button"
-                          className="text-act"
-                          style={{ color: "var(--error)", marginTop: 4 }}
+                          className="text-act danger"
+                          style={{
+                            alignSelf: "flex-start",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            marginTop: 2,
+                            paddingLeft: 4,
+                          }}
                           onClick={() => setCancelDoorOpen(true)}
                         >
+                          <span
+                            className="ms"
+                            aria-hidden="true"
+                            style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}
+                          >
+                            do_not_disturb_on
+                          </span>
                           Huỷ giao tận nơi
                         </button>
                       ) : null}
-                    </FieldShell>
+                    </>
+                  ) : editing && form && editFields.homeDelivery ? (
+                    <>
+                      <label
+                        className="lab"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          minHeight: 40,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span className="ms" aria-hidden="true">
+                          location_on
+                        </span>
+                        Giao tận nơi
+                        <Switch
+                          checked={form.homeDelivery}
+                          onCheckedChange={(v) => {
+                            if (v && o.doorCancelAt) {
+                              toast.error("Đơn đã huỷ giao tận nơi — không bật lại");
+                              return;
+                            }
+                            if (!v && o.homeDelivery && senderPaidDoorFee(o)) {
+                              toast.error("Dùng nút Huỷ giao tận nơi — không tắt bằng công tắc");
+                              return;
+                            }
+                            setForm({ ...form, homeDelivery: v });
+                          }}
+                        />
+                      </label>
+                      {form.homeDelivery || editFields.receiverAddress || o.address ? (
+                        <FieldShell label="Địa chỉ giao hàng">
+                          {editFields.receiverAddress ? (
+                            <Input
+                              className="h-10"
+                              value={form.address}
+                              placeholder="Địa chỉ hoặc link Google Maps"
+                              onChange={(e) => setForm({ ...form, address: e.target.value })}
+                            />
+                          ) : (
+                            <ViewValue value={o.address ?? ""} />
+                          )}
+                        </FieldShell>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      {!editing || editFields.receiverAddress || o.address ? (
+                        <FieldShell label="Địa chỉ giao hàng">
+                          {editing && form && editFields.receiverAddress ? (
+                            <Input
+                              className="h-10"
+                              value={form.address}
+                              placeholder="Địa chỉ hoặc link Google Maps"
+                              onChange={(e) => setForm({ ...form, address: e.target.value })}
+                            />
+                          ) : (
+                            <ViewValue value={o.address ?? ""} />
+                          )}
+                        </FieldShell>
+                      ) : null}
+                      <FieldShell label="Giao tận nơi">
+                        <ViewValue
+                          value={doorLabel(o.homeDelivery, money.delivery, createInfo.deliveryKm ?? o.deliveryKm)}
+                        />
+                      </FieldShell>
+                    </>
                   )}
                   <AutoCallMini call={autoCalls.receiver} />
                 </section>

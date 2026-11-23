@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { cancelHomeDelivery } from "@/lib/api/domain-api";
+import { senderPaidDoorFee } from "@/lib/order-edit-policy";
 import type { OrderX } from "@/lib/store";
 
 const REASONS = [
@@ -9,11 +10,7 @@ const REASONS = [
   "Không liên lạc được người nhận",
 ];
 
-export function senderPaidDoorFee(order: Pick<OrderX, "paidAmount" | "deliveryFee">): boolean {
-  const fee = Math.round(Number(order.deliveryFee) || 0);
-  const paid = Math.round(Number(order.paidAmount) || 0);
-  return fee > 0 && paid >= fee;
-}
+export { senderPaidDoorFee };
 
 export function CancelHomeDeliveryDialog({
   order,

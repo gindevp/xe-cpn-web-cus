@@ -213,12 +213,28 @@ const DELIVERED_COD_BANK: OrderEditableFields = {
   codBank: true,
 };
 
-/** Đơn đang giao (ship chưa huỷ) thì không tắt giao tận nơi. */
+/** Người gửi đã trả đủ phí giao tận nơi trên đơn (điều kiện hiện nút huỷ + hoàn phí). */
+export function senderPaidDoorFee(
+  o: Pick<Order, "paidAmount" | "deliveryFee"> | null | undefined,
+): boolean {
+  const fee = Math.round(Number(o?.deliveryFee) || 0);
+  const paid = Math.round(Number(o?.paidAmount) || 0);
+  return fee > 0 && paid >= fee;
+}
+
+/**
+ * Nút «Huỷ giao tận nơi»: ops, đang GTN, đã thu đủ phí giao, chưa huỷ trước đó,
+ * không đang giao/hoàn/đã kết thúc.
+ */
 export function canCancelHomeDelivery(
-  o: Pick<Order, "status" | "homeDelivery" | "doorCancelAt"> & { stage?: string | null; returnStage?: string | null } | null | undefined,
+  o: Pick<Order, "status" | "homeDelivery" | "doorCancelAt" | "paidAmount" | "deliveryFee"> & {
+    stage?: string | null;
+    returnStage?: string | null;
+  } | null | undefined,
   canOps: boolean,
 ): boolean {
   if (!canOps || !o?.homeDelivery || o.doorCancelAt) return false;
+  if (!senderPaidDoorFee(o)) return false;
   if (o.returnStage || o.status === "RETURNING") return false;
   if (o.stage === "DELIVERING" || o.status === "OUT_FOR_DELIVERY") return false;
   if (o.status === "DELIVERED" || o.status === "CANCELLED" || o.status === "RETURNED") return false;
