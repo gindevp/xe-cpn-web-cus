@@ -1,14 +1,35 @@
-import { useState } from "react";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { cancelHomeDelivery } from "@/lib/api/domain-api";
+import { officeName } from "@/lib/mock-data";
 import { senderPaidDoorFee } from "@/lib/order-edit-policy";
 import type { OrderX } from "@/lib/store";
+import { toast } from "sonner";
 
-const REASONS = [
+const REASON_OPTIONS = [
   "Người nhận muốn tự đến VP lấy",
   "Địa chỉ ngoài vùng giao tận nơi",
   "Không liên lạc được người nhận",
-];
+].map((r) => ({ value: r, label: r }));
+
+const BANK_OPTIONS = [
+  "Vietcombank",
+  "VietinBank",
+  "BIDV",
+  "Agribank",
+  "Techcombank",
+  "MB Bank",
+  "ACB",
+  "VPBank",
+  "TPBank",
+  "Sacombank",
+  "SHB",
+  "HDBank",
+  "VIB",
+  "MSB",
+  "OCB",
+].map((b) => ({ value: b, label: b }));
 
 export { senderPaidDoorFee };
 
@@ -25,13 +46,22 @@ export function CancelHomeDeliveryDialog({
 }) {
   const refund = senderPaidDoorFee(order);
   const fee = Math.round(Number(order.deliveryFee) || 0);
+  const officeLabel = officeName(order.finalToOffice || order.toOffice) || "văn phòng";
   const [reason, setReason] = useState("");
-  const [bankName, setBankName] = useState(order.bankName ?? "");
-  const [accountNo, setAccountNo] = useState(order.bankAccountNo ?? "");
-  const [accountName, setAccountName] = useState(order.bankAccountName ?? "");
+  const [bankName, setBankName] = useState("");
+  const [accountNo, setAccountNo] = useState("");
+  const [accountName, setAccountName] = useState("");
   const [busy, setBusy] = useState(false);
-  if (!open) return null;
-  const office = order.finalToOffice || order.toOffice;
+
+  useEffect(() => {
+    if (!open) return;
+    setReason("");
+    setBankName(order.bankName ?? "");
+    setAccountNo(order.bankAccountNo ?? "");
+    setAccountName(order.bankAccountName ?? "");
+    setBusy(false);
+  }, [open, order.code, order.bankName, order.bankAccountNo, order.bankAccountName]);
+
   const submit = async () => {
     if (!reason) {
       toast.error("Chọn lý do huỷ");
@@ -58,77 +88,82 @@ export function CancelHomeDeliveryDialog({
       setBusy(false);
     }
   };
+
   return (
-    <div className="scrim" role="presentation" onMouseDown={() => !busy && onOpenChange(false)}>
-      <div
-        className="sheet"
-        role="dialog"
-        aria-labelledby="cancel-door-title"
-        style={{ width: "min(100%, 480px)" }}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <h2 id="cancel-door-title" style={{ margin: 0 }}>
-          Huỷ giao tận nơi?
-        </h2>
-        <p className="muted" style={{ margin: "8px 0 0" }}>
-          Đơn chuyển sang nhận tại {office || "văn phòng"}.
-          {refund
-            ? ` Hoàn ${fee.toLocaleString("vi-VN")} đ phí giao tận nơi cho người gửi. Không hoàn tác được.`
-            : " Chưa thu phí giao — chỉ tắt giao tận nơi, không tạo hoàn."}
-        </p>
-        <label className="field" style={{ marginTop: 12 }}>
-          <span className="l">Lý do huỷ *</span>
-          <span className="box sel-box">
-            <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Lý do huỷ">
-              <option value="">Chọn lý do</option>
-              {REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            <span className="ms" aria-hidden="true">
-              expand_more
-            </span>
-          </span>
-        </label>
+    <M3Sheet open={open} onOpenChange={onOpenChange} variant="confirm">
+      <M3SheetTitle>Huỷ giao tận nơi?</M3SheetTitle>
+      <p className="lab muted" style={{ margin: 0 }}>
+        Đơn chuyển sang nhận tại <strong style={{ color: "var(--on-surface)" }}>{officeLabel}</strong>.
         {refund ? (
-          <div className="stack" style={{ gap: 8, marginTop: 8 }}>
-            <div className="l">Tài khoản nhận tiền hoàn</div>
-            <p className="muted" style={{ margin: 0 }}>
-              Điền sẵn theo tài khoản nhận COD, sửa nếu khách muốn nhận vào tài khoản khác.
-            </p>
-            <label className="field">
-              <span className="l">Ngân hàng *</span>
+          <>
+            {" "}
+            Hoàn {fee.toLocaleString("vi-VN")} đ phí giao tận nơi cho người gửi.{" "}
+            <span style={{ color: "var(--error)", fontWeight: 500 }}>Không hoàn tác được.</span>
+          </>
+        ) : (
+          " Chưa thu phí giao — chỉ tắt giao tận nơi, không tạo hoàn."
+        )}
+      </p>
+
+      <label className="field" style={{ flex: "none", width: "100%", minWidth: 0 }}>
+        <span className="l">Lý do huỷ *</span>
+        <SearchableSelect
+          value={reason}
+          onValueChange={setReason}
+          placeholder="Chọn lý do"
+          options={REASON_OPTIONS}
+        />
+      </label>
+
+      {refund ? (
+        <fieldset className="refund-box">
+          <legend>Tài khoản nhận tiền hoàn</legend>
+          <p className="lab muted" style={{ margin: 0 }}>
+            Điền sẵn theo tài khoản nhận COD, sửa nếu khách muốn nhận vào tài khoản khác.
+          </p>
+          <label className="field" style={{ flex: "none", width: "100%", minWidth: 0 }}>
+            <span className="l">Ngân hàng *</span>
+            <SearchableSelect
+              value={bankName}
+              onValueChange={setBankName}
+              placeholder="Chọn ngân hàng"
+              options={BANK_OPTIONS}
+            />
+          </label>
+          <div className="refund-box-row">
+            <label className="field" style={{ flex: 1, minWidth: 0 }}>
+              <span className="l">Số tài khoản *</span>
               <span className="box input-box">
-                <input value={bankName} onChange={(e) => setBankName(e.target.value)} />
+                <input
+                  inputMode="numeric"
+                  value={accountNo}
+                  onChange={(e) => setAccountNo(e.target.value)}
+                  aria-label="Số tài khoản"
+                />
               </span>
             </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <label className="field" style={{ flex: 1 }}>
-                <span className="l">Số tài khoản *</span>
-                <span className="box input-box">
-                  <input value={accountNo} onChange={(e) => setAccountNo(e.target.value)} />
-                </span>
-              </label>
-              <label className="field" style={{ flex: 1 }}>
-                <span className="l">Tên tài khoản *</span>
-                <span className="box input-box">
-                  <input value={accountName} onChange={(e) => setAccountName(e.target.value)} />
-                </span>
-              </label>
-            </div>
+            <label className="field" style={{ flex: 1, minWidth: 0 }}>
+              <span className="l">Tên tài khoản *</span>
+              <span className="box input-box">
+                <input
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  aria-label="Tên tài khoản"
+                />
+              </span>
+            </label>
           </div>
-        ) : null}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
-          <button type="button" className="btn ghost" disabled={busy} onClick={() => onOpenChange(false)}>
-            Đóng
-          </button>
-          <button type="button" className="btn danger" disabled={busy} onClick={() => void submit()}>
-            {busy ? "Đang huỷ…" : "Huỷ giao tận nơi"}
-          </button>
-        </div>
-      </div>
-    </div>
+        </fieldset>
+      ) : null}
+
+      <M3ConfirmActions>
+        <button type="button" className="btn ghost" disabled={busy} onClick={() => onOpenChange(false)}>
+          Đóng
+        </button>
+        <button type="button" className="btn danger" disabled={busy} onClick={() => void submit()}>
+          {busy ? "Đang huỷ…" : "Huỷ giao tận nơi"}
+        </button>
+      </M3ConfirmActions>
+    </M3Sheet>
   );
 }
