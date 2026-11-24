@@ -17,6 +17,7 @@ import { OrderStatusBadge } from "@/components/StatusBadge";
 import { StaffSenderTransferQrAction } from "@/components/StaffSenderTransferQrAction";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { isoInVnDayRange } from "@/lib/vn-day-range";
 import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import { formatDateTime, officeName } from "@/lib/mock-data";
 import {
@@ -167,8 +168,7 @@ function Page() {
       office: session?.office,
     });
     return inScope.filter((o) => {
-      if (from && new Date(o.createdAt) < new Date(from)) return false;
-      if (to && new Date(o.createdAt) > new Date(to + "T23:59:59")) return false;
+      if (!isoInVnDayRange(o.createdAt, from, to)) return false;
       if (senderOffice && o.fromOffice !== senderOffice) return false;
       if (kw) {
         const hay =

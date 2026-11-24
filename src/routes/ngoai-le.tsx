@@ -28,6 +28,7 @@ import {
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { isoInVnDayRange } from "@/lib/vn-day-range";
 import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import {
   AUTO_EXCEPTION_DAYS,
@@ -200,7 +201,7 @@ function Page() {
     setCancelRequestsLoading(true);
     try {
       const domain = await import("@/lib/api/domain-api");
-      const { rows } = await domain.listOrdersPage({ cancelRequests: "only", size: 500 });
+      const rows = await domain.listOrdersAllPages({ cancelRequests: "only", size: 100 }, 20);
       setCancelRequests(rows);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Không tải được yêu cầu huỷ");
@@ -223,8 +224,8 @@ function Page() {
         o.toOffice !== session.office
       )
         return false;
-      if (from && new Date(o.createdAt) < new Date(from)) return false;
-      if (to && new Date(o.createdAt) > new Date(to + "T23:59:59")) return false;
+      // Lọc theo lúc mở ngoại lệ (cột thời gian), không phải ngày tạo đơn.
+      if (!isoInVnDayRange(o.issue?.at ?? o.updatedAt ?? o.createdAt, from, to)) return false;
       if (office && o.fromOffice !== office && o.toOffice !== office) return false;
       if (kw) {
         const hay =

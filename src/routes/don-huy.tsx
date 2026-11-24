@@ -27,6 +27,7 @@ import {
 import { useStore, type OrderX } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { hasAllOfficeScope } from "@/lib/office-scope";
+import { isoInVnDayRange } from "@/lib/vn-day-range";
 import { toast } from "sonner";
 import {
   Search,
@@ -96,8 +97,7 @@ export function DonHuyPanel() {
         o.toOffice !== session.office
       )
         return false;
-      if (from && new Date(o.createdAt) < new Date(from)) return false;
-      if (to && new Date(o.createdAt) > new Date(to + "T23:59:59")) return false;
+      if (!isoInVnDayRange(cancelInfo(o).at, from, to)) return false;
       if (office && o.fromOffice !== office && o.toOffice !== office) return false;
       if (kw) {
         const hay =
@@ -120,8 +120,8 @@ export function DonHuyPanel() {
     (page, size) =>
       listOrdersPage({
         statuses: ["CANCELLED"],
-        createdFrom: from || undefined,
-        createdTo: to || undefined,
+        updatedFrom: from || undefined,
+        updatedTo: to || undefined,
         officeCode: office || undefined,
         keyword: kwDebounced || undefined,
         sort: "updatedAt,desc",

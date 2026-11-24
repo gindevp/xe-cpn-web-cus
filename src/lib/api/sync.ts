@@ -6,6 +6,7 @@ import { foldOfficeKey, isPendingCancelRequest, officesMatchingPoint, preferredO
 import { clearRuntimePermissions } from "../rbac";
 import { assignedOfficeCode, resolveViewOffice } from "../office-scope";
 import { setOrdersLoadState } from "../orders-load-state";
+import { vnDayOffset } from "../vn-day-range";
 
 export async function syncMasterFromApi() {
   if (!isApiEnabled()) return;
@@ -103,19 +104,6 @@ const OPEN_PIPELINE_STATUSES = [
 
 const RECENT_TERMINAL_STATUSES = ["DELIVERED", "CANCELLED", "RETURNED"] as const;
 
-function vnDayOffset(daysAgo: number): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date(Date.now() - daysAgo * 86_400_000));
-  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-  const m = parts.find((p) => p.type === "month")?.value ?? "01";
-  const d = parts.find((p) => p.type === "day")?.value ?? "01";
-  return `${y}-${m}-${d}`;
-}
-
 async function loadOrderPages(
   take: (rows: Awaited<ReturnType<typeof domain.listOrders>>) => void,
   query: Parameters<typeof domain.listOrdersPage>[0],
@@ -144,7 +132,7 @@ async function loadOrdersWorkingSet() {
   // (2) Đơn đã kết thúc trong N ngày gần (tab Giao thành công / đối soát nhanh).
   // Lịch sử cũ hơn: màn tra cứu tự gọi API theo trang. VP = gửi / đến / nhận.
   const pendingReq = domain
-    .listOrdersPage({ cancelRequests: "only", size: 100, officeCode: officeCode || undefined })
+    .listOrdersAllPages({ cancelRequests: "only", size: 100, officeCode: officeCode || undefined }, 20)
     .catch(() => null);
   const keep = new Set<string>();
   const take = (rows: Awaited<ReturnType<typeof domain.listOrders>>) => {
@@ -176,7 +164,7 @@ async function loadOrdersWorkingSet() {
   lastFullOrdersSyncAt = Date.now();
   pruneStaleFinishedOrders(keep);
   const pending = await pendingReq;
-  if (pending?.rows.length) mergeRemoteOrders(pending.rows);
+  if (pending?.length) mergeRemoteOrders(pending);
 }
 
 /** Bỏ khỏi store đơn đã kết thúc quá cửa sổ làm việc (không còn trong kết quả server) để store không phình theo thời gian. */
@@ -289,8 +277,8 @@ function mergeRemoteOrders(remote: Awaited<ReturnType<typeof domain.listOrders>>
 export async function syncTripsFromApi() {
   if (!isApiEnabled()) return;
   // Không lọc office trên FE: BE đã scope theo staff VP; admin (ALL) cần đủ chuyến để map biển số.
-  // VP vẫn nhận chuyến thuộc VP mình từ BE; thiếu chuyến không còn làm tab "Hàng trên xe" hiện mã chuyến thay biển (plate lấy từ order.vehiclePlate).
-  const trips = await domain.listTrips({ size: 200 });
+  // Phân trang — trước đây size 200 làm thiếu biển số với chuyến cũ hơn.
+  const trips = await domain.listTripsAllPages({ size: 200 }, 25);
   useStore.setState({ trips });
 }
 
@@ -298,10 +286,28 @@ export async function syncFinanceFromApi() {
   if (!isApiEnabled()) return;
   const st = useStore.getState();
   const officeCode = assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice));
-  const receipts = await fin.listReceipts({
+  // Phiếu 14 ngày gần + phân trang; màn danh sách phiếu thu vẫn tự gọi API theo lọc.
+  const dayFrom = vnDayOffset(14);
+  const size = 200;
+  const maxPages = 15;
+  const first = await fin.listReceiptsPage({
     officeCode: officeCode || undefined,
-    size: 200,
+    dayFrom,
+    page: 0,
+    size,
   });
+  const receipts = [...first.rows];
+  const pageCount = Math.min(maxPages, Math.max(1, Math.ceil(first.total / size)));
+  for (let page = 1; page < pageCount; page++) {
+    const next = await fin.listReceiptsPage({
+      officeCode: officeCode || undefined,
+      dayFrom,
+      page,
+      size,
+    });
+    receipts.push(...next.rows);
+    if (next.rows.length < size) break;
+  }
   useStore.setState({ receipts });
 }
 

@@ -17,7 +17,7 @@ import {
   unloadDestOffice,
 } from "@/lib/unload-scan";
 import { ApiError, isApiEnabled } from "@/lib/api/client";
-import { getOrder, listOrders, scanIn } from "@/lib/api/domain-api";
+import { getOrder, listOrdersAllPages, scanIn } from "@/lib/api/domain-api";
 import { fetchAccount, officeFromAccount } from "@/lib/api/auth-api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -164,19 +164,26 @@ function Page() {
   const refreshInbound = useCallback(async () => {
     if (!isApiEnabled() || !scannerOffice) return;
     try {
-      // IN_TRANSIT = còn trên xe; AT_DEST = đã nhập kho giao (giữ tab Đã xuống đủ đúng).
+      // Phân trang đủ: trước size:200 làm VP đông thiếu kiện trên xe / đã xuống.
+      const pageSize = 100;
+      const maxPages = 40;
       const [inTransit, atDest, viaHub, returningViaHub] = await Promise.all([
-        listOrders({ toOfficeCode: scannerOffice, status: "IN_TRANSIT", size: 200 }),
-        listOrders({ toOfficeCode: scannerOffice, status: "AT_DEST", size: 200 }).catch(
-          () => [] as Order[],
+        listOrdersAllPages(
+          { toOfficeCode: scannerOffice, status: "IN_TRANSIT", size: pageSize },
+          maxPages,
         ),
-        // Đơn trung chuyển đang tới VP này (VP trung chuyển).
-        listOrders({ hubOfficeCode: scannerOffice, status: "IN_TRANSIT", size: 200 }).catch(
-          () => [] as Order[],
-        ),
-        listOrders({ hubOfficeCode: scannerOffice, status: "RETURNING", size: 200 }).catch(
-          () => [] as Order[],
-        ),
+        listOrdersAllPages(
+          { toOfficeCode: scannerOffice, status: "AT_DEST", size: pageSize },
+          maxPages,
+        ).catch(() => [] as Order[]),
+        listOrdersAllPages(
+          { hubOfficeCode: scannerOffice, status: "IN_TRANSIT", size: pageSize },
+          maxPages,
+        ).catch(() => [] as Order[]),
+        listOrdersAllPages(
+          { hubOfficeCode: scannerOffice, status: "RETURNING", size: pageSize },
+          maxPages,
+        ).catch(() => [] as Order[]),
       ]);
       const inbound = [...inTransit, ...atDest, ...viaHub, ...returningViaHub];
       if (!inbound.length) return;

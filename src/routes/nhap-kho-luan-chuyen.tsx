@@ -46,6 +46,7 @@ import { OrderTransferQrDialog } from "@/components/OrderTransferQrDialog";
 import { isApiEnabled } from "@/lib/api/client";
 import { StageTabButton, StageTabRow, useJumpToMatchingTab } from "@/components/StageTabs";
 import { useActivityFilters } from "@/lib/activity-filters";
+import { isoInVnDayRange } from "@/lib/vn-day-range";
 import { useRegisterPageFilters } from "@/lib/page-filter-slot";
 import { cn } from "@/lib/utils";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -639,23 +640,18 @@ function Page() {
 
   const base = useMemo(() => {
     const kw = q.trim().toLowerCase();
-    const fromMs = from ? Date.parse(`${from}T00:00:00+07:00`) : NaN;
-    const toMs = to ? Date.parse(`${to}T23:59:59.999+07:00`) : NaN;
     return orders.filter((o) => {
       if ((o as OrderX).issue && !(o as OrderX).issue?.resolvedAt) return false;
       const stage = stageOf(o);
       if (!stage) return false;
-      // Lọc ngày theo mốc tab hiện tại (Nhập kho giao → destWarehouseInAt), không phải ngày tạo —
-      // tránh «chỉ thấy tới 23/11» khi đơn tạo sớm hơn nhưng mới nhập kho hôm nay.
+      // Lọc ngày theo mốc tab hiện tại (Nhập kho giao → destWarehouseInAt), không phải ngày tạo.
       if (from || to) {
         const at =
           stageTimeOf(o as OrderX, stage)?.at ||
           (o as OrderX).updatedAt ||
           o.createdAt ||
           "";
-        const t = Date.parse(at);
-        if (Number.isFinite(fromMs) && !(Number.isFinite(t) && t >= fromMs)) return false;
-        if (Number.isFinite(toMs) && !(Number.isFinite(t) && t <= toMs)) return false;
+        if (!isoInVnDayRange(at, from, to)) return false;
       }
       if (kw) {
         const trip = o.tripCode ? tripByCode.get(o.tripCode) : undefined;

@@ -495,6 +495,26 @@ export async function listOrders(params?: ListOrdersParams) {
   return (await listOrdersPage(params)).rows;
 }
 
+/**
+ * Tải hết trang đơn khớp bộ lọc (trần maxPages). Dùng cho quét nhập / bù inbound —
+ * tránh thiếu đơn khi `size` một phát không đủ.
+ */
+export async function listOrdersAllPages(
+  params: ListOrdersParams | undefined,
+  maxPages = 50,
+): Promise<OrderX[]> {
+  const size = params?.size ?? 100;
+  const first = await listOrdersPage({ ...params, page: 0, size });
+  const rows = [...first.rows];
+  const pageCount = Math.min(maxPages, Math.max(1, Math.ceil(first.total / size)));
+  for (let page = 1; page < pageCount; page++) {
+    const next = await listOrdersPage({ ...params, page, size });
+    rows.push(...next.rows);
+    if (next.rows.length < size) break;
+  }
+  return rows;
+}
+
 /** Một trang đơn từ server kèm tổng số dòng khớp bộ lọc. */
 export async function listOrdersPage(
   params?: ListOrdersParams,
@@ -1218,13 +1238,41 @@ export async function ahamoveCancel(code: string, reason?: string) {
   });
 }
 
-export async function listTrips(params?: { officeCode?: string; size?: number; keyword?: string }) {
+export async function listTripsPage(params?: {
+  officeCode?: string;
+  size?: number;
+  page?: number;
+  keyword?: string;
+}) {
   const q = new URLSearchParams();
   if (params?.officeCode && params.officeCode !== "ALL") q.set("officeCode", params.officeCode);
   if (params?.keyword) q.set("keyword", params.keyword);
+  if (params?.page != null) q.set("page", String(params.page));
   q.set("size", String(params?.size ?? 100));
   const page = await apiRequest<ListPage<TripSummary>>(`/api/trips?${q}`);
-  return (page.content ?? []).map(mapTrip);
+  const rows = (page.content ?? []).map(mapTrip);
+  return { rows, total: page.totalElements ?? rows.length };
+}
+
+export async function listTrips(params?: { officeCode?: string; size?: number; keyword?: string }) {
+  return (await listTripsPage(params)).rows;
+}
+
+/** Tải nhiều trang chuyến (map biển số / tài xế trên màn kho). */
+export async function listTripsAllPages(
+  params?: { officeCode?: string; size?: number; keyword?: string },
+  maxPages = 25,
+) {
+  const size = params?.size ?? 200;
+  const first = await listTripsPage({ ...params, page: 0, size });
+  const rows = [...first.rows];
+  const pageCount = Math.min(maxPages, Math.max(1, Math.ceil(first.total / size)));
+  for (let page = 1; page < pageCount; page++) {
+    const next = await listTripsPage({ ...params, page, size });
+    rows.push(...next.rows);
+    if (next.rows.length < size) break;
+  }
+  return rows;
 }
 
 export async function getTrip(code: string) {

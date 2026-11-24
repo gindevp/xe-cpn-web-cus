@@ -40,6 +40,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { hasAllOfficeScope } from "@/lib/office-scope";
 import { useStore } from "@/lib/store";
+import { isoInVnDayRange } from "@/lib/vn-day-range";
 import { displayOrderNote, orderGoodsLabel, packageRows, applyPackageRemove, packageCode, packageCount } from "@/lib/package-label";
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { TaoDonDialog, type TaoDonInitial } from "@/components/TaoDonDialog";
@@ -210,13 +211,7 @@ function Page() {
       )
         return false;
 
-      if (applied.from && new Date(o.createdAt) < new Date(applied.from))
-        return false;
-      if (
-        applied.to &&
-        new Date(o.createdAt) > new Date(applied.to + "T23:59:59")
-      )
-        return false;
+      if (!isoInVnDayRange(o.createdAt, applied.from, applied.to)) return false;
       if (
         applied.senderOffices.length > 0 &&
         !applied.senderOffices.includes(o.fromOffice)
