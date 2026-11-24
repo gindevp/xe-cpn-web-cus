@@ -89,18 +89,60 @@ export function syncOrdersFromApi(): Promise<void> {
   return ordersSyncInFlight;
 }
 
+/** Đơn mở trên pipeline kho — gồm tồn lâu (AT_DEST không cập nhật nhiều ngày) + chờ bàn giao. */
+const OPEN_PIPELINE_STATUSES = [
+  "DRAFT",
+  "CONFIRMED",
+  "WAITING",
+  "IN_TRANSIT",
+  "AT_DEST",
+  "OUT_FOR_DELIVERY",
+  "FAILED_DELIVERY",
+  "RETURNING",
+] as const;
+
+const RECENT_TERMINAL_STATUSES = ["DELIVERED", "CANCELLED", "RETURNED"] as const;
+
+function vnDayOffset(daysAgo: number): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(Date.now() - daysAgo * 86_400_000));
+  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const m = parts.find((p) => p.type === "month")?.value ?? "01";
+  const d = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${d}`;
+}
+
+async function loadOrderPages(
+  take: (rows: Awaited<ReturnType<typeof domain.listOrders>>) => void,
+  query: Parameters<typeof domain.listOrdersPage>[0],
+  maxPages: number,
+  onFirstPage?: () => void,
+) {
+  const first = await domain.listOrdersPage({ ...query, page: 0 });
+  take(first.rows);
+  onFirstPage?.();
+  const pageCount = Math.min(maxPages, Math.ceil(first.total / WORKING_SET_PAGE_SIZE));
+  if (first.rows.length < WORKING_SET_PAGE_SIZE || pageCount <= 1) return;
+  const pages = Array.from({ length: pageCount - 1 }, (_, i) => i + 1);
+  const worker = async () => {
+    for (let page = pages.shift(); page != null; page = pages.shift()) {
+      take((await domain.listOrdersPage({ ...query, page })).rows);
+    }
+  };
+  await Promise.all(Array.from({ length: WORKING_SET_CONCURRENCY }, worker));
+}
+
 async function loadOrdersWorkingSet() {
   const st = useStore.getState();
   if (!st.orders.length) setOrdersLoadState({ firstPageReady: false, fullyLoaded: false });
   const officeCode = assignedOfficeCode(resolveViewOffice(st.session, st.viewOffice));
-  // Tập làm việc của màn vận hành: đơn chưa kết thúc + đơn vừa giao/huỷ/hoàn trong vài ngày.
-  // Lịch sử cũ hơn do các màn tra cứu tự gọi API theo trang. VP = gửi / đến / nhận (đơn qua hub cũng về VP nhận).
-  const query = {
-    size: WORKING_SET_PAGE_SIZE,
-    sort: "id,desc",
-    officeCode: officeCode || undefined,
-    openOrUpdatedWithinDays: WORKING_SET_RECENT_DAYS,
-  };
+  // (1) Mọi đơn đang mở trên pipeline — không lọc theo ngày cập nhật, để đơn tồn kho lâu vẫn về.
+  // (2) Đơn đã kết thúc trong N ngày gần (tab Giao thành công / đối soát nhanh).
+  // Lịch sử cũ hơn: màn tra cứu tự gọi API theo trang. VP = gửi / đến / nhận.
   const pendingReq = domain
     .listOrdersPage({ cancelRequests: "only", size: 100, officeCode: officeCode || undefined })
     .catch(() => null);
@@ -110,20 +152,24 @@ async function loadOrdersWorkingSet() {
     for (const o of rows) keep.add(o.code);
   };
   try {
-    // Trang đầu (đơn mới nhất) hiện ngay; các trang sau tải song song và đổ dần vào store.
-    const first = await domain.listOrdersPage({ ...query, page: 0 });
-    take(first.rows);
-    setOrdersLoadState({ firstPageReady: true });
-    const pageCount = Math.min(WORKING_SET_MAX_PAGES, Math.ceil(first.total / WORKING_SET_PAGE_SIZE));
-    if (first.rows.length >= WORKING_SET_PAGE_SIZE && pageCount > 1) {
-      const pages = Array.from({ length: pageCount - 1 }, (_, i) => i + 1);
-      const worker = async () => {
-        for (let page = pages.shift(); page != null; page = pages.shift()) {
-          take((await domain.listOrdersPage({ ...query, page })).rows);
-        }
-      };
-      await Promise.all(Array.from({ length: WORKING_SET_CONCURRENCY }, worker));
-    }
+    const openQuery = {
+      size: WORKING_SET_PAGE_SIZE,
+      sort: "id,asc",
+      officeCode: officeCode || undefined,
+      statuses: [...OPEN_PIPELINE_STATUSES],
+    };
+    await loadOrderPages(take, openQuery, WORKING_SET_OPEN_MAX_PAGES, () =>
+      setOrdersLoadState({ firstPageReady: true }),
+    );
+
+    const recentQuery = {
+      size: WORKING_SET_PAGE_SIZE,
+      sort: "updatedAt,desc",
+      officeCode: officeCode || undefined,
+      statuses: [...RECENT_TERMINAL_STATUSES],
+      updatedFrom: vnDayOffset(WORKING_SET_RECENT_DAYS),
+    };
+    await loadOrderPages(take, recentQuery, WORKING_SET_RECENT_MAX_PAGES);
   } finally {
     setOrdersLoadState({ firstPageReady: true, fullyLoaded: true });
   }
@@ -147,9 +193,12 @@ function pruneStaleFinishedOrders(keep: Set<string>) {
   });
 }
 
-/** Giảm bão request lên DB: ít trang hơn, ít song song hơn (SSE bổ sung đơn mới). */
+/** Giảm bão request lên DB: SSE bổ sung đơn mới. Đơn mở tải đủ (tồn lâu); đơn xong chỉ N ngày. */
 const WORKING_SET_PAGE_SIZE = 100;
-const WORKING_SET_MAX_PAGES = 10;
+/** Trần trang cho đơn đang mở (AT_DEST tồn lâu, hàng trên xe, …) — ~5000 đơn/VP. */
+const WORKING_SET_OPEN_MAX_PAGES = 50;
+/** Trần trang đơn đã giao/huỷ/hoàn trong cửa sổ ngày gần. */
+const WORKING_SET_RECENT_MAX_PAGES = 20;
 const WORKING_SET_CONCURRENCY = 2;
 export const WORKING_SET_RECENT_DAYS = 7;
 let lastFullOrdersSyncAt = 0;
