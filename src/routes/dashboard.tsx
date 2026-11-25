@@ -111,6 +111,12 @@ function exportTabOf(o: OrderX): string {
   return EXPORT_TAB_SET.has(label) ? label : EXPORT_TAB_OTHER;
 }
 
+/** Ahamove / Grab / thuê ship ngoài — không ghi vào cột NV giao nội bộ. */
+function isExternalDeliveryPartner(partnerCode?: string | null) {
+  const c = String(partnerCode ?? "").toUpperCase();
+  return c === "AHAMOVE" || c === "GRAB" || c === "EXTERNAL";
+}
+
 function isCustomerCreated(o: Order) {
   return (o.createdBy ?? "").trim().toLowerCase() === "customer";
 }
@@ -414,15 +420,24 @@ const ORDER_EXPORT_FIELDS: ExportField[] = [
     key: "internalDeliveryFee",
     label: "Phí giao nội bộ",
     hint: "Chi phí ship nội bộ (70% cước giao) khi đã gán NV giao nội bộ. Ahamove/Grab/ship ngoài / chưa gán → trống.",
-    get: (o) =>
-      String(o.partnerCode ?? "").toUpperCase() === "INTERNAL" ? money(o.partnerFee) : "",
+    get: (o) => {
+      if (isExternalDeliveryPartner(o.partnerCode)) return "";
+      if (String(o.partnerCode ?? "").toUpperCase() === "INTERNAL") return money(o.partnerFee);
+      // Đơn cũ: đã gán ship nội bộ nhưng thiếu đánh dấu INTERNAL — suy ra 70% cước giao nếu có.
+      if ((o.shipperName ?? "").trim() && o.homeDelivery && Number(o.deliveryFee || 0) > 0) {
+        return money(Math.round(Number(o.deliveryFee) * 0.7));
+      }
+      return "";
+    },
   },
   {
     key: "internalShipperName",
     label: "Tên NV giao lấy nội bộ",
-    hint: "Shipper nội bộ đã gán giao tận nơi (cùng lúc với phí giao nội bộ). Ahamove/Grab/ship ngoài / chưa gán → trống.",
-    get: (o) =>
-      String(o.partnerCode ?? "").toUpperCase() === "INTERNAL" ? (o.shipperName ?? "").trim() : "",
+    hint: "Shipper nội bộ đã gán giao tận nơi. Ahamove/Grab/ship ngoài → trống. Đơn cũ thiếu đánh dấu INTERNAL vẫn hiện tên nếu đã gán ship.",
+    get: (o) => {
+      if (isExternalDeliveryPartner(o.partnerCode)) return "";
+      return (o.shipperName ?? "").trim();
+    },
   },
   {
     key: "vehiclePlate",
