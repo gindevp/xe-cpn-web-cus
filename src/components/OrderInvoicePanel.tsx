@@ -108,9 +108,14 @@ export function OrderInvoicePanel({
   ]);
 
   const status = order.invoiceStatus ?? "";
-  const issued = status === "ISSUED" || status === "DUPLICATE";
+  const hasInvoiceIds = !!(order.invoiceNo?.trim() || order.invoiceTransactionId?.trim());
+  // DUPLICATE thiếu số HĐ: chưa coi như đã xuất xong (KT không xem/tải được).
+  const issued = status === "ISSUED" || (status === "DUPLICATE" && hasInvoiceIds);
+  const emptyDuplicate = status === "DUPLICATE" && !hasInvoiceIds;
   const marked = status === "MANUAL";
-  const badge = STATUS_LABEL[status];
+  const badge = emptyDuplicate
+    ? { text: "Trùng RefID — thiếu số HĐ", cls: "bg-amber-500/15 text-amber-900 dark:text-amber-200" }
+    : STATUS_LABEL[status];
   const paidAt = orderPaidAt(order);
   const deadline = invoiceDeadlineOf(order);
   const late = isPastDeadline(deadline);
@@ -250,9 +255,13 @@ export function OrderInvoicePanel({
         buyerIdNumber: onlyDigits(buyerIdNumber) || "",
         buyerPhone: onlyDigits(buyerPhone) || "",
       });
-      if (res.invoiceStatus === "ISSUED" || res.invoiceStatus === "DUPLICATE") {
+      if (res.invoiceStatus === "ISSUED" || (res.invoiceStatus === "DUPLICATE" && res.invoiceNo)) {
         toast.success(
           `Đã xuất hoá đơn${res.invoiceNo ? ` số ${res.invoiceNo}` : ""} — MISA gửi về ${email.trim()}`,
+        );
+      } else if (res.invoiceStatus === "DUPLICATE" && !res.invoiceNo) {
+        toast.warning(
+          "MISA báo trùng RefID nhưng chưa trả số HĐ — đơn chưa gắn được số hoá đơn. Báo admin đồng bộ lại.",
         );
       } else {
         toast.error(
