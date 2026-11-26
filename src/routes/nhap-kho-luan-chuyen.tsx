@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import { EditOrderBriefDialog, EditPackageDialog } from "@/components/EditPackageDialog";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
+import { LinehaulPartnerTag } from "@/components/LinehaulPartnerTag";
 import { CountButton, OrderListDialog, type OrderListRow } from "@/components/OrderListDialog";
 import { OrderPackageListRow } from "@/components/OrderPackageListRow";
 import {
@@ -468,7 +469,25 @@ type VehicleGroup = {
   tos: string[];
   /** Mốc ký nhận / quét lên xe sớm nhất trong các đơn của xe. */
   oldestAt?: string;
+  /** Xe gán đơn giao qua đối tác linehaul. */
+  partner?: boolean;
 };
+
+/** Tag thẻ xe — khớp design Nhập kho (handshake + Xe đối tác). */
+function PartnerVehicleTag({ className }: { className?: string }) {
+  return (
+    <span className={cn("tag partner sm", className)} title="Xe đối tác">
+      <span className="ms" aria-hidden="true">
+        handshake
+      </span>
+      Xe đối tác
+    </span>
+  );
+}
+
+function isPartnerVehicleGroup(orders: Order[]): boolean {
+  return orders.some((o) => !!o.linehaulPartnerCode?.trim());
+}
 
 /** VP_ND_77 → ND, VP_BC → BC. */
 function officeShort(code: string): string {
@@ -508,12 +527,21 @@ function vehicleHealth(oldestAt?: string): VehicleHealth {
   return h >= HEALTH_LATE_H ? "late" : h >= HEALTH_WATCH_H ? "watch" : "ok";
 }
 
-/** Gom xe (đã sắp theo giờ xuất phát) thành từng khung giờ. */
+/** Gom xe: nhóm đối tác riêng (design), còn lại theo khung giờ xuất phát. */
 function departSlots(
   groups: VehicleGroup[],
 ): { key: string; label: string; groups: VehicleGroup[] }[] {
   const out: { key: string; label: string; groups: VehicleGroup[] }[] = [];
-  for (const g of groups) {
+  const partners = groups.filter((g) => g.partner || isPartnerVehicleGroup(g.orders));
+  const regular = groups.filter((g) => !(g.partner || isPartnerVehicleGroup(g.orders)));
+  if (partners.length) {
+    out.push({
+      key: "partner",
+      label: "Xe đối tác · tự gán theo tỉnh nhận",
+      groups: partners,
+    });
+  }
+  for (const g of regular) {
     const clock = formatDepartFull(g.departAt);
     const key = clock || "none";
     let slot = out.find((s) => s.key === key);
@@ -693,7 +721,7 @@ function Page() {
     (k) => {
       setTab(k);
       setSelected(new Set());
-      setExpandedPlates(new Set());
+      setVehicleSheetKey(null);
     },
   );
 
@@ -741,10 +769,12 @@ function Page() {
           departAt: trip?.departAt || o.departAt,
           froms: [],
           tos: [],
+          partner: !!o.linehaulPartnerCode?.trim(),
         };
         map.set(key, g);
       }
       g.orders.push(o);
+      if (o.linehaulPartnerCode?.trim()) g.partner = true;
       const seg = segmentOf(o);
       if (seg.from && !g.froms.includes(seg.from)) g.froms.push(seg.from);
       if (seg.to && !g.tos.includes(seg.to)) g.tos.push(seg.to);
@@ -787,6 +817,7 @@ function Page() {
         orderCount: number;
         packageCount: number;
         orders: OrderX[];
+        partner?: boolean;
       }
     >();
     for (const o of base) {
@@ -798,12 +829,21 @@ function Page() {
       const trip = o.tripCode ? tripByCode.get(o.tripCode) : undefined;
       let g = map.get(key);
       if (!g) {
-        g = { key, plate, driver: driverOf(o, trip), orderCount: 0, packageCount: 0, orders: [] };
+        g = {
+          key,
+          plate,
+          driver: driverOf(o, trip),
+          orderCount: 0,
+          packageCount: 0,
+          orders: [],
+          partner: !!o.linehaulPartnerCode?.trim(),
+        };
         map.set(key, g);
       }
       g.orders.push(o as OrderX);
       g.orderCount += 1;
       g.packageCount += remaining;
+      if (o.linehaulPartnerCode?.trim()) g.partner = true;
       if (!g.driver) g.driver = driverOf(o, trip);
       const depart = trip?.departAt || o.departAt;
       if (depart && (!g.departAt || depart > g.departAt)) g.departAt = depart;
@@ -1045,8 +1085,8 @@ function Page() {
   const canCancelReturn = (tab === "WH_IN" || tab === "DEST_WH_IN") && session?.role === "AD";
   const isCancelableReturn = (o: Order | undefined) =>
     !!o && o.status === "RETURNING" && (stageOf(o) === "WH_IN" || stageOf(o) === "DEST_WH_IN");
-  /** Admin: gỡ đơn đã lên xe (tab Hàng trên xe) về nhập kho gửi. */
-  const canUnassignTransferring = tab === "TRANSFERRING" && session?.role === "AD";
+  /** Đợi trung chuyển + Hàng trên xe: DH/AD gỡ đơn khỏi xe (về nhập kho gửi). */
+  const canUnassignTransferring = tab === "TRANSFERRING" && canAssignOnWeb;
   const canUnassignTrip = tab === "TRANSFER_PENDING" || canUnassignTransferring;
   const cancelReturn = async (codes: string[]) => {
     if (!canCancelReturn || !codes.length) return;
@@ -1251,20 +1291,37 @@ function Page() {
       const sessionOffice = assignedOfficeCode(
         resolveViewOffice(useStore.getState().session, useStore.getState().viewOffice),
       );
+      // Toàn hệ thống / multi-VP: lấy VP gửi của đơn đang gán (không phụ thuộc offices[0]).
+      const fromOrderOffice =
+        assignRows
+          .map((o) => resolveOfficeCodeStrict(o.fromOffice) || (o.fromOffice || "").trim())
+          .find((c) => !!c) || "";
       const officeCode =
         (sessionOffice && sessionOffice !== "ALL"
-          ? resolveOfficeCodeStrict(sessionOffice)
+          ? resolveOfficeCodeStrict(sessionOffice) || sessionOffice
           : null) ||
+        fromOrderOffice ||
         useStore.getState().offices[0]?.code ||
         "";
       if (!officeCode) {
-        toast.error("Chưa có văn phòng trên hệ thống");
+        toast.error(
+          useStore.getState().offices.length === 0
+            ? "Danh sách văn phòng chưa tải — F5 rồi thử lại"
+            : "Không xác định được VP gửi của đơn để tạo chuyến",
+        );
         return;
       }
-      const plate =
+      const partnerAssign = assignRows.some((o) => !!o.linehaulPartnerCode);
+      const plateRaw =
         assignPick.tab === "vthk"
           ? realVehiclePlate(assignPick.trip.vehiclePlate)
           : assignPick.plate;
+      // Xe đối tác có thể chỉ có ký hiệu (HTP-01) — dùng làm BKS trên chuyến.
+      const plate =
+        plateRaw?.trim() ||
+        (partnerAssign
+          ? assignRows.find((o) => o.linehaulPartnerCode)?.linehaulPartnerCode || "DOI-TAC"
+          : "");
       const driverName =
         assignPick.tab === "vthk"
           ? realDriverName(assignPick.trip.assignDriverName) ||
@@ -1273,14 +1330,25 @@ function Page() {
       const routeCode = await resolveTripRouteCode({
         branchName: assignPick.branchName,
         routeHint: assignPick.tab === "vthh" ? assignPick.route : undefined,
-        orders: assignRows,
+        orders: assignRows.map((o) => ({
+          fromOffice: o.fromOffice,
+          toOffice: o.toOffice || o.finalToOffice || o.hubOffice,
+          hubOffice: o.hubOffice,
+        })),
       });
-      const itineraryLabel = tripItineraryLabel(assignPick);
+      const itineraryLabel =
+        tripItineraryLabel(assignPick) ||
+        (partnerAssign
+          ? assignRows.find((o) => o.linehaulDestLabel)?.linehaulDestLabel ||
+            assignRows.find((o) => o.linehaulPartnerCode)?.linehaulPartnerCode ||
+            "Đối tác"
+          : "");
       if (!routeCode) {
         toast.error("Không xác định được tuyến cho xe đã chọn");
         return;
       }
-      if (assignPick.tab === "vthh" && !plate?.trim()) {
+      // Xe đối tác Master có thể chỉ có ký hiệu, không có biển số VN.
+      if (assignPick.tab === "vthh" && !plate?.trim() && !partnerAssign) {
         toast.error("Xe đã chọn chưa có biển số");
         return;
       }
@@ -1301,7 +1369,12 @@ function Page() {
           routeCode,
           ...(itineraryLabel ? { itineraryLabel } : {}),
           ...(plate ? { vehiclePlate: plate } : {}),
-          vehicleId: assignPick.tab === "vthh" ? assignPick.vehicleId : undefined,
+          // Xe Master đối tác (id âm) không có Vehicle BE — bỏ vehicleId.
+          vehicleId:
+            assignPick.tab === "vthh" && assignPick.vehicleId != null && assignPick.vehicleId > 0
+              ? assignPick.vehicleId
+              : undefined,
+          ...(partnerAssign ? { partnerTruck: true } : {}),
           ...(driverName ? { driverName } : {}),
           ...tripAuditFields(assignPick),
           departAt: assignPick.tab === "vthk" ? assignPick.trip.departAt : assignPick.departAt,
@@ -1365,8 +1438,8 @@ function Page() {
 
   const unassignFromTrip = async (codes: string[]) => {
     if (!codes.length || unassigning) return;
-    if (tab === "TRANSFERRING" && session?.role !== "AD") {
-      toast.error("Chỉ admin được gỡ đơn đang trên xe");
+    if (tab === "TRANSFERRING" && !canAssignOnWeb) {
+      toast.error("Không có quyền gỡ đơn đang trên xe");
       return;
     }
     const candidates = orders.filter((o) => codes.includes(o.code) && o.tripCode);
@@ -1640,7 +1713,7 @@ function Page() {
             onClick={() => {
               setTab(t.key);
               setSelected(new Set());
-              setExpandedPlates(new Set());
+              setVehicleSheetKey(null);
             }}
           >
             <span className="ms" aria-hidden="true">
@@ -1670,26 +1743,6 @@ function Page() {
                 {inboundTotals.packages} kiện)
               </button>
             ) : null}
-            {canReassign && (
-              <button
-                type="button"
-                className="btn ghost"
-                disabled={selected.size === 0}
-                onClick={() => openReassign([...selected])}
-              >
-                Chuyển xe ({selected.size})
-              </button>
-            )}
-            {canUnassignTrip && (
-              <button
-                type="button"
-                className="btn text"
-                disabled={selected.size === 0 || unassigning}
-                onClick={() => void unassignFromTrip([...selected])}
-              >
-                {unassigning ? "Đang gỡ…" : `Gỡ khỏi xe (${selected.size})`}
-              </button>
-            )}
             {tab !== "TRANSFERRING" && tab === "DELIVERING" && (
               <button
                 type="button"
@@ -1854,15 +1907,31 @@ function Page() {
                   <div className="veh-grid">
                     {slot.groups.map((g) => {
                       const health = vehicleHealth(g.oldestAt);
+                      const partner = g.partner || isPartnerVehicleGroup(g.orders);
+                      const driverLine = partner
+                        ? tab === "TRANSFER_PENDING"
+                          ? "Chờ lái xe đối tác đến lấy và quét đơn"
+                          : g.driver?.trim() || "Đang giao qua đối tác"
+                        : g.driver || "—";
                       return (
                         <button
                           key={g.key}
                           type="button"
-                          className="veh veh-btn num"
-                          aria-label={`Xe ${g.plate}, ${g.orders.length} đơn`}
+                          className={cn("veh veh-btn num", partner && "veh-partner")}
+                          aria-label={`Xe ${g.plate}${partner ? ", xe đối tác" : ""}, ${g.orders.length} đơn`}
                           onClick={() => setVehicleSheetKey(g.key)}
                         >
-                          <span className="plate">{g.plate}</span>
+                          <span
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 8,
+                            }}
+                          >
+                            <span className="plate">{g.plate}</span>
+                            {partner ? <PartnerVehicleTag /> : null}
+                          </span>
                           <span
                             style={{
                               display: "block",
@@ -1871,7 +1940,7 @@ function Page() {
                               fontWeight: 500,
                             }}
                           >
-                            {g.driver || "—"}
+                            {driverLine}
                             {g.route ? (
                               <span className="sub" style={{ fontWeight: 400 }}>
                                 {g.route}
@@ -1927,6 +1996,7 @@ function Page() {
             {(() => {
               const g = vehicleGroups.find((x) => x.key === vehicleSheetKey);
               if (!g) return null;
+              const partner = g.partner || isPartnerVehicleGroup(g.orders);
               const hasCheckbox = canUnassignTrip;
               const limit = groupLimit[g.key] ?? GROUP_ORDER_STEP;
               return (
@@ -1934,7 +2004,7 @@ function Page() {
                   open={!!vehicleSheetKey}
                   onOpenChange={(v) => !v && setVehicleSheetKey(null)}
                   variant="sheet"
-                  alignTop
+                  className="veh-orders-sheet"
                 >
                   <div
                     style={{
@@ -1947,31 +2017,57 @@ function Page() {
                     <div>
                       <M3SheetTitle
                         className="num"
-                        style={{ margin: 0, fontSize: 22, lineHeight: "28px" }}
+                        style={{
+                          margin: 0,
+                          fontSize: 22,
+                          lineHeight: "28px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
                       >
                         {g.plate}
+                        {partner ? <PartnerVehicleTag /> : null}
                       </M3SheetTitle>
                       <div className="muted" style={{ fontSize: 13, lineHeight: "20px" }}>
-                        {g.driver || "—"}
+                        {partner
+                          ? tab === "TRANSFER_PENDING"
+                            ? "Chờ lái xe đối tác đến lấy và quét đơn"
+                            : g.driver?.trim() || "Đang giao qua đối tác"
+                          : g.driver || "—"}
                         {g.route ? ` · ${g.route}` : ""}
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {canReassign && g.key !== UNASSIGNED_PLATE ? (
-                        <button
-                          type="button"
-                          className="btn tonal"
-                          style={{ height: 36 }}
-                          onClick={() =>
-                            openReassign(
-                              g.orders.map((o) => o.code),
-                              g.plate,
-                            )
-                          }
-                        >
-                          Chuyển xe
-                        </button>
-                      ) : null}
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                      {(() => {
+                        const sheetSel = g.orders.filter((o) => selected.has(o.code)).map((o) => o.code);
+                        const n = sheetSel.length;
+                        return (
+                          <>
+                            {tab === "TRANSFER_PENDING" && canReassign && g.key !== UNASSIGNED_PLATE ? (
+                              <button
+                                type="button"
+                                className="btn ghost"
+                                disabled={n === 0}
+                                onClick={() => openReassign(sheetSel, g.plate)}
+                              >
+                                Chuyển xe ({n})
+                              </button>
+                            ) : null}
+                            {(tab === "TRANSFER_PENDING" || tab === "TRANSFERRING") && canUnassignTrip ? (
+                              <button
+                                type="button"
+                                className="btn text"
+                                disabled={n === 0 || unassigning}
+                                onClick={() => void unassignFromTrip(sheetSel)}
+                              >
+                                {unassigning ? "Đang gỡ…" : `Gỡ khỏi xe (${n})`}
+                              </button>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                       <M3SheetClose />
                     </div>
                   </div>
@@ -1998,6 +2094,13 @@ function Page() {
                       </div>
                     </div>
                   </div>
+                  {partner ? (
+                    <div className="note">
+                      {tab === "TRANSFER_PENDING"
+                        ? "Đơn giao qua đối tác. Có thể gỡ khỏi xe nếu gán nhầm; lái xe đối tác quét đơn khi đến lấy."
+                        : "Đơn giao qua đối tác đang trên xe. Có thể gỡ về nhập kho gửi nếu cần xử lý lại."}
+                    </div>
+                  ) : null}
                   <div className="scroller">
                     <table className="tbl" style={{ ["--tbl-min" as string]: "680px" }}>
                       <thead>
@@ -2050,6 +2153,11 @@ function Page() {
                               ) : null}
                               <td>
                                 <OrderCodeLink code={r.code} className="code" />
+                                {r.linehaulPartnerCode ? (
+                                  <span className="row-tags">
+                                    <LinehaulPartnerTag code={r.linehaulPartnerCode} />
+                                  </span>
+                                ) : null}
                                 <TransferPaidBadge order={r} />
                                 <StageTime order={r} tab={tab} />
                               </td>
@@ -2081,24 +2189,7 @@ function Page() {
                                       {activeTab.action}
                                     </button>
                                   ) : null}
-                                  <NhapKhoRowActions code={r.code}>
-                                    {canReassign ? (
-                                      <DropdownMenuItem
-                                        onClick={() => openReassign([r.code], g.plate)}
-                                      >
-                                        <Truck className="mr-2 h-4 w-4" /> Chuyển xe
-                                      </DropdownMenuItem>
-                                    ) : null}
-                                    {canUnassignTrip && r.tripCode ? (
-                                      <DropdownMenuItem
-                                        disabled={unassigning}
-                                        className="text-destructive focus:text-destructive"
-                                        onClick={() => void unassignFromTrip([r.code])}
-                                      >
-                                        <Unlink className="mr-2 h-4 w-4" /> Gỡ khỏi xe
-                                      </DropdownMenuItem>
-                                    ) : null}
-                                  </NhapKhoRowActions>
+                                  <NhapKhoRowActions code={r.code} />
                                 </div>
                               </td>
                             </tr>
@@ -2186,6 +2277,11 @@ function Page() {
                             </button>
                             <OrderCodeLink code={r.code} className="code" />
                           </span>
+                          {r.linehaulPartnerCode ? (
+                            <span className="row-tags">
+                              <LinehaulPartnerTag code={r.linehaulPartnerCode} />
+                            </span>
+                          ) : null}
                           <TransferPaidBadge order={r} />
                           <StageTime order={r} tab={tab} />
                           {isReturnFlow(r) ? <span className="sub">HOÀN</span> : null}
@@ -2406,7 +2502,12 @@ function Page() {
                 <tbody>
                   {inboundPlateSummary.map((g) => (
                     <tr key={g.key} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-semibold tracking-wide">{g.plate}</td>
+                      <td className="px-3 py-2 font-semibold tracking-wide">
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          {g.plate}
+                          {g.partner ? <PartnerVehicleTag /> : null}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">{g.driver || "—"}</td>
                       <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                         {formatDepartFull(g.departAt) || "—"}
@@ -2485,6 +2586,10 @@ function Page() {
               onPick={setAssignPick}
               presetBranch={assignPresetBranch}
               presetItinerary={assignPresetItinerary}
+              partnerMode={assignRows.some((o) => !!o.linehaulPartnerCode)}
+              partnerCodeHint={
+                assignRows.find((o) => o.linehaulPartnerCode)?.linehaulPartnerCode || undefined
+              }
             />
 
             <div className="min-w-0">
@@ -2506,6 +2611,11 @@ function Page() {
                       <tr key={r.code} className="border-b last:border-0">
                         <td className="px-2 py-2 font-medium">
                           <OrderCodeLink code={r.code} />
+                          {r.linehaulPartnerCode ? (
+                            <span className="row-tags">
+                              <LinehaulPartnerTag code={r.linehaulPartnerCode} />
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-2 py-2">{r.senderName ?? r.senderPhone}</td>
                         <td className="px-2 py-2">{r.receiverName}</td>

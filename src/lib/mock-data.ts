@@ -257,9 +257,9 @@ export function foldOfficeKey(s: string) {
  * Resolve office code from master directory. Unknown labels stay as folded text —
  * do not invent a hub code.
  */
-/** Nhãn combobox VP — chỉ tên (không mã / địa chỉ). */
-export function officeSelectLabel(o: Pick<OfficeRec, "name">): string {
-  return o.name?.trim() || "";
+/** Nhãn combobox / hiển thị VP — tên văn phòng (không mã, không địa chỉ). */
+export function officeSelectLabel(o: Pick<OfficeRec, "name" | "code">): string {
+  return o.name?.trim() || o.code?.trim() || "";
 }
 
 export function officeOptionValue(o: OfficeRec): string {
@@ -572,6 +572,15 @@ export type Order = {
   note?: string;
   homeDelivery?: boolean;
   homePickup?: boolean;
+  /** Linehaul đối tác (Vexere) — tách khỏi partnerCode Ahamove/Grab. */
+  linehaulPartnerCode?: string;
+  linehaulProvinceId?: number;
+  linehaulZoneId?: number;
+  linehaulWardCode?: string;
+  linehaulWardName?: string;
+  linehaulDestLabel?: string;
+  /** Mã viết tắt đích đối tác (in tem). */
+  linehaulDestCode?: string;
   pickupAddress?: string;
   pickupStaff?: string;
   pickingAt?: string;
@@ -1061,19 +1070,29 @@ export function formatDateTime(iso: string) {
 }
 
 export function officeName(code: string) {
-  return officeDirectory.find((o) => o.code === code || o.name === code)?.name ?? code;
+  const o = officeDirectory.find((x) => x.code === code || x.name === code);
+  return o?.name?.trim() || code;
 }
 
-/** VP nhận đích thực (finalToOffice nếu có, không thì toOffice). */
+/** VP nhận đích thực (finalToOffice nếu có, không thì toOffice).
+ *  Đơn linehaul: toOffice = fromOffice (hàng còn ở VP gửi) — dùng orderReceiverOffice cho
+ *  lọc kho/scope; hiển thị tên dùng receiverOfficeName (linehaulDestLabel). */
 export function orderReceiverOffice(order: Pick<Order, "toOffice" | "finalToOffice">): string {
   return order.finalToOffice || order.toOffice;
 }
 
-export function receiverOfficeName(order: Pick<Order, "toOffice" | "finalToOffice">): string {
+export function receiverOfficeName(
+  order: Pick<Order, "toOffice" | "finalToOffice" | "linehaulPartnerCode" | "linehaulDestLabel">,
+): string {
+  if (order.linehaulPartnerCode?.trim() && order.linehaulDestLabel?.trim()) {
+    return order.linehaulDestLabel.trim();
+  }
   return officeName(orderReceiverOffice(order));
 }
 
 /** Nhãn lộ trình hiển thị: VP gửi → VP nhận đích. */
-export function orderRouteLabel(order: Pick<Order, "fromOffice" | "toOffice" | "finalToOffice">): string {
+export function orderRouteLabel(
+  order: Pick<Order, "fromOffice" | "toOffice" | "finalToOffice" | "linehaulPartnerCode" | "linehaulDestLabel">,
+): string {
   return `${officeName(order.fromOffice)} → ${receiverOfficeName(order)}`;
 }

@@ -25,9 +25,45 @@ import { hasOverageConfig } from "@/lib/pricing";
 import { useBranchItineraryMaster } from "@/lib/use-branch-itinerary";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { PartnerPricingTab } from "@/components/PartnerPricingTab";
+import {
+  LINEHAUL_PARTNER_VEXERE,
+  fetchLinehaulAgencies,
+  type LinehaulAgency,
+} from "@/lib/api/linehaul-api";
+
+type BangGiaTab = "rules" | "product" | "partner";
+
+function parseBangGiaSearch(search: Record<string, unknown>): {
+  tab?: BangGiaTab;
+  partner?: string;
+  provinceId?: number;
+  focus?: "zones";
+} {
+  const tabRaw = String(search.tab ?? "");
+  const tab: BangGiaTab | undefined =
+    tabRaw === "partner" || tabRaw === "product" || tabRaw === "rules"
+      ? tabRaw
+      : tabRaw === "gia-doi-tac"
+        ? "partner"
+        : undefined;
+  const partner = String(search.partner ?? "")
+    .trim()
+    .toUpperCase();
+  const provinceIdRaw = Number(search.provinceId);
+  const provinceId = Number.isFinite(provinceIdRaw) && provinceIdRaw > 0 ? Math.floor(provinceIdRaw) : undefined;
+  const focus = search.focus === "zones" ? ("zones" as const) : undefined;
+  return {
+    ...(tab ? { tab } : {}),
+    ...(partner ? { partner } : {}),
+    ...(provinceId != null ? { provinceId } : {}),
+    ...(focus ? { focus } : {}),
+  };
+}
 
 export const Route = createFileRoute("/bang-gia")({
   head: () => ({ meta: [{ title: "Bảng giá — X.E" }] }),
+  validateSearch: (search: Record<string, unknown>) => parseBangGiaSearch(search),
   component: () => (
     <ProtectedPage title="Bảng giá" screen="bang-gia" hidePageTitle>
       <Page />
@@ -37,9 +73,31 @@ export const Route = createFileRoute("/bang-gia")({
 
 function Page() {
   const { session } = useAuth();
+  const search = Route.useSearch();
   const products = useStore((s) => s.productPricing);
   const writable = canWrite(session?.role, "bang-gia");
-  const [tab, setTab] = useState<"rules" | "product">("rules");
+  const [tab, setTab] = useState<BangGiaTab>(search.tab ?? "rules");
+  const [agencies, setAgencies] = useState<LinehaulAgency[]>([]);
+  const [partnerCode, setPartnerCode] = useState(
+    (search.partner || LINEHAUL_PARTNER_VEXERE).toUpperCase(),
+  );
+
+  useEffect(() => {
+    if (search.tab) setTab(search.tab);
+    if (search.partner) setPartnerCode(search.partner.toUpperCase());
+  }, [search.tab, search.partner]);
+
+  useEffect(() => {
+    void fetchLinehaulAgencies(true)
+      .then((list) => {
+        setAgencies(list);
+        if (list.length && !list.some((a) => a.code === partnerCode)) {
+          setPartnerCode(list[0]!.code);
+        }
+      })
+      .catch(() => setAgencies([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ hydrate lần đầu
+  }, []);
 
   return (
     <div className="m3-page stack" style={{ gap: 16 }}>
@@ -69,13 +127,99 @@ function Page() {
           Giá theo sản phẩm
           <span className="count num">{products.length}</span>
         </button>
+        <button
+          type="button"
+          role="tab"
+          className={tab === "partner" ? "on" : undefined}
+          aria-selected={tab === "partner"}
+          onClick={() => setTab("partner")}
+        >
+          Giá đối tác
+        </button>
       </div>
       {tab === "rules" ? (
         <FreightPricing writable={writable} />
-      ) : (
+      ) : tab === "product" ? (
         <section className="card stack" style={{ gap: 16 }}>
           <ProductPricing writable={writable} />
         </section>
+      ) : (
+        <div className="stack" style={{ gap: 12 }}>
+          <div
+            className="title-row"
+            style={{ alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, flex: "1 1 auto" }}>
+              <label className="field pz-sel" style={{ margin: 0 }}>
+                <span className="l">Đối tác</span>
+                <span className="box input-box sel-box">
+                  <span
+                    className="ms"
+                    aria-hidden="true"
+                    style={{ marginLeft: 10, color: "var(--partner-ink)" }}
+                  >
+                    handshake
+                  </span>
+                  <select
+                    aria-label="Đối tác"
+                    value={partnerCode}
+                    onChange={(e) => setPartnerCode(e.target.value)}
+                  >
+                    {(agencies.length
+                      ? agencies
+                      : [{ id: 0, code: LINEHAUL_PARTNER_VEXERE, name: "Vé Xe Rẻ", active: true }]
+                    ).map((a) => (
+                      <option key={a.code} value={a.code}>
+                        {a.code}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="ms" aria-hidden="true">
+                    expand_more
+                  </span>
+                </span>
+              </label>
+              <label className="field" style={{ minWidth: 160, margin: 0 }}>
+                <span className="l" id="pz-eff-from">
+                  Hiệu lực từ
+                </span>
+                <button
+                  type="button"
+                  className="box num"
+                  aria-labelledby="pz-eff-from"
+                  disabled
+                  title="Sắp có"
+                  style={{ gap: 8 }}
+                >
+                  <span>01/11/2026</span>
+                  <span className="ms" aria-hidden="true">
+                    calendar_today
+                  </span>
+                </button>
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+              <button type="button" className="btn ghost" disabled title="Sắp có">
+                <span className="ms" aria-hidden="true">
+                  history
+                </span>
+                Lịch sử giá
+              </button>
+              <button type="button" className="btn tonal" disabled title="Sắp có">
+                <span className="ms" aria-hidden="true">
+                  upload_file
+                </span>
+                Nhập từ Excel
+              </button>
+            </div>
+          </div>
+          <PartnerPricingTab
+            writable={writable}
+            partnerCode={partnerCode}
+            initialProvinceId={search.provinceId}
+            focusZones={search.focus === "zones"}
+          />
+        </div>
       )}
     </div>
   );

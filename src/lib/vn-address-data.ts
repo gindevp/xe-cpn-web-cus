@@ -126,9 +126,40 @@ export function findProvinceV1ByCode(code: number | null | undefined): ProvinceV
 }
 
 export function findProvinceV1ByName(name: string): ProvinceV1 | undefined {
-  const key = name.trim().toLowerCase();
-  if (!key) return undefined;
-  return VN_PROVINCES_V1.find((p) => p.name.toLowerCase() === key);
+  const raw = name.trim().toLowerCase();
+  if (!raw) return undefined;
+  const strip = (s: string) => s.replace(/^(tỉnh|thành phố|tp\.?)\s+/i, "").trim();
+  const key = strip(raw);
+  const exact = VN_PROVINCES_V1.find((p) => {
+    const pn = p.name.toLowerCase();
+    return pn === raw || strip(pn) === key;
+  });
+  if (exact) return exact;
+  return VN_PROVINCES_V1.find((p) => {
+    const pn = strip(p.name.toLowerCase());
+    return pn === key || pn.includes(key) || key.includes(pn);
+  });
+}
+
+/** Ghép tên khu vực riêng (vd TP Vinh) với huyện/TP thuộc tỉnh V1. */
+export function findDistrictV1ForArea(
+  provinceCode: number | null | undefined,
+  areaName: string | null | undefined,
+): DistrictV1 | undefined {
+  if (provinceCode == null || !areaName?.trim()) return undefined;
+  const strip = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/^(tinh|thanh pho|thi xa|huyen|tp\.?)\s+/i, "")
+      .trim();
+  const key = strip(areaName);
+  const districts = listDistrictsByProvinceV1(provinceCode);
+  return (
+    districts.find((d) => strip(d.name) === key) ||
+    districts.find((d) => strip(d.name).includes(key) || key.includes(strip(d.name)))
+  );
 }
 
 export function findDistrictV1ByCode(code: number | null | undefined): DistrictV1 | undefined {
@@ -171,8 +202,18 @@ export function findProvinceV2ByCode(code: number | null | undefined): ProvinceV
 export function findProvinceV2ByName(name: string): ProvinceV2 | undefined {
   const raw = name.trim().toLowerCase();
   if (!raw) return undefined;
-  const exact = VN_PROVINCES_V2.find((p) => p.name.toLowerCase() === raw);
+  const strip = (s: string) => s.replace(/^(tỉnh|thành phố|tp\.?)\s+/i, "").trim();
+  const key = strip(raw);
+  const exact = VN_PROVINCES_V2.find((p) => {
+    const pn = p.name.toLowerCase();
+    return pn === raw || strip(pn) === key;
+  });
   if (exact) return exact;
+  const fuzzy = VN_PROVINCES_V2.find((p) => {
+    const pn = strip(p.name.toLowerCase());
+    return pn === key || pn.includes(key) || key.includes(pn);
+  });
+  if (fuzzy) return fuzzy;
   // Thái Bình sáp nhập vào Hưng Yên (V2); old saved labels still resolve.
   if (raw.includes("thái bình") || raw.includes("thai binh") || raw.includes("hưng yên") || raw.includes("hung yen")) {
     return VN_PROVINCES_V2.find((p) => p.codename === "hung_yen");

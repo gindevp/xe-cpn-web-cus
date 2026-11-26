@@ -38,6 +38,7 @@ export async function syncMasterFromApi() {
     officeCode: v.office?.code,
     driverName: v.defaultDriver?.fullName,
     active: v.active !== false,
+    partnerTruck: v.partnerTruck === true,
   }));
   const drivers = domain
     .asArray(driversRaw)

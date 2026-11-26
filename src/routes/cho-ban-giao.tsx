@@ -7,6 +7,7 @@ import { ProtectedPage } from "@/components/AppShell";
 import { M3PageHeader } from "@/components/M3Page";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
+import { LinehaulPartnerTag } from "@/components/LinehaulPartnerTag";
 import { OfficeRouteCell } from "@/components/OfficeRouteCell";
 import { OrderPackageListRow } from "@/components/OrderPackageListRow";
 import { GoodsPhotoButton } from "@/components/GoodsPhotoButton";
@@ -484,6 +485,11 @@ function Page() {
                             </button>
                             <OrderCodeLink code={r.code} className="code" />
                           </span>
+                          {r.linehaulPartnerCode ? (
+                            <span className="row-tags">
+                              <LinehaulPartnerTag code={r.linehaulPartnerCode} />
+                            </span>
+                          ) : null}
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
                             <OrderStatusBadge status={r.status} issue={r.issue} order={r} />
                             <TransferPaidBadge order={r} className="ml-0" />

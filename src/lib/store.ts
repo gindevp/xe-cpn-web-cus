@@ -38,6 +38,8 @@ export type VehicleRec = {
   officeCode?: string;
   driverName?: string;
   active?: boolean;
+  /** Xe đối tác vận chuyển (Vexere linehaul). */
+  partnerTruck?: boolean;
 };
 
 export type OrderEvent = {
@@ -548,6 +550,7 @@ function vehicleToApiBody(v: VehicleRec, id?: number) {
     volumeM3: v.volumeM3 ?? null,
     note: v.note || null,
     active: v.active !== false,
+    partnerTruck: v.partnerTruck === true,
     office: v.officeCode ? { code: v.officeCode } : null,
     defaultDriver: v.driverName ? { fullName: v.driverName } : null,
   };
@@ -1005,6 +1008,13 @@ export const useStore = create<Store>()(
             homeDelivery: o.homeDelivery,
             homePickup: o.homePickup,
             qrDropOff: o.qrDropOff,
+            linehaulPartnerCode: o.linehaulPartnerCode,
+            linehaulProvinceId: o.linehaulProvinceId,
+            linehaulZoneId: o.linehaulZoneId,
+            linehaulWardCode: o.linehaulWardCode,
+            linehaulWardName: o.linehaulWardName,
+            linehaulDestLabel: o.linehaulDestLabel,
+            linehaulDestCode: o.linehaulDestCode,
             deliveryAddress: o.address,
             deliveryLat: o.deliveryLat,
             deliveryLng: o.deliveryLng,

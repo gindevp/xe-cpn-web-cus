@@ -11,6 +11,7 @@ import { DialogDescription } from "@/components/ui/dialog";
 import { M3Sheet, M3SheetClose, M3SheetTitle } from "@/components/m3/M3Sheet";
 import { GoodsPhotoTile, OrderEventLog } from "@/components/OrderEventLog";
 import { OrderStatusBadge } from "@/components/StatusBadge";
+import { LinehaulPartnerTag } from "@/components/LinehaulPartnerTag";
 import { ChangePaymentTermDialog, canChangePayTerm } from "@/components/ChangePaymentTermDialog";
 import { ChangeDestOfficeDialog, canRerouteDest } from "@/components/ChangeDestOfficeDialog";
 import { OrderInvoicePanel } from "@/components/OrderInvoicePanel";
@@ -413,13 +414,22 @@ function FeeRow({ label, amount, hideZero }: { label: string; amount: number; hi
   );
 }
 
-function SecTitle({ icon, children }: { icon: string; children: ReactNode }) {
+function SecTitle({
+  icon,
+  children,
+  extra,
+}: {
+  icon: string;
+  children: ReactNode;
+  extra?: ReactNode;
+}) {
   return (
-    <h2 className="group-title sec-title">
+    <h2 className="group-title sec-title" style={extra ? { width: "100%" } : undefined}>
       <span className="sec-ic" aria-hidden="true">
         <span className="ms">{icon}</span>
       </span>
       {children}
+      {extra}
     </h2>
   );
 }
@@ -1237,7 +1247,16 @@ export function OrderHistoryDialog({
                 </section>
 
                 <section className="order-box stack">
-                  <SecTitle icon="person_pin_circle">Người nhận</SecTitle>
+                  <SecTitle
+                    icon="person_pin_circle"
+                    extra={
+                      o.linehaulPartnerCode ? (
+                        <LinehaulPartnerTag code={o.linehaulPartnerCode} className="ml-auto" />
+                      ) : null
+                    }
+                  >
+                    Người nhận
+                  </SecTitle>
                   <FieldShell label="SĐT người nhận">
                     {editing && form && editFields.receiver ? (
                       <PhoneInput

@@ -1,4 +1,4 @@
-import { officeName, orderReceiverOffice, type Order } from "@/lib/mock-data";
+import { officeName, receiverOfficeName, type Order } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
 /** Cột bảng: VP gửi + sub → VP nhận (đúng design M3). */
@@ -11,8 +11,17 @@ export function OfficeRouteCell({
 }: {
   fromOffice?: string | null;
   toOffice?: string | null;
-  /** Nếu truyền order: VP nhận = finalToOffice || toOffice. */
-  order?: Pick<Order, "fromOffice" | "toOffice" | "finalToOffice" | "address" | "homeDelivery"> & {
+  /** Nếu truyền order: VP nhận = linehaulDestLabel (đối tác) hoặc finalToOffice || toOffice. */
+  order?: Pick<
+    Order,
+    | "fromOffice"
+    | "toOffice"
+    | "finalToOffice"
+    | "address"
+    | "homeDelivery"
+    | "linehaulPartnerCode"
+    | "linehaulDestLabel"
+  > & {
     hubOffice?: string;
   };
   className?: string;
@@ -20,8 +29,9 @@ export function OfficeRouteCell({
   hideAddress?: boolean;
 }) {
   const from = officeName(order?.fromOffice ?? fromOffice ?? "") || "—";
-  const to =
-    officeName(order ? orderReceiverOffice(order) : (toOffice ?? "")) || "—";
+  const to = order
+    ? receiverOfficeName(order) || "—"
+    : officeName(toOffice ?? "") || "—";
   const door = hideAddress
     ? ""
     : order?.homeDelivery === false

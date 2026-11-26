@@ -14,6 +14,7 @@ import { Route as VpRouteImport } from './routes/$vp'
 import { Route as BangGiaRouteImport } from './routes/bang-gia'
 import { Route as BaoCaoDoanhThuRouteImport } from './routes/bao-cao-doanh-thu'
 import { Route as BaoCaoGioRouteImport } from './routes/bao-cao-gio'
+import { Route as BaoCaoThaoTacRouteImport } from './routes/bao-cao-thao-tac'
 import { Route as BaoGioXeRouteImport } from './routes/bao-gio-xe'
 import { Route as BaoTriRouteImport } from './routes/bao-tri'
 import { Route as ChamCongRouteImport } from './routes/cham-cong'
@@ -84,6 +85,11 @@ const BaoCaoDoanhThuRoute = BaoCaoDoanhThuRouteImport.update({
 const BaoCaoGioRoute = BaoCaoGioRouteImport.update({
   id: '/bao-cao-gio',
   path: '/bao-cao-gio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BaoCaoThaoTacRoute = BaoCaoThaoTacRouteImport.update({
+  id: '/bao-cao-thao-tac',
+  path: '/bao-cao-thao-tac',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BaoGioXeRoute = BaoGioXeRouteImport.update({
@@ -323,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/bang-gia': typeof BangGiaRoute
   '/bao-cao-doanh-thu': typeof BaoCaoDoanhThuRoute
   '/bao-cao-gio': typeof BaoCaoGioRoute
+  '/bao-cao-thao-tac': typeof BaoCaoThaoTacRoute
   '/bao-gio-xe': typeof BaoGioXeRoute
   '/bao-tri': typeof BaoTriRoute
   '/cham-cong': typeof ChamCongRoute
@@ -376,6 +383,7 @@ export interface FileRoutesByTo {
   '/bang-gia': typeof BangGiaRoute
   '/bao-cao-doanh-thu': typeof BaoCaoDoanhThuRoute
   '/bao-cao-gio': typeof BaoCaoGioRoute
+  '/bao-cao-thao-tac': typeof BaoCaoThaoTacRoute
   '/bao-gio-xe': typeof BaoGioXeRoute
   '/bao-tri': typeof BaoTriRoute
   '/cham-cong': typeof ChamCongRoute
@@ -430,6 +438,7 @@ export interface FileRoutesById {
   '/bang-gia': typeof BangGiaRoute
   '/bao-cao-doanh-thu': typeof BaoCaoDoanhThuRoute
   '/bao-cao-gio': typeof BaoCaoGioRoute
+  '/bao-cao-thao-tac': typeof BaoCaoThaoTacRoute
   '/bao-gio-xe': typeof BaoGioXeRoute
   '/bao-tri': typeof BaoTriRoute
   '/cham-cong': typeof ChamCongRoute
@@ -485,6 +494,7 @@ export interface FileRouteTypes {
     | '/bang-gia'
     | '/bao-cao-doanh-thu'
     | '/bao-cao-gio'
+    | '/bao-cao-thao-tac'
     | '/bao-gio-xe'
     | '/bao-tri'
     | '/cham-cong'
@@ -538,6 +548,7 @@ export interface FileRouteTypes {
     | '/bang-gia'
     | '/bao-cao-doanh-thu'
     | '/bao-cao-gio'
+    | '/bao-cao-thao-tac'
     | '/bao-gio-xe'
     | '/bao-tri'
     | '/cham-cong'
@@ -591,6 +602,7 @@ export interface FileRouteTypes {
     | '/bang-gia'
     | '/bao-cao-doanh-thu'
     | '/bao-cao-gio'
+    | '/bao-cao-thao-tac'
     | '/bao-gio-xe'
     | '/bao-tri'
     | '/cham-cong'
@@ -645,6 +657,7 @@ export interface RootRouteChildren {
   BangGiaRoute: typeof BangGiaRoute
   BaoCaoDoanhThuRoute: typeof BaoCaoDoanhThuRoute
   BaoCaoGioRoute: typeof BaoCaoGioRoute
+  BaoCaoThaoTacRoute: typeof BaoCaoThaoTacRoute
   BaoGioXeRoute: typeof BaoGioXeRoute
   BaoTriRoute: typeof BaoTriRoute
   ChamCongRoute: typeof ChamCongRoute
@@ -728,6 +741,13 @@ declare module '@tanstack/react-router' {
       path: '/bao-cao-gio'
       fullPath: '/bao-cao-gio'
       preLoaderRoute: typeof BaoCaoGioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bao-cao-thao-tac': {
+      id: '/bao-cao-thao-tac'
+      path: '/bao-cao-thao-tac'
+      fullPath: '/bao-cao-thao-tac'
+      preLoaderRoute: typeof BaoCaoThaoTacRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bao-gio-xe': {
@@ -1061,6 +1081,7 @@ const rootRouteChildren: RootRouteChildren = {
   BangGiaRoute: BangGiaRoute,
   BaoCaoDoanhThuRoute: BaoCaoDoanhThuRoute,
   BaoCaoGioRoute: BaoCaoGioRoute,
+  BaoCaoThaoTacRoute: BaoCaoThaoTacRoute,
   BaoGioXeRoute: BaoGioXeRoute,
   BaoTriRoute: BaoTriRoute,
   ChamCongRoute: ChamCongRoute,

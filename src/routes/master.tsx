@@ -17,6 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { VehicleFormDialog } from "@/components/VehicleFormDialog";
 import { ShipperMasterTab } from "@/components/ShipperMasterTab";
+import { PartnerAgencyMasterTab } from "@/components/PartnerAgencyMasterTab";
+import { PartnerProvinceMasterTab } from "@/components/PartnerProvinceMasterTab";
+import { PartnerVehicleMasterTab } from "@/components/PartnerVehicleMasterTab";
 import { useStore, type VehicleRec } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { canWrite } from "@/lib/rbac";
@@ -57,7 +60,7 @@ export const Route = createFileRoute("/master")({
   ),
 });
 
-type MasterTab = "vp" | "tuyen" | "xe" | "ts" | "shipper";
+type MasterTab = "vp" | "tuyen" | "xe" | "ts" | "shipper" | "agency" | "partner" | "pveh";
 
 type OfficeRec = StoreOfficeRec;
 
@@ -133,6 +136,9 @@ function Page() {
   const [editDriver, setEditDriver] = useState<string | null>(null);
   const [syncingXe, setSyncingXe] = useState(false);
   const [shipperCount, setShipperCount] = useState<number | null>(null);
+  const [agencyCount, setAgencyCount] = useState<number | null>(null);
+  const [partnerCount, setPartnerCount] = useState<number | null>(null);
+  const [pvehCount, setPvehCount] = useState<number | null>(null);
   const [tab, setTab] = useState<MasterTab>("vp");
 
   const truckVehicles = useMemo(
@@ -159,6 +165,21 @@ function Page() {
     void reloadMaster();
   }, []);
 
+  useEffect(() => {
+    void import("@/lib/api/linehaul-api")
+      .then(({ fetchLinehaulProvinces, fetchLinehaulAgencies }) =>
+        Promise.all([fetchLinehaulProvinces(false), fetchLinehaulAgencies(false)]),
+      )
+      .then(([provinces, agencies]) => {
+        setPartnerCount(provinces.length);
+        setAgencyCount(agencies.length);
+      })
+      .catch(() => {
+        setPartnerCount(0);
+        setAgencyCount(0);
+      });
+  }, []);
+
   return (
     <div className="stack" style={{ gap: 16 }}>
       <h1 className="page-title">Master dữ liệu</h1>
@@ -170,6 +191,9 @@ function Page() {
             ["xe", "local_shipping", "Xe tải", truckVehicles.length],
             ["ts", "badge", "Tài xế", drivers.length],
             ["shipper", "two_wheeler", "Shipper", shipperCount],
+            ["agency", "handshake", "Đối tác", agencyCount],
+            ["partner", "map", "Tỉnh đối tác", partnerCount],
+            ["pveh", "airport_shuttle", "Xe đối tác", pvehCount],
           ] as const
         ).map(([id, icon, label, count]) => (
           <button
@@ -580,6 +604,10 @@ function Page() {
           <ShipperMasterTab offices={listedOffices} writable={writable} onCount={setShipperCount} />
         </section>
       ) : null}
+
+      {tab === "agency" ? <PartnerAgencyMasterTab writable={writable} onCount={setAgencyCount} /> : null}
+      {tab === "partner" ? <PartnerProvinceMasterTab writable={writable} onCount={setPartnerCount} /> : null}
+      {tab === "pveh" ? <PartnerVehicleMasterTab writable={writable} onCount={setPvehCount} /> : null}
 
       {wifiVp?.id != null && (
         <OfficeWifiDialog

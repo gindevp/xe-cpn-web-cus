@@ -24,6 +24,7 @@ import {
   formatDateTime,
   officeName,
   orderReceiverOffice,
+  receiverOfficeName,
   isAutoException,
   isOtherGoodsGroup,
   openIssueType,
@@ -266,7 +267,7 @@ const ORDER_EXPORT_FIELDS: ExportField[] = [
     key: "toOffice",
     label: "VP nhận",
     hint: "Văn phòng trả hàng cho người nhận. Nếu đơn đã đổi điểm nhận thì là văn phòng mới.",
-    get: (o) => officeName(orderReceiverOffice(o)) || orderReceiverOffice(o),
+    get: (o) => receiverOfficeName(o) || orderReceiverOffice(o),
   },
   {
     key: "route",
@@ -620,7 +621,7 @@ function DashboardPage() {
     return named?.name ?? (raw || "—");
   };
   const officeOf = (o: { code?: string; fromOffice?: string }) => officeNameOf(o.fromOffice || "");
-  const toOfficeOf = (o: OrderX) => officeNameOf(orderReceiverOffice(o));
+  const toOfficeOf = (o: OrderX) => receiverOfficeName(o) || officeNameOf(orderReceiverOffice(o));
   const drillOfficeOf = (r: HourDrillRow) =>
     r.kind === "gui" ? officeOf(r.order) : toOfficeOf(r.order);
 

@@ -51,6 +51,13 @@ export type OrderSummary = {
   deliveryFeeAmount?: number;
   homePickup?: boolean;
   homeDelivery?: boolean;
+  linehaulPartnerCode?: string;
+  linehaulProvinceId?: number;
+  linehaulZoneId?: number;
+  linehaulWardCode?: string;
+  linehaulWardName?: string;
+  linehaulDestLabel?: string;
+  linehaulDestCode?: string;
   qrDropOff?: boolean;
   hasGoodsPhoto?: boolean;
   hasPodPhoto?: boolean;
@@ -286,6 +293,13 @@ export function mapOrder(dto: OrderSummary): OrderX {
     updatedAt,
     note: dto.note,
     homeDelivery: dto.homeDelivery,
+    linehaulPartnerCode: dto.linehaulPartnerCode ?? undefined,
+    linehaulProvinceId: dto.linehaulProvinceId ?? undefined,
+    linehaulZoneId: dto.linehaulZoneId ?? undefined,
+    linehaulWardCode: dto.linehaulWardCode ?? undefined,
+    linehaulWardName: dto.linehaulWardName ?? undefined,
+    linehaulDestLabel: dto.linehaulDestLabel ?? undefined,
+    linehaulDestCode: dto.linehaulDestCode ?? undefined,
     homePickup: dto.homePickup,
     qrDropOff: dto.qrDropOff,
     hasGoodsPhoto: dto.hasGoodsPhoto,
@@ -1492,6 +1506,7 @@ export type VehicleDTO = {
   plateNumber: string;
   capacityKg: number;
   vehicleType?: string | null;
+  partnerTruck?: boolean;
   volumeM3?: number | null;
   note?: string | null;
   active?: boolean;
@@ -1509,6 +1524,7 @@ export type VehicleMaster = {
   officeCode?: string;
   driverName?: string;
   active: boolean;
+  partnerTruck?: boolean;
 };
 
 export function mapVehicleDto(v: VehicleDTO): VehicleMaster {
@@ -1522,6 +1538,7 @@ export function mapVehicleDto(v: VehicleDTO): VehicleMaster {
     officeCode: v.office?.code,
     driverName: v.defaultDriver?.fullName ?? undefined,
     active: v.active !== false,
+    partnerTruck: v.partnerTruck === true,
   };
 }
 
@@ -1535,6 +1552,7 @@ function vehicleWriteBody(v: {
   officeCode?: string;
   driverName?: string;
   active?: boolean;
+  partnerTruck?: boolean;
 }) {
   return {
     ...(v.id != null ? { id: v.id } : {}),
@@ -1544,6 +1562,7 @@ function vehicleWriteBody(v: {
     volumeM3: v.volumeM3 ?? null,
     note: v.note || null,
     active: v.active !== false,
+    partnerTruck: v.partnerTruck === true,
     office: v.officeCode ? { code: v.officeCode } : null,
     defaultDriver: v.driverName ? { fullName: v.driverName } : null,
   };
@@ -1564,6 +1583,7 @@ export async function createVehicleApi(input: {
   vehicleType?: string;
   driverName?: string;
   active?: boolean;
+  partnerTruck?: boolean;
 }): Promise<VehicleMaster> {
   const saved = await apiRequest<VehicleDTO>("/api/vehicles", {
     method: "POST",
@@ -1580,6 +1600,7 @@ export async function updateVehicleApi(
     vehicleType?: string;
     driverName?: string;
     active?: boolean;
+    partnerTruck?: boolean;
   },
 ): Promise<VehicleMaster> {
   const saved = await apiRequest<VehicleDTO>(`/api/vehicles/${id}`, {

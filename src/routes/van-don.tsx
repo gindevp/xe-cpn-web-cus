@@ -45,6 +45,7 @@ import { displayOrderNote, orderGoodsLabel, packageRows, applyPackageRemove, pac
 import { OrderStatusBadge } from "@/components/StatusBadge";
 import { TaoDonDialog, type TaoDonInitial } from "@/components/TaoDonDialog";
 import { OrderCodeLink, useOrderHistory } from "@/components/OrderHistoryDialog";
+import { LinehaulPartnerTag } from "@/components/LinehaulPartnerTag";
 import { PrintLabelDialog } from "@/components/PrintLabelDialog";
 import {
   Dialog,
@@ -625,6 +626,11 @@ function Page() {
                         </td>
                         <td className="py-2 pr-4">
                           <OrderCodeLink code={r.code} />
+                          {r.linehaulPartnerCode ? (
+                            <span className="row-tags">
+                              <LinehaulPartnerTag code={r.linehaulPartnerCode} />
+                            </span>
+                          ) : null}
                           <div className="text-muted-foreground">
                             {formatDateTime(r.createdAt)}
                           </div>
@@ -1274,6 +1280,11 @@ function AssignToVehicleDialog({
                         >
                           <td className="px-3 py-2">
                             <OrderCodeLink code={r.code} />
+                            {r.linehaulPartnerCode ? (
+                              <span className="row-tags">
+                                <LinehaulPartnerTag code={r.linehaulPartnerCode} />
+                              </span>
+                            ) : null}
                           </td>
                           <td className="px-3 py-2">
                             <div>{packageCount(r)} kiện</div>

@@ -21,6 +21,13 @@ import { toast } from "sonner";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isValidVnPlate, normalizePlate } from "@/lib/vehicle-plate";
+import {
+  createLinehaulPartnerVehicle,
+  fetchLinehaulPartnerVehicles,
+  LINEHAUL_PARTNER_LABEL,
+  LINEHAUL_PARTNER_VEXERE,
+  type LinehaulPartnerVehicle,
+} from "@/lib/api/linehaul-api";
 
 function formatTripClock(iso?: string | null): string {
   if (!iso) return "—";
@@ -276,16 +283,22 @@ export function AssignVehiclePicker({
   onPick,
   presetBranch,
   presetItinerary,
+  partnerMode = false,
+  partnerCodeHint,
 }: {
   open: boolean;
   onPick: (pick: AssignVehiclePick) => void;
   /** Tự fill từ lộ trình đơn đã chọn — ẩn dropdown chọn tay. */
   presetBranch?: string;
   presetItinerary?: string;
+  /** Đơn giao qua đối tác: chỉ tab xe tải đối tác. */
+  partnerMode?: boolean;
+  /** Mã đối tác suy ra từ đơn đã chọn (khi thêm xe thủ công). */
+  partnerCodeHint?: string;
 }) {
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
-  const [tab, setTab] = useState<"vthk" | "vthh">("vthk");
+  const [tab, setTab] = useState<"vthk" | "vthh">(partnerMode ? "vthh" : "vthk");
   const [branch, setBranch] = useState("");
   const [itinerary, setItinerary] = useState("");
   const lockRoute = Boolean(presetBranch?.trim() && presetItinerary?.trim());
@@ -312,6 +325,7 @@ export function AssignVehiclePicker({
   const [truckEditId, setTruckEditId] = useState<number | null>(null);
   const [truckBks, setTruckBks] = useState("");
   const [truckDriver, setTruckDriver] = useState("");
+  const [truckPhone, setTruckPhone] = useState("");
   const [truckTaiTrong, setTruckTaiTrong] = useState("");
   const [truckList, setTruckList] = useState<
     {
@@ -321,9 +335,16 @@ export function AssignVehiclePicker({
       vehicleType?: string;
       driverName?: string;
       active: boolean;
+      partnerTruck?: boolean;
+      /** Xe khai báo ở Master → Xe đối tác (không có id Vehicle). */
+      linehaulCode?: string;
     }[]
   >([]);
   const [loadingTrucks, setLoadingTrucks] = useState(false);
+
+  useEffect(() => {
+    if (open && partnerMode) setTab("vthh");
+  }, [partnerMode, open]);
 
   const drivers = useStore((s) => s.drivers);
   const routes = useStore((s) => s.routes);
@@ -346,8 +367,13 @@ export function AssignVehiclePicker({
   }, [trips, orders]);
 
   const truckVehicles = useMemo(
-    () => truckList.filter((v) => v.active && !/limousine/i.test(v.vehicleType ?? "")),
-    [truckList],
+    () =>
+      truckList.filter((v) => {
+        if (!v.active || /limousine/i.test(v.vehicleType ?? "")) return false;
+        if (partnerMode) return v.partnerTruck === true;
+        return v.partnerTruck !== true;
+      }),
+    [truckList, partnerMode],
   );
 
   const limoPlateSuggestions = useMemo(() => {
@@ -358,6 +384,17 @@ export function AssignVehiclePicker({
       .slice(0, 8);
   }, [truckList, limoBks]);
 
+  const mapLinehaulVehicle = (v: LinehaulPartnerVehicle) => ({
+    id: -v.id,
+    bks: (v.plate || v.code || "").trim(),
+    capacity: 0,
+    vehicleType: `Xe đối tác · ${v.partnerCode}`,
+    driverName: v.driverName,
+    active: v.active !== false,
+    partnerTruck: true as const,
+    linehaulCode: v.code,
+  });
+
   const reloadTrucks = async () => {
     if (!isApiEnabled()) {
       setTruckList([]);
@@ -367,7 +404,25 @@ export function AssignVehiclePicker({
     try {
       const domain = await import("@/lib/api/domain-api");
       const list = await domain.listVehiclesMaster();
-      setTruckList(list);
+      if (partnerMode) {
+        const linehaul = await fetchLinehaulPartnerVehicles(true).catch(() => [] as LinehaulPartnerVehicle[]);
+        const fromMaster = linehaul.filter((v) => v.active !== false).map(mapLinehaulVehicle);
+        const fromVehicle = list.filter((v) => v.active && v.partnerTruck === true);
+        // Ưu tiên xe Master đối tác; bỏ trùng BKS/ký hiệu đã có.
+        const seen = new Set(fromMaster.map((v) => normalizePlate(v.bks) || v.linehaulCode || String(v.id)));
+        const merged = [
+          ...fromMaster,
+          ...fromVehicle.filter((v) => {
+            const key = normalizePlate(v.bks) || String(v.id);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }),
+        ];
+        setTruckList(merged);
+      } else {
+        setTruckList(list);
+      }
     } catch (e: any) {
       setTruckList([]);
       toast.error(e?.message || "Không tải được danh sách xe tải từ máy chủ");
@@ -378,7 +433,7 @@ export function AssignVehiclePicker({
 
   useEffect(() => {
     if (!open) return;
-    setTab("vthk");
+    setTab(partnerMode ? "vthh" : "vthk");
     setPickedVthkKey("");
     setPickedPlate("");
     setBranch(presetBranch?.trim() || "");
@@ -390,15 +445,16 @@ export function AssignVehiclePicker({
     setTruckDlgOpen(false);
     setTruckEditId(null);
     onPickRef.current(null);
-  }, [open, presetBranch, presetItinerary]);
+  }, [open, presetBranch, presetItinerary, partnerMode]);
 
   useEffect(() => {
     if (!open || tab !== "vthh") return;
     void reloadTrucks();
-  }, [open, tab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload khi mở tab xe tải / đối tác
+  }, [open, tab, partnerMode]);
 
   useEffect(() => {
-    if (!open || tab !== "vthk") return;
+    if (!open || tab !== "vthk" || partnerMode) return;
     if (!isApiEnabled() || !itinerary) {
       setVthk([]);
       setVthkWindow(null);
@@ -425,10 +481,10 @@ export function AssignVehiclePicker({
     return () => {
       cancelled = true;
     };
-  }, [open, tab, branch, itinerary]);
+  }, [open, tab, branch, itinerary, partnerMode]);
 
   useEffect(() => {
-    if (tab !== "vthk") return;
+    if (tab !== "vthk" || partnerMode) return;
     if (manualLimo) {
       const routeVal = itinerary || branch;
       onPickRef.current(
@@ -455,7 +511,9 @@ export function AssignVehiclePicker({
 
   useEffect(() => {
     if (tab !== "vthh") return;
-    const v = truckVehicles.find((x) => x.bks === pickedPlate);
+    const v = truckVehicles.find(
+      (x) => x.bks === pickedPlate || x.linehaulCode === pickedPlate,
+    );
     if (!v) {
       onPickRef.current(null);
       return;
@@ -463,14 +521,16 @@ export function AssignVehiclePicker({
     onPickRef.current({
       tab: "vthh",
       source: "TRUCK",
-      plate: v.bks,
-      vehicleId: v.id,
+      // Xe Master đối tác có thể không có biển — dùng ký hiệu.
+      plate: v.bks || v.linehaulCode || "",
+      vehicleId: v.id > 0 ? v.id : undefined,
       driver: v.driverName?.trim() || "",
-      // Hint only — confirmAssign resolves real Route.code from orders/master (never invent "VTHH")
-      route: routes[0] ?? "",
+      // Hint only — confirmAssign resolves real Route.code from orders/master
+      route: partnerMode ? LINEHAUL_PARTNER_LABEL : routes[0] ?? "",
+      branchName: partnerMode ? LINEHAUL_PARTNER_LABEL : undefined,
       departAt: new Date().toISOString(),
     });
-  }, [tab, pickedPlate, truckVehicles, routes]);
+  }, [tab, pickedPlate, truckVehicles, routes, partnerMode]);
 
   const emitTab = (next: "vthk" | "vthh") => {
     setTab(next);
@@ -484,6 +544,7 @@ export function AssignVehiclePicker({
     setTruckEditId(null);
     setTruckBks("");
     setTruckDriver("");
+    setTruckPhone("");
     setTruckTaiTrong("");
     setTruckDlgOpen(true);
   };
@@ -494,10 +555,16 @@ export function AssignVehiclePicker({
     capacity: number;
     vehicleType?: string;
     driverName?: string;
+    linehaulCode?: string;
   }) => {
+    if (v.id < 0 || v.linehaulCode) {
+      toast.message("Sửa xe Master đối tác ở Master dữ liệu → Xe đối tác");
+      return;
+    }
     setTruckEditId(v.id);
     setTruckBks(v.bks);
     setTruckDriver(v.driverName ?? "");
+    setTruckPhone("");
     const tons = v.capacity > 0 ? v.capacity / 1000 : 0;
     const label =
       TAI_TRONG_OPTIONS.find((o) => Math.abs(Number.parseFloat(o) - tons) < 0.01) ??
@@ -540,17 +607,59 @@ export function AssignVehiclePicker({
   };
 
   const saveTruckDlg = async () => {
-    const plate = truckBks.trim();
+    const plate = truckBks.trim().toUpperCase();
     const drv = truckDriver.trim();
-    if (!plate) return toast.error("Nhập biển kiểm soát");
+    const phone = truckPhone.replace(/\s/g, "");
+    if (!plate) return toast.error(partnerMode ? "Nhập BKS" : "Nhập biển kiểm soát");
     if (!drv) return toast.error("Nhập tên tài xế");
-    if (!truckTaiTrong.trim()) return toast.error("Chọn tải trọng");
+    if (partnerMode && !/^0\d{9}$/.test(phone)) {
+      return toast.error("SĐT lái xe gồm 10 số, bắt đầu bằng 0");
+    }
+    if (!partnerMode && !truckTaiTrong.trim()) return toast.error("Chọn tải trọng");
     if (!isApiEnabled()) return toast.error("API chưa cấu hình");
 
-    const { vehicleType, capacity } = truckTypeFromTaiTrong(truckTaiTrong.trim());
+    const { vehicleType, capacity } = truckTypeFromTaiTrong(
+      truckTaiTrong.trim() || (partnerMode ? "5 tấn" : ""),
+    );
     try {
-      const domain = await import("@/lib/api/domain-api");
-      if (truckEditId != null) {
+      if (partnerMode) {
+        if (truckEditId != null && truckEditId < 0) {
+          toast.message("Sửa xe Master đối tác ở Master dữ liệu → Xe đối tác");
+          return;
+        }
+        if (truckEditId != null && truckEditId > 0) {
+          const domain = await import("@/lib/api/domain-api");
+          await domain.updateVehicleApi(truckEditId, {
+            bks: plate,
+            capacity,
+            vehicleType: "Xe đối tác",
+            driverName: drv,
+            active: true,
+            partnerTruck: true,
+          });
+          toast.success("Đã cập nhật xe đối tác");
+          setPickedPlate(plate);
+        } else {
+          // Thêm vào Master xe đối tác — một trường BKS (code = plate).
+          const partnerCode = (partnerCodeHint || LINEHAUL_PARTNER_VEXERE).trim().toUpperCase();
+          const created = await createLinehaulPartnerVehicle({
+            code: plate,
+            plate,
+            partnerCode,
+            driverName: drv,
+            driverPhone: phone,
+            appAccount: null,
+          });
+          toast.success("Đã thêm xe đối tác");
+          const pickKey = (created.plate || created.code || plate).trim();
+          await reloadTrucks();
+          setPickedPlate(pickKey);
+          setTruckDlgOpen(false);
+          setTruckEditId(null);
+          return;
+        }
+      } else if (truckEditId != null && truckEditId > 0) {
+        const domain = await import("@/lib/api/domain-api");
         await domain.updateVehicleApi(truckEditId, {
           bks: plate,
           capacity,
@@ -559,21 +668,26 @@ export function AssignVehiclePicker({
           active: true,
         });
         toast.success("Đã cập nhật xe tải");
+        setPickedPlate(plate);
+      } else if (truckEditId != null && truckEditId < 0) {
+        toast.message("Sửa xe Master đối tác ở Master dữ liệu → Xe đối tác");
+        return;
       } else {
+        const domain = await import("@/lib/api/domain-api");
         await domain.createVehicleApi({
           bks: plate,
           capacity,
           vehicleType,
           driverName: drv,
           active: true,
+          partnerTruck: false,
         });
         toast.success("Đã thêm xe tải");
+        setPickedPlate(plate);
       }
       await reloadTrucks();
-      // giữ store master đồng bộ màn hình khác
       const { syncMasterFromApi } = await import("@/lib/api/sync");
       await syncMasterFromApi().catch(() => undefined);
-      setPickedPlate(plate);
       setTruckDlgOpen(false);
       setTruckEditId(null);
     } catch (e: any) {
@@ -581,7 +695,11 @@ export function AssignVehiclePicker({
     }
   };
 
-  const deleteTruck = async (v: { id: number; bks: string }) => {
+  const deleteTruck = async (v: { id: number; bks: string; linehaulCode?: string }) => {
+    if (v.id < 0 || v.linehaulCode) {
+      toast.message("Xoá xe Master đối tác ở Master dữ liệu → Xe đối tác");
+      return;
+    }
     if (!(await askConfirm(`Xóa xe ${v.bks}?`))) return;
     if (!isApiEnabled()) return toast.error("API chưa cấu hình");
     try {
@@ -599,11 +717,16 @@ export function AssignVehiclePicker({
 
   return (
     <div className="min-w-0 max-w-full space-y-3 overflow-hidden">
-      <Tabs value={tab} onValueChange={(v) => emitTab(v as "vthk" | "vthh")}>
+      <Tabs value={partnerMode ? "vthh" : tab} onValueChange={(v) => !partnerMode && emitTab(v as "vthk" | "vthh")}>
         <TabsList className="h-9">
-          <TabsTrigger value="vthk">Xe Limousine</TabsTrigger>
-          <TabsTrigger value="vthh">Xe tải</TabsTrigger>
+          {!partnerMode ? <TabsTrigger value="vthk">Xe Limousine</TabsTrigger> : null}
+          <TabsTrigger value="vthh">{partnerMode ? "Xe tải đối tác" : "Xe tải"}</TabsTrigger>
         </TabsList>
+        {partnerMode ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Đơn giao qua đối tác — chỉ hiện xe đối tác. Thêm xe tại đây mặc định là xe đối tác.
+          </p>
+        ) : null}
 
         <TabsContent value="vthk" className="mt-3 min-w-0 space-y-3">
           {lockRoute ? (
@@ -731,47 +854,51 @@ export function AssignVehiclePicker({
           ) : (
             <VehicleRow>
               {truckVehicles.map((v) => {
-                const active = pickedPlate === v.bks;
-                const load = loadByPlate.get(v.bks);
+                const pickKey = v.bks || v.linehaulCode || "";
+                const active = pickedPlate === pickKey;
+                const load = loadByPlate.get(pickKey) ?? (v.bks ? loadByPlate.get(v.bks) : undefined);
+                const fromMaster = v.id < 0 || !!v.linehaulCode;
                 return (
-                  <div key={v.id} className="relative shrink-0">
+                  <div key={v.linehaulCode ? `lh-${v.linehaulCode}` : v.id} className="relative shrink-0">
                     <TripCard
                       active={active}
                       headline={v.vehicleType || "Xe tải"}
-                      plate={v.bks}
+                      plate={pickKey || "—"}
                       driver={v.driverName || "Chưa gán tài"}
                       loadKg={load?.kg ?? 0}
                       loadCount={load?.count ?? 0}
-                      onClick={() => setPickedPlate(v.bks)}
+                      onClick={() => setPickedPlate(pickKey)}
                     />
-                    <div className="absolute right-1 top-1 flex gap-0.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-6 w-6 p-0"
-                        title="Sửa"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openTruckEdit(v);
-                        }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="h-6 w-6 p-0 text-destructive"
-                        title="Xóa"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void deleteTruck(v);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    {!fromMaster ? (
+                      <div className="absolute right-1 top-1 flex gap-0.5">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 w-6 p-0"
+                          title="Sửa"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openTruckEdit(v);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-6 w-6 p-0 text-destructive"
+                          title="Xóa"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void deleteTruck(v);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -866,7 +993,15 @@ export function AssignVehiclePicker({
 
       <NestedFormOverlay
         open={truckDlgOpen}
-        title={truckEditId != null ? "Sửa xe tải" : "Thêm xe tải"}
+        title={
+          truckEditId != null
+            ? partnerMode
+              ? "Sửa xe đối tác"
+              : "Sửa xe tải"
+            : partnerMode
+              ? "Thêm xe đối tác"
+              : "Thêm xe tải"
+        }
         onClose={() => {
           setTruckDlgOpen(false);
           setTruckEditId(null);
@@ -875,15 +1010,15 @@ export function AssignVehiclePicker({
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs">Biển kiểm soát</Label>
+            <Label className="text-xs">{partnerMode ? "BKS *" : "Biển kiểm soát"}</Label>
             <Input
-              placeholder="Nhập BKS..."
+              placeholder={partnerMode ? "VD: 37C-000.01 hoặc HTP-04" : "Nhập BKS..."}
               value={truckBks}
               onChange={(e) => setTruckBks(e.target.value.toUpperCase())}
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Tên tài xế</Label>
+            <Label className="text-xs">Tên tài xế *</Label>
             <NameInput
               preserveCase
               placeholder="Nhập tên tài xế..."
@@ -897,26 +1032,42 @@ export function AssignVehiclePicker({
               ))}
             </datalist>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Tải trọng</Label>
-            <select
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={truckTaiTrong}
-              onChange={(e) => setTruckTaiTrong(e.target.value)}
-            >
-              <option value="">Chọn</option>
-              {[
-                ...TAI_TRONG_OPTIONS,
-                ...(truckTaiTrong && !TAI_TRONG_OPTIONS.includes(truckTaiTrong)
-                  ? [truckTaiTrong]
-                  : []),
-              ].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
+          {partnerMode ? (
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs">SĐT lái xe *</Label>
+              <Input
+                inputMode="tel"
+                placeholder="VD: 0901234567"
+                value={truckPhone}
+                onChange={(e) => setTruckPhone(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Không cần tài khoản app điều phối. Có thể khai báo thêm ở Master → Xe đối tác.
+              </p>
+            </div>
+          ) : null}
+          {!partnerMode ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tải trọng</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={truckTaiTrong}
+                onChange={(e) => setTruckTaiTrong(e.target.value)}
+              >
+                <option value="">Chọn</option>
+                {[
+                  ...TAI_TRONG_OPTIONS,
+                  ...(truckTaiTrong && !TAI_TRONG_OPTIONS.includes(truckTaiTrong)
+                    ? [truckTaiTrong]
+                    : []),
+                ].map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
         </div>
       </NestedFormOverlay>
     </div>

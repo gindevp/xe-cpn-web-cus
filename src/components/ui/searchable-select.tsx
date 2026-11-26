@@ -15,6 +15,10 @@ export type SearchableSelectOption = {
   /** Extra searchable text (e.g. code, alias) */
   keywords?: string;
   disabled?: boolean;
+  /** Tỉnh đối tác — hiện tag tím trong dropdown (design `.opt-partner`). */
+  partner?: boolean;
+  /** Chữ tag, vd "Giao qua HTP". */
+  partnerLabel?: string;
 };
 
 export type SearchableSelectProps = {
@@ -202,12 +206,20 @@ export function SearchableSelect({
                     keywords={[opt.label, opt.keywords ?? "", opt.value]}
                     disabled={opt.disabled}
                     onSelect={() => pick(opt.value)}
-                    className="m3-combo-item"
+                    className={cn("m3-combo-item", opt.partner && "opt-partner")}
                   >
                     <Check
                       className={cn("mr-2 h-4 w-4 shrink-0", value === opt.value ? "opacity-100" : "opacity-0")}
                     />
-                    <span className="whitespace-normal leading-tight">{opt.label}</span>
+                    <span className="min-w-0 flex-1 whitespace-normal leading-tight">{opt.label}</span>
+                    {opt.partner ? (
+                      <span className="tag partner sm">
+                        <span className="ms" aria-hidden="true">
+                          handshake
+                        </span>
+                        {opt.partnerLabel || "Giao qua đối tác"}
+                      </span>
+                    ) : null}
                   </CommandItem>
                 ))}
               </CommandGroup>

@@ -51,10 +51,13 @@ export function VehicleFormDialog({
   mode,
   initial,
   onClose,
+  /** Form thêm từ tab gán xe đối tác: mặc định xe đối tác, ẩn checkbox. */
+  forcePartnerTruck,
 }: {
   mode: "create" | "edit";
   initial?: VehicleRec;
   onClose: () => void;
+  forcePartnerTruck?: boolean;
 }) {
   const drivers = useStore((s) => s.drivers);
   const [bks, setBks] = useState(initial?.bks ?? "");
@@ -62,6 +65,9 @@ export function VehicleFormDialog({
   const [taiTrong, setTaiTrong] = useState(() => taiTrongFromVehicle(initial));
   const [note, setNote] = useState(initial?.note ?? "");
   const [active, setActive] = useState(initial?.active !== false);
+  const [partnerTruck, setPartnerTruck] = useState(
+    forcePartnerTruck === true || initial?.partnerTruck === true,
+  );
   const [saving, setSaving] = useState(false);
 
   const taiTrongOptions = useMemo(() => {
@@ -88,6 +94,7 @@ export function VehicleFormDialog({
       driverName: drv,
       note: note.trim() || undefined,
       active,
+      partnerTruck: forcePartnerTruck ? true : partnerTruck,
       volumeM3: undefined,
       officeCode: initial?.officeCode,
     };
@@ -156,6 +163,14 @@ export function VehicleFormDialog({
             <Checkbox checked={active} onCheckedChange={(v) => setActive(Boolean(v))} />
             Đang hoạt động
           </label>
+          {!forcePartnerTruck ? (
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <Checkbox checked={partnerTruck} onCheckedChange={(v) => setPartnerTruck(Boolean(v))} />
+              Xe đối tác (Vé Xe Rẻ)
+            </label>
+          ) : (
+            <div className="lab muted sm:col-span-2">Xe đối tác — dùng khi gán hàng giao qua đối tác.</div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>

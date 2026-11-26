@@ -389,8 +389,14 @@ function useQrImage(code: string | null) {
   return qr;
 }
 
-/** Mã VP nhận — góc trái tem: bỏ tiền tố VP_ và hậu tố _XX. */
+/** Mã VP nhận — góc trái tem: bỏ tiền tố VP_ và hậu tố _XX.
+ *  Đơn đối tác: ưu tiên linehaulDestCode (NA, HT…) — không dùng tên dài kẻo tràn tem. */
 function destOfficeCode(order: Order): string {
+  if (order.linehaulPartnerCode?.trim()) {
+    const code = (order.linehaulDestCode || "").trim().toUpperCase();
+    if (code) return code;
+    return (order.linehaulPartnerCode || "ĐT").trim().toUpperCase().slice(0, 6);
+  }
   const toToken = orderReceiverOffice(order) || order.toOffice;
   const office = findOfficeByToken(toToken);
   const raw = (office?.code || toToken || "").trim();

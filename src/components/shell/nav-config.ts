@@ -24,6 +24,7 @@ export const M3_NAV_GROUPS: M3NavGroup[] = [
       { to: "/dashboard", label: "Tổng quan", icon: "dashboard", screen: "dashboard" },
       { to: "/kiem-ke", label: "Thông tin kiểm kê", icon: "inventory", screen: "kiem-ke" },
       { to: "/bao-cao-gio", label: "Báo cáo theo giờ", icon: "schedule", screen: "bao-cao-gio" },
+      { to: "/bao-cao-thao-tac", label: "Báo cáo thao tác", icon: "touch_app", screen: "bao-cao-thao-tac" },
       { to: "/bao-gio-xe", label: "Báo giờ xe đến/đi", icon: "departure_board", screen: "bao-gio-xe" },
     ],
   },

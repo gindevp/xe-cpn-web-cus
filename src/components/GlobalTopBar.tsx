@@ -4,7 +4,7 @@ import { useOrderHistoryOptional } from "@/components/OrderHistoryDialog";
 import { realVehiclePlate } from "@/components/AssignVehiclePicker";
 import { toast } from "sonner";
 import { useStore, type OrderX } from "@/lib/store";
-import { formatVND, officeName, orderReceiverOffice } from "@/lib/mock-data";
+import { formatVND, officeName, orderReceiverOffice, receiverOfficeName } from "@/lib/mock-data";
 import { customerCollectBadge, senderFareTreatedCollected } from "@/lib/finance-debt";
 import { orderTabStatusLabel } from "@/lib/customer-track-status";
 import { orderGoodsLabel } from "@/lib/package-label";
@@ -402,7 +402,7 @@ function SearchResultItem({
           <span className="ms sr-arrow" aria-hidden="true">
             arrow_right_alt
           </span>
-          {officeName(orderReceiverOffice(o))}
+          {receiverOfficeName(o)}
         </span>
         <span className="sr-from num">
           <span className="ms" aria-hidden="true">

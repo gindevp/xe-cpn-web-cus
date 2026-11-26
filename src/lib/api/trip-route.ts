@@ -43,7 +43,10 @@ export async function resolveTripRouteCode(opts: {
   };
 
   for (const hint of [opts.routeHint, opts.branchName]) {
-    const hit = tryHint(hint);
+    // Bỏ qua nhãn đối tác / placeholder không phải tuyến master.
+    const h = (hint ?? "").trim();
+    if (!h || /đối tác|vé xe rẻ|vexere|linehaul|giao tận nhà/i.test(h)) continue;
+    const hit = tryHint(h);
     if (hit) return hit;
   }
 
@@ -61,6 +64,14 @@ export async function resolveTripRouteCode(opts: {
   for (const [code] of ranked) {
     const hit = tryHint(code);
     if (hit) return hit;
+  }
+
+  // Đơn đối tác thường không có VP nhận → lấy tuyến bất kỳ từ VP gửi nếu có.
+  for (const o of opts.orders ?? []) {
+    const from = o.fromOffice ? resolveOfficeCodeStrict(o.fromOffice) : null;
+    if (!from) continue;
+    const byFrom = pool.find((r) => (r.code || "").toUpperCase().startsWith(`${from}-`));
+    if (byFrom?.code) return byFrom.code;
   }
 
   if (pool[0]?.code) return pool[0].code;

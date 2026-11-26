@@ -19,6 +19,7 @@ import {
   goodsGroupSelectOptions,
   isOtherGoodsGroup,
   officeSelectOption,
+  officeSelectLabel,
   officeOptionValue,
   findOfficeByToken,
   allOfficeSelectOptions,
@@ -50,6 +51,26 @@ import {
   resolveTransitPlan,
   type TransitHubPolicy,
 } from "@/lib/transit-hub";
+import {
+  LINEHAUL_PARTNER_LABEL,
+  LINEHAUL_PARTNER_VEXERE,
+  fetchLinehaulProvinceWards,
+  fetchLinehaulProvinces,
+  quoteLinehaul,
+  type LinehaulProvince,
+  type LinehaulWard,
+} from "@/lib/api/linehaul-api";
+import { LinehaulPartnerTag } from "@/components/LinehaulPartnerTag";
+
+const LINEHAUL_PREFIX = "lh:";
+function linehaulOptionValue(id: number) {
+  return `${LINEHAUL_PREFIX}${id}`;
+}
+function parseLinehaulProvinceId(value: string): number | null {
+  if (!value.startsWith(LINEHAUL_PREFIX)) return null;
+  const n = Number(value.slice(LINEHAUL_PREFIX.length));
+  return Number.isFinite(n) ? n : null;
+}
 import { MoneyInput } from "@/components/MoneyInput";
 import { NameInput } from "@/components/NameInput";
 import { PhoneInput } from "@/components/PhoneInput";
@@ -487,6 +508,11 @@ export function TaoDonDialog({
   const [receiverPhone, setReceiverPhone] = useState(initial?.receiverPhone ?? "");
   const [receiverName, setReceiverName] = useState(toUpperName(initial?.receiverName ?? ""));
   const [toOffice, setToOffice] = useState(initial?.toOffice ?? "");
+  const [linehaulProvinces, setLinehaulProvinces] = useState<LinehaulProvince[]>([]);
+  const [linehaulWards, setLinehaulWards] = useState<LinehaulWard[]>([]);
+  const [linehaulWardCode, setLinehaulWardCode] = useState("");
+  const [linehaulStreet, setLinehaulStreet] = useState("");
+  const [linehaulZoneId, setLinehaulZoneId] = useState<number | null>(null);
   const [idNumber, setIdNumber] = useState(initial?.idNumber ?? "");
   const [homeDeliver, setHomeDeliver] = useState(initial?.homeDeliver ?? false);
   const [deliverAddr, setDeliverAddr] = useState(initial?.deliverAddr ?? "");
@@ -1073,7 +1099,66 @@ export function TaoDonDialog({
     return allOfficeSelectOptions(offices);
   }, [lockFromOffice, staffOffice, staffOfficeCode, offices]);
 
-  const toOfficeOptions = useMemo(() => allOfficeSelectOptions(offices), [offices]);
+  const linehaulProvinceId = parseLinehaulProvinceId(toOffice);
+  const selectedLinehaul = useMemo(
+    () => (linehaulProvinceId != null ? linehaulProvinces.find((p) => p.id === linehaulProvinceId) : undefined),
+    [linehaulProvinceId, linehaulProvinces],
+  );
+  const isLinehaulDest = !!selectedLinehaul;
+  /** Design: khu vực riêng → "TP Vinh, Nghệ An"; cả tỉnh → "Hà Tĩnh". */
+  const linehaulProvinceLockLabel = (() => {
+    if (!selectedLinehaul) return "—";
+    const area = (selectedLinehaul.areaName || "").trim();
+    const prov = (selectedLinehaul.provinceName || "").trim();
+    const display = (selectedLinehaul.displayName || "").trim();
+    if (area && prov && area !== prov) return `${area}, ${prov}`;
+    if (display && prov && display !== prov && selectedLinehaul.scope === "KHU_VUC") {
+      return `${display}, ${prov}`;
+    }
+    return display || prov || "—";
+  })();
+
+  useEffect(() => {
+    if (!open) return;
+    void fetchLinehaulProvinces(true)
+      .then((rows) => setLinehaulProvinces(rows.filter((p) => p.canCreateOrder)))
+      .catch(() => setLinehaulProvinces([]));
+  }, [open]);
+
+  useEffect(() => {
+    if (!isLinehaulDest || linehaulProvinceId == null) {
+      setLinehaulWards([]);
+      setLinehaulWardCode("");
+      setLinehaulZoneId(null);
+      return;
+    }
+    setHomeDeliver(true);
+    void fetchLinehaulProvinceWards(linehaulProvinceId)
+      .then((wards) => setLinehaulWards(wards))
+      .catch(() => setLinehaulWards([]));
+  }, [isLinehaulDest, linehaulProvinceId]);
+
+  useEffect(() => {
+    if (!isLinehaulDest) return;
+    const ward = linehaulWards.find((w) => w.wardCode === linehaulWardCode);
+    setLinehaulZoneId(ward?.zoneId ?? null);
+    const street = linehaulStreet.trim();
+    const wardName = ward?.wardName?.trim() ?? "";
+    const label = [street, wardName, selectedLinehaul?.provinceName].filter(Boolean).join(", ");
+    setDeliverAddr(label);
+  }, [isLinehaulDest, linehaulWardCode, linehaulStreet, linehaulWards, selectedLinehaul]);
+
+  const toOfficeOptions = useMemo(() => {
+    const officeOpts = allOfficeSelectOptions(offices);
+    const partnerOpts = linehaulProvinces.map((p) => ({
+      value: linehaulOptionValue(p.id),
+      label: p.createOrderLabel,
+      keywords: `${p.displayName} ${p.provinceName} đối tác ${p.partnerCode}`,
+      partner: true,
+      partnerLabel: `Giao qua ${p.partnerCode}`,
+    }));
+    return [...officeOpts, ...partnerOpts];
+  }, [offices, linehaulProvinces]);
 
   const goodsFare = items.reduce((s, i) => s + (Number(i.fare) || 0), 0);
   const totalWeight = items.reduce((s, i) => s + (Number(i.weight) || 0), 0);
@@ -1082,8 +1167,25 @@ export function TaoDonDialog({
   const codFee = codAmount > 0 ? Number(surchargeExtra || 0) : 0;
 
   // Phí tận nơi = bảng /phu-phi khi có KM; GTN/LTN đã có địa chỉ mà chưa ra km → mức tối thiểu 50k (như form khách).
+  // Đơn đối tác: giá đã gồm GTN → deliveryFee = 0.
   useEffect(() => {
     if (partyLocked) return;
+    if (isLinehaulDest) {
+      setDeliverFee(0);
+      const fees = calcHomeDoorFees({
+        chargeKg: doorChargeKg || 1,
+        homePickup,
+        homeDelivery: false,
+        pickupKm: homePickup ? pickupKm : null,
+        deliveryKm: null,
+      });
+      const pickup =
+        homePickup && pickupAddr.trim() && !(pickupKm != null && pickupKm > 0)
+          ? Math.max(fees.pickupFee, VAGUE_DOOR_FEE)
+          : fees.pickupFee;
+      setPickupFee(pickup);
+      return;
+    }
     const fees = calcHomeDoorFees({
       chargeKg: doorChargeKg || 1,
       homePickup,
@@ -1112,6 +1214,7 @@ export function TaoDonDialog({
     doorChargeKg,
     doorFees,
     homeDeliveryDefault,
+    isLinehaulDest,
   ]);
 
   useEffect(() => {
@@ -1153,6 +1256,7 @@ export function TaoDonDialog({
 
   const pricingRules = useStore((s) => s.pricingRules);
   useEffect(() => {
+    if (isLinehaulDest) return;
     setItems((prev) => {
       let changed = false;
       const routes = transitPlan ? transitPlan.legs.map((l) => l.route) : [route];
@@ -1179,7 +1283,44 @@ export function TaoDonDialog({
       });
       return changed ? next : prev;
     });
-  }, [route, items, pricingRules, productPricing, transitPlan]);
+  }, [route, items, pricingRules, productPricing, transitPlan, isLinehaulDest]);
+
+  useEffect(() => {
+    if (!isLinehaulDest || linehaulProvinceId == null || !linehaulWardCode) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const quoted = await Promise.all(
+          items.map(async (it) => {
+            const q = await quoteLinehaul({
+              provinceId: linehaulProvinceId,
+              wardCode: linehaulWardCode,
+              weightKg: Number(it.weight) || 0,
+            });
+            return { id: it.id, fare: Number(q.amount) || 0, zoneId: q.zoneId };
+          }),
+        );
+        if (cancelled) return;
+        if (quoted[0]?.zoneId != null) setLinehaulZoneId(quoted[0].zoneId);
+        setDeliverFee(0);
+        setItems((prev) => {
+          let changed = false;
+          const next = prev.map((it) => {
+            const hit = quoted.find((q) => q.id === it.id);
+            if (!hit || it.fare === hit.fare) return it;
+            changed = true;
+            return { ...it, fare: hit.fare };
+          });
+          return changed ? next : prev;
+        });
+      } catch {
+        /* thiếu khung/vùng — để NV thấy cước 0 và BE chặn khi tạo nếu cần */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLinehaulDest, linehaulProvinceId, linehaulWardCode, items.map((i) => `${i.id}:${i.weight}`).join("|")]);
 
   const clear = () => {
     setSenderPhone("");
@@ -1346,6 +1487,12 @@ export function TaoDonDialog({
   const updateOrder = useStore((s) => s.updateOrder);
   const [saving, setSaving] = useState(false);
   const [printCode, setPrintCode] = useState<string | null>(null);
+  /** Sheet thành công khi tạo đơn đối tác (tag Giao qua …). */
+  const [createDone, setCreateDone] = useState<null | {
+    code: string;
+    partnerCode: string;
+    printed: boolean;
+  }>(null);
   /** Đơn đang chờ nhân viên xác nhận vì VP đã vượt 1000 đơn trong ngày. */
   const [overflowAsk, setOverflowAsk] = useState<{
     payload: NewOrderPayload;
@@ -1507,7 +1654,16 @@ export function TaoDonDialog({
       toast.error("Vui lòng chọn địa chỉ lấy hàng tận nơi");
       return;
     }
-    if (SHOW_ORDER_ADDRESSES && homeDeliver && !deliverAddr.trim()) {
+    if (isLinehaulDest) {
+      if (!linehaulWardCode) {
+        toast.error("Chọn phường/xã đã phân vùng giá");
+        return;
+      }
+      if (!linehaulStreet.trim()) {
+        toast.error("Nhập số nhà / đường giao tận nhà");
+        return;
+      }
+    } else if (SHOW_ORDER_ADDRESSES && homeDeliver && !deliverAddr.trim()) {
       toast.error("Vui lòng chọn địa chỉ giao hàng tận nơi");
       return;
     }
@@ -1515,12 +1671,12 @@ export function TaoDonDialog({
       toast.error("Vui lòng chọn VP gửi và VP nhận");
       return;
     }
-    if (transitPlan?.missingLeg) {
+    if (!isLinehaulDest && transitPlan?.missingLeg) {
       const l = transitPlan.missingLeg;
       toast.error(`Đơn trung chuyển: chưa có tuyến/lộ trình ${l.fromName} → ${l.toName}. Cấu hình lộ trình rồi tạo lại.`);
       return;
     }
-    if (!route || !itinerary) {
+    if (!isLinehaulDest && (!route || !itinerary)) {
       toast.error(
         "Không suy ra được tuyến/lộ trình từ VP gửi và VP nhận. Kiểm tra điểm lộ trình trên master văn phòng và danh mục lộ trình.",
       );
@@ -1601,7 +1757,7 @@ export function TaoDonDialog({
     }
     const { resolveOfficeCodeStrict } = await import("@/lib/api/sync");
     const fromCode = resolveOfficeCodeStrict(fromOffice);
-    const toCode = resolveOfficeCodeStrict(toOffice);
+    const toCode = isLinehaulDest ? fromCode : resolveOfficeCodeStrict(toOffice);
     if (!fromCode) {
       toast.error(
         `Không xác định được VP gửi (“${fromOffice}”). Chọn VP trong danh sách (vd. VP Nam Định), không dùng tên tỉnh/tuyến.`,
@@ -1729,7 +1885,7 @@ export function TaoDonDialog({
         receiverPhone,
         fromOffice: fromCode,
         toOffice: toCode,
-        finalToOffice: toCode,
+        finalToOffice: isLinehaulDest ? undefined : toCode,
         goodsType: goodsLabel,
         // Thu cước 1 phần: phần còn lại người nhận trả khi giao.
         // Đơn có COD vẫn giữ người trả cước; COD nhận biết qua codAmount.
@@ -1744,12 +1900,12 @@ export function TaoDonDialog({
         discountAmount: discountVND,
         discountCode: normalizeDiscountCode(promoCode) || undefined,
         pickupFee: Number(pickupFee) || 0,
-        deliveryFee: Number(deliverFee) || 0,
+        deliveryFee: isLinehaulDest ? 0 : Number(deliverFee) || 0,
         pickupKm: homePickup && pickupKm != null ? pickupKm : undefined,
-        deliveryKm: homeDeliver && deliverKm != null ? deliverKm : undefined,
-        route,
-        itinerary,
-        branchCode: branchCodeOf(route),
+        deliveryKm: !isLinehaulDest && homeDeliver && deliverKm != null ? deliverKm : undefined,
+        route: isLinehaulDest ? selectedLinehaul?.createOrderLabel || "Đối tác" : route,
+        itinerary: isLinehaulDest ? LINEHAUL_PARTNER_LABEL : itinerary,
+        branchCode: isLinehaulDest ? undefined : branchCodeOf(route),
         status: "CONFIRMED",
         createdAt: now,
         updatedAt: now,
@@ -1760,8 +1916,21 @@ export function TaoDonDialog({
           senderTransferRequested: requestSenderTransfer && payMethod === "Người gửi thanh toán",
         }),
         senderIdNumber: idNumber.trim() || undefined,
-        homeDelivery: homeDeliver,
+        homeDelivery: isLinehaulDest ? true : homeDeliver,
         homePickup,
+        linehaulPartnerCode: isLinehaulDest
+          ? (selectedLinehaul?.partnerCode || LINEHAUL_PARTNER_VEXERE).trim().toUpperCase()
+          : undefined,
+        linehaulProvinceId: isLinehaulDest ? linehaulProvinceId ?? undefined : undefined,
+        linehaulZoneId: isLinehaulDest ? linehaulZoneId ?? undefined : undefined,
+        linehaulWardCode: isLinehaulDest ? linehaulWardCode || undefined : undefined,
+        linehaulWardName: isLinehaulDest
+          ? linehaulWards.find((w) => w.wardCode === linehaulWardCode)?.wardName
+          : undefined,
+        linehaulDestLabel: isLinehaulDest ? selectedLinehaul?.displayName : undefined,
+        linehaulDestCode: isLinehaulDest
+          ? (selectedLinehaul?.shortCode || "").trim().toUpperCase() || undefined
+          : undefined,
         paidAmount: paidNow,
         pickupAddress: homePickup ? pickupAddr || undefined : undefined,
         address: homeDeliver ? deliverAddr || undefined : undefined,
@@ -1809,17 +1978,22 @@ export function TaoDonDialog({
       }
 
       const savedCode = result.code;
+      const partnerCode = (payload.linehaulPartnerCode || "").trim().toUpperCase();
       if (result.warning) {
         toast.warning(result.warning, { duration: 15000 });
       }
       if (action === "print") {
-        toast.success(`Đã lưu đơn ${savedCode} — mở in tem`);
         setPrintCode(savedCode);
-      } else {
-        toast.success(`Đã lưu đơn ${savedCode}`);
       }
       if (wantTransfer) {
         setTransferQr({ code: savedCode, collect: result.collect ?? null });
+      }
+      if (partnerCode) {
+        setCreateDone({ code: savedCode, partnerCode, printed: action === "print" });
+      } else if (action === "print") {
+        toast.success(`Đã lưu đơn ${savedCode} — mở in tem`);
+      } else {
+        toast.success(`Đã lưu đơn ${savedCode}`);
       }
       resetForm();
       onOpenChange(false);
@@ -1918,7 +2092,11 @@ export function TaoDonDialog({
                           lock
                         </span>
                         <span>
-                          {fromOfficeOptions.find((o) => o.value === fromOffice)?.label || fromOffice || "—"}
+                          {fromOfficeOptions.find((o) => o.value === fromOffice)?.label ||
+                            (() => {
+                              const rec = findOfficeByToken(fromOffice, offices);
+                              return rec ? officeSelectLabel(rec) : fromOffice || "—";
+                            })()}
                         </span>
                       </div>
                     ) : (
@@ -1975,7 +2153,18 @@ export function TaoDonDialog({
               </Section>
 
               {/* Receiver section */}
-              <Section title="Người nhận" msIcon="person_pin_circle">
+              <Section
+                title="Người nhận"
+                msIcon="person_pin_circle"
+                titleExtra={
+                  isLinehaulDest ? (
+                    <LinehaulPartnerTag
+                      code={selectedLinehaul?.partnerCode || LINEHAUL_PARTNER_VEXERE}
+                      className="ml-auto"
+                    />
+                  ) : null
+                }
+              >
                 <div className="stack">
                   <F label="SĐT người nhận *">
                     <div className="relative" style={{ width: "100%" }}>
@@ -2007,12 +2196,19 @@ export function TaoDonDialog({
                       onChange={setReceiverName}
                     />
                   </F>
-                  <F label="VP nhận *" boxed={false}>
+                  <F label="VP / tỉnh nhận *" boxed={false}>
                     <SearchableSelect
                       value={toOffice}
-                      onValueChange={setToOffice}
-                      placeholder="Gõ để tìm VP nhận"
-                      emptyText="Không tìm thấy VP"
+                      onValueChange={(v) => {
+                        setToOffice(v);
+                        if (parseLinehaulProvinceId(v) != null) {
+                          setHomeDeliver(true);
+                          setLinehaulWardCode("");
+                          setLinehaulStreet("");
+                        }
+                      }}
+                      placeholder="Gõ tên VP hoặc tỉnh"
+                      emptyText="Không tìm thấy VP hoặc tỉnh"
                       disabled={toOfficeLocked}
                       options={toOfficeOptions}
                     />
@@ -2026,6 +2222,50 @@ export function TaoDonDialog({
                       onChange={(e) => setIdNumber(e.target.value)}
                     />
                   </F>
+                  {isLinehaulDest ? (
+                    <>
+                      <div className="field cfg-field">
+                        <span className="l">Tỉnh/Thành</span>
+                        <div className="box input-box ro-box">
+                          <span
+                            className="ms"
+                            aria-hidden="true"
+                            style={{ fontSize: 18, color: "var(--on-surface-variant)" }}
+                          >
+                            lock
+                          </span>
+                          <span>{linehaulProvinceLockLabel}</span>
+                        </div>
+                      </div>
+                      <label className="field cfg-field">
+                        <span className="l">Phường/Xã *</span>
+                        <span className="box input-box sel-box">
+                          <select
+                            aria-label="Phường/Xã"
+                            value={linehaulWardCode}
+                            onChange={(e) => setLinehaulWardCode(e.target.value)}
+                          >
+                            <option value="">Chọn phường/xã</option>
+                            {linehaulWards.map((w) => (
+                              <option key={w.wardCode} value={w.wardCode}>
+                                {w.wardName}
+                              </option>
+                            ))}
+                          </select>
+                          <span className="ms" aria-hidden="true">
+                            expand_more
+                          </span>
+                        </span>
+                      </label>
+                      <F label="Số nhà, tên đường *">
+                        <Input
+                          placeholder="Ví dụ: Số 12 đường Lê Lợi"
+                          value={linehaulStreet}
+                          onChange={(e) => setLinehaulStreet(e.target.value)}
+                        />
+                      </F>
+                    </>
+                  ) : null}
                 </div>
                 {!partyLocked && recentReceivers.length > 0 ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
@@ -2047,43 +2287,47 @@ export function TaoDonDialog({
                     })}
                   </div>
                 ) : null}
-                <label className="toggle">
-                  <input
-                    className="switch"
-                    type="checkbox"
-                    checked={homeDeliver}
-                    disabled={partyLocked}
-                    onChange={(e) => setHomeDeliver(e.target.checked)}
-                  />
-                  <span>Giao tận nơi</span>
-                </label>
-                {homeDeliver ? (
-                  <div className="stack door-box">
-                    {SHOW_ORDER_ADDRESSES ? (
-                      <AddressPicker
-                        label="Địa chỉ giao hàng"
-                        required
-                        value={deliverAddr}
-                        onChange={setDeliverAddr}
-                        onPinChange={setDeliverPin}
-                        allowMapLink
-                        preferredProvince={deliverProvinceHint}
+                {!isLinehaulDest ? (
+                  <>
+                    <label className="toggle">
+                      <input
+                        className="switch"
+                        type="checkbox"
+                        checked={homeDeliver}
                         disabled={partyLocked}
+                        onChange={(e) => setHomeDeliver(e.target.checked)}
                       />
+                      <span>Giao tận nơi</span>
+                    </label>
+                    {homeDeliver ? (
+                      <div className="stack door-box">
+                        {SHOW_ORDER_ADDRESSES ? (
+                          <AddressPicker
+                            label="Địa chỉ giao hàng"
+                            required
+                            value={deliverAddr}
+                            onChange={setDeliverAddr}
+                            onPinChange={setDeliverPin}
+                            allowMapLink
+                            preferredProvince={deliverProvinceHint}
+                            disabled={partyLocked}
+                          />
+                        ) : null}
+                        <HomeDeliveryMap
+                          enabled
+                          address={deliverAddr}
+                          fixedPin={deliverPin}
+                          label="giao tận nơi"
+                          officeLat={findOfficeByToken(toOffice, offices)?.latitude ?? null}
+                          officeLng={findOfficeByToken(toOffice, offices)?.longitude ?? null}
+                          officeAddress={findOfficeByToken(toOffice, offices)?.address}
+                          onKmChange={setDeliverKm}
+                        />
+                      </div>
                     ) : null}
-                    <HomeDeliveryMap
-                      enabled
-                      address={deliverAddr}
-                      fixedPin={deliverPin}
-                      label="giao tận nơi"
-                      officeLat={findOfficeByToken(toOffice, offices)?.latitude ?? null}
-                      officeLng={findOfficeByToken(toOffice, offices)?.longitude ?? null}
-                      officeAddress={findOfficeByToken(toOffice, offices)?.address}
-                      onKmChange={setDeliverKm}
-                    />
-                  </div>
+                    <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
+                  </>
                 ) : null}
-                <TransitHubNotice fromOffice={fromOffice} toOffice={toOffice} offices={offices} />
               </Section>
               </div>
 
@@ -2453,6 +2697,73 @@ export function TaoDonDialog({
         }}
       />
 
+      <M3Sheet
+        open={!!createDone}
+        onOpenChange={(v) => {
+          if (!v) setCreateDone(null);
+        }}
+        variant="confirm"
+        className="done-sheet"
+      >
+        <div className="done-head">
+          <span className="done-ic ms" aria-hidden="true">
+            check_circle
+          </span>
+          <div>
+            <M3SheetTitle>Tạo đơn thành công</M3SheetTitle>
+            <div className="lab muted num">Mã đơn {createDone?.code}</div>
+          </div>
+        </div>
+        {createDone?.printed ? (
+          <p className="lab muted" style={{ margin: 0 }}>
+            Đã mở hộp thoại in tem.
+          </p>
+        ) : null}
+        {createDone?.partnerCode ? (
+          <div className="sync-box ok" role="status">
+            <span className="ms" aria-hidden="true">
+              local_shipping
+            </span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="sync-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <LinehaulPartnerTag code={createDone.partnerCode} />
+              </div>
+              <div className="small muted" style={{ marginTop: 4 }}>
+                Sau khi nhập kho gửi, đơn tự gán lên xe đối tác. Lái xe đối tác quét đơn khi đến lấy, đơn chuyển sang
+                Đang giao hàng.
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <M3ConfirmActions>
+          <button type="button" className="btn ghost" onClick={() => setCreateDone(null)}>
+            Đóng
+          </button>
+          {!createDone?.printed ? (
+            <button
+              type="button"
+              className="btn tonal"
+              onClick={() => {
+                if (createDone?.code) setPrintCode(createDone.code);
+                setCreateDone((d) => (d ? { ...d, printed: true } : d));
+              }}
+            >
+              In tem
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setCreateDone(null);
+              onOpenChange(true);
+            }}
+          >
+            Tạo đơn mới
+          </button>
+        </M3ConfirmActions>
+      </M3Sheet>
+
       <M3Confirm
         open={!!overflowAsk}
         onOpenChange={(o) => !o && setOverflowAsk(null)}
@@ -2638,6 +2949,7 @@ function Section({
   msIcon,
   bare,
   action,
+  titleExtra,
 }: {
   title: string;
   children: React.ReactNode;
@@ -2646,15 +2958,18 @@ function Section({
   bare?: boolean;
   /** Nút cùng hàng với tiêu đề (căn phải). */
   action?: React.ReactNode;
+  /** Tag / phụ đề trong hàng tiêu đề (vd. Giao qua đối tác). */
+  titleExtra?: React.ReactNode;
 }) {
   const h2 = (
-    <h2 className="group-title sec-title">
+    <h2 className="group-title sec-title" style={titleExtra ? { width: "100%" } : undefined}>
       <span className="sec-ic" aria-hidden="true">
         <span className="ms" aria-hidden="true">
           {msIcon}
         </span>
       </span>
       {title}
+      {titleExtra}
     </h2>
   );
   const head = action ? (
