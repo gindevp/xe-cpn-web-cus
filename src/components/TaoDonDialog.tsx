@@ -1161,14 +1161,27 @@ export function TaoDonDialog({
     };
   }, [linehaulPartnerCode]);
 
-  /** Đơn đối tác: nhóm hàng lấy từ bảng mặt hàng của đối tác, kèm «Thùng hàng» (theo cân) và «Khác». */
+  /** Đơn đối tác: chỉ nhóm hàng trong bảng giá đối tác, kèm «Thùng hàng» (theo khung cân). */
   const formGroupOptions = useMemo(() => {
     if (!isLinehaulDest) return goodsGroupOptions;
     const groups = [...new Set(linehaulItems.map((i) => i.groupName.trim()).filter(Boolean))].filter(
-      (g) => g !== LINEHAUL_BOX_GROUP && !isOtherGoodsGroup(g),
+      (g) => g !== LINEHAUL_BOX_GROUP,
     );
-    return [LINEHAUL_BOX_GROUP, OTHER_GOODS, ...groups].map((g) => ({ value: g, label: g }));
+    return [LINEHAUL_BOX_GROUP, ...groups].map((g) => ({ value: g, label: g }));
   }, [isLinehaulDest, linehaulItems, goodsGroupOptions]);
+
+  const prevLinehaulDestRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!open) {
+      prevLinehaulDestRef.current = null;
+      return;
+    }
+    if (linehaulProvinces.length === 0) return;
+    const prev = prevLinehaulDestRef.current;
+    prevLinehaulDestRef.current = isLinehaulDest;
+    if (prev == null || prev === isLinehaulDest) return;
+    setItems((p) => p.map((it) => ({ ...it, group: "", kind: "", name: "" })));
+  }, [open, isLinehaulDest, linehaulProvinces.length]);
 
   const formProductOptions = (group: string) => {
     if (!isLinehaulDest) return productNameOptions(group);
