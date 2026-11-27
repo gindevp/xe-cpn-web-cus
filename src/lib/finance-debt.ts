@@ -304,6 +304,7 @@ const EVENT_LABELS: Record<string, string> = {
   PAYMENT_TERM_CHANGE: "Đổi hình thức thanh toán",
   DOOR_CANCEL: "Huỷ giao tận nơi",
   DOOR_FEE_REFUND: "Tạo yêu cầu hoàn phí",
+  COD_WAIVE: "Admin bỏ COD (khách tự chuyển)",
   DOOR_REFUND_PAID: "Đã hoàn phí giao tận nơi",
   COD_FEE_REFUND: "Hoàn phí COD",
   DECLARED_FEE_KEEP: "Giảm phí khai giá",

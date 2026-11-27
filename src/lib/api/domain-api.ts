@@ -575,6 +575,14 @@ export async function markCodExported(orderCodes: string[]) {
   });
 }
 
+/** Admin: bỏ COD (khách tự chuyển cho nhau) — hết nợ COD người giao, không hoàn người gửi. */
+export async function waiveCod(orderCode: string, reason: string) {
+  return apiRequest<OrderSummary>(`/api/orders/${encodeURIComponent(orderCode)}/waive-cod`, {
+    method: "POST",
+    body: { reason },
+  });
+}
+
 export async function cancelHomeDelivery(
   orderCode: string,
   body: { reason: string; bankName?: string; bankAccountNo?: string; bankAccountName?: string },

@@ -36,6 +36,7 @@ const ICONS: Array<[RegExp, string]> = [
   [/^PAYMENT_TERM_CHANGE$/, "currency_exchange"],
   [/^COD_FEE_REFUND$/, "undo"],
   [/^DOOR_FEE_REFUND$/, "undo"],
+  [/^COD_WAIVE$/, "money_off"],
   [/^DOOR_/, "location_off"],
   [/^DECLARED_FEE_KEEP$/, "price_change"],
   [/^RECEIPT_CANCEL$/, "cancel"],
