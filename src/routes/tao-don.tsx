@@ -486,6 +486,8 @@ export function PublicOrderForm({
 
   const reloadPublicMasters = useCallback(() => {
     setOfficesLoading(true);
+    // fetchOffices đã có timeout 15s × 3 lần; mốc này chặn trường hợp tải chunk sync.ts treo.
+    window.setTimeout(() => setOfficesLoading(false), 50_000);
     void import("@/lib/api/sync")
       .then(async (m) => {
         try {

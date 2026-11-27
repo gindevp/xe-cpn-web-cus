@@ -24,8 +24,6 @@ import { isValidVnPlate, normalizePlate } from "@/lib/vehicle-plate";
 import {
   createLinehaulPartnerVehicle,
   fetchLinehaulPartnerVehicles,
-  LINEHAUL_PARTNER_LABEL,
-  LINEHAUL_PARTNER_VEXERE,
   type LinehaulPartnerVehicle,
 } from "@/lib/api/linehaul-api";
 
@@ -298,6 +296,7 @@ export function AssignVehiclePicker({
 }) {
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
+  const partnerLabel = `Đối tác ${partnerCodeHint?.trim().toUpperCase() || ""}`.trim();
   const [tab, setTab] = useState<"vthk" | "vthh">(partnerMode ? "vthh" : "vthk");
   const [branch, setBranch] = useState("");
   const [itinerary, setItinerary] = useState("");
@@ -525,12 +524,13 @@ export function AssignVehiclePicker({
       plate: v.bks || v.linehaulCode || "",
       vehicleId: v.id > 0 ? v.id : undefined,
       driver: v.driverName?.trim() || "",
-      // Hint only — confirmAssign resolves real Route.code from orders/master
-      route: partnerMode ? LINEHAUL_PARTNER_LABEL : routes[0] ?? "",
-      branchName: partnerMode ? LINEHAUL_PARTNER_LABEL : undefined,
+      // Hint only — confirmAssign resolves real Route.code from orders/master;
+      // nhãn "Đối tác …" được resolveTripRouteCode bỏ qua khi dò tuyến.
+      route: partnerMode ? partnerLabel : routes[0] ?? "",
+      branchName: partnerMode ? partnerLabel : undefined,
       departAt: new Date().toISOString(),
     });
-  }, [tab, pickedPlate, truckVehicles, routes, partnerMode]);
+  }, [tab, pickedPlate, truckVehicles, routes, partnerMode, partnerLabel]);
 
   const emitTab = (next: "vthk" | "vthh") => {
     setTab(next);
@@ -641,7 +641,11 @@ export function AssignVehiclePicker({
           setPickedPlate(plate);
         } else {
           // Thêm vào Master xe đối tác — một trường BKS (code = plate).
-          const partnerCode = (partnerCodeHint || LINEHAUL_PARTNER_VEXERE).trim().toUpperCase();
+          const partnerCode = (partnerCodeHint || "").trim().toUpperCase();
+          if (!partnerCode) {
+            toast.error("Không xác định được đối tác của đơn — thêm xe ở Master dữ liệu → Xe đối tác");
+            return;
+          }
           const created = await createLinehaulPartnerVehicle({
             code: plate,
             plate,

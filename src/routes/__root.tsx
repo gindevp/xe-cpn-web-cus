@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { ThemeProvider, THEME_BOOT_SCRIPT } from "../lib/theme";
+import { APP_READY_FLAG, BOOT_GUARD_SCRIPT } from "../lib/boot-guard";
 import { useRealtimeSync } from "../lib/use-realtime-sync";
 import { Toaster } from "../components/ui/sonner";
 import { WebCustomerMaintenanceGate } from "../components/MaintenanceGate";
@@ -144,6 +145,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="vi" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: BOOT_GUARD_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body>
@@ -163,6 +165,9 @@ function RealtimeSync() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>)[APP_READY_FLAG] = true;
+  }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

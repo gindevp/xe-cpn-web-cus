@@ -16,12 +16,13 @@ import { toast } from "sonner";
 type Dlg = {
   id?: number;
   code: string;
+  /** Mã lúc mở form sửa — để hỏi xác nhận khi đổi mã đối tác đang dùng. */
+  origCode?: string;
+  inUse?: boolean;
   name: string;
   contactName: string;
   phone: string;
   note: string;
-  /** Khóa tên viết tắt khi đã gán tỉnh/xe. */
-  codeLocked?: boolean;
   tried: boolean;
 };
 
@@ -84,6 +85,16 @@ export function PartnerAgencyMasterTab({
     if (!dlg.name.trim()) return toast.error("Nhập tên đối tác");
     const phone = dlg.phone.trim();
     if (phone && !okPhone(phone)) return toast.error("SĐT gồm 10 số, bắt đầu bằng 0");
+    const renaming = dlg.id != null && !!dlg.origCode && dlg.origCode !== dlg.code.trim().toUpperCase();
+    if (
+      renaming &&
+      dlg.inUse &&
+      !(await askConfirm(
+        `Đổi tên viết tắt ${dlg.origCode} → ${dlg.code.trim().toUpperCase()}?\nTỉnh, xe, bảng giá và đơn đã tạo của đối tác này sẽ chuyển sang mã mới.`,
+      ))
+    ) {
+      return;
+    }
     setBusy(true);
     try {
       const body = {
@@ -136,7 +147,6 @@ export function PartnerAgencyMasterTab({
                 contactName: "",
                 phone: "",
                 note: "",
-                codeLocked: false,
                 tried: false,
               })
             }
@@ -235,11 +245,12 @@ export function PartnerAgencyMasterTab({
                                 setDlg({
                                   id: p.id,
                                   code: p.code,
+                                  origCode: p.code.toUpperCase(),
+                                  inUse,
                                   name: p.name,
                                   contactName: p.contactName ?? "",
                                   phone: p.phone ?? "",
                                   note: p.note ?? "",
-                                  codeLocked: inUse,
                                   tried: false,
                                 })
                               }
@@ -288,22 +299,21 @@ export function PartnerAgencyMasterTab({
           <div className="md-two">
             <label className={`field cfg-field${dlg.tried && !dlg.code.trim() ? " has-err" : ""}`}>
               <span className="l">Tên viết tắt *</span>
-              <span className={`box input-box${dlg.id != null && dlg.codeLocked ? " ro-box" : ""}`}>
+              <span className="box input-box">
                 <input
                   placeholder="VD: HTP"
                   value={dlg.code}
-                  readOnly={!!dlg.codeLocked}
-                  onChange={(e) => {
-                    if (dlg.codeLocked) return;
-                    setDlg({ ...dlg, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") });
-                  }}
+                  maxLength={40}
+                  onChange={(e) =>
+                    setDlg({ ...dlg, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })
+                  }
                   aria-label="Tên viết tắt"
                 />
               </span>
               <span className="small muted">
-                {dlg.codeLocked
-                  ? "Đã gán tỉnh/xe — không đổi viết tắt, vẫn sửa được tên đầy đủ."
-                  : "Hiện ở các ô chọn đối tác."}
+                {dlg.inUse
+                  ? "Đổi viết tắt sẽ cập nhật theo ở tỉnh, xe, bảng giá và đơn đã tạo."
+                  : "Hiện ở các ô chọn đối tác và tag “Giao qua”."}
               </span>
               {dlg.tried && !dlg.code.trim() ? <span className="err-msg">Nhập tên viết tắt</span> : null}
             </label>

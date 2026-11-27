@@ -44,12 +44,26 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// HTML trỏ tới chunk có hash; deploy mới xoá chunk cũ → HTML cache cũ (webview Zalo/Safari) không hydrate được.
+function withHtmlNoCache(response: Response): Response {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html") || response.headers.has("cache-control")) return response;
+  try {
+    response.headers.set("cache-control", "no-cache");
+    return response;
+  } catch {
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", "no-cache");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withHtmlNoCache(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

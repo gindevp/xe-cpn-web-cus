@@ -10,7 +10,6 @@ import {
   fetchLinehaulZoneWards,
   fetchLinehaulZones,
   replaceLinehaulZoneWards,
-  LINEHAUL_PARTNER_VEXERE,
   saveLinehaulBand,
   type LinehaulBand,
   type LinehaulProvince,
@@ -85,12 +84,12 @@ function plain(s: string) {
 
 export function PartnerPricingTab({
   writable,
-  partnerCode = LINEHAUL_PARTNER_VEXERE,
+  partnerCode,
   initialProvinceId,
   focusZones = false,
 }: {
   writable: boolean;
-  partnerCode?: string;
+  partnerCode: string;
   /** Prefill tỉnh từ Master → Phân vùng giá. */
   initialProvinceId?: number;
   /** Cuộn tới khối phân vùng phường/xã. */
@@ -449,7 +448,7 @@ export function PartnerPricingTab({
     }
   };
 
-  const partnerShort = partnerCode || LINEHAUL_PARTNER_VEXERE;
+  const partnerShort = partnerCode || "đối tác";
   const unsetCount = mapProvince
     ? Math.max(0, (mapProvince.wardTotal ?? 0) - (mapProvince.wardMapped ?? 0))
     : 0;

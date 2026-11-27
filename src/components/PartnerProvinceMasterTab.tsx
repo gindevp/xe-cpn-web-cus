@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { askConfirm } from "@/components/m3/askConfirm";
 import { M3ConfirmActions, M3Sheet, M3SheetTitle } from "@/components/m3/M3Sheet";
 import {
-  LINEHAUL_PARTNER_VEXERE,
   createLinehaulProvince,
   deleteLinehaulProvince,
   fetchLinehaulAgencies,
@@ -173,10 +172,7 @@ export function PartnerProvinceMasterTab({
                 isArea: false,
                 area: "",
                 shortCode: "",
-                partnerCode:
-                  agencies.find((a) => a.active)?.code ||
-                  agencies[0]?.code ||
-                  LINEHAUL_PARTNER_VEXERE,
+                partnerCode: agencies.find((a) => a.active)?.code || "",
                 tried: false,
               })
             }
@@ -238,7 +234,10 @@ export function PartnerProvinceMasterTab({
                         </span>
                       </span>
                     </td>
-                    <td>{p.partnerCode}</td>
+                    <td>
+                      <span style={{ fontWeight: 600 }}>{p.partnerCode}</span>
+                      {p.partnerName ? <span className="sub">{p.partnerName}</span> : null}
+                    </td>
                     <td>
                       <span className="num" style={{ fontWeight: 500 }}>
                         {wardText}
@@ -252,7 +251,7 @@ export function PartnerProvinceMasterTab({
                         to="/bang-gia"
                         search={{
                           tab: "partner",
-                          partner: p.partnerCode || LINEHAUL_PARTNER_VEXERE,
+                          partner: p.partnerCode,
                           provinceId: p.id,
                           focus: "zones",
                         }}
@@ -297,7 +296,7 @@ export function PartnerProvinceMasterTab({
                                   isArea: p.scope === "KHU_VUC" || !!p.areaName,
                                   area: p.areaName ?? "",
                                   shortCode: p.shortCode ?? "",
-                                  partnerCode: p.partnerCode || LINEHAUL_PARTNER_VEXERE,
+                                  partnerCode: p.partnerCode || "",
                                   tried: false,
                                 })
                               }

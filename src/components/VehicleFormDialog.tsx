@@ -166,7 +166,7 @@ export function VehicleFormDialog({
           {!forcePartnerTruck ? (
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
               <Checkbox checked={partnerTruck} onCheckedChange={(v) => setPartnerTruck(Boolean(v))} />
-              Xe đối tác (Vé Xe Rẻ)
+              Xe đối tác
             </label>
           ) : (
             <div className="lab muted sm:col-span-2">Xe đối tác — dùng khi gán hàng giao qua đối tác.</div>

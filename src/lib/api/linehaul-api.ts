@@ -1,9 +1,5 @@
 import { apiRequest } from "@/lib/api/client";
 
-export const LINEHAUL_PARTNER_VEXERE = "VEXERE";
-/** Fallback khi chưa tải danh mục — seed Liquibase. */
-export const LINEHAUL_PARTNER_LABEL = "Vé Xe Rẻ";
-
 export type LinehaulAgency = {
   id: number;
   code: string;
@@ -32,6 +28,8 @@ export type LinehaulProvince = {
   areaName?: string | null;
   scope: "CA_TINH" | "KHU_VUC" | string;
   partnerCode: string;
+  /** Tên đầy đủ đối tác (theo danh mục). */
+  partnerName?: string | null;
   /** Mã viết tắt in tem (vd. NA, HT, VINH). */
   shortCode?: string | null;
   active: boolean;
@@ -247,21 +245,26 @@ export async function fetchXeProvinces() {
   return apiRequest<string[]>(`/api/linehaul/xe-provinces`, { auth: false });
 }
 
-export async function createLinehaulProvince(body: Partial<LinehaulProvince> & { provinceName: string; scope: string }) {
+export async function createLinehaulProvince(
+  body: Partial<LinehaulProvince> & { provinceName: string; scope: string; partnerCode: string },
+) {
   return apiRequest<LinehaulProvince>(`/api/linehaul/provinces`, {
     method: "POST",
     body: {
       provinceName: body.provinceName,
       areaName: body.areaName ?? null,
       scope: body.scope,
-      partnerCode: body.partnerCode ?? LINEHAUL_PARTNER_VEXERE,
+      partnerCode: body.partnerCode,
       shortCode: body.shortCode ?? null,
       active: body.active ?? true,
     },
   });
 }
 
-export async function updateLinehaulProvince(id: number, body: Partial<LinehaulProvince> & { provinceName: string; scope: string }) {
+export async function updateLinehaulProvince(
+  id: number,
+  body: Partial<LinehaulProvince> & { provinceName: string; scope: string; partnerCode: string },
+) {
   return apiRequest<LinehaulProvince>(`/api/linehaul/provinces/${id}`, {
     method: "PUT",
     body: {
@@ -269,7 +272,7 @@ export async function updateLinehaulProvince(id: number, body: Partial<LinehaulP
       provinceName: body.provinceName,
       areaName: body.areaName ?? null,
       scope: body.scope,
-      partnerCode: body.partnerCode ?? LINEHAUL_PARTNER_VEXERE,
+      partnerCode: body.partnerCode,
       shortCode: body.shortCode ?? null,
       active: body.active ?? true,
     },
@@ -313,17 +316,20 @@ export async function replaceLinehaulZoneWards(zoneId: number, wards: { wardCode
   });
 }
 
-export async function fetchLinehaulBands(partnerCode = LINEHAUL_PARTNER_VEXERE) {
+export async function fetchLinehaulBands(partnerCode: string) {
   return apiRequest<LinehaulBandsPayload>(`/api/linehaul/bands?partnerCode=${encodeURIComponent(partnerCode)}`, {
     auth: false,
   });
 }
 
-export async function saveLinehaulBand(band: LinehaulBand, amounts: Record<number, number>) {
+export async function saveLinehaulBand(
+  band: LinehaulBand & { partnerCode: string },
+  amounts: Record<number, number>,
+) {
   const body = {
     band: {
       ...band,
-      partnerCode: band.partnerCode ?? LINEHAUL_PARTNER_VEXERE,
+      partnerCode: band.partnerCode,
       kgFrom: band.kgFrom,
       kgTo: band.kgTo,
     },

@@ -52,8 +52,6 @@ import {
   type TransitHubPolicy,
 } from "@/lib/transit-hub";
 import {
-  LINEHAUL_PARTNER_LABEL,
-  LINEHAUL_PARTNER_VEXERE,
   fetchLinehaulProvinceWards,
   fetchLinehaulProvinces,
   quoteLinehaul,
@@ -1289,33 +1287,39 @@ export function TaoDonDialog({
     if (!isLinehaulDest || linehaulProvinceId == null || !linehaulWardCode) return;
     let cancelled = false;
     void (async () => {
-      try {
-        const quoted = await Promise.all(
-          items.map(async (it) => {
-            const q = await quoteLinehaul({
-              provinceId: linehaulProvinceId,
-              wardCode: linehaulWardCode,
-              weightKg: Number(it.weight) || 0,
-            });
-            return { id: it.id, fare: Number(q.amount) || 0, zoneId: q.zoneId };
-          }),
-        );
-        if (cancelled) return;
-        if (quoted[0]?.zoneId != null) setLinehaulZoneId(quoted[0].zoneId);
-        setDeliverFee(0);
-        setItems((prev) => {
-          let changed = false;
-          const next = prev.map((it) => {
-            const hit = quoted.find((q) => q.id === it.id);
-            if (!hit || it.fare === hit.fare) return it;
-            changed = true;
-            return { ...it, fare: hit.fare };
+      const settled = await Promise.allSettled(
+        items.map(async (it) => {
+          const q = await quoteLinehaul({
+            provinceId: linehaulProvinceId,
+            wardCode: linehaulWardCode,
+            weightKg: Number(it.weight) || 0,
           });
-          return changed ? next : prev;
-        });
-      } catch {
-        /* thiếu khung/vùng — để NV thấy cước 0 và BE chặn khi tạo nếu cần */
+          return { id: it.id, fare: Number(q.amount) || 0, zoneId: q.zoneId as number | null };
+        }),
+      );
+      if (cancelled) return;
+      // Kiện không báo giá được (vượt khung cân, thiếu giá vùng) về 0 — không giữ cước của cân nặng cũ.
+      const quoted = settled.map((r, i) =>
+        r.status === "fulfilled" ? r.value : { id: items[i]!.id, fare: 0, zoneId: null },
+      );
+      const failed = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (failed) {
+        const msg = failed.reason instanceof Error ? failed.reason.message : "Không báo giá được";
+        toast.error(`Cước đối tác: ${msg}`, { id: "linehaul-quote" });
       }
+      const zoneId = quoted.find((q) => q.zoneId != null)?.zoneId;
+      if (zoneId != null) setLinehaulZoneId(zoneId);
+      setDeliverFee(0);
+      setItems((prev) => {
+        let changed = false;
+        const next = prev.map((it) => {
+          const hit = quoted.find((q) => q.id === it.id);
+          if (!hit || it.fare === hit.fare) return it;
+          changed = true;
+          return { ...it, fare: hit.fare };
+        });
+        return changed ? next : prev;
+      });
     })();
     return () => {
       cancelled = true;
@@ -1904,7 +1908,9 @@ export function TaoDonDialog({
         pickupKm: homePickup && pickupKm != null ? pickupKm : undefined,
         deliveryKm: !isLinehaulDest && homeDeliver && deliverKm != null ? deliverKm : undefined,
         route: isLinehaulDest ? selectedLinehaul?.createOrderLabel || "Đối tác" : route,
-        itinerary: isLinehaulDest ? LINEHAUL_PARTNER_LABEL : itinerary,
+        itinerary: isLinehaulDest
+          ? selectedLinehaul?.partnerName || selectedLinehaul?.partnerCode || "Đối tác"
+          : itinerary,
         branchCode: isLinehaulDest ? undefined : branchCodeOf(route),
         status: "CONFIRMED",
         createdAt: now,
@@ -1918,8 +1924,9 @@ export function TaoDonDialog({
         senderIdNumber: idNumber.trim() || undefined,
         homeDelivery: isLinehaulDest ? true : homeDeliver,
         homePickup,
+        // Thiếu mã (danh mục chưa tải) thì BE tự lấy theo tỉnh đối tác.
         linehaulPartnerCode: isLinehaulDest
-          ? (selectedLinehaul?.partnerCode || LINEHAUL_PARTNER_VEXERE).trim().toUpperCase()
+          ? selectedLinehaul?.partnerCode?.trim().toUpperCase() || undefined
           : undefined,
         linehaulProvinceId: isLinehaulDest ? linehaulProvinceId ?? undefined : undefined,
         linehaulZoneId: isLinehaulDest ? linehaulZoneId ?? undefined : undefined,
@@ -2159,7 +2166,8 @@ export function TaoDonDialog({
                 titleExtra={
                   isLinehaulDest ? (
                     <LinehaulPartnerTag
-                      code={selectedLinehaul?.partnerCode || LINEHAUL_PARTNER_VEXERE}
+                      code={selectedLinehaul?.partnerCode}
+                      title={selectedLinehaul?.partnerName || undefined}
                       className="ml-auto"
                     />
                   ) : null

@@ -27,7 +27,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { PartnerPricingTab } from "@/components/PartnerPricingTab";
 import {
-  LINEHAUL_PARTNER_VEXERE,
   fetchLinehaulAgencies,
   type LinehaulAgency,
 } from "@/lib/api/linehaul-api";
@@ -78,9 +77,7 @@ function Page() {
   const writable = canWrite(session?.role, "bang-gia");
   const [tab, setTab] = useState<BangGiaTab>(search.tab ?? "rules");
   const [agencies, setAgencies] = useState<LinehaulAgency[]>([]);
-  const [partnerCode, setPartnerCode] = useState(
-    (search.partner || LINEHAUL_PARTNER_VEXERE).toUpperCase(),
-  );
+  const [partnerCode, setPartnerCode] = useState((search.partner || "").toUpperCase());
 
   useEffect(() => {
     if (search.tab) setTab(search.tab);
@@ -165,10 +162,10 @@ function Page() {
                     value={partnerCode}
                     onChange={(e) => setPartnerCode(e.target.value)}
                   >
-                    {(agencies.length
-                      ? agencies
-                      : [{ id: 0, code: LINEHAUL_PARTNER_VEXERE, name: "Vé Xe Rẻ", active: true }]
-                    ).map((a) => (
+                    {!agencies.length ? (
+                      <option value={partnerCode}>{partnerCode || "Chưa có đối tác"}</option>
+                    ) : null}
+                    {agencies.map((a) => (
                       <option key={a.code} value={a.code}>
                         {a.code}
                       </option>
@@ -198,27 +195,17 @@ function Page() {
                 </button>
               </label>
             </div>
-            <div style={{ display: "flex", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
-              <button type="button" className="btn ghost" disabled title="Sắp có">
-                <span className="ms" aria-hidden="true">
-                  history
-                </span>
-                Lịch sử giá
-              </button>
-              <button type="button" className="btn tonal" disabled title="Sắp có">
-                <span className="ms" aria-hidden="true">
-                  upload_file
-                </span>
-                Nhập từ Excel
-              </button>
-            </div>
           </div>
-          <PartnerPricingTab
-            writable={writable}
-            partnerCode={partnerCode}
-            initialProvinceId={search.provinceId}
-            focusZones={search.focus === "zones"}
-          />
+          {partnerCode ? (
+            <PartnerPricingTab
+              writable={writable}
+              partnerCode={partnerCode}
+              initialProvinceId={search.provinceId}
+              focusZones={search.focus === "zones"}
+            />
+          ) : (
+            <div className="lab muted">Chưa có đối tác — thêm ở Master dữ liệu → Đối tác giao hàng.</div>
+          )}
         </div>
       )}
     </div>
