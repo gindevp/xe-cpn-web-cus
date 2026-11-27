@@ -73,21 +73,39 @@ function staffName(s: DispatcherOpsStaff) {
 }
 
 function fmtN(n: number) {
-  return (n ?? 0).toLocaleString("vi-VN");
+  return (n ?? 0).toLocaleString("vi-VN", { maximumFractionDigits: 1 });
 }
 
 function emptyCounts(): DispatcherOpsDayCounts {
-  return { nhanHang: 0, xepXe: 0, lenHang: 0, xuongHang: 0, xuongHangKien: 0, dieuPhoiGiao: 0, ngoaiLe: 0 };
+  return {
+    nhanHang: 0,
+    xepXe: 0,
+    lenHang: 0,
+    lenHangKg: 0,
+    xuongHang: 0,
+    xuongHangKien: 0,
+    xuongHangKg: 0,
+    dieuPhoiGiao: 0,
+    ngoaiLe: 0,
+    suaIn: 0,
+  };
 }
 
 const COLS: { key: keyof DispatcherOpsDayCounts; label: string; hint: string }[] = [
   { key: "nhanHang", label: "Nhận hàng", hint: "Tạo / nhập kho gửi / lấy hàng" },
   { key: "xepXe", label: "Xếp xe", hint: "Gán / chuyển xe" },
   { key: "lenHang", label: "Lên hàng", hint: "Quét lên / gỡ / unload" },
+  { key: "lenHangKg", label: "KL lên (kg)", hint: "Tổng cân nặng các đơn lên hàng" },
   { key: "xuongHang", label: "Xuống hàng", hint: "Quét nhập đủ kiện (theo đơn)" },
   { key: "xuongHangKien", label: "Ước tính kiện", hint: "Tổng quantity đơn xuống hàng" },
-  { key: "dieuPhoiGiao", label: "Điều phối giao", hint: "Bàn giao ship / Ahamove / POD quầy" },
-  { key: "ngoaiLe", label: "Ngoại lệ", hint: "Hoàn / hủy / issue / sửa / in" },
+  { key: "xuongHangKg", label: "KL xuống (kg)", hint: "Tổng cân nặng các đơn xuống hàng" },
+  {
+    key: "dieuPhoiGiao",
+    label: "Điều phối giao",
+    hint: "Giao tại quầy / shipper nhận việc / đặt + quét bàn giao Ahamove, Grab",
+  },
+  { key: "ngoaiLe", label: "Ngoại lệ", hint: "Sự cố / hoàn / yêu cầu huỷ / đổi VP nhận" },
+  { key: "suaIn", label: "Sửa đơn / In tem", hint: "Sửa đơn, sửa kiện, đổi HTTT, in tem / phiếu" },
 ];
 
 function Page() {
@@ -171,15 +189,9 @@ function Page() {
   const grand = useMemo(() => {
     return viewStaff.reduce((acc, r) => {
       const t = r.totals ?? emptyCounts();
-      return {
-        nhanHang: acc.nhanHang + t.nhanHang,
-        xepXe: acc.xepXe + t.xepXe,
-        lenHang: acc.lenHang + t.lenHang,
-        xuongHang: acc.xuongHang + t.xuongHang,
-        xuongHangKien: acc.xuongHangKien + t.xuongHangKien,
-        dieuPhoiGiao: acc.dieuPhoiGiao + t.dieuPhoiGiao,
-        ngoaiLe: acc.ngoaiLe + t.ngoaiLe,
-      };
+      const next = { ...acc };
+      for (const c of COLS) next[c.key] = (acc[c.key] ?? 0) + (t[c.key] ?? 0);
+      return next;
     }, emptyCounts());
   }, [viewStaff]);
 
@@ -293,13 +305,14 @@ function Page() {
 
         <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
           <b>Nhận hàng</b> gồm tạo đơn / xác nhận / nhập kho gửi / bắt đầu lấy. <b>Xuống hàng</b> đếm theo đơn
-          (app chỉ ghi event khi quét đủ kiện); cột kiện = tổng số kiện trên đơn. Không gồm POD shipper, Auto
-          Call, hoá đơn.
+          (app chỉ ghi event khi quét đủ kiện); cột kiện = tổng số kiện trên đơn. <b>KL lên / KL xuống</b> = tổng
+          cân nặng ghi trên đơn. <b>Ngoại lệ</b> chỉ gồm sự cố / hoàn / yêu cầu huỷ / đổi VP nhận; sửa đơn và in
+          tem tách sang cột riêng. Không gồm POD shipper, Auto Call, hoá đơn.
         </p>
       </Section>
 
       {data && loaded && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2">
           {COLS.map((c) => (
             <div key={c.key} className="rounded-xl border bg-card px-3 py-2" title={c.hint}>
               <div className="text-[11px] text-muted-foreground truncate">{c.label}</div>

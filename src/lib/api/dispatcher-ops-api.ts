@@ -4,10 +4,17 @@ export type DispatcherOpsDayCounts = {
   nhanHang: number;
   xepXe: number;
   lenHang: number;
+  /** Tổng cân nặng (kg) các đơn lên hàng. */
+  lenHangKg: number;
   xuongHang: number;
   xuongHangKien: number;
+  /** Tổng cân nặng (kg) các đơn xuống hàng. */
+  xuongHangKg: number;
   dieuPhoiGiao: number;
+  /** Ngoại lệ thật: sự cố / hoàn / huỷ / đổi VP nhận. */
   ngoaiLe: number;
+  /** Sửa đơn / in tem / sửa kiện / đổi HTTT. */
+  suaIn: number;
 };
 
 export type DispatcherOpsStaff = {
@@ -68,6 +75,7 @@ export function countsTotal(c: DispatcherOpsDayCounts): number {
     (c.lenHang ?? 0) +
     (c.xuongHang ?? 0) +
     (c.dieuPhoiGiao ?? 0) +
-    (c.ngoaiLe ?? 0)
+    (c.ngoaiLe ?? 0) +
+    (c.suaIn ?? 0)
   );
 }
