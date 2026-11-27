@@ -5,7 +5,7 @@ import { refreshOrdersNow } from "./use-orders-poll";
 /** Có SSE: chỉ đối soát toàn bộ định kỳ phòng lỡ sự kiện. */
 const FULL_SYNC_CONNECTED_MS = 120_000;
 /** Mất SSE (mạng chặn stream, BE restart…): quay về polling nhưng thưa hơn trước (4s). */
-const FULL_SYNC_FALLBACK_MS = 15_000;
+const FULL_SYNC_FALLBACK_MS = 30_000;
 /** BE gửi ping mỗi 25s; quá ngưỡng này coi như kết nối chết. */
 const STALE_MS = 60_000;
 const CHANGE_DEBOUNCE_MS = 300;
@@ -89,7 +89,7 @@ export function useRealtimeSync(enabled: boolean) {
     let lastFullSync = 0;
     let backoff = 2000;
     const pendingOrders = new Set<string>();
-    let pendingTrips = false;
+    const pendingTrips = new Set<string>();
 
     const fullSync = () => {
       lastFullSync = Date.now();
@@ -99,13 +99,13 @@ export function useRealtimeSync(enabled: boolean) {
     const flushChanges = async () => {
       changeTimer = 0;
       const codes = [...pendingOrders];
-      const trips = pendingTrips;
+      const trips = [...pendingTrips];
       pendingOrders.clear();
-      pendingTrips = false;
+      pendingTrips.clear();
       try {
         const sync = await import("./api/sync");
         if (codes.length) await sync.syncOrdersByCodes(codes);
-        if (trips) await sync.syncTripsFromApi();
+        if (trips.length) await sync.syncTripsByCodes(trips);
       } catch {
         /* giữ dữ liệu hiện tại; lần đối soát định kỳ sẽ bù */
       }
@@ -113,8 +113,8 @@ export function useRealtimeSync(enabled: boolean) {
 
     const onChange = (payload: ChangePayload) => {
       for (const code of payload.orders ?? []) pendingOrders.add(code);
-      if (payload.trips?.length) pendingTrips = true;
-      if (!pendingOrders.size && !pendingTrips) return;
+      for (const code of payload.trips ?? []) pendingTrips.add(code);
+      if (!pendingOrders.size && !pendingTrips.size) return;
       if (!changeTimer)
         changeTimer = window.setTimeout(() => void flushChanges(), CHANGE_DEBOUNCE_MS);
     };

@@ -275,12 +275,68 @@ function mergeRemoteOrders(remote: Awaited<ReturnType<typeof domain.listOrders>>
   });
 }
 
-export async function syncTripsFromApi() {
-  if (!isApiEnabled()) return;
+/** Tải đủ mọi trang chuyến tối đa 1 lần / khoảng này; giữa các lần chỉ làm mới trang mới nhất. */
+const TRIPS_FULL_MAX_AGE_MS = 5 * 60_000;
+const TRIPS_RECENT_SIZE = 200;
+/** SSE báo quá nhiều chuyến cũ ngoài trang mới nhất → tải đủ thay vì gọi lẻ từng chuyến. */
+const TRIPS_BY_CODE_MAX = 10;
+let lastFullTripsSyncAt = 0;
+let tripsSyncInFlight: Promise<void> | null = null;
+
+function upsertTrips(rows: Awaited<ReturnType<typeof domain.listTrips>>) {
+  if (!rows.length) return;
+  useStore.setState((s) => {
+    const fresh = new Map(rows.map((t) => [t.code, t]));
+    const kept = s.trips.filter((t) => !fresh.has(t.code));
+    return { trips: [...rows, ...kept] };
+  });
+}
+
+async function syncAllTripPages() {
   // Không lọc office trên FE: BE đã scope theo staff VP; admin (ALL) cần đủ chuyến để map biển số.
-  // Phân trang — trước đây size 200 làm thiếu biển số với chuyến cũ hơn.
-  const trips = await domain.listTripsAllPages({ size: 200 }, 25);
+  const trips = await domain.listTripsAllPages({ size: TRIPS_RECENT_SIZE }, 25);
+  lastFullTripsSyncAt = Date.now();
   useStore.setState({ trips });
+}
+
+/** Trang chuyến mới nhất (BE sort id desc, đã scope VP) — gồm chuyến vừa tạo / đang chạy. */
+async function syncRecentTrips() {
+  const { rows } = await domain.listTripsPage({ page: 0, size: TRIPS_RECENT_SIZE });
+  upsertTrips(rows);
+  return rows;
+}
+
+/**
+ * Mọi màn / đối soát định kỳ / sau thao tác gọi chung: lần đầu (hoặc quá {@link TRIPS_FULL_MAX_AGE_MS}) tải đủ trang,
+ * còn lại chỉ 1 request trang mới nhất — mỗi trình duyệt không kéo lại ~25 trang chuyến mỗi lượt.
+ */
+export function syncTripsFromApi(): Promise<void> {
+  if (!isApiEnabled()) return Promise.resolve();
+  if (!tripsSyncInFlight) {
+    const full = Date.now() - lastFullTripsSyncAt >= TRIPS_FULL_MAX_AGE_MS;
+    tripsSyncInFlight = (full ? syncAllTripPages() : syncRecentTrips().then(() => undefined)).finally(() => {
+      tripsSyncInFlight = null;
+    });
+  }
+  return tripsSyncInFlight;
+}
+
+/** SSE báo chuyến đổi: làm mới trang mới nhất + lẻ từng chuyến cũ đang có trong store. */
+export async function syncTripsByCodes(codes: string[]) {
+  if (!isApiEnabled()) return;
+  const wanted = new Set(codes.filter(Boolean));
+  if (!wanted.size) return;
+  const recent = await syncRecentTrips();
+  for (const t of recent) wanted.delete(t.code);
+  const known = new Set(useStore.getState().trips.map((t) => t.code));
+  const older = [...wanted].filter((c) => known.has(c));
+  if (!older.length) return;
+  if (older.length > TRIPS_BY_CODE_MAX) {
+    await syncAllTripPages();
+    return;
+  }
+  const rows = await Promise.all(older.map((c) => domain.getTrip(c).catch(() => null)));
+  upsertTrips(rows.filter((t): t is NonNullable<typeof t> => t != null));
 }
 
 export async function syncFinanceFromApi() {
