@@ -20,6 +20,7 @@ import {
   type DispatcherOpsStaffRow,
 } from "@/lib/api/dispatcher-ops-api";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/bao-cao-thao-tac")({
   head: () => ({
@@ -92,20 +93,56 @@ function emptyCounts(): DispatcherOpsDayCounts {
 }
 
 const COLS: { key: keyof DispatcherOpsDayCounts; label: string; hint: string }[] = [
-  { key: "nhanHang", label: "Nhận hàng", hint: "Tạo / nhập kho gửi / lấy hàng" },
-  { key: "xepXe", label: "Xếp xe", hint: "Gán / chuyển xe" },
-  { key: "lenHang", label: "Lên hàng", hint: "Quét lên / gỡ / unload" },
-  { key: "lenHangKg", label: "KL lên (kg)", hint: "Tổng cân nặng các đơn lên hàng" },
-  { key: "xuongHang", label: "Xuống hàng", hint: "Quét nhập đủ kiện (theo đơn)" },
-  { key: "xuongHangKien", label: "Ước tính kiện", hint: "Tổng quantity đơn xuống hàng" },
-  { key: "xuongHangKg", label: "KL xuống (kg)", hint: "Tổng cân nặng các đơn xuống hàng" },
+  {
+    key: "nhanHang",
+    label: "Nhận hàng",
+    hint: "Số đơn nhân viên tiếp nhận: tạo đơn, xác nhận đơn, nhập kho VP gửi, bắt đầu / nhận lấy hàng tận nơi. Mỗi đơn tính 1 lần / người / ngày.",
+  },
+  {
+    key: "xepXe",
+    label: "Xếp xe",
+    hint: "Số đơn được gán vào chuyến xe hoặc chuyển sang chuyến khác. Mỗi đơn tính 1 lần / người / ngày.",
+  },
+  {
+    key: "lenHang",
+    label: "Lên hàng",
+    hint: "Số đơn quét lên xe (bàn giao tài xế, ký bàn giao), gỡ khỏi xe hoặc dỡ trả lại kho. Mỗi đơn tính 1 lần / người / ngày.",
+  },
+  {
+    key: "lenHangKg",
+    label: "KL lên (kg)",
+    hint: "Tổng cân nặng (kg ghi trên đơn) của các đơn ở cột Lên hàng.",
+  },
+  {
+    key: "xuongHang",
+    label: "Xuống hàng",
+    hint: "Số đơn quét nhập kho VP nhận / kho trung chuyển / nhập lại kho giao. App chỉ ghi khi quét đủ kiện của đơn.",
+  },
+  {
+    key: "xuongHangKien",
+    label: "Ước tính kiện",
+    hint: "Tổng số kiện ghi trên các đơn ở cột Xuống hàng (đơn 3 kiện tính 3).",
+  },
+  {
+    key: "xuongHangKg",
+    label: "KL xuống (kg)",
+    hint: "Tổng cân nặng (kg ghi trên đơn) của các đơn ở cột Xuống hàng.",
+  },
   {
     key: "dieuPhoiGiao",
     label: "Điều phối giao",
-    hint: "Giao tại quầy / shipper nhận việc / đặt + quét bàn giao Ahamove, Grab",
+    hint: "Số đơn được điều phối giao: giao khách tại quầy, shipper nội bộ / ngoài nhận việc, đẩy ship đối tác, đặt hoặc huỷ Ahamove / Grab, quét bàn giao Ahamove trên app.",
   },
-  { key: "ngoaiLe", label: "Ngoại lệ", hint: "Sự cố / hoàn / yêu cầu huỷ / đổi VP nhận" },
-  { key: "suaIn", label: "Sửa đơn / In tem", hint: "Sửa đơn, sửa kiện, đổi HTTT, in tem / phiếu" },
+  {
+    key: "ngoaiLe",
+    label: "Ngoại lệ",
+    hint: "Chỉ ngoại lệ thật: báo sự cố / mất / hỏng, khôi phục về kho, hoàn hàng, yêu cầu huỷ đơn, đổi VP nhận, huỷ giao tận nơi.",
+  },
+  {
+    key: "suaIn",
+    label: "Sửa đơn / In tem",
+    hint: "Thao tác chỉnh sửa và in: sửa thông tin đơn, thêm / sửa / xoá kiện, đổi hình thức thanh toán, in tem / phiếu. Không phải ngoại lệ.",
+  },
 ];
 
 function Page() {
@@ -312,14 +349,24 @@ function Page() {
       </Section>
 
       {data && loaded && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2">
-          {COLS.map((c) => (
-            <div key={c.key} className="rounded-xl border bg-card px-3 py-2" title={c.hint}>
-              <div className="text-[11px] text-muted-foreground truncate">{c.label}</div>
-              <div className="text-lg font-semibold tabular-nums">{fmtN(grand[c.key])}</div>
-            </div>
-          ))}
-        </div>
+        <TooltipProvider delayDuration={150}>
+          <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2">
+            {COLS.map((c) => (
+              <Tooltip key={c.key}>
+                <TooltipTrigger asChild>
+                  <div className="rounded-xl border bg-card px-3 py-2 cursor-help">
+                    <div className="text-[11px] text-muted-foreground truncate">{c.label}</div>
+                    <div className="text-lg font-semibold tabular-nums">{fmtN(grand[c.key])}</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs leading-relaxed">
+                  <div className="font-medium mb-0.5">{c.label}</div>
+                  {c.hint}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
       )}
 
       <div className="flex gap-2 border-b">
@@ -399,7 +446,7 @@ function Page() {
                 <th className="text-left p-2">Ngày</th>
                 <th className="text-left p-2">Nhân viên</th>
                 {COLS.map((c) => (
-                  <th key={c.key} className="text-right p-2 whitespace-nowrap">
+                  <th key={c.key} className="text-right p-2 whitespace-nowrap" title={c.hint}>
                     {c.label}
                   </th>
                 ))}
