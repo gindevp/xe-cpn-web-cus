@@ -5,13 +5,17 @@ import { MoneyInput } from "@/components/MoneyInput";
 import { NumberInput } from "@/components/NumberInput";
 import {
   deleteLinehaulBand,
+  deleteLinehaulItem,
   fetchLinehaulBands,
+  fetchLinehaulItems,
   fetchLinehaulProvinces,
   fetchLinehaulZoneWards,
   fetchLinehaulZones,
   replaceLinehaulZoneWards,
   saveLinehaulBand,
+  saveLinehaulItem,
   type LinehaulBand,
+  type LinehaulItem,
   type LinehaulProvince,
   type LinehaulZone,
 } from "@/lib/api/linehaul-api";
@@ -25,6 +29,13 @@ import { formatMoney } from "@/lib/mock-data";
 import { toast } from "sonner";
 
 type BandRow = LinehaulBand & { amounts: Record<number, number> };
+type ItemRow = LinehaulItem & { amounts: Record<number, number> };
+
+function toAmounts(raw: Record<string, number> | undefined): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const [k, v] of Object.entries(raw ?? {})) out[Number(k)] = Number(v);
+  return out;
+}
 type WardRow = { code: string; name: string; zoneId: number | null };
 
 /** Đơn vị phân vùng: cả tỉnh = huyện V1; khu vực riêng = phường/xã thuộc huyện đó (design). */
@@ -102,6 +113,10 @@ export function PartnerPricingTab({
   const [wardsByZone, setWardsByZone] = useState<Record<number, { wardCode: string; wardName: string }[]>>({});
   const [loading, setLoading] = useState(true);
   const [bandDlg, setBandDlg] = useState<null | BandRow>(null);
+  const [items, setItems] = useState<ItemRow[]>([]);
+  const [itemDlg, setItemDlg] = useState<null | ItemRow>(null);
+  const [itemQ, setItemQ] = useState("");
+  const [itemGroup, setItemGroup] = useState("");
   const [busy, setBusy] = useState(false);
 
   const [mapProvinceId, setMapProvinceId] = useState<number | null>(initialProvinceId ?? null);
@@ -124,11 +139,16 @@ export function PartnerPricingTab({
   const reload = async () => {
     setLoading(true);
     try {
-      const [prov, zs, payload] = await Promise.all([
+      const [prov, zs, payload, itemPayload] = await Promise.all([
         fetchLinehaulProvinces(false),
         fetchLinehaulZones(),
         fetchLinehaulBands(partnerCode),
+        fetchLinehaulItems(partnerCode),
       ]);
+      const amountsByItem = itemPayload.amountsByItem ?? {};
+      setItems(
+        (itemPayload.items ?? []).map((it) => ({ ...it, amounts: toAmounts(amountsByItem[String(it.id)]) })),
+      );
       setProvinces(prov.filter((p) => !partnerCode || p.partnerCode === partnerCode));
       setZones(zs);
       const amountsByBand = payload.amountsByBand ?? {};
@@ -448,6 +468,59 @@ export function PartnerPricingTab({
     }
   };
 
+  const itemGroups = useMemo(
+    () => [...new Set(items.map((i) => i.groupName.trim()).filter(Boolean))],
+    [items],
+  );
+  const filteredItems = useMemo(() => {
+    const q = plain(itemQ.trim());
+    return items.filter((it) => {
+      if (itemGroup && it.groupName.trim() !== itemGroup) return false;
+      if (!q) return true;
+      return plain(`${it.groupName} ${it.itemName}`).includes(q);
+    });
+  }, [items, itemQ, itemGroup]);
+
+  const saveItem = async () => {
+    if (!itemDlg) return;
+    if (!mapProvince || mapZones.length === 0) {
+      return toast.error("Chọn tỉnh có vùng giá trước khi lưu mặt hàng");
+    }
+    if (!itemDlg.groupName.trim()) return toast.error("Nhập nhóm hàng");
+    if (!itemDlg.itemName.trim()) return toast.error("Nhập tên hàng");
+    // BE thay toàn bộ giá của mặt hàng → giữ giá vùng tỉnh khác, chỉ ghi vùng của tab hiện tại.
+    const currentZoneIds = new Set(mapZones.map((z) => z.id));
+    const amounts: Record<number, number> = {};
+    for (const [k, v] of Object.entries(itemDlg.amounts)) {
+      const zid = Number(k);
+      if (!Number.isFinite(zid)) continue;
+      if (itemDlg.id != null && !currentZoneIds.has(zid)) amounts[zid] = Number(v) || 0;
+    }
+    for (const z of mapZones) amounts[z.id] = Number(itemDlg.amounts[z.id]) || 0;
+    setBusy(true);
+    try {
+      await saveLinehaulItem(
+        {
+          id: itemDlg.id,
+          partnerCode,
+          groupName: itemDlg.groupName,
+          itemName: itemDlg.itemName,
+          unit: itemDlg.unit ?? null,
+          sortOrder: itemDlg.sortOrder ?? (itemDlg.id == null ? items.length + 1 : 0),
+          active: itemDlg.active ?? true,
+        },
+        amounts,
+      );
+      toast.success(itemDlg.id ? "Đã lưu mặt hàng" : "Đã thêm mặt hàng");
+      setItemDlg(null);
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không lưu mặt hàng");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const partnerShort = partnerCode || "đối tác";
   const unsetCount = mapProvince
     ? Math.max(0, (mapProvince.wardTotal ?? 0) - (mapProvince.wardMapped ?? 0))
@@ -484,8 +557,9 @@ export function PartnerPricingTab({
 
       <p className="note" style={{ margin: 0 }}>
         Bảng giá của {partnerShort} cho đơn có điểm nhận tại{" "}
-        <b>{mapProvince?.displayName || "tỉnh đối tác"}</b>. Giá đối tác đã gồm giao tận nhà. Cước hàng của từng kiện
-        tính theo khung cân và vùng giá của phường/xã nhận. Phụ phí (thu hộ COD, khai báo giá trị, lấy tận nơi…) vẫn
+        <b>{mapProvince?.displayName || "tỉnh đối tác"}</b>. Giá đối tác đã gồm giao tận nhà. Kiện chọn mặt hàng ở
+        bảng nhóm hàng tính giá mặt hàng × số lượng; kiện còn lại (thùng hàng) tính theo khung cân. Cả hai theo vùng
+        giá của phường/xã nhận. Phụ phí (thu hộ COD, khai báo giá trị, lấy tận nơi…) vẫn
         tính như CPN ở màn Cài đặt phụ phí.
       </p>
 
@@ -630,6 +704,155 @@ export function PartnerPricingTab({
         <div className="note">
           Cân tính cước của từng kiện là cân lớn hơn giữa cân thật và khối lượng quy đổi Dài × Rộng × Cao / 5000. Cân
           nằm đúng ranh giới hai khung tính theo thiết lập khi sửa khung.
+        </div>
+      </section>
+
+      <section className="card stack" style={{ gap: 12 }}>
+        <div className="title-row" style={{ alignItems: "center" }}>
+          <h2 className="group-title sec-title">
+            <span className="sec-ic" aria-hidden="true">
+              <span className="ms">category</span>
+            </span>
+            Giá theo nhóm hàng · {mapProvince?.displayName || "—"}
+            <span className="small muted num" style={{ marginLeft: 8, fontWeight: 400 }}>
+              {items.length} mặt hàng
+            </span>
+          </h2>
+          {writable ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={!mapProvince || mapZones.length === 0}
+              onClick={() =>
+                setItemDlg({
+                  groupName: itemGroup,
+                  itemName: "",
+                  unit: "Cái",
+                  amounts: Object.fromEntries(mapZones.map((z) => [z.id, 0])),
+                })
+              }
+            >
+              <span className="ms" aria-hidden="true">
+                add
+              </span>
+              Thêm mặt hàng
+            </button>
+          ) : null}
+        </div>
+
+        <div className="title-row" style={{ alignItems: "center", gap: 12 }}>
+          <label className="field" style={{ flex: "1 1 240px", minWidth: 0, margin: 0 }}>
+            <span className="box input-box">
+              <span className="ms" aria-hidden="true" style={{ marginLeft: 10, color: "var(--on-surface-variant)" }}>
+                search
+              </span>
+              <input
+                placeholder="Tìm nhóm / tên hàng"
+                value={itemQ}
+                onChange={(e) => setItemQ(e.target.value)}
+                aria-label="Tìm mặt hàng"
+              />
+            </span>
+          </label>
+          <label className="field" style={{ minWidth: 200, margin: 0 }}>
+            <span className="box input-box sel-box">
+              <select aria-label="Lọc nhóm hàng" value={itemGroup} onChange={(e) => setItemGroup(e.target.value)}>
+                <option value="">Tất cả nhóm hàng</option>
+                {itemGroups.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+              <span className="ms" aria-hidden="true">
+                expand_more
+              </span>
+            </span>
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="lab muted">Đang tải…</div>
+        ) : (
+          <div className="scroller" style={{ maxHeight: 520 }}>
+            <table className="tbl pz-tbl" style={{ ["--tbl-min" as string]: `${tblMin}px` }}>
+              <thead>
+                <tr>
+                  <th>Nhóm hàng</th>
+                  <th>Tên hàng</th>
+                  <th>ĐVT</th>
+                  {priceZones.map(({ zone, tone }) => (
+                    <th key={zone.id} className="r">
+                      <span className={`pz-h ${tone}`}>{zone.name}</span>
+                    </th>
+                  ))}
+                  <th className="r">Tác vụ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map((it) => (
+                  <tr key={it.id} className={it.active === false ? "muted" : undefined}>
+                    <td>{it.groupName}</td>
+                    <td>{it.itemName}</td>
+                    <td className="muted">{it.unit || "—"}</td>
+                    {priceZones.map(({ zone, tone }) => (
+                      <td key={zone.id} className={`r main num${tone === "z2" ? " pz-far" : ""}`}>
+                        {it.amounts[zone.id] != null ? formatMoney(it.amounts[zone.id]) : "—"}
+                      </td>
+                    ))}
+                    <td className="r">
+                      {writable ? (
+                        <div className="act">
+                          <button
+                            type="button"
+                            className="no"
+                            aria-label="Sửa"
+                            disabled={!mapProvince || mapZones.length === 0}
+                            onClick={() => {
+                              const amounts = { ...it.amounts };
+                              for (const z of mapZones) if (amounts[z.id] == null) amounts[z.id] = 0;
+                              setItemDlg({ ...it, amounts });
+                            }}
+                          >
+                            <span className="ms">edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="no"
+                            aria-label="Xoá"
+                            onClick={async () => {
+                              if (it.id == null) return;
+                              if (!(await askConfirm(`Xoá mặt hàng ${it.groupName} / ${it.itemName}?`))) return;
+                              try {
+                                await deleteLinehaulItem(it.id);
+                                toast.success("Đã xoá");
+                                await reload();
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : "Không xoá được");
+                              }
+                            }}
+                          >
+                            <span className="ms">delete</span>
+                          </button>
+                        </div>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+                {!filteredItems.length ? (
+                  <tr>
+                    <td colSpan={4 + priceZones.length} className="lab muted">
+                      {items.length ? "Không có mặt hàng phù hợp." : "Chưa có mặt hàng."}
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="note">
+          Giá trên là giá một đơn vị. Khi tạo đơn, kiện chọn nhóm hàng / tên hàng ở bảng này tính giá × số lượng; kiện
+          chọn «Thùng hàng» hoặc không có trong bảng tính theo khung cân.
         </div>
       </section>
 
@@ -861,6 +1084,77 @@ export function PartnerPricingTab({
               Huỷ
             </button>
             <button type="button" className="btn" disabled={busy || !mapZones.length} onClick={() => void saveBand()}>
+              {busy ? "Đang lưu…" : "Lưu"}
+            </button>
+          </M3ConfirmActions>
+        </M3Sheet>
+      ) : null}
+
+      {itemDlg ? (
+        <M3Sheet open onOpenChange={(o) => !o && !busy && setItemDlg(null)} variant="form-sheet">
+          <M3SheetTitle>
+            {itemDlg.id ? "Sửa mặt hàng" : "Thêm mặt hàng"}
+            {mapProvince ? ` · ${mapProvince.displayName}` : ""}
+          </M3SheetTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <label className="field">
+              <span className="l">Nhóm hàng *</span>
+              <span className="box input-box">
+                <input
+                  list="lh-item-groups"
+                  value={itemDlg.groupName}
+                  onChange={(e) => setItemDlg({ ...itemDlg, groupName: e.target.value })}
+                  placeholder="VD: Tivi"
+                />
+              </span>
+              <datalist id="lh-item-groups">
+                {itemGroups.map((g) => (
+                  <option key={g} value={g} />
+                ))}
+              </datalist>
+            </label>
+            <label className="field">
+              <span className="l">Tên hàng *</span>
+              <span className="box input-box">
+                <input
+                  value={itemDlg.itemName}
+                  onChange={(e) => setItemDlg({ ...itemDlg, itemName: e.target.value })}
+                  placeholder="VD: 43 inch"
+                />
+              </span>
+            </label>
+          </div>
+          <label className="field">
+            <span className="l">Đơn vị tính</span>
+            <span className="box input-box">
+              <input
+                value={itemDlg.unit ?? ""}
+                onChange={(e) => setItemDlg({ ...itemDlg, unit: e.target.value })}
+                placeholder="Cái"
+              />
+            </span>
+          </label>
+          <div className="stack" style={{ gap: 8 }}>
+            <div className="lab muted" style={{ fontSize: 12 }}>
+              Giá một đơn vị theo vùng của {mapProvince?.displayName || "tỉnh đang chọn"}
+            </div>
+            {mapZones.map((z, zi) => (
+              <label key={z.id} className="field">
+                <span className="l">
+                  <span className={`pz-h ${zoneTone(z.name, zi)}`}>{z.name}</span>
+                </span>
+                <MoneyInput
+                  value={itemDlg.amounts[z.id] ?? 0}
+                  onChange={(v) => setItemDlg({ ...itemDlg, amounts: { ...itemDlg.amounts, [z.id]: v } })}
+                />
+              </label>
+            ))}
+          </div>
+          <M3ConfirmActions>
+            <button type="button" className="btn ghost" disabled={busy} onClick={() => setItemDlg(null)}>
+              Huỷ
+            </button>
+            <button type="button" className="btn" disabled={busy || !mapZones.length} onClick={() => void saveItem()}>
               {busy ? "Đang lưu…" : "Lưu"}
             </button>
           </M3ConfirmActions>

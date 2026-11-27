@@ -95,11 +95,28 @@ export type LinehaulBandsPayload = {
   amountsByBand: Record<string, Record<string, number>>;
 };
 
+/** Mặt hàng giá đối tác (Tivi / 43 inch…) — giá theo đơn vị × vùng. */
+export type LinehaulItem = {
+  id?: number;
+  partnerCode?: string;
+  groupName: string;
+  itemName: string;
+  unit?: string | null;
+  sortOrder?: number;
+  active?: boolean;
+};
+
+export type LinehaulItemsPayload = {
+  items: LinehaulItem[];
+  amountsByItem: Record<string, Record<string, number>>;
+};
+
 export type LinehaulQuote = {
   provinceId: number;
   zoneId: number;
   zoneName: string;
-  bandId: number;
+  bandId?: number | null;
+  itemId?: number | null;
   amount: number;
   wardCode: string;
   wardName: string;
@@ -345,7 +362,42 @@ export async function deleteLinehaulBand(id: number) {
   return apiRequest<void>(`/api/linehaul/bands/${id}`, { method: "DELETE" });
 }
 
-export async function quoteLinehaul(body: { provinceId: number; wardCode: string; weightKg: number }) {
+export async function fetchLinehaulItems(partnerCode: string) {
+  return apiRequest<LinehaulItemsPayload>(`/api/linehaul/items?partnerCode=${encodeURIComponent(partnerCode)}`, {
+    auth: false,
+  });
+}
+
+export async function saveLinehaulItem(
+  item: LinehaulItem & { partnerCode: string },
+  amounts: Record<number, number>,
+) {
+  const body = {
+    item: {
+      ...item,
+      groupName: item.groupName.trim(),
+      itemName: item.itemName.trim(),
+      unit: item.unit?.trim() || null,
+    },
+    amounts,
+  };
+  if (item.id != null) {
+    return apiRequest<LinehaulItem>(`/api/linehaul/items/${item.id}`, { method: "PUT", body });
+  }
+  return apiRequest<LinehaulItem>(`/api/linehaul/items`, { method: "POST", body });
+}
+
+export async function deleteLinehaulItem(id: number) {
+  return apiRequest<void>(`/api/linehaul/items/${id}`, { method: "DELETE" });
+}
+
+/** itemId có → giá một đơn vị mặt hàng tại vùng; không có → theo khung cân của weightKg. */
+export async function quoteLinehaul(body: {
+  provinceId: number;
+  wardCode: string;
+  weightKg: number;
+  itemId?: number | null;
+}) {
   return apiRequest<LinehaulQuote>(`/api/linehaul/quote`, {
     method: "POST",
     body,

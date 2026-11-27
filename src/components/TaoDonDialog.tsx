@@ -52,9 +52,11 @@ import {
   type TransitHubPolicy,
 } from "@/lib/transit-hub";
 import {
+  fetchLinehaulItems,
   fetchLinehaulProvinceWards,
   fetchLinehaulProvinces,
   quoteLinehaul,
+  type LinehaulItem,
   type LinehaulProvince,
   type LinehaulWard,
 } from "@/lib/api/linehaul-api";
@@ -125,6 +127,9 @@ type Item = {
 };
 
 const onlyDigits = (s: string) => s.replace(/[^\d]/g, "");
+
+/** Nhóm hàng đơn đối tác tính theo khung cân (không có mặt hàng riêng). */
+const LINEHAUL_BOX_GROUP = "Thùng hàng";
 
 /** Hình thức thanh toán */
 const PAY_METHODS = ["Người gửi thanh toán", "Người nhận thanh toán", "Công nợ", "Thu cước 1 phần"];
@@ -508,6 +513,7 @@ export function TaoDonDialog({
   const [toOffice, setToOffice] = useState(initial?.toOffice ?? "");
   const [linehaulProvinces, setLinehaulProvinces] = useState<LinehaulProvince[]>([]);
   const [linehaulWards, setLinehaulWards] = useState<LinehaulWard[]>([]);
+  const [linehaulItems, setLinehaulItems] = useState<LinehaulItem[]>([]);
   const [linehaulWardCode, setLinehaulWardCode] = useState("");
   const [linehaulStreet, setLinehaulStreet] = useState("");
   const [linehaulZoneId, setLinehaulZoneId] = useState<number | null>(null);
@@ -1136,6 +1142,50 @@ export function TaoDonDialog({
       .catch(() => setLinehaulWards([]));
   }, [isLinehaulDest, linehaulProvinceId]);
 
+  const linehaulPartnerCode = selectedLinehaul?.partnerCode ?? "";
+  useEffect(() => {
+    if (!linehaulPartnerCode) {
+      setLinehaulItems([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchLinehaulItems(linehaulPartnerCode)
+      .then((p) => {
+        if (!cancelled) setLinehaulItems((p.items ?? []).filter((i) => i.active !== false));
+      })
+      .catch(() => {
+        if (!cancelled) setLinehaulItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [linehaulPartnerCode]);
+
+  /** Đơn đối tác: nhóm hàng lấy từ bảng mặt hàng của đối tác, kèm «Thùng hàng» (theo cân) và «Khác». */
+  const formGroupOptions = useMemo(() => {
+    if (!isLinehaulDest) return goodsGroupOptions;
+    const groups = [...new Set(linehaulItems.map((i) => i.groupName.trim()).filter(Boolean))].filter(
+      (g) => g !== LINEHAUL_BOX_GROUP && !isOtherGoodsGroup(g),
+    );
+    return [LINEHAUL_BOX_GROUP, OTHER_GOODS, ...groups].map((g) => ({ value: g, label: g }));
+  }, [isLinehaulDest, linehaulItems, goodsGroupOptions]);
+
+  const formProductOptions = (group: string) => {
+    if (!isLinehaulDest) return productNameOptions(group);
+    return linehaulItems
+      .filter((i) => i.groupName.trim() === group)
+      .map((i) => ({ value: i.itemName.trim(), label: i.unit ? `${i.itemName} (${i.unit})` : i.itemName }));
+  };
+
+  const findLinehaulItem = (group: string, kind: string) => {
+    const g = group.trim().toLocaleLowerCase("vi");
+    const k = kind.trim().toLocaleLowerCase("vi");
+    if (!g || !k) return undefined;
+    return linehaulItems.find(
+      (i) => i.groupName.trim().toLocaleLowerCase("vi") === g && i.itemName.trim().toLocaleLowerCase("vi") === k,
+    );
+  };
+
   useEffect(() => {
     if (!isLinehaulDest) return;
     const ward = linehaulWards.find((w) => w.wardCode === linehaulWardCode);
@@ -1289,12 +1339,17 @@ export function TaoDonDialog({
     void (async () => {
       const settled = await Promise.allSettled(
         items.map(async (it) => {
+          const item = findLinehaulItem(resolveGroup(it), it.kind ?? "");
           const q = await quoteLinehaul({
             provinceId: linehaulProvinceId,
             wardCode: linehaulWardCode,
             weightKg: Number(it.weight) || 0,
+            itemId: item?.id ?? null,
           });
-          return { id: it.id, fare: Number(q.amount) || 0, zoneId: q.zoneId as number | null };
+          // Mặt hàng: giá một đơn vị × số lượng món; thùng hàng: giá khung cân của cả kiện.
+          const unit = Number(q.amount) || 0;
+          const fare = item ? unit * Math.max(1, Number(it.sl) || 1) : unit;
+          return { id: it.id, fare, zoneId: q.zoneId as number | null };
         }),
       );
       if (cancelled) return;
@@ -1324,7 +1379,13 @@ export function TaoDonDialog({
     return () => {
       cancelled = true;
     };
-  }, [isLinehaulDest, linehaulProvinceId, linehaulWardCode, items.map((i) => `${i.id}:${i.weight}`).join("|")]);
+  }, [
+    isLinehaulDest,
+    linehaulProvinceId,
+    linehaulWardCode,
+    linehaulItems,
+    items.map((i) => `${i.id}:${i.weight}:${i.sl}:${i.group}:${i.kind}`).join("|"),
+  ]);
 
   const clear = () => {
     setSenderPhone("");
@@ -2361,7 +2422,8 @@ export function TaoDonDialog({
                   {items.map((it, idx) => {
                     const group = resolveGroup(it);
                     const isOther = isOtherGoodsGroup(group);
-                    const showProduct = Boolean(group) && !isOther;
+                    const showProduct =
+                      Boolean(group) && !isOther && !(isLinehaulDest && group === LINEHAUL_BOX_GROUP);
                     return (
                       <div key={it.id} className="pack">
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -2398,7 +2460,7 @@ export function TaoDonDialog({
                                 })
                               }
                               placeholder="Chọn nhóm hàng"
-                              options={goodsGroupOptions}
+                              options={formGroupOptions}
                             />
                           </F>
                           {showProduct ? (
@@ -2407,7 +2469,7 @@ export function TaoDonDialog({
                                 value={it.kind}
                                 onValueChange={(v) => updateItem(it.id, { kind: v, name: "" })}
                                 placeholder="Chọn tên hàng hóa"
-                                options={productNameOptions(group)}
+                                options={formProductOptions(group)}
                               />
                             </F>
                           ) : null}
