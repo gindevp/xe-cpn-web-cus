@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ProtectedPage } from "@/components/AppShell";
 import { M3Page } from "@/components/M3Page";
 import { Section, EmptyState } from "@/components/PageBits";
@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatVND, officeName, canonicalOfficeCode } from "@/lib/mock-data";
-import { useStore, type ReceiptRec } from "@/lib/store";
+import { useStore, type OrderX, type ReceiptRec } from "@/lib/store";
 import { ExportFormatButton } from "@/components/ExportFormatButton";
 import { downloadExcel, type ExportFormat } from "@/lib/csv";
 import {
@@ -49,6 +49,7 @@ import {
 } from "@/lib/office-scope";
 import { isApiEnabled } from "@/lib/api/client";
 import { syncOrdersByCodes } from "@/lib/api/sync";
+import { listOrders } from "@/lib/api/domain-api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { OrderCodeLink } from "@/components/OrderHistoryDialog";
@@ -1236,24 +1237,63 @@ function ReceiptOrdersDialog({
   receipt: ReceiptRec | null;
   onClose: () => void;
 }) {
-  const orders = useStore((s) => s.orders);
+  const storeOrders = useStore((s) => s.orders);
   const [q, setQ] = useState("");
+  const [byCode, setByCode] = useState<Record<string, OrderX>>({});
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const loadOrders = useCallback(async (codes: string[]) => {
+    const unique = [...new Set(codes.map((c) => c.trim()).filter(Boolean))];
+    if (!unique.length || !isApiEnabled()) {
+      setByCode({});
+      return;
+    }
+    setLoadingOrders(true);
+    try {
+      const loaded: Record<string, OrderX> = {};
+      for (let i = 0; i < unique.length; i += 100) {
+        const chunk = unique.slice(i, i + 100);
+        const rows = await listOrders({
+          codes: chunk,
+          size: chunk.length,
+          searchAllOffices: true,
+        });
+        for (const o of rows) {
+          if (o.code) loaded[o.code] = o;
+          if (o.draftCode) loaded[o.draftCode] = o;
+        }
+      }
+      setByCode(loaded);
+    } catch {
+      setByCode({});
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!receipt) setQ("");
-  }, [receipt]);
+    if (!receipt) {
+      setQ("");
+      setByCode({});
+      return;
+    }
+    setQ("");
+    void loadOrders(receipt.orderCodes);
+  }, [receipt, loadOrders]);
+
   const lines = useMemo(() => {
     if (!receipt) return [];
     return receipt.orderCodes.map((code) => {
-      const o = orders.find((x) => x.code === code || x.draftCode === code);
+      const o =
+        byCode[code] ??
+        storeOrders.find((x) => x.code === code || x.draftCode === code);
       const amount = receipt.lineAmounts?.[code];
-      const cod =
-        receipt.lineCodAmounts?.[code] ??
-        (o?.codAmount != null && Number.isFinite(Number(o.codAmount))
-          ? Number(o.codAmount)
-          : undefined);
+      // Chỉ COD thu trên phiếu này (BE gắn khi dòng DELIVERY) — không lấy COD hiện tại của đơn.
+      const rawCod = receipt.lineCodAmounts?.[code];
+      const cod = rawCod != null && Number(rawCod) > 0 ? Number(rawCod) : undefined;
       return { code, order: o, amount, cod };
     });
-  }, [receipt, orders]);
+  }, [receipt, byCode, storeOrders]);
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase();
     if (!k) return lines;
@@ -1274,7 +1314,7 @@ function ReceiptOrdersDialog({
         if (!v) onClose();
       }}
     >
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="flex max-h-[90vh] w-[min(1100px,96vw)] max-w-[96vw] flex-col gap-4 overflow-hidden sm:max-w-[96vw]">
         <DialogHeader>
           <DialogTitle>Đơn trong phiếu {receipt?.code ?? ""}</DialogTitle>
           <DialogDescription>
@@ -1286,23 +1326,28 @@ function ReceiptOrdersDialog({
         {!receipt ? null : lines.length === 0 ? (
           <EmptyState>Phiếu này chưa có đơn</EmptyState>
         ) : (
-          <div className="space-y-3">
+          <div className="flex min-h-0 flex-1 flex-col space-y-3">
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Tìm nhanh mã đơn, SĐT, tên gửi/nhận…"
               autoFocus
             />
-            <div className="max-h-[55vh] overflow-y-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-background">
+            {loadingOrders ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Đang tải thông tin đơn…
+              </div>
+            ) : null}
+            <div className="min-h-0 flex-1 overflow-auto rounded-md border">
+              <table className="w-full min-w-[880px] table-fixed text-sm">
+                <thead className="sticky top-0 z-10 bg-background">
                   <tr className="border-b text-left text-sm font-bold uppercase text-muted-foreground">
                     <th className="w-12 px-2 py-2">STT</th>
-                    <th className="px-2 py-2">Mã đơn</th>
+                    <th className="w-[9.5rem] px-2 py-2">Mã đơn</th>
                     <th className="px-2 py-2">VP gửi → VP nhận</th>
-                    <th className="px-2 py-2">Người nhận</th>
-                    <th className="px-2 py-2 text-right">COD</th>
-                    <th className="px-2 py-2 text-right">Tiền trên phiếu</th>
+                    <th className="w-[11rem] px-2 py-2">Người nhận</th>
+                    <th className="w-[7.5rem] px-2 py-2 text-right">COD</th>
+                    <th className="w-[8.5rem] px-2 py-2 text-right">Tiền trên phiếu</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1315,25 +1360,35 @@ function ReceiptOrdersDialog({
                   ) : (
                     filtered.map((l, i) => (
                       <tr key={l.code} className="border-b last:border-0 hover:bg-muted/40">
-                        <td className="px-2 py-2 text-muted-foreground">{i + 1}</td>
-                        <td className="px-2 py-2 font-medium">
+                        <td className="px-2 py-2 align-top text-muted-foreground">{i + 1}</td>
+                        <td className="px-2 py-2 align-top font-medium">
                           <OrderCodeLink code={l.code} />
                         </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-muted-foreground">
-                          {l.order ? <OfficeRouteCell order={l.order} /> : "—"}
+                        <td className="px-2 py-2 align-top text-muted-foreground">
+                          <div className="min-w-0 break-words">
+                            {l.order ? (
+                              <OfficeRouteCell order={l.order} hideAddress />
+                            ) : loadingOrders ? (
+                              "…"
+                            ) : (
+                              "—"
+                            )}
+                          </div>
                         </td>
-                        <td className="px-2 py-2">
-                          {l.order?.receiverName ?? "—"}
-                          {l.order?.receiverPhone ? (
-                            <div className="text-xs text-muted-foreground">
-                              {l.order.receiverPhone}
-                            </div>
-                          ) : null}
+                        <td className="px-2 py-2 align-top">
+                          <div className="min-w-0 break-words">
+                            {l.order?.receiverName ?? (loadingOrders ? "…" : "—")}
+                            {l.order?.receiverPhone ? (
+                              <div className="text-xs text-muted-foreground">
+                                {l.order.receiverPhone}
+                              </div>
+                            ) : null}
+                          </div>
                         </td>
-                        <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                        <td className="px-2 py-2 align-top text-right tabular-nums text-muted-foreground whitespace-nowrap">
                           {l.cod != null && l.cod > 0 ? formatVND(l.cod) : "—"}
                         </td>
-                        <td className="px-2 py-2 text-right font-medium">
+                        <td className="px-2 py-2 align-top text-right font-medium whitespace-nowrap">
                           {l.amount != null ? formatVND(l.amount) : "—"}
                         </td>
                       </tr>

@@ -65,7 +65,8 @@ export function mapReceipt(dto: ReceiptDTO): ReceiptRec {
     if (l.amountCollected != null && Number.isFinite(Number(l.amountCollected))) {
       lineAmounts[code] = Number(l.amountCollected);
     }
-    if (l.codAmount != null && Number.isFinite(Number(l.codAmount))) {
+    // Chỉ giữ COD > 0; không ghi đè bằng 0 khi phiếu có cả dòng SENDER + DELIVERY.
+    if (l.codAmount != null && Number.isFinite(Number(l.codAmount)) && Number(l.codAmount) > 0) {
       lineCodAmounts[code] = Number(l.codAmount);
     }
   }
