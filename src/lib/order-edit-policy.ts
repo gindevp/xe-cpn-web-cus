@@ -213,13 +213,17 @@ const DELIVERED_COD_BANK: OrderEditableFields = {
   codBank: true,
 };
 
-/** Người gửi đã trả đủ phí giao tận nơi trên đơn (điều kiện hiện nút huỷ + hoàn phí). */
+/**
+ * Người gửi đã trả đủ phí giao tận nơi trên đơn (điều kiện hiện nút huỷ + hoàn phí).
+ * Tiền đã thu trả cước hàng trước — phí giao chỉ coi là đã trả khi thu đủ tổng cước.
+ */
 export function senderPaidDoorFee(
-  o: Pick<Order, "paidAmount" | "deliveryFee"> | null | undefined,
+  o: Pick<Order, "paidAmount" | "deliveryFee" | "fare"> | null | undefined,
 ): boolean {
   const fee = Math.round(Number(o?.deliveryFee) || 0);
   const paid = Math.round(Number(o?.paidAmount) || 0);
-  return fee > 0 && paid >= fee;
+  const fare = Math.round(Number(o?.fare) || 0);
+  return fee > 0 && paid >= fare;
 }
 
 /**
@@ -227,7 +231,7 @@ export function senderPaidDoorFee(
  * không đang giao/hoàn/đã kết thúc.
  */
 export function canCancelHomeDelivery(
-  o: Pick<Order, "status" | "homeDelivery" | "doorCancelAt" | "paidAmount" | "deliveryFee"> & {
+  o: Pick<Order, "status" | "homeDelivery" | "doorCancelAt" | "paidAmount" | "deliveryFee" | "fare"> & {
     stage?: string | null;
     returnStage?: string | null;
   } | null | undefined,
