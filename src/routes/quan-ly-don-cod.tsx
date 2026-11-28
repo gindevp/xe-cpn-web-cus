@@ -585,7 +585,7 @@ function Page() {
           <EmptyState>Không có đơn COD trong khoảng lọc.</EmptyState>
         ) : (
           <div className="scroller">
-            <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1340px" }}>
+            <table className="tbl sticky-1" style={{ ["--tbl-min" as string]: "1420px" }}>
               <thead>
                 <tr>
                   <th>Mã đơn</th>
@@ -597,8 +597,8 @@ function Page() {
                   <th className="r">COD</th>
                   <th className="r">Phí thu hộ</th>
                   <th>Tài khoản nhận COD</th>
-                  <th>Chứng từ</th>
-                  <th className="r">Xử lý</th>
+                  <th style={{ width: 168, minWidth: 168 }}>Chứng từ</th>
+                  <th style={{ width: 168, minWidth: 168 }}>Xử lý</th>
                 </tr>
               </thead>
               <tbody>
@@ -651,12 +651,12 @@ function Page() {
                           <span className="muted">—</span>
                         )}
                       </td>
-                      <td>
-                        <div className="stack" style={{ gap: 4 }}>
+                      <td style={{ width: 168, minWidth: 168, verticalAlign: "top" }}>
+                        <div className="stack" style={{ gap: 4, alignItems: "flex-start" }}>
                           <button
                             type="button"
                             className="link"
-                            style={{ display: "block", whiteSpace: "nowrap" }}
+                            style={{ display: "block", textAlign: "left" }}
                             disabled={!!docBusy}
                             onClick={() => void printReceipt(o)}
                           >
@@ -665,7 +665,7 @@ function Page() {
                           <button
                             type="button"
                             className="link"
-                            style={{ display: "block", whiteSpace: "nowrap" }}
+                            style={{ display: "block", textAlign: "left" }}
                             disabled={!!docBusy}
                             onClick={() => void printPaymentRequest(o)}
                           >
@@ -675,7 +675,7 @@ function Page() {
                             <button
                               type="button"
                               className="link"
-                              style={{ display: "block", whiteSpace: "nowrap" }}
+                              style={{ display: "block", textAlign: "left" }}
                               disabled={!!uploading}
                               onClick={() => openUpload(o)}
                             >
@@ -686,7 +686,7 @@ function Page() {
                             <button
                               type="button"
                               className="link"
-                              style={{ display: "block", whiteSpace: "nowrap" }}
+                              style={{ display: "block", textAlign: "left" }}
                               disabled={viewBusy === o.code}
                               onClick={() => void viewBillPhotos(o)}
                             >
@@ -695,12 +695,12 @@ function Page() {
                           ) : null}
                         </div>
                       </td>
-                      <td>
+                      <td style={{ width: 168, minWidth: 168, verticalAlign: "top" }}>
                         {exported ? (
-                          <>
+                          <div className="stack" style={{ gap: 2, alignItems: "flex-start" }}>
                             <span className="tag ok">Đã xử lý</span>
                             {o.codExportedByName || o.codExportedBy ? (
-                              <span className="sub">
+                              <span className="sub" style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
                                 bởi {o.codExportedByName || o.codExportedBy}
                                 {o.codExportedByName && o.codExportedBy
                                   ? ` (${o.codExportedBy})`
@@ -708,22 +708,26 @@ function Page() {
                               </span>
                             ) : null}
                             <span className="sub">lúc {processedAt(o.codExportedAt)}</span>
-                          </>
-                        ) : o.status === "DELIVERED" && canMark ? (
-                          <div className="act" style={{ justifyContent: "flex-start" }}>
-                            <button
-                              type="button"
-                              className="ok"
-                              disabled={markingCode === o.code}
-                              onClick={() => {
-                                setConfirmTarget(o);
-                                setConfirmChecked(false);
-                                setConfirmPhotos([]);
-                              }}
-                            >
-                              {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
-                            </button>
                           </div>
+                        ) : o.status === "DELIVERED" && canMark ? (
+                          <button
+                            type="button"
+                            className="ok"
+                            style={{
+                              whiteSpace: "normal",
+                              textAlign: "center",
+                              lineHeight: 1.25,
+                              maxWidth: "100%",
+                            }}
+                            disabled={markingCode === o.code}
+                            onClick={() => {
+                              setConfirmTarget(o);
+                              setConfirmChecked(false);
+                              setConfirmPhotos([]);
+                            }}
+                          >
+                            {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
+                          </button>
                         ) : (
                           <span className="tag">{orderTabStatusLabel(o)}</span>
                         )}
