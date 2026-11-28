@@ -40,7 +40,6 @@ import {
   listOrdersPage,
   markCodExported,
   uploadCodBillPhotos,
-  waiveCod,
 } from "@/lib/api/domain-api";
 import { orderTabStatusLabel } from "@/lib/customer-track-status";
 import { isApiEnabled } from "@/lib/api/client";
@@ -192,36 +191,6 @@ function Page() {
   const [viewTitle, setViewTitle] = useState("");
 
   const canMark = canWrite(session?.role, "quan-ly-don-cod");
-  const canWaiveCod = session?.role === "AD";
-  const [waiveTarget, setWaiveTarget] = useState<OrderX | null>(null);
-  const [waiveReason, setWaiveReason] = useState("");
-  const [waiving, setWaiving] = useState(false);
-
-  const submitWaive = async () => {
-    if (!waiveTarget || waiving) return;
-    const reason = waiveReason.trim();
-    if (reason.length < 3) {
-      toast.error("Nhập lý do bỏ COD");
-      return;
-    }
-    setWaiving(true);
-    try {
-      await waiveCod(waiveTarget.code, reason);
-      const code = waiveTarget.code;
-      setRows((prev) =>
-        prev
-          .map((r) => (r.code === code ? { ...r, codAmount: 0 } : r))
-          .filter((r) => r.code !== code || (r.codFeeRefund ?? 0) > 0),
-      );
-      toast.success(`Đã bỏ COD đơn ${code} · hết nợ COD người giao`);
-      setWaiveTarget(null);
-      setWaiveReason("");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Bỏ COD thất bại");
-    } finally {
-      setWaiving(false);
-    }
-  };
 
   const tripByCode = useMemo(() => {
     const m = new Map<string, { bks?: string; driver?: string }>();
@@ -740,36 +709,20 @@ function Page() {
                             ) : null}
                             <span className="sub">lúc {processedAt(o.codExportedAt)}</span>
                           </>
-                        ) : o.status === "DELIVERED" && (canMark || canWaiveCod) ? (
-                          <div className="act" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-                            {canMark ? (
-                              <button
-                                type="button"
-                                className="ok"
-                                disabled={markingCode === o.code}
-                                onClick={() => {
-                                  setConfirmTarget(o);
-                                  setConfirmChecked(false);
-                                  setConfirmPhotos([]);
-                                }}
-                              >
-                                {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
-                              </button>
-                            ) : null}
-                            {canWaiveCod && (o.codAmount ?? 0) > 0 ? (
-                              <button
-                                type="button"
-                                className="link"
-                                style={{ whiteSpace: "nowrap" }}
-                                title="Khách tự chuyển COD cho nhau — VP không thu, không hoàn"
-                                onClick={() => {
-                                  setWaiveTarget(o);
-                                  setWaiveReason("Khách tự chuyển COD cho nhau");
-                                }}
-                              >
-                                Bỏ COD
-                              </button>
-                            ) : null}
+                        ) : o.status === "DELIVERED" && canMark ? (
+                          <div className="act" style={{ justifyContent: "flex-start" }}>
+                            <button
+                              type="button"
+                              className="ok"
+                              disabled={markingCode === o.code}
+                              onClick={() => {
+                                setConfirmTarget(o);
+                                setConfirmChecked(false);
+                                setConfirmPhotos([]);
+                              }}
+                            >
+                              {markingCode === o.code ? "Đang xử lý…" : "Xác nhận đã xử lý"}
+                            </button>
                           </div>
                         ) : (
                           <span className="tag">{orderTabStatusLabel(o)}</span>
@@ -833,68 +786,6 @@ function Page() {
                 </>
               ) : (
                 `Lưu ${uploadPhotos.length || ""} ảnh`
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!waiveTarget}
-        onOpenChange={(open) => {
-          if (!open && !waiving) {
-            setWaiveTarget(null);
-            setWaiveReason("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Bỏ COD · {waiveTarget?.code ?? ""}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 text-sm">
-            <p>
-              COD <b>{moneyCell(waiveTarget?.codAmount)}</b> sẽ về 0: không hoàn cho người gửi và xoá nợ COD
-              của người giao khách tại quầy.
-            </p>
-            <p className="text-muted-foreground">
-              Dùng khi người gửi và người nhận tự chuyển tiền COD cho nhau. Cước và phí thu hộ giữ nguyên. Số
-              COD cũ ghi vào lịch sử đơn.
-            </p>
-          </div>
-          <div className="space-y-1">
-            <Label>Lý do</Label>
-            <Input
-              value={waiveReason}
-              onChange={(e) => setWaiveReason(e.target.value)}
-              maxLength={150}
-              disabled={waiving}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={waiving}
-              onClick={() => {
-                setWaiveTarget(null);
-                setWaiveReason("");
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={waiving || waiveReason.trim().length < 3}
-              onClick={() => void submitWaive()}
-            >
-              {waiving ? (
-                <>
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Đang lưu…
-                </>
-              ) : (
-                "Bỏ COD"
               )}
             </Button>
           </DialogFooter>

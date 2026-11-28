@@ -80,6 +80,7 @@ import {
   type OrderEditableFields,
 } from "@/lib/order-edit-policy";
 import { CancelHomeDeliveryDialog } from "@/components/CancelHomeDeliveryDialog";
+import { WaiveCodDialog, canWaiveCod } from "@/components/WaiveCodDialog";
 import { senderPaidFull } from "@/lib/extra-fare-payer";
 import { NameInput } from "@/components/NameInput";
 import { PhoneInput } from "@/components/PhoneInput";
@@ -570,6 +571,7 @@ export function OrderHistoryDialog({
   const [printOpen, setPrintOpen] = useState(false);
   const [transferQrOpen, setTransferQrOpen] = useState(false);
   const [cancelDoorOpen, setCancelDoorOpen] = useState(false);
+  const [waiveCodOpen, setWaiveCodOpen] = useState(false);
   const shownEvents = useMemo(
     () => events.filter((e) => isVisibleOrderEvent(e.action, e.detail)),
     [events],
@@ -1788,6 +1790,43 @@ export function OrderHistoryDialog({
                       Chưa nhập — người gửi nhận tiền mặt hoặc chưa cung cấp tài khoản.
                     </div>
                   )}
+                  {editing && canWaiveCod(o, session?.role === "AD") ? (
+                    <>
+                      <button
+                        type="button"
+                        className="text-act danger"
+                        style={{
+                          alignSelf: "flex-start",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          marginTop: 4,
+                          paddingLeft: 4,
+                        }}
+                        title="Khách tự chuyển COD cho nhau — VP không thu, không hoàn"
+                        onClick={() => setWaiveCodOpen(true)}
+                      >
+                        <span
+                          className="ms"
+                          aria-hidden="true"
+                          style={{ fontSize: 18, fontVariationSettings: "'FILL' 1" }}
+                        >
+                          money_off
+                        </span>
+                        Bỏ COD
+                      </button>
+                      <WaiveCodDialog
+                        order={o}
+                        open={waiveCodOpen}
+                        onOpenChange={setWaiveCodOpen}
+                        onDone={() => {
+                          setEditing(false);
+                          setForm(null);
+                          void reload(o.code);
+                        }}
+                      />
+                    </>
+                  ) : null}
                 </div>
               ) : (
                 <div className="view-opt">
